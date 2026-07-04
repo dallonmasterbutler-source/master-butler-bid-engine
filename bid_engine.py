@@ -10,10 +10,22 @@ Read it top to bottom like a recipe. Every section has a plain-English note.
 import math
 
 
+# ═════════════════════════════════════════════════════════════
+# ★★★  PRICING CONFIG — THE ONE PLACE TO EDIT ALL PRICING  ★★★
+#
+# Everything in STEP 1 (rates, multipliers, floors, thresholds) can be
+# changed right here WITHOUT touching the math below. Change a number,
+# save, and the whole system uses the new value everywhere.
+#
+# This is the foundation for the future "Pricing" screen where the office
+# will edit these in boxes instead of in code. Same numbers, prettier door.
+# ═════════════════════════════════════════════════════════════
+
+
 # ─────────────────────────────────────────────────────────────
-# STEP 1: THE MULTIPLIER TABLES
-# These are the "knobs." Each condition picks a number that we
-# multiply the price by. 1.0 means "no change." 1.35 means "35% more."
+# STEP 1a: THE MULTIPLIER TABLES ("knobs")
+# Each condition picks a number that we multiply the price by.
+# 1.0 means "no change." 1.35 means "35% more."
 # These numbers come straight from your HTML calculator.
 # ─────────────────────────────────────────────────────────────
 
@@ -40,14 +52,15 @@ DEBRIS = {
 GUTTER_TYPE = {
     "standard": 1.0,
     "guards": 1.25,    # includes roof blow-off in one line item
-    "specialty": 1.35, # specialty roof
 }
+# NOTE: roof type (shake/metal/etc.) is NOT set here anymore. It lives ONLY in
+# ROOF_MATERIAL below, so a specialty roof is counted exactly once.
 
 ROOF_MATERIAL = {
     "standard": 1.0,
     "metal_mixed": 1.2,
-    "metal_full": 1.35,
-    "shake": 1.35,
+    "metal_full": 1.35,   # TODO: calibrate against a real metal-roof job
+    "shake": 1.8,         # calibrated to real cedar-shake gutter jobs (Jul 2026)
 }
 
 ACCESS = {
@@ -85,6 +98,40 @@ FRENCH_PANE = {
 
 
 # ─────────────────────────────────────────────────────────────
+# STEP 1b: THE BASE RATES (the starting price per sqft, before knobs)
+# One base rate per service. Roof difficulty (shake/metal) is handled by the
+# ROOF_MATERIAL multiplier above — NOT by a separate rate — so it's only ever
+# counted once. Change any number here and every bid uses it automatically.
+# ─────────────────────────────────────────────────────────────
+
+RATES = {
+    "gutter_cleaning":  0.06,
+    "roof_blow_off":    0.02,
+    "moss_treatment":   0.015,
+    "windows_exterior": 0.07,
+    "windows_in_out":   0.13,
+}
+
+# Minimum price floors — a service never quotes below this.
+PRICE_FLOORS = {
+    "roof_blow_off": 50,
+    "moss_treatment": 50,
+}
+
+# "Get a second opinion" thresholds — bids above these get an office note.
+SECOND_OPINION_LIMITS = {
+    "gutter_cleaning": 300,
+    "roof_blow_off": 150,
+    "moss_treatment": 150,
+}
+
+# Rounding behavior (matches the calculator). Change these to change how
+# every price is rounded and how wide the ±range is.
+PRICE_RANGE = 0.10   # ±10% low/high band
+ROUND_STEP = 5       # round every price to the nearest $5
+
+
+# ─────────────────────────────────────────────────────────────
 # STEP 2: A HELPER THAT CLEANS UP THE FINAL PRICE
 # Your calculator shows a range (±10%) and rounds to the nearest $5.
 # This little function does that rounding for us.
@@ -101,9 +148,10 @@ def round_to_5(amount):
     (We round halves UP, the way the calculator's JavaScript does.)
     """
     def r5(x):
-        return math.floor(x / 5 + 0.5) * 5   # nearest $5, halves round up
-    low = r5(amount * 0.9)
-    high = r5(amount * 1.1)
+        # nearest ROUND_STEP dollars, halves round up
+        return math.floor(x / ROUND_STEP + 0.5) * ROUND_STEP
+    low = r5(amount * (1 - PRICE_RANGE))
+    high = r5(amount * (1 + PRICE_RANGE))
     return r5((low + high) / 2)
 
 
@@ -143,40 +191,37 @@ def calculate_bid(prop):
 
     # ── GUTTER CLEANING ──
     if prop["services"].get("gutters"):
-        # Specialty roof uses a higher base rate ($0.11 vs $0.06)
-        rate = 0.11 if gutter_mult >= 1.35 else 0.06
-        price = round_to_5(sqft * rate * gutter_roof)
+        price = round_to_5(sqft * RATES["gutter_cleaning"] * gutter_roof)
         results.append(("Gutter Cleaning", price))
-        if price > 300:
+        if price > SECOND_OPINION_LIMITS["gutter_cleaning"]:
             notes.append("Gutters over $300 — get a second opinion before quoting.")
 
     # ── ROOF BLOW OFF ──
     if prop["services"].get("roof"):
-        rate = 0.03 if gutter_mult >= 1.35 else 0.02
-        price = max(50, round_to_5(sqft * rate * gutter_roof))  # $50 minimum floor
+        price = max(PRICE_FLOORS["roof_blow_off"],
+                    round_to_5(sqft * RATES["roof_blow_off"] * gutter_roof))
         results.append(("Roof Blow Off", price))
-        if price > 150:
+        if price > SECOND_OPINION_LIMITS["roof_blow_off"]:
             notes.append("Roof blow off over $150 — get a second opinion.")
 
     # ── MOSS TREATMENT ──
     if prop["services"].get("moss"):
-        rate = 0.025 if gutter_mult >= 1.35 else 0.015
-        price = max(50, round_to_5(sqft * rate * gutter_roof))  # $50 minimum floor
+        price = max(PRICE_FLOORS["moss_treatment"],
+                    round_to_5(sqft * RATES["moss_treatment"] * gutter_roof))
         results.append(("Moss Treatment", price))
-        if price > 150:
+        if price > SECOND_OPINION_LIMITS["moss_treatment"]:
             notes.append("Moss treatment over $150 — get a second opinion.")
 
     # ── WINDOWS (EXTERIOR ONLY) ──
     # Uses window_mult (not base), then french pane on top.
     if prop["services"].get("windows"):
-        price = round_to_5(sqft * 0.07 * window_mult * french_mult)
+        price = round_to_5(sqft * RATES["windows_exterior"] * window_mult * french_mult)
         results.append(("Window Cleaning (Exterior Only)", price))
 
     # ── WINDOWS (IN & OUT) ──
-    # Same window scaling, but a higher rate ($0.13) because the
-    # tech cleans the inside too.
+    # Same window scaling, but a higher rate because the tech cleans inside too.
     if prop["services"].get("windows_inout"):
-        price = round_to_5(sqft * 0.13 * window_mult * french_mult)
+        price = round_to_5(sqft * RATES["windows_in_out"] * window_mult * french_mult)
         results.append(("Windows In & Out", price))
 
     # Safety check: the calculator lets you pick ONE window service, not both.
