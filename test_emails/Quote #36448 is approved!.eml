@@ -1,0 +1,443 @@
+Delivered-To: customercare@masterbutlerinc.com
+Received: by 2002:a05:6918:2464:b0:435:70be:4d4e with SMTP id bg36csp699690ysb;
+        Wed, 24 Jun 2026 09:22:44 -0700 (PDT)
+X-Received: by 2002:a05:690e:4419:b0:65e:421f:25a with SMTP id 956f58d0204a3-6636e55046emr2437588d50.53.1782318163864;
+        Wed, 24 Jun 2026 09:22:43 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1782318163; cv=pass;
+        d=google.com; s=arc-20260327;
+        b=NhXwSkQt4fXVYsjwNWCqjHjSafEQqlzMUGnGclThpwout1A0ZjWS60CJaiAo4Vsn2l
+         /DbvACzEkn0fHjnFg6UvzlWvSNDEtDD2oWjR4dPxnAgG7TiN+sTA1KvyO5wTfPWiENwE
+         Ne5BxTGEqreID5+CFG6fCJeRd+DqP1XDdKF+I/0YLU3/mGnh5i4ctG2gCb6bY6IlvGaD
+         hOb3luZg97fJNo8J/4/YHpMbW5gwlIuKn8WGJU6/2V5nB+3KSoPLEX2ifzl0JvYH2oqr
+         9Cg92Kh1Be9MU2RhDUiwDJy5GiPW/OtEIuDGfrVtC2SJs81LuO63p4EQNFU0XlBNdTMz
+         ssqw==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=to:subject:message-id:date:from:in-reply-to:references:mime-version
+         :dkim-signature;
+        bh=+Vi+kSvsJNTscaa9HVL2gcmltSd746Drv1vtMSTX/AA=;
+        fh=Jo1a5m+IpOPU3hKyaRFi6XZCN1dGo10E2NrSlVSugW8=;
+        b=Xsw+n40aIuqtCQjrUHYQSnEs5bA+PUrNtSpudRZbf8JEV+A7JrSsqNwEOVLWIKbeJW
+         CzbUrPg5I1xCEpthAHK0NzSyk6vpPKf3U318oydn3Zc+UzcRy17AQwbSXYiTbSvDzIQ1
+         uKdQzqiiI21IDvB4vV0lRCswuMPGkYoxyHuFrZ+t6qWmT5F8kuueSrfevOz0xKKIi5hc
+         r+POBO8BgvgYpcWsiaDhGfd+zR6i33lNDIUtzfNd2/Z29dHTeFpmGWJwJc/0dGt7e0QD
+         ZtqxUHBj9yQrLqMEKkrczpV5+3h/S8/hBfno/xoJATuz83zAoN625R/HUJp5EFAJMc/G
+         VTVw==;
+        dara=google.com
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20251104 header.b=PCtdQ6mQ;
+       arc=pass (i=1);
+       spf=pass (google.com: domain of mhmehkri@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mhmehkri@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=neutral header.i=@masterbutlerinc.com
+Return-Path: <mhmehkri@gmail.com>
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 956f58d0204a3-66314af17d6sor6466083d50.6.2026.06.24.09.22.43
+        for <customercare@masterbutlerinc.com>
+        (Google Transport Security);
+        Wed, 24 Jun 2026 09:22:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mhmehkri@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20251104 header.b=PCtdQ6mQ;
+       arc=pass (i=1);
+       spf=pass (google.com: domain of mhmehkri@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mhmehkri@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=neutral header.i=@masterbutlerinc.com
+ARC-Seal: i=1; a=rsa-sha256; t=1782318163; cv=none;
+        d=google.com; s=arc-20240605;
+        b=MJDG9rNiM5KtyTeg/8VKdpmO41DPsZFIvXcw23HRv2+WDEu+Zm4Z/AXQUe69WZFcUU
+         du+VmD2+zYsdfqVdKkrd3hQYPNGK3BGmVfZ55LTvBYxJJYYDnoWWEI4dzojHctx/WJRk
+         5p/cGjJZF8HRPFUiXzmCqwvj0MQRpX7VBeUFEJE+4ss9JsPEAlMcrkE9usTsvDoV3ZFS
+         ecHCv0Hv8ZWsGwcCMfH70dbiNkYu3RFMH4W5MKuQqhrg0qPk8k9GzlzuPARzieDnFX1U
+         B2jhGRU8rhAhJeLWv0QstfO3tQO+dJjZKZjzQu596kbYup8nTK00Qn7YoHV9C8VQu/nP
+         iQ9Q==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=to:subject:message-id:date:from:in-reply-to:references:mime-version
+         :dkim-signature;
+        bh=+Vi+kSvsJNTscaa9HVL2gcmltSd746Drv1vtMSTX/AA=;
+        fh=Jo1a5m+IpOPU3hKyaRFi6XZCN1dGo10E2NrSlVSugW8=;
+        b=aLUkQjLKzA3xFdM7naE5Mn3zoRP0qr0LjCMd0WT2Q3DNOJHuQ5rnidnwY97pw79XC+
+         CmI/YJn0PKjhKvLs6ydidxZL+ayqmxNVuMnb73la7swwzhn7S3KZpKIkfrRNW2lKpGI4
+         Oyqmy611afrtkZf+/8uo00XecvGwf4yghTb9KflvpxIaqNwoVta83z61aVCI7VW5R4ST
+         R1AgXkeWEE7wybIwiFLO9+oU59k1FJdGBqpRUBKrKAMLi2Z5E+OZl7QIeKIyi+P8jae9
+         JuG3krPeQDfOoSAXuIBM6Q3krRxiuvzmYIAfUtGqcLrGKnwmEajHk9UCJVgWw3gTSdDi
+         hb3w==;
+        darn=masterbutlerinc.com
+ARC-Authentication-Results: i=1; mx.google.com; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20251104; t=1782318163; x=1782922963; darn=masterbutlerinc.com;
+        h=to:subject:message-id:date:from:in-reply-to:references:mime-version
+         :from:to:cc:subject:date:message-id:reply-to;
+        bh=+Vi+kSvsJNTscaa9HVL2gcmltSd746Drv1vtMSTX/AA=;
+        b=PCtdQ6mQxCM5aD9cYToMyDVrF3Gms5gufY8x+WNrTduy4S4/HxSzQb1SxSfqjLwhCT
+         YqrRTdZ4vhllOJc08QyGIlr/2JYJ+Z3jG+0iSp5qOsHjuZ1JKWeGhS2wjgySkyGJD39a
+         jR1KnaOt47f+koLKPfzsdqfUdQTr1kJ2jr/ceQ2mwFOJfSvif6jDoqiiGGsk7WlNXsIC
+         OMQ2/UmR6D1NcSpf6/vZvAZEtrvH8yNaqtYMGqAgCmaY3V9c2VsEHz4P+I5L2KoL6OsO
+         ybliicZDq0v49dRBATTgaWahrEQtjwY99e7KjpjBbmzv9a+ogtof+70hwiOQBHc/b2vf
+         JcXA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20251104; t=1782318163; x=1782922963;
+        h=to:subject:message-id:date:from:in-reply-to:references:mime-version
+         :x-gm-gg:x-gm-message-state:from:to:cc:subject:date:message-id
+         :reply-to;
+        bh=+Vi+kSvsJNTscaa9HVL2gcmltSd746Drv1vtMSTX/AA=;
+        b=m0o5Qyag15yUr3VSfPWNoVLV5UaET4mq7X2n2djRpM7+St0IZPGRpY97VJcSdiVpBH
+         m38TcPpuDKhhN2uKuSXhShCdZsDKNi47BOrHXSkimdpLz3oTUpkvZ6iaJDykKyBdngAE
+         0tnwLKqRNRlaQ48fz69OXvU7vHk3Xv1LtzrF0mDzXfhKBCBV408iAdK9hZD1Psx/eSZY
+         uXInNgoEyk29ZzAGCBRgWxQTOPYLwXwzRcDZeS+1VcQ+JIl3PAirba/NUpsdemR1ONkg
+         tDapMbIEOEBvRZ4e+tXsRV5umby6m/3omTxdSrxfIu2kbAxZ/VeUnshchqmbbNicRCwL
+         wN2g==
+X-Gm-Message-State: AOJu0Yx25lc52rWR7clZhAHNBbBO4Eu7HS4H9Pe8DkwOQ4ysL3HPGopV
+	1jCoyteJV8U8/2Jp5YI1Rw3ukx3U/3vDNh/jr+O5zA32Pku9C3zJEDtwUCAcKK+mvcGbg1WsSWB
+	ffpNLTfsaIuXT1KxJXBKdWUXq6z3buIxO4Q==
+X-Gm-Gg: AfdE7ckOd/tVzo+qd14f/G725seLttxlae4UoIJ5p8HxinEblT45EvqBnp79Pvs3Jc0
+	2MkmRSXAhs0knISbAkLmZJATpmtMEj6gPhBxDGwFgnNGxvfPGzjqDKuD6zRCuvlGBadDgN1ofMH
+	RR6oxiR1kg0Q175ynHh2aBqLs0yX3vlNETPSAdL0Mn4NIkiPv6/WgEVLRGU5EuEiZUPelWF7lJ+
+	1AEqGbEKZxNwn0i7EQ70fE7P8FBk63vrUpUwVAWSvlNbo9WVdH3UAAtDwLbrXPwXMUR6hd32Rk2
+	mwlmSLuOeT2uz/m/5LZfDps82q5CPFnZYzZ/q3lgdfIgDtlpysaFzuthgCi9zqtGEIdNqrZ0
+X-Received: by 2002:a05:690e:1408:b0:660:6971:db6c with SMTP id
+ 956f58d0204a3-6636e524ad9mr3381761d50.44.1782318162979; Wed, 24 Jun 2026
+ 09:22:42 -0700 (PDT)
+MIME-Version: 1.0
+References: <6a3b08e0e7388_2a3960f82446f9@ip-172-16-2-229.ec2.internal.mail> <24CF9355-C778-4F69-BC38-4EDB7C2D9CFA@masterbutlerinc.com>
+In-Reply-To: <24CF9355-C778-4F69-BC38-4EDB7C2D9CFA@masterbutlerinc.com>
+From: Mohammed Mehkri <mhmehkri@gmail.com>
+Date: Wed, 24 Jun 2026 09:22:31 -0700
+X-Gm-Features: AVVi8CfD1TxkeWPI0E0hDNcQgCXiUf9zX1SvLdPHm6WvWlO7IH76T64lUay-E8c
+Message-ID: <CACdQjsBj9irNm0rj5qHR3wvx5syXjJy7tm5=Gk_Bk9Dta+bzkg@mail.gmail.com>
+Subject: Re: Quote #36448 is approved!
+To: "Master Butler, inc" <customercare@masterbutlerinc.com>
+Content-Type: multipart/alternative; boundary="000000000000fb305b0655024885"
+
+--000000000000fb305b0655024885
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+Hello,
+June 26th works for me. Please proceed with the appointment.
+
+Thanks.
+
+On Wed, Jun 24, 2026 at 8:58=E2=80=AFAM Master Butler, inc <
+customercare@masterbutlerinc.com> wrote:
+
+> Thank you for approving your quote! We have an opening on June 26th.
+> Please let us know if that works for you.
+>
+>
+> At your service,
+>
+> Jessica
+> Office Manager
+> Master Butler, inc
+> www.masterbutlerinc.com
+>
+>
+>
+> On Jun 23, 2026, at 3:29=E2=80=AFPM, The Jobber Team <noreply@txn.getjobb=
+er.com>
+> wrote:
+>
+>
+>   [image: Jobber] <https://getjobber.com/>
+>
+>
+>   Quote Approved
+>
+> Mohammed Mehkri just approved Quote #36448 that was created on 06/22/2026
+> for the amount of $406.82.
+>
+> You may now convert this quote into a job.
+> View Quote
+> <https://open.getjobber.com/1VX6/pfir69md?utm_content=3Din_email_cta&utm_=
+medium=3Demail&utm_source=3Dsendgrid>
+>
+>
+>
+>
+>   Questions?
+> Visit our Help Center <https://help.getjobber.com/hc/en-us>
+>
+>
+>
+>
+>
+>
+> *Delivered by Jobber* | 10130 103 Street NW, Edmonton, AB T5J 3N9, Canada
+> Terms of Service <https://getjobber.com/terms_of_service> | Privacy polic=
+y
+> <https://getjobber.com/privacy_policy>
+>
+> Copyright =C2=A9 2026, Octopusapp, Inc.
+>
+>
+>
+>
+>
+
+--000000000000fb305b0655024885
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">Hello,<div>June 26th works for me. Please proceed with the=
+ appointment.</div><div><br></div><div>Thanks.</div></div><br><div class=3D=
+"gmail_quote gmail_quote_container"><div dir=3D"ltr" class=3D"gmail_attr">O=
+n Wed, Jun 24, 2026 at 8:58=E2=80=AFAM Master Butler, inc &lt;<a href=3D"ma=
+ilto:customercare@masterbutlerinc.com">customercare@masterbutlerinc.com</a>=
+&gt; wrote:<br></div><blockquote class=3D"gmail_quote" style=3D"margin:0px =
+0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex"><div=
+>Thank you for approving your quote! We have an opening on June 26th. Pleas=
+e let us know if that works for you.<div><br></div><div><br id=3D"m_3238423=
+862128749017lineBreakAtBeginningOfMessage"><div>
+<div>At your service,<br><br>Jessica<br>Office Manager<br>Master Butler, in=
+c<br><a href=3D"http://www.masterbutlerinc.com" target=3D"_blank">www.maste=
+rbutlerinc.com</a><br><br><br></div>
+
+</div>
+<div><br><blockquote type=3D"cite"><div>On Jun 23, 2026, at 3:29=E2=80=AFPM=
+, The Jobber Team &lt;<a href=3D"mailto:noreply@txn.getjobber.com" target=
+=3D"_blank">noreply@txn.getjobber.com</a>&gt; wrote:</div><br><div>
+
+
+ =20
+ =20
+ =20
+
+
+<div bgcolor=3D"#ffffff" style=3D"margin:0px">
+  <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:10=
+0%;font-family:Helvetica,Arial,&quot;Lucida Grande&quot;,sans-serif;line-he=
+ight:24px;color:rgb(71,84,92);border-collapse:collapse;border-width:medium;=
+border-style:none;border-color:currentcolor;vertical-align:top;border-spaci=
+ng:0px"><tbody><tr><td width=3D"100%" height=3D"100%" bgcolor=3D"" align=3D=
+"center" valign=3D"top">
+                <div style=3D"text-align:left;max-width:600px;margin:0px au=
+to;clear:both">
+
+      <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"widt=
+h:100%;font-family:Helvetica,Arial,&quot;Lucida Grande&quot;,sans-serif;lin=
+e-height:24px;color:rgb(71,84,92);border-collapse:collapse;border-width:med=
+ium;border-style:none;border-color:currentcolor;vertical-align:top;border-s=
+pacing:0px"><tbody><tr><td width=3D"5%" height=3D"24px" style=3D"background=
+-color:rgb(255,255,255);line-height:24px;font-size:24px">=C2=A0</td><td wid=
+th=3D"90%" height=3D"24px" style=3D"background-color:rgb(255,255,255);line-=
+height:24px;font-size:24px">=C2=A0</td><td width=3D"5%" height=3D"24px" sty=
+le=3D"background-color:rgb(255,255,255);line-height:24px;font-size:24px">=
+=C2=A0</td></tr></tbody></table><table cellpadding=3D"0" cellspacing=3D"0" =
+border=3D"0" style=3D"width:100%;font-family:Helvetica,Arial,&quot;Lucida G=
+rande&quot;,sans-serif;line-height:24px;color:rgb(71,84,92);border-collapse=
+:collapse;border-width:medium;border-style:none;border-color:currentcolor;v=
+ertical-align:top;border-spacing:0px"><tbody><tr><td width=3D"5%" height=3D=
+"24px" style=3D"background-color:rgb(255,255,255);line-height:24px;font-siz=
+e:24px">=C2=A0</td><td width=3D"90%" height=3D"100%" style=3D"background-co=
+lor:rgb(255,255,255)">
+          <a href=3D"https://getjobber.com/" style=3D"display:inline-block"=
+ target=3D"_blank"><img src=3D"https://cdn.jobber.com/yr/logos/v1/logo_jobb=
+er_brand-mark-email-header-navy.png" alt=3D"Jobber" width=3D"134" height=3D=
+"24" border=3D"0" style=3D"display: block; border: 0px; font-weight: bold; =
+color: rgb(1, 41, 57); text-transform: uppercase; text-decoration: none; fo=
+nt-size: 18px;"></a>
+</td><td width=3D"5%" height=3D"24px" style=3D"background-color:rgb(255,255=
+,255);line-height:24px;font-size:24px">=C2=A0</td></tr></tbody></table><tab=
+le cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:100%;fon=
+t-family:Helvetica,Arial,&quot;Lucida Grande&quot;,sans-serif;line-height:2=
+4px;color:rgb(71,84,92);border-collapse:collapse;border-width:medium;border=
+-style:none;border-color:currentcolor;vertical-align:top;border-spacing:0px=
+"><tbody><tr><td width=3D"5%" height=3D"24px" style=3D"background-color:rgb=
+(255,255,255);line-height:24px;font-size:24px">=C2=A0</td><td width=3D"90%"=
+ height=3D"24px" style=3D"background-color:rgb(255,255,255);line-height:24p=
+x;font-size:24px">=C2=A0</td><td width=3D"5%" height=3D"24px" style=3D"back=
+ground-color:rgb(255,255,255);line-height:24px;font-size:24px">=C2=A0</td><=
+/tr></tbody></table>
+    <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:=
+100%;font-family:Helvetica,Arial,&quot;Lucida Grande&quot;,sans-serif;line-=
+height:24px;color:rgb(71,84,92);border-collapse:collapse;border-width:mediu=
+m;border-style:none;border-color:currentcolor;vertical-align:top;border-spa=
+cing:0px"><tbody><tr><td width=3D"5%" height=3D"32px" style=3D"background-c=
+olor:rgb(255,255,255);line-height:32px;font-size:32px">=C2=A0</td><td width=
+=3D"90%" height=3D"32px" style=3D"background-color:rgb(255,255,255);line-he=
+ight:32px;font-size:32px">=C2=A0</td><td width=3D"5%" height=3D"32px" style=
+=3D"background-color:rgb(255,255,255);line-height:32px;font-size:32px">=C2=
+=A0</td></tr></tbody></table><table cellpadding=3D"0" cellspacing=3D"0" bor=
+der=3D"0" style=3D"width:100%;font-family:Helvetica,Arial,&quot;Lucida Gran=
+de&quot;,sans-serif;line-height:24px;color:rgb(71,84,92);border-collapse:co=
+llapse;border-width:medium;border-style:none;border-color:currentcolor;vert=
+ical-align:top;border-spacing:0px"><tbody><tr><td width=3D"5%" height=3D"32=
+px" style=3D"background-color:rgb(255,255,255);line-height:32px;font-size:3=
+2px">=C2=A0</td><td width=3D"90%" height=3D"100%" style=3D"background-color=
+:rgb(255,255,255)">
+
+        <h2 style=3D"margin:0px 0px 24px;font-weight:700;color:rgb(1,41,57)=
+;font-size:24px;line-height:32px">  Quote Approved
+</h2>
+
+
+      <p style=3D"margin:0px 0px 24px;font-size:16px;line-height:24px;color=
+:rgb(66,78,86)">
+  Mohammed Mehkri just approved Quote #36448 that was created on 06/22/2026=
+ for the amount of $406.82.<br>
+<br>
+You may now convert this quote into a job.
+</p>
+<a style=3D"background-color:rgb(50,130,28);border-radius:4px;color:rgb(255=
+,255,255);display:inline-block;font-family:Helvetica,Arial,sans-serif;font-=
+size:16px;font-weight:bold;text-align:center;text-decoration:none;margin:0p=
+x;padding:10px 16px" href=3D"https://open.getjobber.com/1VX6/pfir69md?utm_c=
+ontent=3Din_email_cta&amp;utm_medium=3Demail&amp;utm_source=3Dsendgrid" tar=
+get=3D"_blank">View Quote</a>
+
+
+
+     =20
+
+</td><td width=3D"5%" height=3D"32px" style=3D"background-color:rgb(255,255=
+,255);line-height:32px;font-size:32px">=C2=A0</td></tr></tbody></table><tab=
+le cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:100%;fon=
+t-family:Helvetica,Arial,&quot;Lucida Grande&quot;,sans-serif;line-height:2=
+4px;color:rgb(71,84,92);border-collapse:collapse;border-width:medium;border=
+-style:none;border-color:currentcolor;vertical-align:top;border-spacing:0px=
+"><tbody><tr><td width=3D"5%" height=3D"32px" style=3D"background-color:rgb=
+(255,255,255);line-height:32px;font-size:32px">=C2=A0</td><td width=3D"90%"=
+ height=3D"32px" style=3D"background-color:rgb(255,255,255);line-height:32p=
+x;font-size:32px">=C2=A0</td><td width=3D"5%" height=3D"32px" style=3D"back=
+ground-color:rgb(255,255,255);line-height:32px;font-size:32px">=C2=A0</td><=
+/tr></tbody></table>
+</div>
+            </td></tr></tbody></table>
+
+    <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:=
+100%;font-family:Helvetica,Arial,&quot;Lucida Grande&quot;,sans-serif;line-=
+height:24px;color:rgb(71,84,92);border-collapse:collapse;border-width:mediu=
+m;border-style:none;border-color:currentcolor;vertical-align:top;border-spa=
+cing:0px"><tbody><tr><td width=3D"100%" height=3D"100%" bgcolor=3D"" align=
+=3D"center" valign=3D"top">
+                <div style=3D"text-align:left;max-width:600px;margin:0px au=
+to;clear:both">
+
+     =20
+      <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" width=3D"100%=
+">
+        <tbody><tr>
+          <td height=3D"2px" width=3D"5%" style=3D"line-height:2px;font-siz=
+e:2px">=C2=A0</td>
+          <td height=3D"2px" width=3D"90%" bgcolor=3D"#e9e9e9" style=3D"lin=
+e-height:2px;font-size:2px">=C2=A0</td>
+          <td height=3D"2px" width=3D"5%" style=3D"line-height:2px;font-siz=
+e:2px">=C2=A0</td>
+        </tr>
+      </tbody></table>
+
+      <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"widt=
+h:100%;font-family:Helvetica,Arial,&quot;Lucida Grande&quot;,sans-serif;lin=
+e-height:24px;color:rgb(71,84,92);border-collapse:collapse;border-width:med=
+ium;border-style:none;border-color:currentcolor;vertical-align:top;border-s=
+pacing:0px"><tbody><tr><td width=3D"5%" height=3D"32px" style=3D"background=
+-color:rgb(255,255,255);line-height:32px;font-size:32px">=C2=A0</td><td wid=
+th=3D"90%" height=3D"32px" style=3D"background-color:rgb(255,255,255);line-=
+height:32px;font-size:32px">=C2=A0</td><td width=3D"5%" height=3D"32px" sty=
+le=3D"background-color:rgb(255,255,255);line-height:32px;font-size:32px">=
+=C2=A0</td></tr></tbody></table><table cellpadding=3D"0" cellspacing=3D"0" =
+border=3D"0" style=3D"width:100%;font-family:Helvetica,Arial,&quot;Lucida G=
+rande&quot;,sans-serif;line-height:24px;color:rgb(71,84,92);border-collapse=
+:collapse;border-width:medium;border-style:none;border-color:currentcolor;v=
+ertical-align:top;border-spacing:0px"><tbody><tr><td width=3D"5%" height=3D=
+"32px" style=3D"background-color:rgb(255,255,255);line-height:32px;font-siz=
+e:32px">=C2=A0</td><td width=3D"90%" height=3D"100%" style=3D"background-co=
+lor:rgb(255,255,255)">
+        <h4 style=3D"margin:0px 0px 8px;font-weight:700;color:rgb(1,41,57);=
+font-size:16px;line-height:24px">Questions?</h4><div style=3D"margin:0px;fo=
+nt-size:16px;line-height:24px;color:rgb(66,78,86)">
+            Visit our <a style=3D"color:rgb(60,162,224);text-decoration:non=
+e" href=3D"https://help.getjobber.com/hc/en-us" target=3D"_blank">Help Cent=
+er</a>
+        </div>
+</td><td width=3D"5%" height=3D"32px" style=3D"background-color:rgb(255,255=
+,255);line-height:32px;font-size:32px">=C2=A0</td></tr></tbody></table><tab=
+le cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:100%;fon=
+t-family:Helvetica,Arial,&quot;Lucida Grande&quot;,sans-serif;line-height:2=
+4px;color:rgb(71,84,92);border-collapse:collapse;border-width:medium;border=
+-style:none;border-color:currentcolor;vertical-align:top;border-spacing:0px=
+"><tbody><tr><td width=3D"5%" height=3D"32px" style=3D"background-color:rgb=
+(255,255,255);line-height:32px;font-size:32px">=C2=A0</td><td width=3D"90%"=
+ height=3D"32px" style=3D"background-color:rgb(255,255,255);line-height:32p=
+x;font-size:32px">=C2=A0</td><td width=3D"5%" height=3D"32px" style=3D"back=
+ground-color:rgb(255,255,255);line-height:32px;font-size:32px">=C2=A0</td><=
+/tr></tbody></table></div>
+            </td></tr></tbody></table>
+
+  <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:10=
+0%;font-family:Helvetica,Arial,&quot;Lucida Grande&quot;,sans-serif;line-he=
+ight:24px;color:rgb(71,84,92);border-collapse:collapse;border-width:medium;=
+border-style:none;border-color:currentcolor;vertical-align:top;border-spaci=
+ng:0px"><tbody><tr><td width=3D"100%" height=3D"100%" bgcolor=3D"#ffffff" a=
+lign=3D"center" valign=3D"top">
+                <div style=3D"text-align:left;max-width:600px;margin:0px au=
+to;clear:both">
+
+   =20
+      <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" width=3D"100%=
+">
+        <tbody><tr>
+          <td height=3D"2px" width=3D"5%" style=3D"line-height:2px;font-siz=
+e:2px">=C2=A0</td>
+          <td height=3D"2px" width=3D"90%" bgcolor=3D"#e9e9e9" style=3D"lin=
+e-height:2px;font-size:2px">=C2=A0</td>
+          <td height=3D"2px" width=3D"5%" style=3D"line-height:2px;font-siz=
+e:2px">=C2=A0</td>
+        </tr>
+      </tbody></table>
+
+    <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:=
+100%;font-family:Helvetica,Arial,&quot;Lucida Grande&quot;,sans-serif;line-=
+height:24px;color:rgb(71,84,92);border-collapse:collapse;border-width:mediu=
+m;border-style:none;border-color:currentcolor;vertical-align:top;border-spa=
+cing:0px"><tbody><tr><td width=3D"5%" height=3D"24px" style=3D"background-c=
+olor:rgb(255,255,255);line-height:24px;font-size:24px">=C2=A0</td><td width=
+=3D"90%" height=3D"24px" style=3D"background-color:rgb(255,255,255);line-he=
+ight:24px;font-size:24px">=C2=A0</td><td width=3D"5%" height=3D"24px" style=
+=3D"background-color:rgb(255,255,255);line-height:24px;font-size:24px">=C2=
+=A0</td></tr></tbody></table><table cellpadding=3D"0" cellspacing=3D"0" bor=
+der=3D"0" style=3D"width:100%;font-family:Helvetica,Arial,&quot;Lucida Gran=
+de&quot;,sans-serif;line-height:24px;color:rgb(71,84,92);border-collapse:co=
+llapse;border-width:medium;border-style:none;border-color:currentcolor;vert=
+ical-align:top;border-spacing:0px"><tbody><tr><td width=3D"5%" height=3D"24=
+px" style=3D"background-color:rgb(255,255,255);line-height:24px;font-size:2=
+4px">=C2=A0</td><td width=3D"90%" height=3D"100%" style=3D"background-color=
+:rgb(255,255,255)"><p style=3D"margin:0px 0px 24px;font-size:12px;line-heig=
+ht:20px;color:rgb(137,137,137)">
+        <strong>Delivered by Jobber</strong> | 10130 103 Street NW, Edmonto=
+n, AB T5J 3N9, Canada<br>
+        <a style=3D"text-decoration:none;color:rgb(150,150,150)" href=3D"ht=
+tps://getjobber.com/terms_of_service" target=3D"_blank">Terms of Service</a=
+> |
+        <a style=3D"text-decoration:none;color:rgb(150,150,150)" href=3D"ht=
+tps://getjobber.com/privacy_policy" target=3D"_blank">Privacy policy</a>
+        <br>
+        <br>
+        Copyright =C2=A9 2026, Octopusapp, Inc.
+      </p>
+</td><td width=3D"5%" height=3D"24px" style=3D"background-color:rgb(255,255=
+,255);line-height:24px;font-size:24px">=C2=A0</td></tr></tbody></table><tab=
+le cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:100%;fon=
+t-family:Helvetica,Arial,&quot;Lucida Grande&quot;,sans-serif;line-height:2=
+4px;color:rgb(71,84,92);border-collapse:collapse;border-width:medium;border=
+-style:none;border-color:currentcolor;vertical-align:top;border-spacing:0px=
+"><tbody><tr><td width=3D"5%" height=3D"24px" style=3D"background-color:rgb=
+(255,255,255);line-height:24px;font-size:24px">=C2=A0</td><td width=3D"90%"=
+ height=3D"24px" style=3D"background-color:rgb(255,255,255);line-height:24p=
+x;font-size:24px">=C2=A0</td><td width=3D"5%" height=3D"24px" style=3D"back=
+ground-color:rgb(255,255,255);line-height:24px;font-size:24px">=C2=A0</td><=
+/tr></tbody></table>
+</div>
+            </td></tr></tbody></table><img src=3D"http://url8125.txn.getjob=
+ber.com/wf/open?upn=3Du001.x7SLcCmpEpILr3wNNn-2B2ObqEZ0da8IJiXt47uJaQ4IGT7C=
+WFruZ2g4nZ2KoopKKjZJIl3Eqew7TbMCbnUcI3fdPQUVOHrkw0msc0BOW-2BhtWcvnRuhhsL35R=
+92yIT0ppXw3TyvEqjJz9F6tvgUs5uWQc07EJDDfcqV2gUoDze0bxcy6v3-2FFqd5TXQ600DiLMW=
+QiAVzj72x7qkMId3Ro-2B29nZrdyg4TPK9KghYNCOQgBbhAvTz3lAalJde5X2Pz4dRiOjApYr9n=
+c-2BN019TiTjnPBg3oW8eA10zpczImxdI-2Ba2K72dAdsXtitqkAc1q9VihMcn-2BkvIWONh3Jl=
+2j7RceuB0kRZnE4LbWtM8PYoEKpd-2FofqrwRjxuoRdjqTWAAEkX" alt=3D"" width=3D"1" =
+height=3D"1" border=3D"0" style=3D"height: 1px; width: 1px; border-width: 0=
+px; margin: 0px; padding: 0px;"></div>
+
+</div></blockquote></div><br></div></div></blockquote></div>
+
+--000000000000fb305b0655024885--

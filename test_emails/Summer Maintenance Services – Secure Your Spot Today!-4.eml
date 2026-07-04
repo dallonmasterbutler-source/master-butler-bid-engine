@@ -1,0 +1,340 @@
+Delivered-To: customercare@masterbutlerinc.com
+Received: by 2002:a05:6918:2464:b0:435:70be:4d4e with SMTP id bg36csp746077ysb;
+        Wed, 24 Jun 2026 11:08:43 -0700 (PDT)
+X-Received: by 2002:a05:6a00:1a86:b0:845:3fea:965 with SMTP id d2e1a72fcca58-845a2c315admr5577688b3a.23.1782324523093;
+        Wed, 24 Jun 2026 11:08:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1782324523; cv=none;
+        d=google.com; s=arc-20260327;
+        b=XJ5NrkGdHsJYdPmCARJ9OCQclSmDSk+wcLLRNZLH8YYBdDw+JipMvfFYQknO0UKmBD
+         9lBmUgv3VmhOvL4L2pJZdQApDvtcx6ZsEroHEjhkf7M+pIZz8zK4tteAe2WQVZy7JUsE
+         s6DtYGco2ru0oks7bfuKuEwAukMEXGmS1EfVkzzq91ok8edySF4AubmrHB9HxgPxH1dU
+         QIxRiOxcKr+eI7PJmWrQUCOeapCSXtKAO1WojzZk5vxRUCbci33Ul5xjr9vp0qg6aqJw
+         Ykfs4pbgq1t/BOuVhUh1Pl4fBsZQxw5mEr2PddcLpGeS+wuFKPHf+WgNwE4kQUWBzxdK
+         im/g==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=message-id:in-reply-to:to:references:date:subject:mime-version:from
+         :xfinity-graffiti:xfinity-qid:dkim-signature;
+        bh=Knz7VXQllNojCmxOIZOqj1tGGMi1Q65Lf2rgLhHpwUE=;
+        fh=Jo1a5m+IpOPU3hKyaRFi6XZCN1dGo10E2NrSlVSugW8=;
+        b=GDx0aCeq5fARxVSbAlLjptOaGTgQ9T4nSofKIA9asTtZRwoAvHeuKTX6USeqQ0gtsh
+         NT/CGMCoxIhlSvKGdMt/8joOuwn/j2AfFvEElC9fxOFljPgo83ZABAKHD7xIxFkWVxzG
+         2weq6lLkGYMejrxQCcLi9jatoAwrW9zqIutYRHMaJ42AoQ2q10XdUYqLEHNJD6zBs/Xr
+         rywaXwdcM4k/vqvwGW+gDkVZdviSuNlULSYjADXbt70R6xeJqZ4UEk6jchTwx4pEJG6s
+         Xk0wU/ggewE07rZcApLoCg6iehIxcT9YI6iesGsdJt26PHPo3UiW4YlFDLrtNK6rt+Jk
+         nwDw==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@comcast.net header.s=20190202a header.b=Eh2+M+cR;
+       spf=pass (google.com: domain of goehner@comcast.net designates 2001:558:fd02:2446::b as permitted sender) smtp.mailfrom=goehner@comcast.net;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=comcast.net
+Return-Path: <goehner@comcast.net>
+Received: from resqmta-h2p-567063.sys.comcast.net (resqmta-h2p-567063.sys.comcast.net. [2001:558:fd02:2446::b])
+        by mx.google.com with ESMTPS id d2e1a72fcca58-845a412d4fbsi6389149b3a.192.2026.06.24.11.08.42
+        for <customercare@masterbutlerinc.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Wed, 24 Jun 2026 11:08:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of goehner@comcast.net designates 2001:558:fd02:2446::b as permitted sender) client-ip=2001:558:fd02:2446::b;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@comcast.net header.s=20190202a header.b=Eh2+M+cR;
+       spf=pass (google.com: domain of goehner@comcast.net designates 2001:558:fd02:2446::b as permitted sender) smtp.mailfrom=goehner@comcast.net;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=comcast.net
+Received: from resomta-h2p-555359.sys.comcast.net ([96.102.179.201])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 256/256 bits)
+	(Client did not present a certificate)
+	by resqmta-h2p-567063.sys.comcast.net with ESMTPS
+	id cMDfwqSoHjfJ8cS1iwoeQf; Wed, 24 Jun 2026 18:08:42 +0000
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=comcast.net;
+	s=20190202a; t=1782324522;
+	bh=Knz7VXQllNojCmxOIZOqj1tGGMi1Q65Lf2rgLhHpwUE=;
+	h=Received:Received:From:Content-Type:Mime-Version:Subject:Date:To:
+	 Message-Id:Xfinity-Spam-Result;
+	b=Eh2+M+cRynwHfmfEufTbngkInP2OkLitHju/Dp/XiL0AxhELg9XO5+CeUMdXgn/yK
+	 2vhpaqwviABSjpQYMns6J2x27oWu2ehmOx4u+iLwPsWaTUr1orvMby7olbRG9MRfUZ
+	 FeSyJVfoQCUGG8oQLEeiYrHk+C4wcXR+mFNvdW1TSmCq/E6RvPFJiiPNH1FLXdR1dU
+	 NAwYIACB6qp1LwMqVsX8xRhu1v6MwLbEBO3TdenKay50ll7gApu2cC4FAi8Zo10o6v
+	 CmeYB2+mLO0qlWMaHynjmMeCYpLgudq9E6RQslm1l6nH9MNTxQKaHjlad/ix+PYhMj
+	 ykt+A3CYPpG9A==
+Received: from smtpclient.apple ([67.183.14.52])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 256/256 bits)
+	(Client did not present a certificate)
+	by resomta-h2p-555359.sys.comcast.net with ESMTPSA
+	id cS1fwYB6ihauDcS1gwsuxd; Wed, 24 Jun 2026 18:08:41 +0000
+Xfinity-QID: cS1fwYB6ihauDcS1gwsuxd
+Xfinity-Graffiti: 54805050130
+From: Dawn Goehner <goehner@comcast.net>
+Content-Type: multipart/alternative;
+	boundary="Apple-Mail=_EDCE9882-FA02-46C7-B9BC-964A2580BFF5"
+Mime-Version: 1.0 (Mac OS X Mail 16.0 \(3774.600.62\))
+Subject: =?utf-8?Q?Re=3A_Summer_Maintenance_Services_=E2=80=93_Secure_Your?=
+ =?utf-8?Q?_Spot_Today!?=
+Date: Wed, 24 Jun 2026 11:08:29 -0700
+References: <43751284-C03E-432A-8B20-9E64703D57F8@masterbutlerinc.com>
+To: "Master Butler, inc" <customercare@masterbutlerinc.com>
+In-Reply-To: <43751284-C03E-432A-8B20-9E64703D57F8@masterbutlerinc.com>
+Message-Id: <DF6EB1D3-9917-4755-AD34-9B0DB320AF8E@comcast.net>
+X-Mailer: Apple Mail (2.3774.600.62)
+X-CMAE-Envelope: MS4xfENvtXLY4xzw56fS94u7FKoSKLRnXHlr2VxmrHt9r8eQV0iFbT803Ymn+UtkoULv9GjxqiJkEWiTymCSjNyTzJniGDZKDUBMtU08BPh8cW7Q39wy9zuu
+ R/mjMThYU8eylhpPDyJ4ypwDxXNidvmb2jQCIAuqav5RpPwTt4rsaZlHQVz57KS5YrHvXfL8Zgn+lHg4Kp9BZ4T8bRLyAYJC4Gs=
+
+
+--Apple-Mail=_EDCE9882-FA02-46C7-B9BC-964A2580BFF5
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=utf-8
+
+Hi there!
+
+Would love to get you scheduled for inside/outside window cleaning.
+
+Thanks!
+Dawn Goehner
+325 7th Ave W
+Kirkland, WA. 98033
+
+> On Jun 24, 2026, at 10:45=E2=80=AFAM, Master Butler, inc =
+<customercare@masterbutlerinc.com> wrote:
+>=20
+> Hello!
+>=20
+> We hope this message finds you well! Last July, our team had the =
+pleasure of servicing your home, and we would love to continue assisting =
+you with your maintenance needs this summer. We would love to add you to =
+our schedule, if you haven=E2=80=99t booked your appointment yet!
+>=20
+> At Master Butler, we provide a full range of services to keep your =
+home looking its best. Below is a list of the professional services we =
+offer:
+>=20
+> Gutter Cleaning
+> Roof Cleaning
+> Moss Treatment & Removal
+> Exterior Gutter Whitening
+> Pressure Washing
+> House Washing
+> Window Cleaning
+> Dryer Vent Cleaning
+> Holiday Light Installation (If we installed your lights last year, =
+rest assured you're already on our reminder list for this season!)
+>=20
+> Our team is committed to delivering exceptional quality and =
+personalized service, and we would love to assist you again this year. =
+Simply reply to this email to request a quote or schedule an =
+appointment. We=E2=80=99ll be happy to accommodate your needs and help =
+you choose the best options for your home.
+>=20
+> Thank you for trusting Master Butler for your home=E2=80=99s =
+maintenance needs. We look forward to the opportunity to work with you =
+again.
+>=20
+> Best regards,
+> The Master Butler Team
+> www.masterbutlerinc.com <http://www.masterbutlerinc.com/>
+
+--Apple-Mail=_EDCE9882-FA02-46C7-B9BC-964A2580BFF5
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/html;
+	charset=utf-8
+
+<html><head><meta http-equiv=3D"content-type" content=3D"text/html; =
+charset=3Dutf-8"></head><body style=3D"overflow-wrap: break-word; =
+-webkit-nbsp-mode: space; line-break: after-white-space;">Hi =
+there!<div><br></div><div>Would love to get you scheduled for =
+inside/outside window =
+cleaning.</div><div><br></div><div>Thanks!</div><div>Dawn =
+Goehner</div><div>325 7th Ave W</div><div>Kirkland, WA. 98033<br =
+id=3D"lineBreakAtBeginningOfMessage"><div><br><blockquote =
+type=3D"cite"><div>On Jun 24, 2026, at 10:45=E2=80=AFAM, Master Butler, =
+inc &lt;customercare@masterbutlerinc.com&gt; wrote:</div><br =
+class=3D"Apple-interchange-newline"><div><meta http-equiv=3D"content-type"=
+ content=3D"text/html; charset=3Dutf-8"><div style=3D"overflow-wrap: =
+break-word; -webkit-nbsp-mode: space; line-break: after-white-space;"><p =
+dir=3D"ltr" style=3D"line-height: 1.38; margin-top: 12pt; margin-bottom: =
+12pt;"><span style=3D"font-size: 13.5pt; font-family: Arial, sans-serif; =
+font-variant-ligatures: normal; font-variant-alternates: normal; =
+font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; vertical-align: baseline; white-space: =
+pre-wrap;">Hello!</span></p><p dir=3D"ltr" style=3D"line-height: 1.38; =
+margin-top: 12pt; margin-bottom: 12pt;"><span style=3D"font-size: =
+13.5pt; font-family: Arial, sans-serif; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre-wrap;">We hope this message =
+finds you well! Last July, our team had the pleasure of servicing your =
+home, and we would love to continue assisting you with your maintenance =
+needs this summer. We would love to add you to our schedule, if you =
+haven=E2=80=99t booked your appointment yet!</span></p><p dir=3D"ltr" =
+style=3D"line-height: 1.38; margin-top: 12pt; margin-bottom: =
+12pt;"><span style=3D"font-size: 13.5pt; font-family: Arial, sans-serif; =
+font-variant-ligatures: normal; font-variant-alternates: normal; =
+font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; vertical-align: baseline; white-space: =
+pre-wrap;">At </span><span style=3D"font-size: 13.5pt; font-family: =
+Arial, sans-serif; font-weight: 700; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre-wrap;">Master =
+Butler</span><span style=3D"font-size: 13.5pt; font-family: Arial, =
+sans-serif; font-variant-ligatures: normal; font-variant-alternates: =
+normal; font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; vertical-align: baseline; white-space: =
+pre-wrap;">, we provide a full range of services to keep your home =
+looking its best. Below is a list of the professional services we =
+offer:</span></p><ul style=3D"margin-top: 0px; margin-bottom: 0px; =
+padding-inline-start: 48px;"><li dir=3D"ltr" aria-level=3D"1" =
+style=3D"list-style-type: disc; font-size: 13.5pt; font-family: Arial, =
+sans-serif; font-weight: 700; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre;"><p dir=3D"ltr" =
+role=3D"presentation" style=3D"line-height: 1.38; margin-top: 12pt; =
+margin-bottom: 0pt;"><span style=3D"font-size: 13.5pt; =
+font-variant-ligatures: normal; font-variant-alternates: normal; =
+font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; vertical-align: baseline; white-space: =
+pre-wrap;">Gutter Cleaning</span></p></li><li dir=3D"ltr" aria-level=3D"1"=
+ style=3D"list-style-type: disc; font-size: 13.5pt; font-family: Arial, =
+sans-serif; font-weight: 700; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre;"><div style=3D"line-height: =
+1.38; margin-top: 0pt; margin-bottom: 0pt;"><span style=3D"font-size: =
+13.5pt; font-variant-ligatures: normal; font-variant-alternates: normal; =
+font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; vertical-align: baseline; white-space: =
+pre-wrap;">Roof Cleaning</span></div></li><li dir=3D"ltr" aria-level=3D"1"=
+ style=3D"list-style-type: disc; font-size: 13.5pt; font-family: Arial, =
+sans-serif; font-weight: 700; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre;"><div style=3D"line-height: =
+1.38; margin-top: 0pt; margin-bottom: 0pt;"><span style=3D"font-size: =
+13.5pt; font-variant-ligatures: normal; font-variant-alternates: normal; =
+font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; vertical-align: baseline; white-space: =
+pre-wrap;">Moss Treatment &amp; Removal</span></div></li><li dir=3D"ltr" =
+aria-level=3D"1" style=3D"list-style-type: disc; font-size: 13.5pt; =
+font-family: Arial, sans-serif; font-weight: 700; =
+font-variant-ligatures: normal; font-variant-alternates: normal; =
+font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; vertical-align: baseline; white-space: =
+pre;"><div style=3D"line-height: 1.38; margin-top: 0pt; margin-bottom: =
+0pt;"><span style=3D"font-size: 13.5pt; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre-wrap;">Exterior Gutter =
+Whitening</span></div></li><li dir=3D"ltr" aria-level=3D"1" =
+style=3D"list-style-type: disc; font-size: 13.5pt; font-family: Arial, =
+sans-serif; font-weight: 700; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre;"><div style=3D"line-height: =
+1.38; margin-top: 0pt; margin-bottom: 0pt;"><span style=3D"font-size: =
+13.5pt; font-variant-ligatures: normal; font-variant-alternates: normal; =
+font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; vertical-align: baseline; white-space: =
+pre-wrap;">Pressure Washing</span></div></li><li dir=3D"ltr" =
+aria-level=3D"1" style=3D"list-style-type: disc; font-size: 13.5pt; =
+font-family: Arial, sans-serif; font-weight: 700; =
+font-variant-ligatures: normal; font-variant-alternates: normal; =
+font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; vertical-align: baseline; white-space: =
+pre;"><div style=3D"line-height: 1.38; margin-top: 0pt; margin-bottom: =
+0pt;"><span style=3D"font-size: 13.5pt; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre-wrap;">House =
+Washing</span></div></li><li dir=3D"ltr" aria-level=3D"1" =
+style=3D"list-style-type: disc; font-size: 13.5pt; font-family: Arial, =
+sans-serif; font-weight: 700; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre;"><div style=3D"line-height: =
+1.38; margin-top: 0pt; margin-bottom: 0pt;"><span style=3D"font-size: =
+13.5pt; font-variant-ligatures: normal; font-variant-alternates: normal; =
+font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; vertical-align: baseline; white-space: =
+pre-wrap;">Window Cleaning</span></div></li><li dir=3D"ltr" =
+aria-level=3D"1" style=3D"list-style-type: disc; font-size: 13.5pt; =
+font-family: Arial, sans-serif; font-weight: 700; =
+font-variant-ligatures: normal; font-variant-alternates: normal; =
+font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; vertical-align: baseline; white-space: =
+pre;"><div style=3D"line-height: 1.38; margin-top: 0pt; margin-bottom: =
+0pt;"><span style=3D"font-size: 13.5pt; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre-wrap;">Dryer Vent =
+Cleaning</span></div></li><li dir=3D"ltr" aria-level=3D"1" =
+style=3D"list-style-type: disc; font-size: 13.5pt; font-family: Arial, =
+sans-serif; font-weight: 700; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre;"><p dir=3D"ltr" =
+role=3D"presentation" style=3D"line-height: 1.38; margin-top: 0pt; =
+margin-bottom: 12pt;"><span style=3D"font-size: 13.5pt; =
+font-variant-ligatures: normal; font-variant-alternates: normal; =
+font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; vertical-align: baseline; white-space: =
+pre-wrap;">Holiday Light Installation </span><span style=3D"font-size: =
+13.5pt; font-weight: 400; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre-wrap;">(If we installed your =
+lights last year, rest assured you're already on our reminder list for =
+this season!)</span></p></li></ul><p dir=3D"ltr" style=3D"line-height: =
+1.38; margin-top: 12pt; margin-bottom: 12pt;"><span style=3D"font-size: =
+13.5pt; font-family: Arial, sans-serif; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre-wrap;">Our team is committed =
+to delivering exceptional quality and personalized service, and we would =
+love to assist you again this year. Simply reply to this email to =
+request a quote or schedule an appointment. We=E2=80=99ll be happy to =
+accommodate your needs and help you choose the best options for your =
+home.</span></p><p dir=3D"ltr" style=3D"line-height: 1.38; margin-top: =
+12pt; margin-bottom: 12pt;"><span style=3D"font-size: 13.5pt; =
+font-family: Arial, sans-serif; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre-wrap;">Thank you for trusting =
+</span><span style=3D"font-size: 13.5pt; font-family: Arial, sans-serif; =
+font-weight: 700; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre-wrap;">Master Butler =
+</span><span style=3D"font-size: 13.5pt; font-family: Arial, sans-serif; =
+font-variant-ligatures: normal; font-variant-alternates: normal; =
+font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; vertical-align: baseline; white-space: =
+pre-wrap;">for your home=E2=80=99s maintenance needs. We look forward to =
+the opportunity to work with you again.</span></p><p dir=3D"ltr" =
+style=3D"line-height: 1.38; margin-top: 12pt; margin-bottom: =
+12pt;"><span style=3D"font-size: 13.5pt; font-family: Arial, sans-serif; =
+font-variant-ligatures: normal; font-variant-alternates: normal; =
+font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; vertical-align: baseline; white-space: =
+pre-wrap;">Best regards,</span><span style=3D"font-size: 13.5pt; =
+font-family: Arial, sans-serif; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre-wrap;"><br></span><span =
+style=3D"font-size: 13.5pt; font-family: Arial, sans-serif; font-weight: =
+700; font-variant-ligatures: normal; font-variant-alternates: normal; =
+font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; vertical-align: baseline; white-space: =
+pre-wrap;">The Master Butler Team</span><span style=3D"font-size: =
+13.5pt; font-family: Arial, sans-serif; font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+vertical-align: baseline; white-space: pre-wrap;"><br></span><a =
+href=3D"http://www.masterbutlerinc.com/" style=3D"text-decoration: =
+none;"><span style=3D"font-size: 13.5pt; font-family: Arial, sans-serif; =
+color: rgb(17, 85, 204); font-variant-ligatures: normal; =
+font-variant-alternates: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+text-decoration: underline; text-decoration-skip-ink: none; =
+vertical-align: baseline; white-space: =
+pre-wrap;">www.masterbutlerinc.com</span></a></p></div></div></blockquote>=
+</div><br></div></body></html>=
+
+--Apple-Mail=_EDCE9882-FA02-46C7-B9BC-964A2580BFF5--

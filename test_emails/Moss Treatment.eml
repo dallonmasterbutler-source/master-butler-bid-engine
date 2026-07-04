@@ -1,0 +1,456 @@
+Delivered-To: customercare@masterbutlerinc.com
+Received: by 2002:a05:6918:d42f:b0:481:8ede:28fa with SMTP id bz47csp648782ysb;
+        Thu, 25 Jun 2026 16:57:10 -0700 (PDT)
+X-Received: by 2002:a17:903:350d:b0:2c6:9448:363a with SMTP id d9443c01a7336-2c7fca717c8mr46691225ad.20.1782431830287;
+        Thu, 25 Jun 2026 16:57:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1782431830; cv=none;
+        d=google.com; s=arc-20260327;
+        b=sSuGt+bmwW43D4HSHCPyTuVs9akR6TP48IhBroMyt69W2ApIFheinCzfGFyAtqDMY8
+         EiVk17/e5/jr8XZE9B6/KjrMM7wau7VPe9whFbJJubfXOMt8sHk/LldbBn8CDGg8hHGl
+         f8FUlci0zAQVwHVpKGzsSG/JqJGS8uDg+0Qyb88bU3uE0901+SlLaUtwxtGofVM/h6cA
+         1lGDGHF+sNVZ4jbnmNEMgCMhJwaozMTBODJvHbc7fKOhnaOTzPAII380tXN1U3UjCvjt
+         YKA9xaz0twOEzjJcq0nqljU8faxLrJXyvFPpJed51VxJVHOtaFdmQ66D8D0kQFfTuSMI
+         0TOQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=to:in-reply-to:references:message-id:date:subject:mime-version:from
+         :content-transfer-encoding:dkim-signature;
+        bh=JdAFhtdNEPwqLvttRj4DQc0Mo9XyoBuxwKSU3g5yw20=;
+        fh=OvdaoJpRb6buRqYQ6jZq9QMjVlexcABRZeyR3ECI1pA=;
+        b=XaP0qslF8gbKp+2nGLM9Lg98189T7FnC5JvF9t1Z9w4oyTYcekpThs6agKUViUXGSn
+         8REEKMbwvoH0pLZDAzmQ+tNjr5FRZpTeWhxh0JeWdPdcL20CtCcuUSFqUPWM7DH46r1/
+         WI+BuOq/ZNAISzrlRB6N48+B1X4U9gIvK7+zruIfa5q/0Z8NFVNj81gLhFOe85g9FjQY
+         EuTIRyghIzw0H6XepZh4F5MAW7BgAW43d2+vPIb2J0vZHpUzr7KvGWCHBkaDRRW04VNP
+         wjwXc3wqTIAe/ubbZvyily5xgn7d5TyMQCaH4q+ilu53HgBhRhAfTFV57zoowcChNzjz
+         1Q1w==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20251104 header.b="cJXfT/Kp";
+       spf=pass (google.com: domain of dallon.masterbutler@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dallon.masterbutler@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=neutral header.i=@masterbutlerinc.com
+Return-Path: <dallon.masterbutler@gmail.com>
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id d9443c01a7336-2c7436ff7cbsor165014725ad.6.2026.06.25.16.57.10
+        for <customercare@masterbutlerinc.com>
+        (Google Transport Security);
+        Thu, 25 Jun 2026 16:57:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dallon.masterbutler@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20251104 header.b="cJXfT/Kp";
+       spf=pass (google.com: domain of dallon.masterbutler@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dallon.masterbutler@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=neutral header.i=@masterbutlerinc.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20251104; t=1782431830; x=1783036630; darn=masterbutlerinc.com;
+        h=to:in-reply-to:references:message-id:date:subject:mime-version:from
+         :content-transfer-encoding:from:to:cc:subject:date:message-id
+         :reply-to;
+        bh=JdAFhtdNEPwqLvttRj4DQc0Mo9XyoBuxwKSU3g5yw20=;
+        b=cJXfT/Kp3YON63fDDhrNONeBbi+0r5CbWNeCFw0zVLntwsUqgyoW/YTtCpHLzeZq6e
+         Z/mBQfUfdEuw6F5n5VEDdBVjhlfmheJKjydvghlL3S7NNoMpUeb15bMhf8d5RvGK5oSU
+         hWdsJ7WHyBlELYB6uEHApBhzLXXzPkIQ6lCeN318dPUfgnDeZUpNObt2U60RWTYQ6uac
+         oErypN/YYq8sPcFPP0apSKuHGGUpJFYuUeK246HmhE5jTDxJ1Dgb6o5WhfU71FQEavSA
+         UoGFGE/6V6hrm0uYjof5b5H6oX3VC8w3E93srSy/zDn/ZWKRKp8pveiJqq6z/KtLqLBr
+         SKfQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20251104; t=1782431830; x=1783036630;
+        h=to:in-reply-to:references:message-id:date:subject:mime-version:from
+         :content-transfer-encoding:x-gm-gg:x-gm-message-state:from:to:cc
+         :subject:date:message-id:reply-to;
+        bh=JdAFhtdNEPwqLvttRj4DQc0Mo9XyoBuxwKSU3g5yw20=;
+        b=s+jE6TyVRAeaGcjjCgnKK14qW5S6PPQHNx4LzIyK4Z4pdtB1XfMP9OF7HzFbZEHCl9
+         BqkMWha7nYejt1TwcobTVzHnQUQzzk4mSKw1lj6EYvq5sysySgR9iir3pNZW5MKJ6Isp
+         AXlv3o8MjL/e4JDWdznmCo3M/SGwGp7POusODw/VvwgCFEnfKMLcVgXlJDfIe+oHRL37
+         BJzPYMtTL6r6K3u5UNg9GgtDbX5trfMhGvNZm9ii3caxQVF27YrYF09TfDLpH+UqNOAK
+         uGYw4JuXaBTrPpDJ+1lPnvgOs1EfFX9ylU0jvXnTny65JKRIfQEnJgdVb1p1/EswE7IJ
+         0dQA==
+X-Gm-Message-State: AOJu0Yw61LxZx3sXhuUC4NPFJLu0Si982zUWpgPUcvwXeFAYhh1HlNUo
+	pUEQBC7lKzpB2jIx/3FmjStGwHjQxw+VMY7t9gwLWg4HJ7+QTjQnK0h4fehNNQ==
+X-Gm-Gg: AfdE7cnZAQf0cVFP/Wigz/kFe4X3YS+L4B6zvUhnLr4VvZHAIeSbx4oFtbUEpv62K/s
+	rMmTlnDSR5iJmEOwrJ9joJGlR7SJvq32ys0KPEuKamkZda4UxyQP2PU0yDfdNHOkPKItTHqkjYu
+	9PEPWhWnB48dLTuPzAgNfRUbQCiaVzTPw3EQQ+a4xc7OqXCnVvqjfwbYroeAeYCL0dz9DVEuXyZ
+	fNdgIcXY31yuq7aiI2VPfOwrAbf+EFbJkFKhK4N2mx4NyJUyNqMiB5qAxcR9PvNyfigtSBh6IAp
+	pD7vRlBRaHQMRz4rbZudX42kKeSW1xwyi6kSgdZrD5i8ljgQMssMjRKUxFolAB+NrT2haBZPKtu
+	UaM1VWD5J5EvhER1vmQAvVB4twkkMNgr6DcSwelV8GcTiPGiR9Huz3FVIOQ+g1mxlGOUW3QhI0i
+	1CLo8turnK9FXW1h5KH+yqLwkhf0ev2swIX4B2rGF4mwTcEUndaIoE2OiBQTi4A8pi7w==
+X-Received: by 2002:a17:903:986:b0:2bf:dd0:c8b1 with SMTP id d9443c01a7336-2c7fc6392e8mr44698935ad.0.1782431829558;
+        Thu, 25 Jun 2026 16:57:09 -0700 (PDT)
+Return-Path: <dallon.masterbutler@gmail.com>
+Received: from smtpclient.apple ([2605:59c1:bb:3a08:6806:1dbd:de69:e01d])
+        by smtp.gmail.com with ESMTPSA id d9443c01a7336-2c7f5ac8988sm29182275ad.15.2026.06.25.16.57.08
+        for <customercare@masterbutlerinc.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Thu, 25 Jun 2026 16:57:09 -0700 (PDT)
+Content-Type: multipart/alternative; boundary=Apple-Mail-D4D5DFE4-C5F4-4693-9C3F-9AF5D683C750
+Content-Transfer-Encoding: 7bit
+From: Dallon Anderson <dallon.masterbutler@gmail.com>
+Mime-Version: 1.0 (1.0)
+Subject: Re: Moss Treatment
+Date: Thu, 25 Jun 2026 16:56:58 -0700
+Message-Id: <67CF3D77-ADD0-4398-BEA9-904272D4FD0B@gmail.com>
+References: <40C75F2E-9B41-4572-AF60-6B8A99C351E7@masterbutlerinc.com>
+In-Reply-To: <40C75F2E-9B41-4572-AF60-6B8A99C351E7@masterbutlerinc.com>
+To: inc Master Butler <customercare@masterbutlerinc.com>
+X-Mailer: iPhone Mail (23F81)
+
+
+--Apple-Mail-D4D5DFE4-C5F4-4693-9C3F-9AF5D683C750
+Content-Type: text/html;
+	charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<html class=3D"apple-mail-supports-explicit-dark-mode"><head><meta http-equi=
+v=3D"content-type" content=3D"text/html; charset=3Dutf-8"></head><body dir=3D=
+"auto">Looks like only 1/2 sides with a lot. Maybe 800. Full day job.&nbsp;<=
+br id=3D"lineBreakAtBeginningOfSignature"><div dir=3D"ltr">Sent from my iPho=
+ne</div><div dir=3D"ltr"><br><blockquote type=3D"cite">On Jun 25, 2026, at 2=
+:23=E2=80=AFPM, Master Butler, inc &lt;customercare@masterbutlerinc.com&gt; w=
+rote:<br><br></blockquote></div><blockquote type=3D"cite"><div dir=3D"ltr">=EF=
+=BB=BF<meta http-equiv=3D"content-type" content=3D"text/html; charset=3Dutf-=
+8">Hi Dallon,&nbsp;<div><br></div><div>Here is the same house with pictures t=
+hat Mark took today. I just wanted to make sure the pricing didn=E2=80=99t c=
+hange // New pics at the bottom of the thread. Thanks!! :)&nbsp;</div><div><=
+br id=3D"lineBreakAtBeginningOfMessage"><div>
+<meta charset=3D"UTF-8"><div dir=3D"auto" style=3D"caret-color: rgb(0, 0, 0)=
+; color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-inden=
+t: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webki=
+t-text-stroke-width: 0px; text-decoration: none; overflow-wrap: break-word; -=
+webkit-nbsp-mode: space; line-break: after-white-space;"><div>At your servic=
+e,<br><br>LaRee&nbsp;<br>Scheduling Coordinator&nbsp;<br>Master Butler, inc<=
+/div><div>customercare@masterbutlerinc.com</div><div><br></div></div><br cla=
+ss=3D"Apple-interchange-newline"><br class=3D"Apple-interchange-newline">
+</div>
+<div><br><blockquote type=3D"cite"><div>On Jun 24, 2026, at 5:39=E2=80=AFPM,=
+ Dallon Anderson &lt;dallon.masterbutler@gmail.com&gt; wrote:</div><br class=
+=3D"Apple-interchange-newline"><div><meta http-equiv=3D"content-type" conten=
+t=3D"text/html; charset=3Dutf-8"><div dir=3D"auto"><div dir=3D"ltr"><meta ht=
+tp-equiv=3D"content-type" content=3D"text/html; charset=3Dutf-8"><div dir=3D=
+"ltr"><meta http-equiv=3D"content-type" content=3D"text/html; charset=3Dutf-=
+8">This worked! 950$&nbsp;<br id=3D"lineBreakAtBeginningOfSignature"><div di=
+r=3D"ltr">Sent from my iPhone</div><div dir=3D"ltr"><br><blockquote type=3D"=
+cite">On Jun 24, 2026, at 2:13=E2=80=AFPM, Master Butler, inc &lt;customerca=
+re@masterbutlerinc.com&gt; wrote:<br><br></blockquote></div><blockquote type=
+=3D"cite"><div dir=3D"ltr">=EF=BB=BF<meta http-equiv=3D"content-type" conten=
+t=3D"text/html; charset=3Dutf-8">Hi Dallon,&nbsp;<div><br></div><div>These m=
+ay be way too big to see on the phone. Let me know &nbsp;// &nbsp;$860 - $10=
+40 &nbsp;</div><div><br></div><div>Moss Removal: $</div><div>Most likely als=
+o needs moss treatment<br id=3D"lineBreakAtBeginningOfMessage"><div>
+<meta charset=3D"UTF-8"><div dir=3D"auto" style=3D"caret-color: rgb(0, 0, 0)=
+; letter-spacing: normal; text-align: start; text-indent: 0px; text-transfor=
+m: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0=
+px; text-decoration: none; overflow-wrap: break-word; -webkit-nbsp-mode: spa=
+ce; line-break: after-white-space;"><div>At your service,<br><br>LaRee&nbsp;=
+<br>Scheduling Coordinator&nbsp;<br>Master Butler, inc</div><div><a href=3D"=
+mailto:customercare@masterbutlerinc.com">customercare@masterbutlerinc.com</a=
+></div><div><br></div><div><img src=3D"https://jobber-production-general-upl=
+oads.s3.amazonaws.com/gtk19t0uoyfyaurrbrhnk80rb8i4?response-content-disposit=
+ion=3Dinline%3B%20filename%3D%22Moss3.jfif%22%3B%20filename%2A%3DUTF-8%27%27=
+Moss3.jfif&amp;response-content-type=3Dimage%2Fjpeg&amp;X-Amz-Algorithm=3DAW=
+S4-HMAC-SHA256&amp;X-Amz-Credential=3DAKIAUAKBZSZ5IWXU6F6S%2F20260624%2Fus-e=
+ast-1%2Fs3%2Faws4_request&amp;X-Amz-Date=3D20260624T210352Z&amp;X-Amz-Expire=
+s=3D259200&amp;X-Amz-SignedHeaders=3Dhost&amp;X-Amz-Signature=3Df5a720ab7007=
+b0817a40bb92f5d74e43787aa7d4cdf2ed003b22d53141cbb547" alt=3D"Moss3.jfif" dat=
+a-unique-identifier=3D""></div><div><img src=3D"https://jobber-production-ge=
+neral-uploads.s3.amazonaws.com/tl7mqn7h4shhjvrd2gm2z9txv334?response-content=
+-disposition=3Dinline%3B%20filename%3D%22Moss2.jfif%22%3B%20filename%2A%3DUT=
+F-8%27%27Moss2.jfif&amp;response-content-type=3Dimage%2Fjpeg&amp;X-Amz-Algor=
+ithm=3DAWS4-HMAC-SHA256&amp;X-Amz-Credential=3DAKIAUAKBZSZ5IWXU6F6S%2F202606=
+24%2Fus-east-1%2Fs3%2Faws4_request&amp;X-Amz-Date=3D20260624T210352Z&amp;X-A=
+mz-Expires=3D259200&amp;X-Amz-SignedHeaders=3Dhost&amp;X-Amz-Signature=3Df3c=
+8451c35117174313e546e68fadf6ae34543dfb5dcc6fdd062044549414023" alt=3D"Moss2.=
+jfif" data-unique-identifier=3D""></div></div><br class=3D"Apple-interchange=
+-newline"><img src=3D"https://jobber-production-general-uploads.s3.amazonaws=
+.com/fkzs180zada1u0kxyx9jz2urw93n?response-content-disposition=3Dinline%3B%2=
+0filename%3D%22Moss1.jfif%22%3B%20filename%2A%3DUTF-8%27%27Moss1.jfif&amp;re=
+sponse-content-type=3Dimage%2Fjpeg&amp;X-Amz-Algorithm=3DAWS4-HMAC-SHA256&am=
+p;X-Amz-Credential=3DAKIAUAKBZSZ5IWXU6F6S%2F20260624%2Fus-east-1%2Fs3%2Faws4=
+_request&amp;X-Amz-Date=3D20260624T210352Z&amp;X-Amz-Expires=3D259200&amp;X-=
+Amz-SignedHeaders=3Dhost&amp;X-Amz-Signature=3D9c0a4892a6202624ff7f00461c10d=
+8074233f9f9430410def5a4c734aea576be" alt=3D"Moss1.jfif" data-unique-identifi=
+er=3D""></div><div><br></div><div><br></div><div><div style=3D"display: bloc=
+k;"><div style=3D"-webkit-user-select: all; -webkit-user-drag: element; disp=
+lay: inline-block;" class=3D"apple-rich-link" draggable=3D"true" role=3D"lin=
+k" data-url=3D"https://maps.app.goo.gl/RTtY2EtocAeAxoos7"><a style=3D"border=
+-radius:10px;font-family:-apple-system, Helvetica, Arial, sans-serif;display=
+:block;-webkit-user-select:none;width:228px;user-select:none;-webkit-user-mo=
+dify:read-only;user-modify:read-only;overflow:hidden;text-decoration:none;" c=
+lass=3D"lp-rich-link" rel=3D"nofollow" href=3D"https://maps.app.goo.gl/RTtY2=
+EtocAeAxoos7" dir=3D"ltr" role=3D"button" draggable=3D"false" width=3D"228">=
+<table style=3D"table-layout:fixed;border-collapse:collapse;width:228px;back=
+ground-color:#E5E6E9;font-family:-apple-system, Helvetica, Arial, sans-serif=
+;" class=3D"lp-rich-link-emailBaseTable" cellpadding=3D"0" cellspacing=3D"0"=
+ border=3D"0" width=3D"228"><tbody><tr><td vertical-align=3D"center" align=3D=
+"center"><div>&lt;thumbnail.jpeg&gt;</div></td></tr><tr><td vertical-align=3D=
+"center"><table bgcolor=3D"#E5E6E9" cellpadding=3D"0" cellspacing=3D"0" widt=
+h=3D"228" style=3D"font-family:-apple-system, Helvetica, Arial, sans-serif;t=
+able-layout:fixed;background-color:rgba(229, 230, 233, 1);" class=3D"lp-rich=
+-link-captionBar"><tbody><tr><td style=3D"padding:8px 0px 8px 0px;" class=3D=
+"lp-rich-link-captionBar-textStackItem"><div style=3D"max-width:100%;margin:=
+0px 16px 0px 16px;overflow:hidden;" class=3D"lp-rich-link-captionBar-textSta=
+ck"><div style=3D"word-wrap:break-word;font-weight:500;font-size:12px;overfl=
+ow:hidden;text-overflow:ellipsis;text-align:left;" class=3D"lp-rich-link-cap=
+tionBar-textStack-topCaption-leading"><a rel=3D"nofollow" href=3D"https://ma=
+ps.app.goo.gl/RTtY2EtocAeAxoos7" style=3D"text-decoration: none" draggable=3D=
+"false"><font color=3D"#272727" style=3D"">1528 24th Ave NE =C2=B7 1528 24th=
+ Ave NE, Issaquah, WA 98029</font></a></div><div style=3D"word-wrap:break-wo=
+rd;font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;tex=
+t-align:left;" class=3D"lp-rich-link-captionBar-textStack-bottomCaption-lead=
+ing"><a rel=3D"nofollow" href=3D"https://maps.app.goo.gl/RTtY2EtocAeAxoos7" s=
+tyle=3D"text-decoration: none" draggable=3D"false"><font color=3D"#808080" s=
+tyle=3D"">app.goo.gl</font></a></div></div></td></tr></tbody></table></td></=
+tr></tbody></table></a></div></div></div><div><br></div>
+<div><br><blockquote type=3D"cite"><div>On Jun 24, 2026, at 4:58=E2=80=AFPM,=
+ Dallon Anderson &lt;dallon.masterbutler@gmail.com&gt; wrote:</div><br class=
+=3D"Apple-interchange-newline"><div><meta http-equiv=3D"content-type" conten=
+t=3D"text/html; charset=3Dutf-8"><div dir=3D"auto">I can=E2=80=99t open thes=
+e pictures. Says not valid&nbsp;<br id=3D"lineBreakAtBeginningOfSignature"><=
+div dir=3D"ltr">Sent from my iPhone</div><div dir=3D"ltr"><br><blockquote ty=
+pe=3D"cite">On Jun 23, 2026, at 1:40=E2=80=AFPM, Master Butler, inc &lt;cust=
+omercare@masterbutlerinc.com&gt; wrote:<br><br></blockquote></div><blockquot=
+e type=3D"cite"><div dir=3D"ltr">=EF=BB=BF<meta http-equiv=3D"content-type" c=
+ontent=3D"text/html; charset=3Dutf-8">Hi Dallon- This customer would love to=
+ get a moss removal quote, can you from these pictures?<div><br></div><div>M=
+oss Removal:&nbsp;</div><div><br></div><div>I guess in 2017 they got treatme=
+nt and moss removal for like $200=E2=80=A6 but they are also interested in m=
+aybe just doing moss treatment. So if you recommend that they might go with t=
+hat option.</div><div><br id=3D"lineBreakAtBeginningOfMessage"><div>
+<meta charset=3D"UTF-8"><div>At your service,&nbsp;<br><br>Martha<br>Schedul=
+ing Coordinator<br>Master Butler Inc.<br>customercare@masterbutlerinc.com</d=
+iv>
+</div>
+<div><br><blockquote type=3D"cite"><div>Begin forwarded message:</div><br cl=
+ass=3D"Apple-interchange-newline"><div style=3D"margin-top: 0px; margin-righ=
+t: 0px; margin-bottom: 0px; margin-left: 0px;"><span style=3D"font-family: -=
+webkit-system-font, &quot;Helvetica Neue&quot;, Helvetica, sans-serif;"><b>From:=
+ </b></span><span style=3D"font-family: -webkit-system-font, Helvetica Neue,=
+ Helvetica, sans-serif;">Adriana Stamenova &lt;astamenova@hotmail.com&gt;<br=
+></span></div><div style=3D"margin-top: 0px; margin-right: 0px; margin-botto=
+m: 0px; margin-left: 0px;"><span style=3D"font-family: -webkit-system-font, &=
+quot;Helvetica Neue&quot;, Helvetica, sans-serif;"><b>Subject: </b></span><s=
+pan style=3D"font-family: -webkit-system-font, Helvetica Neue, Helvetica, sa=
+ns-serif;"><b>Re: Moss Treatment</b><br></span></div><div style=3D"margin-to=
+p: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px;"><span styl=
+e=3D"font-family: -webkit-system-font, &quot;Helvetica Neue&quot;, Helvetica=
+, sans-serif;"><b>Date: </b></span><span style=3D"font-family: -webkit-syste=
+m-font, Helvetica Neue, Helvetica, sans-serif;">June 23, 2026 at 2:32:06=E2=80=
+=AFPM MDT<br></span></div><div style=3D"margin-top: 0px; margin-right: 0px; m=
+argin-bottom: 0px; margin-left: 0px;"><span style=3D"font-family: -webkit-sy=
+stem-font, &quot;Helvetica Neue&quot;, Helvetica, sans-serif;"><b>To: </b></=
+span><span style=3D"font-family: -webkit-system-font, Helvetica Neue, Helvet=
+ica, sans-serif;">"Master Butler, inc" &lt;customercare@masterbutlerinc.com&=
+gt;<br></span></div><div style=3D"margin-top: 0px; margin-right: 0px; margin=
+-bottom: 0px; margin-left: 0px;"><span style=3D"font-family: -webkit-system-=
+font, &quot;Helvetica Neue&quot;, Helvetica, sans-serif;"><b>Cc: </b></span>=
+<span style=3D"font-family: -webkit-system-font, Helvetica Neue, Helvetica, s=
+ans-serif;">Alexandre Pimkine &lt;apimkine@hotmail.com&gt;, "tomfricke@gmail=
+.com" &lt;tomfricke@gmail.com&gt;<br></span></div><br><div><meta charset=3D"=
+UTF-8"><div class=3D"elementToProof" style=3D"font-style: normal; font-varia=
+nt-caps: normal; font-weight: 400; letter-spacing: normal; text-align: start=
+; text-indent: 0px; text-transform: none; white-space: normal; word-spacing:=
+ 0px; -webkit-text-stroke-width: 0px; text-decoration: none; font-family: Ca=
+libri, Helvetica, sans-serif; font-size: 12pt;">Oops! It looks like I didn't=
+ attach the photos. Attaching right now. Hope they come through.</div><div c=
+lass=3D"elementToProof" style=3D"font-style: normal; font-variant-caps: norm=
+al; font-weight: 400; letter-spacing: normal; text-align: start; text-indent=
+: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit=
+-text-stroke-width: 0px; text-decoration: none; font-family: Calibri, Helvet=
+ica, sans-serif; font-size: 12pt;"><br></div><div class=3D"elementToProof" s=
+tyle=3D"font-style: normal; font-variant-caps: normal; font-weight: 400; let=
+ter-spacing: normal; text-align: start; text-indent: 0px; text-transform: no=
+ne; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; t=
+ext-decoration: none; font-family: Calibri, Helvetica, sans-serif; font-size=
+: 12pt;">Thank you,</div><div class=3D"elementToProof" style=3D"font-style: n=
+ormal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; t=
+ext-align: start; text-indent: 0px; text-transform: none; white-space: norma=
+l; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;=
+ font-family: Calibri, Helvetica, sans-serif; font-size: 12pt;">Adriana</div=
+><div id=3D"appendonsend" style=3D"caret-color: rgb(0, 0, 0); font-family: H=
+elvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; fo=
+nt-weight: 400; letter-spacing: normal; text-align: start; text-indent: 0px;=
+ text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-=
+stroke-width: 0px; text-decoration: none;"></div><hr tabindex=3D"-1" style=3D=
+"font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-c=
+aps: normal; font-weight: 400; letter-spacing: normal; orphans: auto; text-a=
+lign: start; text-indent: 0px; text-transform: none; white-space: normal; wi=
+dows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decorati=
+on: none; display: inline-block; width: 329.265625px;"><span style=3D"caret-=
+color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: no=
+rmal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; t=
+ext-align: start; text-indent: 0px; text-transform: none; white-space: norma=
+l; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;=
+ float: none; display: inline !important;"></span><div id=3D"divRplyFwdMsg" d=
+ir=3D"ltr" style=3D"caret-color: rgb(0, 0, 0); font-family: Helvetica; font-=
+size: 12px; font-style: normal; font-variant-caps: normal; font-weight: 400;=
+ letter-spacing: normal; text-align: start; text-indent: 0px; text-transform=
+: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0=
+px; text-decoration: none;"><font face=3D"Calibri, sans-serif" style=3D"font=
+-size: 11pt;"><b>From:</b><span class=3D"Apple-converted-space">&nbsp;</span=
+>Master Butler, inc &lt;<a href=3D"mailto:customercare@masterbutlerinc.com">=
+customercare@masterbutlerinc.com</a>&gt;<br><b>Sent:</b><span class=3D"Apple=
+-converted-space">&nbsp;</span>Tuesday, June 23, 2026 1:04 PM<br><b>To:</b><=
+span class=3D"Apple-converted-space">&nbsp;</span>Adriana Stamenova &lt;<a h=
+ref=3D"mailto:astamenova@hotmail.com">astamenova@hotmail.com</a>&gt;<br><b>C=
+c:</b><span class=3D"Apple-converted-space">&nbsp;</span><a href=3D"mailto:t=
+omfricke@gmail.com">tomfricke@gmail.com</a><span class=3D"Apple-converted-sp=
+ace">&nbsp;</span>&lt;<a href=3D"mailto:tomfricke@gmail.com">tomfricke@gmail=
+.com</a>&gt;; Alexandre Pimkine &lt;<a href=3D"mailto:apimkine@hotmail.com">=
+apimkine@hotmail.com</a>&gt;<br><b>Subject:</b><span class=3D"Apple-converte=
+d-space">&nbsp;</span>Re: Moss Treatment</font><div>&nbsp;</div></div><div s=
+tyle=3D"caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; f=
+ont-style: normal; font-variant-caps: normal; font-weight: 400; letter-spaci=
+ng: normal; text-align: start; text-indent: 0px; text-transform: none; white=
+-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-deco=
+ration: none; line-break: after-white-space;">Hi Adriana,<div><br></div><div=
+>The photos didn=E2=80=99t come through in the email.</div><div><br></div><d=
+iv>Our moss treatment does turn the moss brown essentially killing it and st=
+opping it from spreading. New moss can grow which is why we recommend regula=
+r moss treatment. We have also found that over time with regular moss treatm=
+ent it does tend to fall of the roof, but it won=E2=80=99t till after severa=
+l treatments. And some people don=E2=80=99t like the look of the brown moss o=
+n their roof so they prefer removal.</div><div><br></div><div>If you can sha=
+re those pictures we can maybe get you a better idea of a moss removal quote=
+ for your home. But it is our most labor intensive process so it is one of o=
+ur most expensive services.</div><div><br></div><div>I=E2=80=99ve shared a q=
+uote for exterior window cleaning. Let us know how you=E2=80=99d like to pro=
+ceed.</div><div><br id=3D"x_lineBreakAtBeginningOfMessage"><div><div>At your=
+ service,&nbsp;<br><br>Martha<br>Scheduling Coordinator<br>Master Butler Inc=
+.<br><a href=3D"mailto:customercare@masterbutlerinc.com">customercare@master=
+butlerinc.com</a></div></div><div><br><blockquote type=3D"cite"><div>On Jun 2=
+3, 2026, at 12:59=E2=80=AFPM, Adriana Stamenova &lt;<a href=3D"mailto:astame=
+nova@hotmail.com">astamenova@hotmail.com</a>&gt; wrote:</div><br class=3D"x_=
+Apple-interchange-newline"><div><div class=3D"x_elementToProof" style=3D"fon=
+t-style: normal; font-variant-caps: normal; font-weight: 400; letter-spacing=
+: normal; text-align: start; text-indent: 0px; text-transform: none; white-s=
+pace: normal; word-spacing: 0px; text-decoration: none; margin-top: 1em; mar=
+gin-bottom: 1em; font-family: Calibri, Helvetica, sans-serif; font-size: 12p=
+t;">Hello,</div><div class=3D"x_elementToProof" style=3D"font-style: normal;=
+ font-variant-caps: normal; font-weight: 400; letter-spacing: normal; text-a=
+lign: start; text-indent: 0px; text-transform: none; white-space: normal; wo=
+rd-spacing: 0px; text-decoration: none; margin-top: 1em; margin-bottom: 1em;=
+ font-family: Calibri, Helvetica, sans-serif; font-size: 12pt;">Thank you fo=
+r your prompt reply.</div><div class=3D"x_elementToProof" style=3D"font-styl=
+e: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: norm=
+al; text-align: start; text-indent: 0px; text-transform: none; white-space: n=
+ormal; word-spacing: 0px; text-decoration: none; margin-top: 1em; margin-bot=
+tom: 1em; font-family: Calibri, Helvetica, sans-serif; font-size: 12pt;">I w=
+anted to follow up on your message and the quote you sent us. If you think m=
+oss treatment is the appropriate first step before potential moss removal, a=
+nd that it may be sufficient to release the moss from the roof over time, we=
+ are happy to follow your advice.</div><div class=3D"x_elementToProof" style=
+=3D"font-style: normal; font-variant-caps: normal; font-weight: 400; letter-=
+spacing: normal; text-align: start; text-indent: 0px; text-transform: none; w=
+hite-space: normal; word-spacing: 0px; text-decoration: none; margin-top: 1e=
+m; margin-bottom: 1em; font-family: Calibri, Helvetica, sans-serif; font-siz=
+e: 12pt;">That said, I am trying to better understand what you mean by =E2=80=
+=9Csufficient for most homes.=E2=80=9D If the treatment turns the moss from g=
+reen to brown but does not physically remove it, does that mean the moss rem=
+ains on the roof and could come back? I am attaching pictures I just took of=
+ the areas where I can see moss, in case that helps you assess whether treat=
+ment alone would likely be enough.</div><div class=3D"x_elementToProof" styl=
+e=3D"font-style: normal; font-variant-caps: normal; font-weight: 400; letter=
+-spacing: normal; text-align: start; text-indent: 0px; text-transform: none;=
+ white-space: normal; word-spacing: 0px; text-decoration: none; margin-top: 1=
+em; margin-bottom: 1em; font-family: Calibri, Helvetica, sans-serif; font-si=
+ze: 12pt;">I also wanted to ask about the moss removal pricing. If removal d=
+oes end up being needed in August, could you please revisit the pricing in t=
+he quote you sent us? It surprised us quite a bit. When you did moss treatme=
+nt and removal for us in 2017, the combined price was less than the current q=
+uote for moss removal alone. The treatment price seems generally in line wit=
+h what we paid then, just slightly higher, which is understandable given inf=
+lation. However, the current moss removal estimate of $700=E2=80=93$1,100 pl=
+us tax appears to be significantly higher than the $275 we paid for removal i=
+n 2017.</div><div class=3D"x_elementToProof" style=3D"font-style: normal; fo=
+nt-variant-caps: normal; font-weight: 400; letter-spacing: normal; text-alig=
+n: start; text-indent: 0px; text-transform: none; white-space: normal; word-=
+spacing: 0px; text-decoration: none; margin-top: 1em; margin-bottom: 1em; fo=
+nt-family: Calibri, Helvetica, sans-serif; font-size: 12pt;">Separately, we a=
+lso work with you annually for exterior window cleaning and screens, and I w=
+ould like to schedule that for September, perhaps the week of September 14.<=
+/div><div class=3D"x_elementToProof" style=3D"font-style: normal; font-varia=
+nt-caps: normal; font-weight: 400; letter-spacing: normal; text-align: start=
+; text-indent: 0px; text-transform: none; white-space: normal; word-spacing:=
+ 0px; text-decoration: none; margin-top: 1em; margin-bottom: 1em; font-famil=
+y: Calibri, Helvetica, sans-serif; font-size: 12pt;">Thank you again.</div><=
+div class=3D"x_elementToProof" style=3D"font-style: normal; font-variant-cap=
+s: normal; font-weight: 400; letter-spacing: normal; text-align: start; text=
+-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; t=
+ext-decoration: none; margin-top: 1em; margin-bottom: 1em; font-family: Cali=
+bri, Helvetica, sans-serif; font-size: 12pt;">Adriana</div><hr style=3D"font=
+-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: n=
+ormal; font-weight: 400; letter-spacing: normal; text-align: start; text-ind=
+ent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; text=
+-decoration: none; display: inline-block; width: 329.265625px;"><span class=3D=
+"Apple-converted-space">&nbsp;</span><span style=3D"font-family: Helvetica; f=
+ont-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: 4=
+00; letter-spacing: normal; text-align: start; text-indent: 0px; text-transf=
+orm: none; white-space: normal; word-spacing: 0px; text-decoration: none; fl=
+oat: none; display: inline !important;"></span><div id=3D"x_divRplyFwdMsg" s=
+tyle=3D"font-family: Helvetica; font-size: 12px; font-style: normal; font-va=
+riant-caps: normal; font-weight: 400; letter-spacing: normal; text-align: st=
+art; text-indent: 0px; text-transform: none; white-space: normal; word-spaci=
+ng: 0px; text-decoration: none;"><div style=3D"direction: ltr; font-family: C=
+alibri, sans-serif; font-size: 11pt;"><b>From:</b>&nbsp;Master Butler, inc &=
+lt;<a href=3D"mailto:customercare@masterbutlerinc.com">customercare@masterbu=
+tlerinc.com</a>&gt;<br><b>Sent:</b>&nbsp;Tuesday, June 23, 2026 7:27 AM<br><=
+b>To:</b>&nbsp;<a href=3D"mailto:astamenova@hotmail.com">astamenova@hotmail.=
+com</a>&lt;<a href=3D"mailto:astamenova@hotmail.com">astamenova@hotmail.com<=
+/a>&gt;<br><b>Subject:</b>&nbsp;Moss Treatment</div><div style=3D"direction:=
+ ltr;">&nbsp;</div></div><div style=3D"font-family: Helvetica; font-size: 12=
+px; font-style: normal; font-variant-caps: normal; font-weight: 400; letter-=
+spacing: normal; text-align: start; text-indent: 0px; text-transform: none; w=
+hite-space: normal; word-spacing: 0px; text-decoration: none;">Thank you for=
+ the phone message requesting a quote for moss removal! I=E2=80=99ve just se=
+nt over a quote. If you don=E2=80=99t see it, please check your =E2=80=98jun=
+k=E2=80=99 folders.&nbsp;</div><div style=3D"font-family: Helvetica; font-si=
+ze: 12px; font-style: normal; font-variant-caps: normal; font-weight: 400; l=
+etter-spacing: normal; text-align: start; text-indent: 0px; text-transform: n=
+one; white-space: normal; word-spacing: 0px; text-decoration: none;"><br>Mos=
+s treatment stops moss from spreading and turns the moss from green to brown=
+. It will not remove moss from your roof. It is usually sufficient for most h=
+omes. If you have a moderate to heavy amount of moss on your roof, or do not=
+ like the look of brown moss, you can have it removed with our August moss r=
+emoval service.</div><div style=3D"font-family: Helvetica; font-size: 12px; f=
+ont-style: normal; font-variant-caps: normal; font-weight: 400; letter-spaci=
+ng: normal; text-align: start; text-indent: 0px; text-transform: none; white=
+-space: normal; word-spacing: 0px; text-decoration: none;"><br>Moss removal i=
+s a very labor intensive process. Moss treatment is the first step in the mo=
+ss removal process, as it causes the moss to slightly release from the roof.=
+ This makes the moss easier to remove and preserves the integrity of your ro=
+of. This is because not as much force is needed to remove the moss, and only=
+ very minimal grit is removed. We only remove moss in August as the roof and=
+ gutters need to be completely dry, and that is traditionally our driest mon=
+th. Please let us know how you=E2=80=99d like to proceed.&nbsp;</div><div st=
+yle=3D"font-family: Helvetica; font-size: 12px; font-style: normal; font-var=
+iant-caps: normal; font-weight: 400; letter-spacing: normal; text-align: sta=
+rt; text-indent: 0px; text-transform: none; white-space: normal; word-spacin=
+g: 0px; text-decoration: none;"><br></div><div style=3D"font-family: Helveti=
+ca; font-size: 12px; font-style: normal; font-variant-caps: normal; font-wei=
+ght: 400; letter-spacing: normal; text-align: start; text-indent: 0px; text-=
+transform: none; white-space: normal; word-spacing: 0px; text-decoration: no=
+ne;">At your service,</div><div style=3D"font-family: Helvetica; font-size: 1=
+2px; font-style: normal; font-variant-caps: normal; font-weight: 400; letter=
+-spacing: normal; text-indent: 0px; text-transform: none; white-space: norma=
+l; word-spacing: 0px; text-decoration: none; direction: ltr; text-align: lef=
+t;"><br>LaRee&nbsp;<br>Scheduling Coordinator&nbsp;<br>Master Butler, inc</d=
+iv><div style=3D"font-family: Helvetica; font-size: 12px; font-style: normal=
+; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; text-=
+indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; t=
+ext-decoration: none; direction: ltr; text-align: left;"><a href=3D"mailto:c=
+ustomercare@masterbutlerinc.com">customercare@masterbutlerinc.com</a></div><=
+/div></blockquote></div><br></div></div></div></blockquote></div></div><div>=
+&lt;Moss3.jfif&gt;</div><meta http-equiv=3D"content-type" content=3D"text/ht=
+ml; charset=3Dus-ascii"><div><div><blockquote type=3D"cite"><div></div></blo=
+ckquote></div></div><div>&lt;Moss2.jfif&gt;</div><meta http-equiv=3D"content=
+-type" content=3D"text/html; charset=3Dus-ascii"><div><div><blockquote type=3D=
+"cite"><div></div></blockquote></div></div><div>&lt;Moss1.jfif&gt;</div><met=
+a http-equiv=3D"content-type" content=3D"text/html; charset=3Dus-ascii"><div=
+><div><blockquote type=3D"cite"><div></div></blockquote></div><br></div></di=
+v></blockquote></div></div></blockquote></div><br></div></div></blockquote><=
+/div></div></div></div></blockquote></div><br></div><div>&lt;5D442943-A068-4=
+F87-A83C-52F4556F5A36.jpeg&gt;</div><div>&lt;AB737556-03F8-42C0-922C-28AD7F0=
+83D77.jpeg&gt;</div><div>&lt;A4ACCDCC-A763-48E2-9241-269C982A391E.jpeg&gt;</=
+div><div>&lt;B1C0C3C1-57D3-48B1-BA0D-340A958FFC2B.jpeg&gt;</div><div>&lt;B09=
+6BF59-C53C-4DFE-8AF5-0D11BC36722C.jpeg&gt;</div></div></blockquote></body></=
+html>=
+
+--Apple-Mail-D4D5DFE4-C5F4-4693-9C3F-9AF5D683C750--

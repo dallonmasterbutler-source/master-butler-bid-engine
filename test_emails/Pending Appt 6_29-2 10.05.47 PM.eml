@@ -1,0 +1,190 @@
+Delivered-To: customercare@masterbutlerinc.com
+Received: by 2002:a05:6918:2464:b0:435:70be:4d4e with SMTP id bg36csp246500ysb;
+        Tue, 23 Jun 2026 14:56:21 -0700 (PDT)
+X-Received: by 2002:a05:690e:b87:b0:660:9691:73cf with SMTP id 956f58d0204a3-6636e56255fmr723478d50.32.1782251781411;
+        Tue, 23 Jun 2026 14:56:21 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1782251781; cv=pass;
+        d=google.com; s=arc-20260327;
+        b=GbNSWPSHfa7AWA6W2SKGZOQriIbGS5PkjvAtbaozuCYjHmZGKNwCtFBrYSXmyjI/vw
+         g5SDQyH/UmHsjWCCJ7G7CwVUjyIb8yJv1bKllizCpPViY8+8abXQIiwkzGZ/HlkSvGY3
+         s/wVKwP3B2kfrfUCHf1mHe0oaWK892z1cj67DUdZkppQixtWEnu7bnaODTM6wjP42wJ9
+         XKZXXGminRDgNnGCFGWunzdjS9D8olkydZO2OI7BWP0uoDswO2ofDzkK40Q/Ww4GprAs
+         Beo9Kzc1FlGsvblVATy04N4LNHFpCfCqiV19J1X1Rp2CLVywT3bnjo3gJn4NpiQNh/FK
+         R2qg==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=to:subject:message-id:date:from:in-reply-to:references:mime-version
+         :dkim-signature;
+        bh=RMNHJy+ZRbRAuoniFwiiDsMQWyWlEmGE9xLZOxTPYjU=;
+        fh=Jo1a5m+IpOPU3hKyaRFi6XZCN1dGo10E2NrSlVSugW8=;
+        b=l7vYVLDE203y0IDG4QcwefkZT9WUoBs3opP6pN9rotDFJaOrsnZge4OuFb5QHi1FnG
+         Hy4/z76dg16p9Ah/pESB7YC7k7NDgecU+I2BqSnNDH5iDJDCJw+amEvi2N7aIUpH0yP0
+         6ZIEy+s4C9enUfcG7hvEjZcvJH0Px0eSB57bvxJrR9ut7zKxRT8XKh8WFZZj66bh/dtV
+         xRh7OtB5Sjz6ipXTLk5FGqv9LeqVsMNlsIXNi9I3SScB8B+lQL9VsSaUus/cOUngumGm
+         jdvP1qSc+AssTJMsBbg/kTz2oEfthUGa2OuKXl/HrWLuMRmf7uqfBTjRpvF+XUdnXgls
+         da1w==;
+        dara=google.com
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20251104 header.b=F+lMaXib;
+       arc=pass (i=1);
+       spf=pass (google.com: domain of shenwei58@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=shenwei58@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=neutral header.i=@masterbutlerinc.com
+Return-Path: <shenwei58@gmail.com>
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 956f58d0204a3-66314a974fesor8185171d50.2.2026.06.23.14.56.21
+        for <customercare@masterbutlerinc.com>
+        (Google Transport Security);
+        Tue, 23 Jun 2026 14:56:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shenwei58@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20251104 header.b=F+lMaXib;
+       arc=pass (i=1);
+       spf=pass (google.com: domain of shenwei58@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=shenwei58@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=neutral header.i=@masterbutlerinc.com
+ARC-Seal: i=1; a=rsa-sha256; t=1782251781; cv=none;
+        d=google.com; s=arc-20240605;
+        b=L2WXQ6rgdut65tEnNoWddyPyeRMnty+MX5qmk7B4s/yi3VjJnAnhZoj2rmJxJC40Mu
+         3OWUoLPsOHod6NLqXPgy7yyyMGKpow3SKAK8s4THJxFVdt8PNwEwZO2YkBKTed6bvy9f
+         tMbFa/nHjn60T+C05aaXgUPeUmdm0sE2EzvIABU4bEnH97nwIyzxfDniiDVLMSI3MwQ+
+         1YMehPd0mqKhLp3U2bmlU6ZDM5U8x3lA8KtQxuPV4pTvUXmOKC09mpLY03giBQeyMjHB
+         HLV4+/w2BOj4jkfUaOxnJRPOk9YfMAQZYnQ1frRhzJQ+NOGjbSyezzaOln2REcoU6yhA
+         iR0g==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=to:subject:message-id:date:from:in-reply-to:references:mime-version
+         :dkim-signature;
+        bh=RMNHJy+ZRbRAuoniFwiiDsMQWyWlEmGE9xLZOxTPYjU=;
+        fh=Jo1a5m+IpOPU3hKyaRFi6XZCN1dGo10E2NrSlVSugW8=;
+        b=jEVYMSopgm6/0apb5+02BwvJgkq45bhuCgIRXTUsxjCFaYBAUYV9bGhOUSQy5v7D6O
+         jG6xzDOQKe8bit+lkX7xehvNHLZt736ULsa4411DW0yrQDfWDq4M4Y67agnfnM7o61vn
+         1gefdlPQ8qB0ZuTr0YDhDpUkLeXG7bZ0KeW6x7b3lefs4GNjSbJ71/NB3FAY2k38BB1v
+         GEb/DoYXaOumd6fqFK6L0BwmzQI7j0iUDrWmrvpX4AoTsux6UL2ZJ+8jeYK35cn4D65r
+         pmylU9FTe+Kz/OiPVMRR5rbToozIvqGaWPmbaazgHiMcZCsS2coHe4jVsduSVjTJbWA9
+         kVgw==;
+        darn=masterbutlerinc.com
+ARC-Authentication-Results: i=1; mx.google.com; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20251104; t=1782251781; x=1782856581; darn=masterbutlerinc.com;
+        h=to:subject:message-id:date:from:in-reply-to:references:mime-version
+         :from:to:cc:subject:date:message-id:reply-to;
+        bh=RMNHJy+ZRbRAuoniFwiiDsMQWyWlEmGE9xLZOxTPYjU=;
+        b=F+lMaXibLOT78gLPdqfi+fPhWeZkw8xifMkVDPkaj8lmaxQ/+IvDRm2gs08I0sAJLe
+         3Nvp3nDUxYNgJDzPmFVdLgIJuW5TZpBeDOGusQcA7wZs8bchkqsnlJY97cltjvVhar/G
+         sr0H8aBzeiYE6vyEvEdcOh5Bh+UhXZn8F5ds+3Jn1rGtoKEMCbsNvFVor2fz8J3PHGBP
+         Z8E3ZRCEf27qIEzwlHXN6ymINVVZKciK2ltUW1VR5hmT7YTOIXewB3LmF1Wa6tGxRr+c
+         PuTe762++kxsiQ5WIRhkUroCnTpvNzcvzleK6cDrdJZC3hIXbSNFSfMSt71a9OuIeVYx
+         6VLQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20251104; t=1782251781; x=1782856581;
+        h=to:subject:message-id:date:from:in-reply-to:references:mime-version
+         :x-gm-gg:x-gm-message-state:from:to:cc:subject:date:message-id
+         :reply-to;
+        bh=RMNHJy+ZRbRAuoniFwiiDsMQWyWlEmGE9xLZOxTPYjU=;
+        b=b/dEJ+jFKIXghMyzoGHpZf5TP+Ff2xZ1JI169ggAUxqmsWmOz8csHp822QcCl5x/ls
+         SRihUuSL03seUbERGZwTJS1O7dBlo9mfBw6H/RBTXdkBC2RxywItxMXEUJzz+nG0Zkmz
+         WLazmEHLvhDh/kPa8t5i+qXfEcJ+bVsku4b8e7wfbiX1uoilBUyy2DWyuTCAPi2dSuB+
+         wAmBFJw6e9X5smomtK5BkEv/eKf354EaLXYSh9fJAP+hmy1d6IIBRM9h2Y5FiPjkPJk2
+         Pgsucx744BRUVO90deBDbKXXOHTGCh8/gHJEybqHqr9MoHoR7yJwpG1E5lIWCZ1Ctkcm
+         7PZg==
+X-Gm-Message-State: AOJu0Yzp3n4uQjC5ObzyWAFg4wHSaS3fHa21Vv+yAx9JTDbJ6PcWR5SY
+	ndfFbCETRsxRwmtZkTjBlEC2tDp6rg6PTrYGxcU0oPNdbl9qR5BVH6VNywybKuIob0CDsPfcWUw
+	fKGSAcNAndnDPwEKetvdr+DHJZLVURvrsLw==
+X-Gm-Gg: AfdE7cmQZT3pSJvUr5DCVhCNTpiq19gQKA+Q28qGLuN2d/7f/+bvcOI1RGEmr02rOgQ
+	vp1wES3/hru80wm9L5xTmv9mwDU442P9IkU4dNgpvg+DJlABacbqamzTxE6nRs38DuXkKm/mY4B
+	U15pRFZfk5DwRSIJuHOE9v8Zmf27WrlLeG9OiCYt6yprexh6H4ZrhpfpPvP0oZsqVR0l0Zq3riP
+	E0NcizTOBXmkoQLFXvdwnBbuTlbglFltqEZC/j4DX+0qRdLpTID/iW9y6mCo7cA8e+8qzBm+QT8
+	hqd0YSL14RUsryyLKE5qcS8i8KcNIg==
+X-Received: by 2002:a05:690e:c42:b0:662:db62:14e0 with SMTP id
+ 956f58d0204a3-6636e562e92mr714228d50.33.1782251780977; Tue, 23 Jun 2026
+ 14:56:20 -0700 (PDT)
+MIME-Version: 1.0
+References: <90A01EB4-5172-464B-A032-D49CFB9C0B39@masterbutlerinc.com>
+In-Reply-To: <90A01EB4-5172-464B-A032-D49CFB9C0B39@masterbutlerinc.com>
+From: Wei Shen <shenwei58@gmail.com>
+Date: Tue, 23 Jun 2026 14:56:09 -0700
+X-Gm-Features: AVVi8CdUnzFTUstlJfP2OTfWqWqLCuGjjbsv8u1K7bIgNeLZ9KTasq2lY27Poeo
+Message-ID: <CAKs42kmbHozHu-CHVfVSJ8mOHbGTjgiQhsPvhDy=uCaxHvyB6w@mail.gmail.com>
+Subject: Re: Pending Appt 6/29
+To: "Master Butler, inc" <customercare@masterbutlerinc.com>
+Content-Type: multipart/alternative; boundary="0000000000004e362b0654f2d4da"
+
+--0000000000004e362b0654f2d4da
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+Hello,
+
+I don't remember I have a service requested. Can you remind me what service
+is this?
+
+Thanks!
+
+On Tue, Jun 23, 2026 at 2:24=E2=80=AFPM Master Butler, inc <
+customercare@masterbutlerinc.com> wrote:
+
+> Hello,
+>
+>
+> We want to reach out regarding a tentative appointment we are holding for
+> you on June 29th. Please let us know if you=E2=80=99d like the spot. We w=
+ould love
+> to add you to our schedule!
+>
+>
+>
+>
+> At your service,
+>
+> Jessica
+> Office Manager
+> Master Butler, inc
+> www.masterbutlerinc.com
+>
+>
+>
+>
+
+--=20
+Wei Shen
+
+--0000000000004e362b0654f2d4da
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">Hello,=C2=A0<div><br></div><div>I don&#39;t remember I hav=
+e a service requested. Can you remind=C2=A0me what service is this?=C2=A0</=
+div><div><br></div><div>Thanks!</div></div><br><div class=3D"gmail_quote gm=
+ail_quote_container"><div dir=3D"ltr" class=3D"gmail_attr">On Tue, Jun 23, =
+2026 at 2:24=E2=80=AFPM Master Butler, inc &lt;<a href=3D"mailto:customerca=
+re@masterbutlerinc.com">customercare@masterbutlerinc.com</a>&gt; wrote:<br>=
+</div><blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;b=
+order-left:1px solid rgb(204,204,204);padding-left:1ex"><div><p style=3D"ma=
+rgin:0px;font-size:13px;line-height:normal;font-family:&quot;Helvetica Neue=
+&quot;;font-size-adjust:none;font-kerning:auto;font-variant-alternates:norm=
+al;font-variant-ligatures:normal;font-variant-numeric:normal;font-variant-e=
+ast-asian:normal;font-feature-settings:normal">Hello,</p><p style=3D"margin=
+:0px;font-size:13px;line-height:normal;font-family:&quot;Helvetica Neue&quo=
+t;;font-size-adjust:none;font-kerning:auto;font-variant-alternates:normal;f=
+ont-variant-ligatures:normal;font-variant-numeric:normal;font-variant-east-=
+asian:normal;font-feature-settings:normal;min-height:15px"><br></p><p style=
+=3D"margin:0px;font-size:13px;line-height:normal;font-family:&quot;Helvetic=
+a Neue&quot;;font-size-adjust:none;font-kerning:auto;font-variant-alternate=
+s:normal;font-variant-ligatures:normal;font-variant-numeric:normal;font-var=
+iant-east-asian:normal;font-feature-settings:normal">We want to reach out r=
+egarding a tentative appointment we are holding for you on June 29th. Pleas=
+e let us know if you=E2=80=99d like the spot. We would love to add you to o=
+ur schedule!=C2=A0</p><p style=3D"margin:0px;font-size:13px;line-height:nor=
+mal;font-family:&quot;Helvetica Neue&quot;;font-size-adjust:none;font-kerni=
+ng:auto;font-variant-alternates:normal;font-variant-ligatures:normal;font-v=
+ariant-numeric:normal;font-variant-east-asian:normal;font-feature-settings:=
+normal"><br></p><br><div>
+<div><br></div><div>At your service,<br><br>Jessica<br>Office Manager<br>Ma=
+ster Butler, inc<br><a href=3D"http://www.masterbutlerinc.com" target=3D"_b=
+lank">www.masterbutlerinc.com</a><br><br><br></div>
+
+</div>
+<br></div></blockquote></div><div><br clear=3D"all"></div><div><br></div><s=
+pan class=3D"gmail_signature_prefix">-- </span><br><div dir=3D"ltr" class=
+=3D"gmail_signature"><div dir=3D"ltr">Wei Shen<br></div></div>
+
+--0000000000004e362b0654f2d4da--

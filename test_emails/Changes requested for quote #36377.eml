@@ -1,0 +1,540 @@
+Delivered-To: customercare@masterbutlerinc.com
+Received: by 2002:a05:6918:d42f:b0:481:8ede:28fa with SMTP id bz47csp516237ysb;
+        Thu, 25 Jun 2026 12:36:23 -0700 (PDT)
+X-Received: by 2002:ad4:5c8b:0:b0:8be:7779:d1b1 with SMTP id 6a1803df08f44-8e6d5ab777fmr62302946d6.30.1782416183367;
+        Thu, 25 Jun 2026 12:36:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1782416183; cv=none;
+        d=google.com; s=arc-20260327;
+        b=beMd2ZWh0sSn3Gtg1/j5+au07ysph8hvMCRTCPSbzv1QRpC5C9ky/SkYA/dW4jLc86
+         5UkGui4ShM/P2p8szv0/N0xmmD4D7pnmznrOUs23Pzhiy7UhfAXAZ1TAXaRLrBVpa+2a
+         r1H6YI+aJ1h6AP//01QBTTUF3swQ3o9cVvbqH25luzMlHfugE/1nVtCvXckl0vMDjOlg
+         YzOVopsxd+MMgsDAiWxMD1dLpxXC2k13nkRAmGJofkF2JxcdMFDqvv+wT/NyNnzl+MkJ
+         lkGy7Kzk1ciN+tXMaCn1kcC/OpySLtnAkEq8WFsqyyzDipBWoEDHzqN9ZOY1v2gDPWIZ
+         n+5A==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=to:feedback-id:content-transfer-encoding:mime-version:subject
+         :message-id:from:date:dkim-signature;
+        bh=Z+g7QbTS8hzJMoLla8so7gaGAnjshGPJCyezoL8Sov8=;
+        fh=uw4kpZ/khR8igaa+zfz13fy+oN/wdvD7QGswJ0nO6qk=;
+        b=PGfrU2k+Kux/PqoyGMg0VnwPCJLOKz838qWXwkC56dQeDqy6HQkyR8imkdDK42sWPK
+         glSdg+Z/2t2gWUvmUVGUwZha/ckKuevkjDTy6vhziXW3Plkx18ekfzgsHWZood0sHClj
+         ZsDmaQ6J6MNrXoIDfTzMqbCKXjvnH9jdXIHfvsFMyXZv24Pjd5M6P+I/IXr4Qm+UekXL
+         b3jg6ardaq5QG1b2rrhq+T6vYe83QWh0Ahl48dH2qN4YE2tXRBMVs6cxh6dTVGxA84FV
+         ryouaK0yvzA+nVcdyvvWHgDshoktZkd7YErBIz9E8J6C+E4XwbtQTgTHiDnCeMDmH94K
+         zhgw==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@txn.getjobber.com header.s=s1 header.b=xL7INIgi;
+       spf=pass (google.com: domain of bounces+39273303-74d1-customercare=masterbutlerinc.com@em3703.txn.getjobber.com designates 208.117.56.152 as permitted sender) smtp.mailfrom="bounces+39273303-74d1-customercare=masterbutlerinc.com@em3703.txn.getjobber.com";
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=getjobber.com
+Return-Path: <bounces+39273303-74d1-customercare=masterbutlerinc.com@em3703.txn.getjobber.com>
+Received: from o6.ptr6255.getjobber.com (o6.ptr6255.getjobber.com. [208.117.56.152])
+        by mx.google.com with ESMTPS id 6a1803df08f44-8df7f600185si258120196d6.145.2026.06.25.12.36.23
+        for <customercare@masterbutlerinc.com>
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Thu, 25 Jun 2026 12:36:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of bounces+39273303-74d1-customercare=masterbutlerinc.com@em3703.txn.getjobber.com designates 208.117.56.152 as permitted sender) client-ip=208.117.56.152;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@txn.getjobber.com header.s=s1 header.b=xL7INIgi;
+       spf=pass (google.com: domain of bounces+39273303-74d1-customercare=masterbutlerinc.com@em3703.txn.getjobber.com designates 208.117.56.152 as permitted sender) smtp.mailfrom="bounces+39273303-74d1-customercare=masterbutlerinc.com@em3703.txn.getjobber.com";
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=getjobber.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=txn.getjobber.com;
+	h=date:from:subject:mime-version:content-type:content-transfer-encoding:
+	to:cc:content-type:date:from:subject:to;
+	s=s1; t=1782416182;
+	bh=Z+g7QbTS8hzJMoLla8so7gaGAnjshGPJCyezoL8Sov8=;
+	b=xL7INIgiHuMT+SrAUdNiMtIBstK0llP+Stmb7aC8joVPuxJ9HzadsQNpymMjy3OIB4II
+	Bu8bLYenCI4YrXCQuu1IpnxoBFt/NIcO/4HsLxWQkiJGpXWV8NJVPl2VeLxzDvJCXadzNZ
+	DDSwTYsigrswx6cqve3qbcBcf9Ft4UzNI6eoDsWkrPOw2PvGI2fDgFi9KJlhG1hzcr+i4q
+	OwCaMws1ZvSfdp8j+V/trWkbG5e8zK9mTrATR4QHiFOSqmuNnQEGvZIw1ooX9NQmnbqMHo
+	wBc/UsghtD8/xc/4ucI0Z6lYqKNWcWrXdvHnxYaEakswdknxQlesYGIuUzDLOOmA==
+Received: by recvd-75f969d656-f92cc with SMTP id recvd-75f969d656-f92cc-1-6A3D8336-6C
+	2026-06-25 19:36:22.606133924 +0000 UTC m=+247185.619435269
+Received: from txn.getjobber.com (unknown)
+	by geopod-ismtpd-90 (SG)
+	with ESMTP id 0OFUFgCaT8Gnj4h48l_qbg
+	for <team-comms_systems+xsmtpapi_bad_header@getjobber.com>;
+	Thu, 25 Jun 2026 19:36:22.576 +0000 (UTC)
+Date: Thu, 25 Jun 2026 19:36:22 +0000 (UTC)
+From: The Jobber Team <noreply@txn.getjobber.com>
+Message-ID: <6a3d83364bf0e_382a3c001922db@ip-172-16-3-99.ec2.internal.mail>
+Subject: Changes requested for quote #36377
+Mime-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="--==_mimepart_6a3d83364b349_382a3c0019216d";
+ charset=UTF-8
+Content-Transfer-Encoding: 7bit
+X-Entity-Ref-ID: disable-threading
+Feedback-ID: 86715::quote_changes_requested_received:Jobber
+X-SG-EID: 
+ =?us-ascii?Q?u001=2Et=2FtvIQfPlMbrC6IkrSFgmXA8Qn33Y7mo5B5w6uWWzrvDSHcLMwPNSfHhQ?=
+ =?us-ascii?Q?Urj0hpqeQ2jLNYfJNgpvqNLe1oAUNhzrypFE0+X?=
+ =?us-ascii?Q?+NWjUN4yzoTop+V3koTkNmR8DPZNhMhpF2UMO7s?=
+ =?us-ascii?Q?JgtGmQ0IyTRnCtdMgj0+McJmSDSjNywohLrj10=2F?=
+ =?us-ascii?Q?jg5O4xLJW5JnVrOArDchC1qXAwk4SQqeCRcP3Y3?=
+ =?us-ascii?Q?dvHA9PoAKSnOCf1qDH1R9ICax9VeeyRad56cwm8?=
+ =?us-ascii?Q?DwarYhIzwg3iNxLdMf44f77Aeg=3D=3D?=
+X-SG-ID: 
+ =?us-ascii?Q?u001=2ESdBcvi+Evd=2FbQef8eZF3Bj66Ov3tTf8ovmv9O6ZI6j0e+2Uex2Fwj=2FQH9?=
+ =?us-ascii?Q?7PIQQiM2tdectlt1=2Fhd+Psg9EdmvL21ocjq7tZp?=
+ =?us-ascii?Q?otI+Y5ptLX6AxU+wp9Rmwa8NRkmTYntcViCEW5o?=
+ =?us-ascii?Q?TaM2U=2FwdQnghI8gop+y6eSNNQG+zBTPe=2F4xiXkb?=
+ =?us-ascii?Q?Y1F+HHt1FxwX8JoK8=2F?=
+To: customercare@masterbutlerinc.com
+X-Entity-ID: u001.iG1R27GH/MFmGdDEIAA4tg==
+
+
+----==_mimepart_6a3d83364b349_382a3c0019216d
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+
+-----------------
+Changes Requested
+-----------------
+
+Harini  Kumar has requested a change for quote #36377 that was created on 06/15/2026 for the amount of $1,011.13.
+
+Client comment
+-----------------
+Could you make two changes before I approve?
+- Remove pressure wash pathway (currently billed at $75) and dryer vent cleaning (billed at $100)
+- For the window cleaning, the previous response wasn't clear. Is the price for all windows in the house or just the windows shown in the picture?
+
+View Quote: https://secure.getjobber.com/quotes/60919775
+
+----==_mimepart_6a3d83364b349_382a3c0019216d
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.=
+w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns=3D"http://www.w3.org/1999/xhtml">
+<head>
+  <meta name=3D"viewport" content=3D"width=3Ddevice-width" />
+  <meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Dutf-8" =
+/>
+  <title>  Changes Requested
+</title>
+</head>
+
+<body bgcolor=3D"#ffffff" style=3D"margin: 0px;">
+  <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width: 1=
+00%;
+                 font-family: Helvetica, Arial, &#39;Lucida Grande&#39;, sa=
+ns-serif;
+                 line-height: 24px;
+                 color: #47545C;
+                 border-spacing: 0px !important;
+                 border-collapse: collapse;
+                 border: none;
+                 vertical-align: top;
+                 "><tr><td width=3D"100%" height=3D"100%" bgcolor=3D"" alig=
+n=3D"center" valign=3D"top"><!--[if (gte mso 9)|(IE)]>
+              <table width=3D'600' align=3D'center' cellpadding=3D'0' cells=
+pacing=3D'0' border=3D'0'>
+                <tr>
+                  <td>
+            <![endif]-->
+                <div class=3D"container" style=3D"max-width: 600px !importa=
+nt; margin: 0 auto !important; clear: both !important; text-align: left;">
+
+      <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"widt=
+h: 100%;
+                 font-family: Helvetica, Arial, &#39;Lucida Grande&#39;, sa=
+ns-serif;
+                 line-height: 24px;
+                 color: #47545C;
+                 border-spacing: 0px !important;
+                 border-collapse: collapse;
+                 border: none;
+                 vertical-align: top;
+                 "><tr><td width=3D"5%" height=3D"24px" style=3D"background=
+-color: #ffffff; line-height: 24px; font-size: 24px;">&nbsp;</td><td width=
+=3D"90%" height=3D"24px" style=3D"background-color: #ffffff; line-height: 2=
+4px; font-size: 24px;">&nbsp;</td><td width=3D"5%" height=3D"24px" style=3D=
+"background-color: #ffffff; line-height: 24px; font-size: 24px;">&nbsp;</td=
+></tr></table><table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=
+=3D"width: 100%;
+                 font-family: Helvetica, Arial, &#39;Lucida Grande&#39;, sa=
+ns-serif;
+                 line-height: 24px;
+                 color: #47545C;
+                 border-spacing: 0px !important;
+                 border-collapse: collapse;
+                 border: none;
+                 vertical-align: top;
+                 "><tr><td width=3D"5%" height=3D"24px" style=3D"background=
+-color: #ffffff; line-height: 24px; font-size: 24px;">&nbsp;</td><td width=
+=3D"90%" height=3D"100%" style=3D"background-color: #ffffff;">
+          <a href=3D"https://getjobber.com" style=3D"display: inline-block;=
+"><img src=3D"https://cdn.jobber.com/yr/logos/v1/logo_jobber_brand-mark-ema=
+il-header-navy.png" alt=3D"Jobber" width=3D"134" height=3D"24" border=3D"0"=
+ style=3D"display: block;
+     border: 0;
+     font-weight: bold;
+     color: #012939;
+     text-transform: uppercase;
+     text-decoration: none;
+     font-size: 18px;"></a>
+</td><td width=3D"5%" height=3D"24px" style=3D"background-color: #ffffff; l=
+ine-height: 24px; font-size: 24px;">&nbsp;</td></tr></table><table cellpadd=
+ing=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width: 100%;
+                 font-family: Helvetica, Arial, &#39;Lucida Grande&#39;, sa=
+ns-serif;
+                 line-height: 24px;
+                 color: #47545C;
+                 border-spacing: 0px !important;
+                 border-collapse: collapse;
+                 border: none;
+                 vertical-align: top;
+                 "><tr><td width=3D"5%" height=3D"24px" style=3D"background=
+-color: #ffffff; line-height: 24px; font-size: 24px;">&nbsp;</td><td width=
+=3D"90%" height=3D"24px" style=3D"background-color: #ffffff; line-height: 2=
+4px; font-size: 24px;">&nbsp;</td><td width=3D"5%" height=3D"24px" style=3D=
+"background-color: #ffffff; line-height: 24px; font-size: 24px;">&nbsp;</td=
+></tr></table>
+    <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:=
+ 100%;
+                 font-family: Helvetica, Arial, &#39;Lucida Grande&#39;, sa=
+ns-serif;
+                 line-height: 24px;
+                 color: #47545C;
+                 border-spacing: 0px !important;
+                 border-collapse: collapse;
+                 border: none;
+                 vertical-align: top;
+                 "><tr><td width=3D"5%" height=3D"32px" style=3D"background=
+-color: #ffffff; line-height: 32px; font-size: 32px;">&nbsp;</td><td width=
+=3D"90%" height=3D"32px" style=3D"background-color: #ffffff; line-height: 3=
+2px; font-size: 32px;">&nbsp;</td><td width=3D"5%" height=3D"32px" style=3D=
+"background-color: #ffffff; line-height: 32px; font-size: 32px;">&nbsp;</td=
+></tr></table><table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=
+=3D"width: 100%;
+                 font-family: Helvetica, Arial, &#39;Lucida Grande&#39;, sa=
+ns-serif;
+                 line-height: 24px;
+                 color: #47545C;
+                 border-spacing: 0px !important;
+                 border-collapse: collapse;
+                 border: none;
+                 vertical-align: top;
+                 "><tr><td width=3D"5%" height=3D"32px" style=3D"background=
+-color: #ffffff; line-height: 32px; font-size: 32px;">&nbsp;</td><td width=
+=3D"90%" height=3D"100%" style=3D"background-color: #ffffff;">
+
+        <h2 style=3D"margin: 0;
+     font-weight: 700;
+     color: #012939;
+     margin-bottom: 24px;
+     font-size: 24px;
+     line-height: 32px;">  Changes Requested
+</h2>
+
+
+      <!-- Insert content from email templates -->
+        <p style=3D"margin: 0 0 24px;
+     font-size: 16px;
+     line-height: 24px;
+     color: #424E56;">
+  Harini  Kumar has requested a change for quote #36377 that was created on=
+ 06/15/2026 for the amount of $1,011.13.
+</p>
+
+<h5 style=3D"margin: 0;
+     font-weight: 700;
+     color: #012939;
+     margin-bottom: 8px;
+     font-size: 14px;
+     line-height: 16px;">Requested change</h5>
+
+<p style=3D"margin: 0 0 24px;
+     font-size: 16px;
+     line-height: 24px;
+     color: #424E56;">Could you make two changes before I approve?
+<br/>
+- Remove pressure wash pathway (currently billed at $75) and dryer vent cle=
+aning (billed at $100)
+<br/>
+- For the window cleaning, the previous response wasn&#39;t clear. Is the p=
+rice for all windows in the house or just the windows shown in the picture?=
+</p>
+
+<!--[if mso]>
+              <v:roundrect xmlns:v=3D'urn:schemas-microsoft-com:vml' xmlns:=
+w=3D'urn:schemas-microsoft-com:office:word' href=3D'https://secure.getjobbe=
+r.com/quotes/60919775' style=3D'height:44px; v-text-anchor:middle; width:28=
+0px;' arcsize=3D'10%' stroke=3D 'f' fillcolor=3D'#32821C'>
+                <w:anchorlock />
+                <center>
+            <![endif]--><a bg_color=3D"false" style=3D"
+      background-color: #32821C;
+      border-radius: 4px;
+      color: #ffffff;
+      display: inline-block;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 16px;
+      font-weight: bold;
+      text-align: center;
+      text-decoration: none;
+      margin: 0;
+      padding: 10px 16px;
+      -webkit-text-size-adjust: none;" href=3D"https://secure.getjobber.com=
+/quotes/60919775?utm_content=3Din_email_cta&amp;utm_medium=3Demail&amp;utm_=
+source=3Dsendgrid">View Quote</a><!--[if mso]>
+                </center>
+              </v:roundrect>
+            <![endif]--><script type=3D"application/ld+json">
+//<![CDATA[
+{
+      "@context" : "http://schema.org",
+      "@type" : "EmailMessage",
+      "potentialAction" : {
+        "@type" : "ViewAction",
+        "url" : "https://secure.getjobber.com/quotes/60919775?utm_content=
+=3Dmarkup_action&utm_medium=3Demail&utm_source=3Dsendgrid",
+        "name" : "View Quote"
+      }
+    }
+//]]>
+</script>
+
+
+
+      <!-- /end insert -->
+
+</td><td width=3D"5%" height=3D"32px" style=3D"background-color: #ffffff; l=
+ine-height: 32px; font-size: 32px;">&nbsp;</td></tr></table><table cellpadd=
+ing=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width: 100%;
+                 font-family: Helvetica, Arial, &#39;Lucida Grande&#39;, sa=
+ns-serif;
+                 line-height: 24px;
+                 color: #47545C;
+                 border-spacing: 0px !important;
+                 border-collapse: collapse;
+                 border: none;
+                 vertical-align: top;
+                 "><tr><td width=3D"5%" height=3D"32px" style=3D"background=
+-color: #ffffff; line-height: 32px; font-size: 32px;">&nbsp;</td><td width=
+=3D"90%" height=3D"32px" style=3D"background-color: #ffffff; line-height: 3=
+2px; font-size: 32px;">&nbsp;</td><td width=3D"5%" height=3D"32px" style=3D=
+"background-color: #ffffff; line-height: 32px; font-size: 32px;">&nbsp;</td=
+></tr></table>
+</div>
+            <!--[if (gte mso 9)|(IE)]>
+                  </td>
+                </tr>
+              </table>
+            <![endif]--></td></tr></table>
+
+    <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:=
+ 100%;
+                 font-family: Helvetica, Arial, &#39;Lucida Grande&#39;, sa=
+ns-serif;
+                 line-height: 24px;
+                 color: #47545C;
+                 border-spacing: 0px !important;
+                 border-collapse: collapse;
+                 border: none;
+                 vertical-align: top;
+                 "><tr><td width=3D"100%" height=3D"100%" bgcolor=3D"" alig=
+n=3D"center" valign=3D"top"><!--[if (gte mso 9)|(IE)]>
+              <table width=3D'600' align=3D'center' cellpadding=3D'0' cells=
+pacing=3D'0' border=3D'0'>
+                <tr>
+                  <td>
+            <![endif]-->
+                <div class=3D"container" style=3D"max-width: 600px !importa=
+nt; margin: 0 auto !important; clear: both !important; text-align: left;">
+
+     =20
+      <table cellpadding=3D'0' cellspacing=3D'0' border=3D'0' width=3D'100%=
+'>
+        <tr>
+          <td height=3D'2px' width=3D'5%' style=3D'line-height: 2px; font-s=
+ize: 2px;'>&nbsp;</td>
+          <td height=3D'2px' width=3D'90%' bgcolor=3D'#e9e9e9' style=3D'lin=
+e-height: 2px; font-size: 2px;'>&nbsp;</td>
+          <td height=3D'2px' width=3D'5%' style=3D'line-height: 2px; font-s=
+ize: 2px;'>&nbsp;</td>
+        </tr>
+      </table>
+
+      <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"widt=
+h: 100%;
+                 font-family: Helvetica, Arial, &#39;Lucida Grande&#39;, sa=
+ns-serif;
+                 line-height: 24px;
+                 color: #47545C;
+                 border-spacing: 0px !important;
+                 border-collapse: collapse;
+                 border: none;
+                 vertical-align: top;
+                 "><tr><td width=3D"5%" height=3D"32px" style=3D"background=
+-color: #ffffff; line-height: 32px; font-size: 32px;">&nbsp;</td><td width=
+=3D"90%" height=3D"32px" style=3D"background-color: #ffffff; line-height: 3=
+2px; font-size: 32px;">&nbsp;</td><td width=3D"5%" height=3D"32px" style=3D=
+"background-color: #ffffff; line-height: 32px; font-size: 32px;">&nbsp;</td=
+></tr></table><table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=
+=3D"width: 100%;
+                 font-family: Helvetica, Arial, &#39;Lucida Grande&#39;, sa=
+ns-serif;
+                 line-height: 24px;
+                 color: #47545C;
+                 border-spacing: 0px !important;
+                 border-collapse: collapse;
+                 border: none;
+                 vertical-align: top;
+                 "><tr><td width=3D"5%" height=3D"32px" style=3D"background=
+-color: #ffffff; line-height: 32px; font-size: 32px;">&nbsp;</td><td width=
+=3D"90%" height=3D"100%" style=3D"background-color: #ffffff;">
+        <h4 style=3D"margin: 0;
+     font-weight: 700;
+     color: #012939;
+     margin-bottom: 8px;
+     font-size: 16px;
+     line-height: 24px;">Questions?</h4>
+        <p style=3D"margin: 0 0 24px;
+     font-size: 16px;
+     line-height: 24px;
+     color: #424E56; margin-bottom: 0;">
+            Visit our <a target=3D"_blank" style=3D"color: #3ca2e0;
+     text-decoration: none;" href=3D"https://help.getjobber.com/hc/en-us">H=
+elp Center</a>
+        </p>
+</td><td width=3D"5%" height=3D"32px" style=3D"background-color: #ffffff; l=
+ine-height: 32px; font-size: 32px;">&nbsp;</td></tr></table><table cellpadd=
+ing=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width: 100%;
+                 font-family: Helvetica, Arial, &#39;Lucida Grande&#39;, sa=
+ns-serif;
+                 line-height: 24px;
+                 color: #47545C;
+                 border-spacing: 0px !important;
+                 border-collapse: collapse;
+                 border: none;
+                 vertical-align: top;
+                 "><tr><td width=3D"5%" height=3D"32px" style=3D"background=
+-color: #ffffff; line-height: 32px; font-size: 32px;">&nbsp;</td><td width=
+=3D"90%" height=3D"32px" style=3D"background-color: #ffffff; line-height: 3=
+2px; font-size: 32px;">&nbsp;</td><td width=3D"5%" height=3D"32px" style=3D=
+"background-color: #ffffff; line-height: 32px; font-size: 32px;">&nbsp;</td=
+></tr></table></div>
+            <!--[if (gte mso 9)|(IE)]>
+                  </td>
+                </tr>
+              </table>
+            <![endif]--></td></tr></table>
+
+  <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width: 1=
+00%;
+                 font-family: Helvetica, Arial, &#39;Lucida Grande&#39;, sa=
+ns-serif;
+                 line-height: 24px;
+                 color: #47545C;
+                 border-spacing: 0px !important;
+                 border-collapse: collapse;
+                 border: none;
+                 vertical-align: top;
+                 "><tr><td width=3D"100%" height=3D"100%" bgcolor=3D"#fffff=
+f" align=3D"center" valign=3D"top"><!--[if (gte mso 9)|(IE)]>
+              <table width=3D'600' align=3D'center' cellpadding=3D'0' cells=
+pacing=3D'0' border=3D'0'>
+                <tr>
+                  <td>
+            <![endif]-->
+                <div class=3D"container" style=3D"max-width: 600px !importa=
+nt; margin: 0 auto !important; clear: both !important; text-align: left;">
+
+   =20
+      <table cellpadding=3D'0' cellspacing=3D'0' border=3D'0' width=3D'100%=
+'>
+        <tr>
+          <td height=3D'2px' width=3D'5%' style=3D'line-height: 2px; font-s=
+ize: 2px;'>&nbsp;</td>
+          <td height=3D'2px' width=3D'90%' bgcolor=3D'#e9e9e9' style=3D'lin=
+e-height: 2px; font-size: 2px;'>&nbsp;</td>
+          <td height=3D'2px' width=3D'5%' style=3D'line-height: 2px; font-s=
+ize: 2px;'>&nbsp;</td>
+        </tr>
+      </table>
+
+    <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:=
+ 100%;
+                 font-family: Helvetica, Arial, &#39;Lucida Grande&#39;, sa=
+ns-serif;
+                 line-height: 24px;
+                 color: #47545C;
+                 border-spacing: 0px !important;
+                 border-collapse: collapse;
+                 border: none;
+                 vertical-align: top;
+                 "><tr><td width=3D"5%" height=3D"24px" style=3D"background=
+-color: #ffffff; line-height: 24px; font-size: 24px;">&nbsp;</td><td width=
+=3D"90%" height=3D"24px" style=3D"background-color: #ffffff; line-height: 2=
+4px; font-size: 24px;">&nbsp;</td><td width=3D"5%" height=3D"24px" style=3D=
+"background-color: #ffffff; line-height: 24px; font-size: 24px;">&nbsp;</td=
+></tr></table><table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=
+=3D"width: 100%;
+                 font-family: Helvetica, Arial, &#39;Lucida Grande&#39;, sa=
+ns-serif;
+                 line-height: 24px;
+                 color: #47545C;
+                 border-spacing: 0px !important;
+                 border-collapse: collapse;
+                 border: none;
+                 vertical-align: top;
+                 "><tr><td width=3D"5%" height=3D"24px" style=3D"background=
+-color: #ffffff; line-height: 24px; font-size: 24px;">&nbsp;</td><td width=
+=3D"90%" height=3D"100%" style=3D"background-color: #ffffff;">
+      <p style=3D"margin: 0 0 24px;
+     font-size: 12px;
+     line-height: 20px;
+     color: #898989;">
+        <strong>Delivered by Jobber</strong> | 10130 103 Street NW, Edmonto=
+n, AB T5J 3N9, Canada<br/>
+        <a style=3D"color: #3ca2e0;
+     text-decoration: none;color: #969696;" href=3D"https://getjobber.com/t=
+erms_of_service">Terms of Service</a> |
+        <a style=3D"color: #3ca2e0;
+     text-decoration: none;color: #969696;" href=3D"https://getjobber.com/p=
+rivacy_policy">Privacy policy</a>
+        <br/>
+        <br/>
+        Copyright =A9 2026, Octopusapp, Inc.
+      </p>
+</td><td width=3D"5%" height=3D"24px" style=3D"background-color: #ffffff; l=
+ine-height: 24px; font-size: 24px;">&nbsp;</td></tr></table><table cellpadd=
+ing=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width: 100%;
+                 font-family: Helvetica, Arial, &#39;Lucida Grande&#39;, sa=
+ns-serif;
+                 line-height: 24px;
+                 color: #47545C;
+                 border-spacing: 0px !important;
+                 border-collapse: collapse;
+                 border: none;
+                 vertical-align: top;
+                 "><tr><td width=3D"5%" height=3D"24px" style=3D"background=
+-color: #ffffff; line-height: 24px; font-size: 24px;">&nbsp;</td><td width=
+=3D"90%" height=3D"24px" style=3D"background-color: #ffffff; line-height: 2=
+4px; font-size: 24px;">&nbsp;</td><td width=3D"5%" height=3D"24px" style=3D=
+"background-color: #ffffff; line-height: 24px; font-size: 24px;">&nbsp;</td=
+></tr></table>
+</div>
+            <!--[if (gte mso 9)|(IE)]>
+                  </td>
+                </tr>
+              </table>
+            <![endif]--></td></tr></table><img src=3D"http://url8125.txn.ge=
+tjobber.com/wf/open?upn=3Du001.x7SLcCmpEpILr3wNNn-2B2ObqEZ0da8IJiXt47uJaQ4I=
+GT7CWFruZ2g4nZ2KoopKKjZJIl3Eqew7TbMCbnUcI3fdPQUVOHrkw0msc0BOW-2BhtXXGjvWqB3=
+K1DBOTsECWF-2BYGMg9QIAYZJo03uLRjPzNZZnWhkzeh6VpoYceOQ9MXHvFpZZdVD75O-2Bv6lt=
+tcMlfSVFB0jcah9ak-2BBBK0zw-2FmrthKYnp-2BonzHRDqaJtwXFFT4LjfW5bqbwC-2FzeQ94F=
+5KTswg-2B-2FRWVhrOYSONzTEj8Fk59qIMdJYd9N47t5QgzYMD7Ly0J014oPTmGrwMcecxWvd05=
+6-2BMli7manex9uhkRT26p75jn9ozrevzgZ0LXZHkGp-2BOu7EN-2FScSxadky-2FwVz-2B5D7a=
+RS94C3PuHnJ684bwQ-3D-3D" alt=3D"" width=3D"1" height=3D"1" border=3D"0" sty=
+le=3D"height:1px !important;width:1px !important;border-width:0 !important;=
+margin-top:0 !important;margin-bottom:0 !important;margin-right:0 !importan=
+t;margin-left:0 !important;padding-top:0 !important;padding-bottom:0 !impor=
+tant;padding-right:0 !important;padding-left:0 !important;"/></body>
+</html>
+
+----==_mimepart_6a3d83364b349_382a3c0019216d--

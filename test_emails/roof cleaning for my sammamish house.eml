@@ -1,0 +1,134 @@
+Delivered-To: tom@masterbutlerinc.com
+Received: by 2002:a05:6918:2464:b0:435:70be:4d4e with SMTP id bg36csp251629ysb;
+        Tue, 23 Jun 2026 15:05:10 -0700 (PDT)
+X-Received: by 2002:a05:6402:13cd:b0:697:be0e:4b72 with SMTP id 4fb4d7f45d1cf-697f3771070mr241960a12.1.1782252310145;
+        Tue, 23 Jun 2026 15:05:10 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1782252310; cv=pass;
+        d=google.com; s=arc-20260327;
+        b=MM+cp52U/p4FlFHj6mrmaIp0tcdiGJz1g1UQXpbGbcczmBnI4grbiotJV3JSTj/LaS
+         nn+0itiyYTUXrMtLfzK3lbD6G7EA3FGJerrUIWZ5F9z2uDT3yfEaS/fpHvBO+1qMdmCD
+         FSuAp4sxasVbye+zQnd/Fz8yXcXoPxCG6AE03Y/sDTLv10NHRAYVADyF5Kw4kE4Vdye/
+         NOnXcwNjhUN+liH7RKG3MlZ8eOyrB61S65EJOlh+PKrjSw1Bo2EWThzBfkJjj/Aglo/H
+         stGqBBw9/nLN+ng9JC6bGl1LdBw3bNrLdfM8lhsQh11z/I1vRtPptDceEgUF7nrS4vv4
+         E4nQ==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=to:subject:message-id:date:from:mime-version:dkim-signature;
+        bh=CgxOsKqKVO63GQCctftt75M7Y6K6bm8eIHhN9s8/E1E=;
+        fh=YQEs9jUnsc+8Q0chHkw+ovTLJNKD5ISJvVsjnRLi9tE=;
+        b=P1LoAf9Z9C6/XGgVNqW6eRZbF4p8Zqs1sWlvE0sOViZ/Mg+kaeprvrpmsi+HyZHilb
+         Qc+jfRXEdjo6GAVSHToyLQQn3gleTw9lldCqA6YucKyP87CnhhJ1CQ77FPxzBBP5fUJI
+         XeWyFqaE3tcT92U8PDmDONeFpueaL1xPXKGCmyaUeHVp1vLSfVmCl/rytzHXHO05PjJK
+         gNM2nzGLDiO3+YgnvnfEkY/r92kgM5T2Sf2WeOHp0yc3g6b3v+T4uqZmxcxNk5SqfrrN
+         T//UfJnctFBS1uYjq0eTE+3rSaqpSJakDMxtgNd3kiXLzuhfm+lwpL7dL7pbuDHnCmVc
+         rmcg==;
+        dara=google.com
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20251104 header.b=TsVbQgvt;
+       arc=pass (i=1);
+       spf=pass (google.com: domain of jingxu1@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=jingxu1@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=neutral header.i=@masterbutlerinc.com
+Return-Path: <jingxu1@gmail.com>
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 4fb4d7f45d1cf-697bd9816b4sor1881399a12.4.2026.06.23.15.05.09
+        for <tom@masterbutlerinc.com>
+        (Google Transport Security);
+        Tue, 23 Jun 2026 15:05:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jingxu1@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20251104 header.b=TsVbQgvt;
+       arc=pass (i=1);
+       spf=pass (google.com: domain of jingxu1@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=jingxu1@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=neutral header.i=@masterbutlerinc.com
+ARC-Seal: i=1; a=rsa-sha256; t=1782252309; cv=none;
+        d=google.com; s=arc-20240605;
+        b=AnG/Yy9MdrqoxWqRYF9bw55pqWfitcKzZoru9x+vO8WACgzAjgL43CqVm/jKObSMWF
+         dKzAUdyGhQ2rvcdAaw7yPkIplztAzLTHP9Spo5EiYQF48E0Kj0wB8mOK+rOKBBk+lk06
+         vnzmGXCnFRADccS7m9V3EH8eX1qkxID6KF13zgvU15nIvvzuFMWRQXu8EMDOJPvqawgx
+         Ji/UfWsW83tk5IuodMz6w+CaPtmIS6M+5EdUgGKkzFXsuK0Vq4BLCMuWyyh8RmZtsTYe
+         B3pGUKf8begF8xu4Gtmquw+Fa0s55+nCBRDeYtzzc1jCwTCjfkOcW2Yp/TNrX0v9t4k3
+         3dCQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=to:subject:message-id:date:from:mime-version:dkim-signature;
+        bh=CgxOsKqKVO63GQCctftt75M7Y6K6bm8eIHhN9s8/E1E=;
+        fh=YQEs9jUnsc+8Q0chHkw+ovTLJNKD5ISJvVsjnRLi9tE=;
+        b=KsQJ1AGnEovBUdhsrWfTQt61NsG4mD3O/rCbhj8NFIbZUIuKK28bxbTsHw4vTqap/V
+         ph78mpqKHxWJl/xtYpntlt5CFQ9dN2wKWxAoSZmm3FtZU6z6kuCnsfE5GlTDVhjh+CkR
+         bX82J7SqyVDUcFs82Bos8eMQqk2fLRJUHxSkwxEyMVPhz8I8/zex43jXblY5ppIuwPnf
+         zZR5aDYqH6v49Wy6xr3Yz99box7Im78qKmqtoD46pPEbg9w0vrY+5Elqb7wC+xYBjMNq
+         hZxD3zWrpiD+YaMnjNAiuiz/lYeOW8VOjF7FkP61fnoFGBQHjgEputTyO1UYbJgM0OZG
+         qr8g==;
+        darn=masterbutlerinc.com
+ARC-Authentication-Results: i=1; mx.google.com; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20251104; t=1782252309; x=1782857109; darn=masterbutlerinc.com;
+        h=to:subject:message-id:date:from:mime-version:from:to:cc:subject
+         :date:message-id:reply-to;
+        bh=CgxOsKqKVO63GQCctftt75M7Y6K6bm8eIHhN9s8/E1E=;
+        b=TsVbQgvtAeUXUNAZXgZEikrda2Nf1xFyS/dt7B4s8pR/j9NuiV2mWVR/765xZQdf3B
+         VndqtbPUkzT6chfAjXX5BIRYFLkYKr91Sc9NxMEpnutvuDGHZahjTNIgMoZH0p7LW/s6
+         GMlpiipvwvXkBgAqzE+SPIUYeP2WbNCgyZnkr2YUL3kC4r4r+T97PVUEhlC4WNFffJ03
+         ABfg69oWISN+jIKy3XgdCamZP9QVjWv0y1xYv6OHXptJ0V0/QasgCwFJsMn3ThD+OP+1
+         eBybXJjvWC1qzN6s9ykv+i4eCpknJHzquPu6b1wjGF3cL4Iy6MMQ80p4m1mkbOqZzlwH
+         iaaA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20251104; t=1782252309; x=1782857109;
+        h=to:subject:message-id:date:from:mime-version:x-gm-gg
+         :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to;
+        bh=CgxOsKqKVO63GQCctftt75M7Y6K6bm8eIHhN9s8/E1E=;
+        b=Nl7tAF090XBOFyuR7YLF1Mfm0OSKXto+V3cLvvxAkK0ax2moew4WStIAPwfsJcjYtC
+         9nazkn6KkHCd4MBkiV4TkJ40YGsqDbJ7UAh/DgiKeYXlSEgf3Xv9e3YxJXf9xxYsoLm4
+         ns1U0yKyjxDsUDu7CQyiO6GChlldJBkggQz6fxbbB6WraQwgBz6CDbP+irq1Smgoo3km
+         SIeUnIQRYjMEC79AkoeOAtfShPyL5614Xi5VcNvfirl/4zP4CkqaHCCGs7/7MwwOMRoc
+         w5Wp6Ct0nzihQzoBVpkCHchrj01TEH1k4+mWIeOeHyM1CXuTNUvJe+M2LUPnofe7QH45
+         Nqhw==
+X-Gm-Message-State: AOJu0YyMNK6qaW2BonWUdnb6EA7ApnhRR77C0ZHck9WdX+NYOV1/cSUt
+	f/ivmSfcjHlMTnMap3G45HjPUwKxmmWV4S6E+wR85VV+Z625AiB1sWnZd6jO2f+c4wx+NroRXAR
+	yNjDdv3iFBo50XEbNIpkoGmlQ7QvqFR3p+g==
+X-Gm-Gg: AfdE7cnBYI4CnyiSFsNcPNc1SsEymNcAGoubK5TBjUXWwRwik+20uXJTfHmHBZRP5JL
+	osfXiDWis35UtAJ9HSVhtjsc8J5qyfgikCG/9Mv1+QPHEKcjQsI0V2FlzrnbVUjIkkNmx7eCDIV
+	aLuivgVOT9uogp2iWfkoAbIqfEpwksv4BfX9YNuCJeXLFr1fWxJpdtfTwYKCNXZNo6BTBE0jm7J
+	wuyOmha1rv87rdmyU13cCnr9glg0Cup2BY3Bdk5H8UR/qNcr6tyUlGMrlmoihEqD+wAcmz2ny+y
+	ya/EnTbNmqTxrJdwg3Y4BjeauJcB7sk=
+X-Received: by 2002:a05:6402:540f:b0:68d:643d:be37 with SMTP id
+ 4fb4d7f45d1cf-697f3aab821mr175695a12.23.1782252309324; Tue, 23 Jun 2026
+ 15:05:09 -0700 (PDT)
+MIME-Version: 1.0
+From: Jing Xu <jingxu1@gmail.com>
+Date: Tue, 23 Jun 2026 15:04:32 -0700
+X-Gm-Features: AVVi8CcLHv2b6t9zidgIBIoHX-aneFyD2O96gm6erTxdKZsYvDn-_oILLDTyJzw
+Message-ID: <CA+t39Z_3jJHMyUSdm4sO08CWSTaz1++Ffd7tv7jUED21WZO0PA@mail.gmail.com>
+Subject: roof cleaning for my sammamish house
+To: "Master Butler, inc" <tom@masterbutlerinc.com>
+Content-Type: multipart/alternative; boundary="000000000000cc26dd0654f2f34b"
+
+--000000000000cc26dd0654f2f34b
+Content-Type: text/plain; charset="UTF-8"
+
+Hi Tom and team,
+
+I would like to schedule a roof cleaning for my sammamish house at 24323 SE
+42nd Pl, Sammamish WA 98029.
+
+
+
+-- 
+Thanks,
+
+-Jing
+
+--000000000000cc26dd0654f2f34b
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div>Hi Tom and team,=C2=A0</div><div><br></div><div>I wou=
+ld like to schedule a roof cleaning for my sammamish house at 24323 SE 42nd=
+ Pl, Sammamish=C2=A0WA 98029.=C2=A0</div><div><br></div><div><br></div><div=
+><br></div><span class=3D"gmail_signature_prefix">-- </span><br><div dir=3D=
+"ltr" class=3D"gmail_signature" data-smartmail=3D"gmail_signature"><div dir=
+=3D"ltr"><div><div dir=3D"ltr"><div><div dir=3D"ltr"><div dir=3D"ltr"><div>=
+Thanks, <br><br>-Jing</div><div><br></div></div></div></div></div></div></d=
+iv></div></div>
+
+--000000000000cc26dd0654f2f34b--

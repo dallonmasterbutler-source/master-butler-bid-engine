@@ -1,0 +1,246 @@
+Delivered-To: customercare@masterbutlerinc.com
+Received: by 2002:a05:6918:2464:b0:435:70be:4d4e with SMTP id bg36csp677098ysb;
+        Wed, 24 Jun 2026 08:41:16 -0700 (PDT)
+X-Received: by 2002:a17:903:3bad:b0:2c2:2a8a:af69 with SMTP id d9443c01a7336-2c7c75b1ea7mr93014645ad.9.1782315676423;
+        Wed, 24 Jun 2026 08:41:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1782315676; cv=none;
+        d=google.com; s=arc-20260327;
+        b=Pe5NBJrTvSeRdyIOpZ0Mmdg+Y6WTJ60Gadx0FN0RATR58ZAT2PDmWxfop3ZpwIVOR5
+         sQ4+wXHJ5vhN/j7ubnlUnMCUNVKdCnqzKI/aq5Jn9weAHyRtu4BRD390r+Jgvp5TG2E3
+         v+IpNJ1P+L3Qm/cH7csz79qyHOwhkjC79KlQa/bIVToKN7SuuI0KsZxoYnIXEgS0gIb2
+         jNTFkFikY7GS6pC+d3u/2glpEC/n9lDehwiRAeNrIn+XctHvQAIi2QRboHLb+mY9LWBp
+         lakwPlDjyAxPhXOV7R6fcPB94pxJ6suaYCPkl9y8n/c9IFPlLuOPlLwKRnkRcoT7rYkZ
+         ZfoA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=to:references:message-id:date:in-reply-to:from:subject:mime-version
+         :content-transfer-encoding:dkim-signature;
+        bh=W5K3jKxd1kDHHw20lskW3xNHIo2DxOnL/EUHHTTBtOQ=;
+        fh=OvdaoJpRb6buRqYQ6jZq9QMjVlexcABRZeyR3ECI1pA=;
+        b=pcrr5AuXZzcRcrITdD9+atv801W35MeIORhm90qrxMZUeXl//omYoEB9A8Bf1pR1AO
+         K1vsZA7jyJuUlxN0tnTxXgioR0yWOOUqKRSGPy3oC3QChWM/jwTlEHddqVTag1sTmcs3
+         1JcHJlNDN0cuBiL+6lHvFLTTi4i/+L3geoUC57SVz7mKGTDBiL8SnZZUzXs/9lV9bf3q
+         CkjcQyW5u3FbfHxF70CX6fbOgqpoHYa5qkM5s1SLHT1wGSZytP8eWWQ1yxM87e1vxmkr
+         qnjAchKjVI+G5I2oPfNRvOP2PRlCmZw4yHXjNCbDR/DgyvX3el0eJgscC6xgxLcfC+7P
+         3OXw==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20251104 header.b=jevUDgd4;
+       spf=pass (google.com: domain of mtgarvale@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mtgarvale@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=neutral header.i=@masterbutlerinc.com
+Return-Path: <mtgarvale@gmail.com>
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 41be03b00d2f7-c8bc5b14694sor3978567a12.7.2026.06.24.08.41.16
+        for <customercare@masterbutlerinc.com>
+        (Google Transport Security);
+        Wed, 24 Jun 2026 08:41:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mtgarvale@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20251104 header.b=jevUDgd4;
+       spf=pass (google.com: domain of mtgarvale@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mtgarvale@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=neutral header.i=@masterbutlerinc.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20251104; t=1782315676; x=1782920476; darn=masterbutlerinc.com;
+        h=to:references:message-id:date:in-reply-to:from:subject:mime-version
+         :content-transfer-encoding:from:to:cc:subject:date:message-id
+         :reply-to;
+        bh=W5K3jKxd1kDHHw20lskW3xNHIo2DxOnL/EUHHTTBtOQ=;
+        b=jevUDgd4TdPp/MCsXHwVRlid/DvBS6KO0aWH5anjSpAs/c7fYOg7mmi/ju7Ffpo0M7
+         82/mmS+qviekL24uj4+wyDnWJYmJWgqvXPStUTVtEmpFSX2fnvawmpl4I6DpRpdWsuzi
+         DbDuaXDowlKYLZBHn6jnqMXo9uVjK8JFmVo8mROHq/Sa+FYK/CEUvz3DiRwLnSxX+Mwz
+         Gtgp0zk1sHxYw9b0u/HUcAVAMfzFC4GDeqvcZn8LWB/YD5ufBPeFrhwVpUZlNG1vmSSf
+         XJcZj0yMUFxE4IJgs7zvg7HyS5w/QzFMey0rbFXneb5E0ptWzBbudGGzDZJbSIhGib7q
+         Gykw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20251104; t=1782315676; x=1782920476;
+        h=to:references:message-id:date:in-reply-to:from:subject:mime-version
+         :content-transfer-encoding:x-gm-gg:x-gm-message-state:from:to:cc
+         :subject:date:message-id:reply-to;
+        bh=W5K3jKxd1kDHHw20lskW3xNHIo2DxOnL/EUHHTTBtOQ=;
+        b=grUM5ay/ly3D9SC8Ml95XLG7VAYO5N6naNaBZI6Fyy0vmogXdpzXGDLz3l/A0mJkw/
+         wSYg9JSh8L1xBVAYI1y6JcPZLSgVBCJr2DDeTErXW0wFGaxtdDS5YFKySoppBKfOahbN
+         RuB+2al+gA3JnYdUbiHIdE0uhnROc9D4CQwehl3cYif2E8oyeDbW26kevL8sjLty0Xn/
+         rVfsp8FoAjvdsjm9jkSIWIRk0ayvAl+XPVnOYXotjKVRrICK9zukEZdzzcksYapYILAM
+         oyPQSRszpO01196st96IbNJ2SWXi8t/kd3pT342qWHJCVRlhOwxoOjZ5YdWEZpkWjp+1
+         m0gQ==
+X-Gm-Message-State: AOJu0Yy3u3mmYiFlUH6gKpZW61jMoU6tgoxamXc/XbO9uM+BtTjSr9hS
+	O3rK3Oski4aLgtE5WtfLnkDOoeJyKWqBNeGOxKTQ3uwdEn0tlLxlPaZ2ufve
+X-Gm-Gg: AfdE7clh9tDUIw4kn9CjJjOLDG4IIRKxOTClJAuT5I2nIIriautYQMbWTLqne1OVWs2
+	Gt3rrHIcrh00Qym4fLET5gDCZC+lqMzFLD3hp21ItkUF9JwJGSlr6sWrtgOcUtlgqKjJTiPlNfh
+	872b/1OtRQeZQJcV2s0vaJjgkLZTAyu4u436/4Fl3p1CV9SUzCEIeC0XqHsqiNxju7CmJWhucuW
+	SeY3k0gT1IQ+02TnuZHOIa+2s38w/2BYyOaDhy1xT8i5qjU4N0mBLs+0YclYJvoSYyX8fB4N9Us
+	ub9olpdPjRFpVbH+ew9554tQqeDF/1v84SPFbiVFv0D8Gblv3c6D83dI5QjhNK+o1HFMU+BsEz/
+	4NkniY+Mc9m+lX38glm0Iq9epK/hwLCeydEEit56ljOGy2XTWRSaZEd2CRKysDZ094w6lpKx3HY
+	Vw6SOgxRv8P6fDSbXjfnArb4ghC/fBREC59NgjyDPlV2z4TzJfYRYq5n33LiLNUbC9ifJt4w==
+X-Received: by 2002:a05:6a20:9d91:b0:3b7:e6b2:3007 with SMTP id adf61e73a8af0-3bd14f0334emr11282135637.7.1782315675809;
+        Wed, 24 Jun 2026 08:41:15 -0700 (PDT)
+Return-Path: <mtgarvale@gmail.com>
+Received: from smtpclient.apple (c-174-164-139-2.hsd1.wa.comcast.net. [174.164.139.2])
+        by smtp.gmail.com with ESMTPSA id 41be03b00d2f7-c92b96eb935sm112557a12.4.2026.06.24.08.41.15
+        for <customercare@masterbutlerinc.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Wed, 24 Jun 2026 08:41:15 -0700 (PDT)
+Content-Type: multipart/alternative; boundary=Apple-Mail-484A6644-8E62-4C76-9500-52AC60ECE2A4
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0 (1.0)
+Subject: Re: Pending Appt 6/29
+X-Apple-Notify-Thread: NO
+X-Universally-Unique-Identifier: 70CDCE83-F0E6-4136-A45C-6E6D82669A0F
+From: michael garvale <mtgarvale@gmail.com>
+In-Reply-To: <A210365A-7033-4434-B1AE-F2ADF5A87538@masterbutlerinc.com>
+Date: Wed, 24 Jun 2026 08:41:04 -0700
+X-Apple-Message-Smime-Encrypt: NO
+Message-Id: <BFA558F1-4652-4E38-91AF-EC7F8A10B6DC@gmail.com>
+References: <A210365A-7033-4434-B1AE-F2ADF5A87538@masterbutlerinc.com>
+To: inc Master Butler <customercare@masterbutlerinc.com>
+X-Mailer: iPad Mail (23F77)
+
+
+--Apple-Mail-484A6644-8E62-4C76-9500-52AC60ECE2A4
+Content-Type: text/plain;
+	charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Martha
+Something has come up with regards to our appointment for the 29th. Would it=
+ be possible to reschedule sometime after August 11th, it would be greatly a=
+ppreciated.
+Mike Garvale=20
+Sent from my iPad
+
+> On Jun 23, 2026, at 4:15=E2=80=AFPM, Master Butler, inc <customercare@mast=
+erbutlerinc.com> wrote:
+>=20
+> =EF=BB=BFGreat!  We have your appointment confirmed on June 29th for a roo=
+f blow off for installed gutter guards, and in/out window cleaning.  Thank y=
+ou for booking with us.  We look forward to servicing your home!
+>=20
+> At your service,=20
+>=20
+> Martha
+> Scheduling Coordinator
+> Master Butler Inc.
+> customercare@masterbutlerinc.com
+>=20
+>> On Jun 23, 2026, at 4:44=E2=80=AFPM, Christine Garvale <garvale@gmail.com=
+> wrote:
+>>=20
+>> Hi Jessica,
+>>=20
+>> Yes that works!
+>>=20
+>>=20
+>> Sent from my iPad
+>>=20
+>>>> On Jun 23, 2026, at 3:34=E2=80=AFPM, Christine Garvale <garvale@gmail.c=
+om> wrote:
+>>>>=20
+>>> =EF=BB=BF
+>>> Sent from my iPad
+>>>=20
+>>>>> On Jun 23, 2026, at 2:21=E2=80=AFPM, Master Butler, inc <customercare@=
+masterbutlerinc.com> wrote:
+>>>>>=20
+>>>> =EF=BB=BF
+>>>> Hello,
+>>>>=20
+>>>> We want to reach out regarding a tentative appointment we are holding f=
+or you on June 29th. Please let us know if you=E2=80=99d like the spot. We w=
+ould love to add you to our schedule!=20
+>>>>=20
+>>>>=20
+>>>> At your service,
+>>>>=20
+>>>> Jessica
+>>>> Office Manager
+>>>> Master Butler, inc
+>>>> www.masterbutlerinc.com
+>>>>=20
+>>>>=20
+>>>>=20
+>=20
+
+--Apple-Mail-484A6644-8E62-4C76-9500-52AC60ECE2A4
+Content-Type: text/html;
+	charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<html class=3D"apple-mail-supports-explicit-dark-mode"><head><meta http-equi=
+v=3D"content-type" content=3D"text/html; charset=3Dutf-8"></head><body dir=3D=
+"auto">Martha<div>Something has come up with regards to our appointment for t=
+he 29th. Would it be possible to reschedule sometime after August 11th, it w=
+ould be greatly appreciated.</div><div>Mike Garvale&nbsp;<br id=3D"lineBreak=
+AtBeginningOfSignature"><div dir=3D"ltr">Sent from my iPad</div><div dir=3D"=
+ltr"><br><blockquote type=3D"cite">On Jun 23, 2026, at 4:15=E2=80=AFPM, Mast=
+er Butler, inc &lt;customercare@masterbutlerinc.com&gt; wrote:<br><br></bloc=
+kquote></div><blockquote type=3D"cite"><div dir=3D"ltr">=EF=BB=BF<meta http-=
+equiv=3D"content-type" content=3D"text/html; charset=3Dutf-8"><span id=3D"do=
+cs-internal-guid-4f114fe4-7fff-cb62-3f11-36e0ca1cc09d"><span style=3D"font-s=
+ize: 9pt; font-family: &quot;Helvetica Neue&quot;, sans-serif; font-variant-=
+ligatures: normal; font-variant-alternates: normal; font-variant-numeric: no=
+rmal; font-variant-east-asian: normal; font-variant-position: normal; vertic=
+al-align: baseline; white-space: pre-wrap;">Great!&nbsp; We have your appoin=
+tment confirmed on June 29th for a roof blow off for installed gutter guards=
+, and in/out window cleaning.&nbsp; Thank you for booking with us.&nbsp; We l=
+ook forward to servicing your home!</span></span><div><font face=3D"Helvetic=
+a Neue, sans-serif"><span style=3D"white-space-collapse: preserve;"><br id=3D=
+"lineBreakAtBeginningOfMessage"></span></font><div>
+<meta charset=3D"UTF-8"><div>At your service,&nbsp;<br><br>Martha<br>Schedul=
+ing Coordinator<br>Master Butler Inc.<br>customercare@masterbutlerinc.com</d=
+iv>
+</div>
+<div><br><blockquote type=3D"cite"><div>On Jun 23, 2026, at 4:44=E2=80=AFPM,=
+ Christine Garvale &lt;garvale@gmail.com&gt; wrote:</div><br class=3D"Apple-=
+interchange-newline"><div><meta http-equiv=3D"content-type" content=3D"text/=
+html; charset=3Dutf-8"><div dir=3D"auto"><div>Hi Jessica,</div><div><br></di=
+v><div>Yes that works!</div><div><br></div><br id=3D"lineBreakAtBeginningOfS=
+ignature"><div dir=3D"ltr">Sent from my iPad</div><div dir=3D"ltr"><br><bloc=
+kquote type=3D"cite">On Jun 23, 2026, at 3:34=E2=80=AFPM, Christine Garvale &=
+lt;garvale@gmail.com&gt; wrote:<br><br></blockquote></div><blockquote type=3D=
+"cite"><div dir=3D"ltr">=EF=BB=BF<meta http-equiv=3D"content-type" content=3D=
+"text/html; charset=3Dutf-8"><br id=3D"lineBreakAtBeginningOfSignature"><div=
+ dir=3D"ltr">Sent from my iPad</div><div dir=3D"ltr"><br><blockquote type=3D=
+"cite">On Jun 23, 2026, at 2:21=E2=80=AFPM, Master Butler, inc &lt;customerc=
+are@masterbutlerinc.com&gt; wrote:<br><br></blockquote></div><blockquote typ=
+e=3D"cite"><div dir=3D"ltr">=EF=BB=BF<meta http-equiv=3D"content-type" conte=
+nt=3D"text/html; charset=3Dutf-8"><div style=3D"margin: 0px; font-width: nor=
+mal; font-size: 13px; line-height: normal; font-family: &quot;Helvetica Neue=
+&quot;; font-size-adjust: none; font-kerning: auto; font-variant-alternates:=
+ normal; font-variant-ligatures: normal; font-variant-numeric: normal; font-=
+variant-east-asian: normal; font-variant-position: normal; font-feature-sett=
+ings: normal; font-optical-sizing: auto; font-variation-settings: normal;">H=
+ello,</div><div style=3D"margin: 0px; font-width: normal; font-size: 13px; l=
+ine-height: normal; font-family: &quot;Helvetica Neue&quot;; font-size-adjus=
+t: none; font-kerning: auto; font-variant-alternates: normal; font-variant-l=
+igatures: normal; font-variant-numeric: normal; font-variant-east-asian: nor=
+mal; font-variant-position: normal; font-feature-settings: normal; font-opti=
+cal-sizing: auto; font-variation-settings: normal; min-height: 15px;"><br></=
+div><div style=3D"margin: 0px; font-width: normal; font-size: 13px; line-hei=
+ght: normal; font-family: &quot;Helvetica Neue&quot;; font-size-adjust: none=
+; font-kerning: auto; font-variant-alternates: normal; font-variant-ligature=
+s: normal; font-variant-numeric: normal; font-variant-east-asian: normal; fo=
+nt-variant-position: normal; font-feature-settings: normal; font-optical-siz=
+ing: auto; font-variation-settings: normal;">We want to reach out regarding a=
+ tentative appointment we are holding for you on June 29th. Please let us kn=
+ow if you=E2=80=99d like the spot. We would love to add you to our schedule!=
+&nbsp;</div><div style=3D"margin: 0px; font-width: normal; font-size: 13px; l=
+ine-height: normal; font-family: &quot;Helvetica Neue&quot;; font-size-adjus=
+t: none; font-kerning: auto; font-variant-alternates: normal; font-variant-l=
+igatures: normal; font-variant-numeric: normal; font-variant-east-asian: nor=
+mal; font-variant-position: normal; font-feature-settings: normal; font-opti=
+cal-sizing: auto; font-variation-settings: normal;"><br></div><div style=3D"=
+margin: 0px; font-width: normal; font-size: 13px; line-height: normal; font-=
+family: &quot;Helvetica Neue&quot;; font-size-adjust: none; font-kerning: au=
+to; font-variant-alternates: normal; font-variant-ligatures: normal; font-va=
+riant-numeric: normal; font-variant-east-asian: normal; font-variant-positio=
+n: normal; font-feature-settings: normal; font-optical-sizing: auto; font-va=
+riation-settings: normal;"><br></div><div>
+<div>At your service,<br><br>Jessica<br>Office Manager<br>Master Butler, inc=
+<br>www.masterbutlerinc.com<br><br><br></div>
+
+</div>
+<br></div></blockquote></div></blockquote></div></div></blockquote></div><br=
+></div></div></blockquote></div></body></html>=
+
+--Apple-Mail-484A6644-8E62-4C76-9500-52AC60ECE2A4--

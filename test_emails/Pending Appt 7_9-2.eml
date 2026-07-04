@@ -1,0 +1,273 @@
+Delivered-To: customercare@masterbutlerinc.com
+Received: by 2002:a05:6918:2464:b0:435:70be:4d4e with SMTP id bg36csp243434ysb;
+        Tue, 23 Jun 2026 14:48:34 -0700 (PDT)
+X-Received: by 2002:a05:6a20:c701:b0:3b4:8818:fd20 with SMTP id adf61e73a8af0-3bd2cea28aemr625079637.8.1782251313864;
+        Tue, 23 Jun 2026 14:48:33 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1782251313; cv=pass;
+        d=google.com; s=arc-20260327;
+        b=iKDGSGYzPGp39KdexZjUQgWWgkQPy4URc7nXsE2Vk0B7h5VaexHtOLesM7ikeU7cdG
+         5XA3zk1z1wDLcxeN2f+gDtNQOCntAlOUWRF7WtjqgfiGuayaWs5gCydFki5xS8OMzmVa
+         keytvs/u3/cNoeAUKjX8fcLq0Xl6/IdSWrLaZRJJXJ+h7TU6UhcPz4A/2GYr1iN0D9tJ
+         M3CCDhxaSAkCjU3QRm6cROUgzeDAbGZEcHf4iZ4x6Aca7FvL7hUEstbBT7N1AumME630
+         bCprsKPUw4PNX1ySzFAvQUV8/fIo5wJdvTAmB4r8FYcZFyDVzJKETOghZZNKXeodtyaj
+         ExBQ==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=mime-version:content-language:accept-language:in-reply-to
+         :references:message-id:date:thread-index:thread-topic:subject:to
+         :from:dkim-signature;
+        bh=kTZP1MS6z5f2bjavI5zElEyi5FPcEY/eaN1SHw91HGY=;
+        fh=Jo1a5m+IpOPU3hKyaRFi6XZCN1dGo10E2NrSlVSugW8=;
+        b=PDDOA/mcYmqUKuYAwYWi69sC67SgMw3El4Rk4jt+a5eYrzzimt02vWLKS7/7RLu/p4
+         PfiMs0ZH7Vu1wvOXxEonddaX6DZLAwa8nIadt2uKo99+JUkA55EYxfiD7SCcLCaJZhfg
+         S6Tp+1S72QY2ZMT4iVsbZ1sZFMI6C+uDyKft24vL6Qb1mhxCS1B3qmB/XOsGGdz0a+96
+         hn21POj2R/QTkrmSt7Ry7/SBo9M6ksCUcyXLuPqv4tg2DSCsCol6kOu68RQOZ8sHYFNO
+         VP30RVyEXp8z1PvL1M3ULswkud7CcjDkP3DUyGwRKFxy3tMr4NoVDJ8Zzrp+V8GRumay
+         gd+Q==;
+        dara=google.com
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@hotmail.com header.s=selector1 header.b=YhRtUssi;
+       arc=pass (i=1);
+       spf=pass (google.com: domain of alebac2000@hotmail.com designates 2a01:111:f403:d002:: as permitted sender) smtp.mailfrom=alebac2000@hotmail.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hotmail.com
+Return-Path: <alebac2000@hotmail.com>
+Received: from MW6PR02CU001.outbound.protection.outlook.com (mail-westus2azolkn190120000.outbound.protection.outlook.com. [2a01:111:f403:d002::])
+        by mx.google.com with ESMTPS id 41be03b00d2f7-c8bc20f10f7si21062245a12.46.2026.06.23.14.48.33
+        for <customercare@masterbutlerinc.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Tue, 23 Jun 2026 14:48:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alebac2000@hotmail.com designates 2a01:111:f403:d002:: as permitted sender) client-ip=2a01:111:f403:d002::;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@hotmail.com header.s=selector1 header.b=YhRtUssi;
+       arc=pass (i=1);
+       spf=pass (google.com: domain of alebac2000@hotmail.com designates 2a01:111:f403:d002:: as permitted sender) smtp.mailfrom=alebac2000@hotmail.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hotmail.com
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector10001; d=microsoft.com; cv=none;
+ b=HhmD3WcVYHc3jaMsmga7s3vhWriQqa2BajknY822kc1NH0jfBcItBbqN2hgh60ZVQQoedKj+ztV3vyGb0ftWV2lCf4c9BIPSj5+yeT/FRty1L7JW9oIziuo/XlHtEONGyaibL6gHBO3n1F1GksRq9UPCOJTQ/mLUwGLLny1cpCoXlW11mAurXN9BAV7UU3q1r0I+nNLu0sanSH3fuSf8PWfQHx/F72DNDCR91w2FZncIOmBVMNDWt+9RS13yCK/xR+ArSuzskChgwReODutjawrrzn2VMIk6N0cx7BkONnq1qhs0pd0j+NczbDV0Bek1xXkPlxhNzuauMjlbu9pMvA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector10001;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-AntiSpam-MessageData-ChunkCount:X-MS-Exchange-AntiSpam-MessageData-0:X-MS-Exchange-AntiSpam-MessageData-1;
+ bh=kTZP1MS6z5f2bjavI5zElEyi5FPcEY/eaN1SHw91HGY=;
+ b=DbfBmEo5/H77ECVr+hraIN7i+II5uGS8l1ppOKuye/JQBm8qGfxhmYqor3xJWugNF63qShAgOEG7wBZ8t3TZNWa/1wxwf44+E4g+EBJZVHgOETpF1vtdOoekY1R/4zgjta6RcHso9uY4X7HcRaOWMbX57tx/EubqgW4XuvHKhrARqjhRtKel3LwwbrpMyaWCQWcnzWXc+OtoKFZesBKRXD2wrSX7PBaPiDguKoB+zRrQYRY+yqnFy3Q5CaT2HUX5AZno6UadjLENM5hllpxQYjN6tLbGYYS8cl4IpN5qFmKL4S1r0osRX/otGYaCQP+SPyOICjJsSt9ScYVl6T6XoA==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=none; dmarc=none;
+ dkim=none; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=hotmail.com;
+ s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=kTZP1MS6z5f2bjavI5zElEyi5FPcEY/eaN1SHw91HGY=;
+ b=YhRtUssi2dmTtym1qk7J7bQwT68oO5CVdUxsedD2ufXvjOqcCRvsCWlnGYL2ttl325oQu4dqp+Ho1ZgesxTWXQnplPlol9tLFi7LZJ2GxAmKDnC7A2BlIEjKALD6olWRRjbL03C64rl/N0d8QX3gZ5/ELzfNGOEL/AHxSbytXi/AFqnDRVzM0qL4+FbTgzDblWTeocH3arW901B4pHnF81nUJw+zXfZTITBiXPm3xV+ttuhHGVCdys4Hkg4siB/N6Rpi8z9650l/3otClGNm00dwDuaw7eSDI843+HHpGvaaNdYPU90eQGe3a2HPOJMhgsVjxa17ZwmmRdqg8Eqpsw==
+Received: from PH0PR04MB7576.namprd04.prod.outlook.com (2603:10b6:510:4e::8)
+ by SJ0PR04MB7744.namprd04.prod.outlook.com (2603:10b6:a03:32e::10) with
+ Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.21.159.13; Tue, 23 Jun
+ 2026 21:48:32 +0000
+Received: from PH0PR04MB7576.namprd04.prod.outlook.com
+ ([fe80::c207:e678:c03e:be13]) by PH0PR04MB7576.namprd04.prod.outlook.com
+ ([fe80::c207:e678:c03e:be13%6]) with mapi id 15.21.0139.018; Tue, 23 Jun 2026
+ 21:48:32 +0000
+From: Alessandra Baccini <alebac2000@hotmail.com>
+To: "Master Butler, inc" <customercare@masterbutlerinc.com>
+Subject: Re: Pending Appt 7/9
+Thread-Topic: Pending Appt 7/9
+Thread-Index: AQHdA1eCPyhX1b4bwk6k+8UXk74j6LZMrTXu
+Date: Tue, 23 Jun 2026 21:48:31 +0000
+Message-ID:
+ <PH0PR04MB7576FEC5C0CFC24344C0D557C5EE2@PH0PR04MB7576.namprd04.prod.outlook.com>
+References: <5832727E-429A-401E-9DE4-0EA574820FA8@masterbutlerinc.com>
+In-Reply-To: <5832727E-429A-401E-9DE4-0EA574820FA8@masterbutlerinc.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-ms-reactions: allow
+x-ms-exchange-messagesentrepresentingtype: 1
+x-ms-publictraffictype: Email
+x-ms-traffictypediagnostic: PH0PR04MB7576:EE_|SJ0PR04MB7744:EE_
+x-ms-office365-filtering-correlation-id: 4a0dac45-3d78-4f96-4951-08ded1712b22
+x-microsoft-antispam:
+ BCL:0;ARA:14566002|12050799012|15080799012|8060799015|51005399006|9400799043|37011999003|8062599012|31061999003|19110799012|25010399006|14030799003|24021099003|55001999006|10035399007|40105399003|34005399003|1602099012|102099032|3412199025|4302099013|440099028;
+x-microsoft-antispam-message-info:
+ =?Windows-1252?Q?7/IO+2vsq71rkDYqu4011tq5hoFFbLqQtCBjrRFejBdQzhrqY+YIupCZ?=
+ =?Windows-1252?Q?hxygnyMM8gkuXmS023jnwC7rhBsXvcM5gGpMqOOI1NytDOikGcH+PmJh?=
+ =?Windows-1252?Q?BDMWaxHXGqWz35cRFGtl4H09p1HpIXZjHXQDjFH1j9YF5drZxpdBJPeB?=
+ =?Windows-1252?Q?vdZlhTEZSJJjwyxbPGwcgHh7vMpCL/qB0lKh8GnS1XrNLe+T+ttMW02i?=
+ =?Windows-1252?Q?1+cd7w/zRIVNKYnEuO6L1q9bxC717yvHhYduzPsYYonlrNmEBQPX+B3/?=
+ =?Windows-1252?Q?6fsBwbQChFglfg/LoKLmK91Cld3ZGC93zskdz04ETVhhoFUWHmM7gIL7?=
+ =?Windows-1252?Q?2sGm1JN+7FJtUhcN3yWjb6i+c+ZNGPw/KhaL8IZpZZGSMLgGWEWYMWMz?=
+ =?Windows-1252?Q?DLqAgGTDqrF4ub+Jht7XI7uQg8v5cQ7dPPcKbmHAHR+0crykeONBmlzu?=
+ =?Windows-1252?Q?zYTHq0bViTGRZdeY6cBrRrMIDBq7D4vN7Vl98TyX2mCbEJ3JGXZTNNcF?=
+ =?Windows-1252?Q?WiworhNALoVOp37g2xQTnJPTBAm/0J5zU1iogClvoO4dLJeEOrhL4Rvp?=
+ =?Windows-1252?Q?traEGmjWwcTzQ1FlexDMS6gMhI9IzNy4IYzv00q0VqcJDN+XP55zq7ff?=
+ =?Windows-1252?Q?dtWy1hgggqkP8htaaY0D2CQUJhf1vJXYSEWFVqxCb0oz6ZLDDlHvWqzo?=
+ =?Windows-1252?Q?wL/5VACnbXo+BGcmV1O5OkVCAJpV1zMuhwTno5M/qqJ6/AcBpOHGzEnx?=
+ =?Windows-1252?Q?yt/j6qP/Be9aZxTNY5pfQZbQLmgBjMEWWEEi3+4kl1g2japd3X2PUN3j?=
+ =?Windows-1252?Q?rCdw//UT5izbNCowCD+O/4ldIIkacFhGVkw4TTnuOrOq8MNakwjFr3UH?=
+ =?Windows-1252?Q?CdoxX+KIMxx1GjZ19ZN9MLT0wILRhc36vfVOWrzZ/80GMKvh7CXdcw7X?=
+ =?Windows-1252?Q?s0R26lNWVP+tJtZHKJY+0FKM6oEF2uXczsWWCGPa9siBltsOkYYqdSbV?=
+ =?Windows-1252?Q?XTSGtggoT6yVqeRufwU7r3sWxHBn2mephRGciSCgIMqZ5/sfpJs9T9Me?=
+ =?Windows-1252?Q?ZXtLmafuGqdvrEFC6a6yIiik5Xx89wrT/x53oy0UYjKcWk89X0r0fHod?=
+ =?Windows-1252?Q?UoZrhqWyrF+bsn5tmeN+02iCt1bXVVgd+sK8uhGA86k0gB0rPl6iFAEL?=
+ =?Windows-1252?Q?ANTB4srDxJei0IVTjvdTU3QgSTOCjsMy4O7PAfu1h/QrLpHXvw9GCy3S?=
+ =?Windows-1252?Q?8lE5DbPWSj/EHd3lmF4=3D?=
+x-ms-exchange-antispam-messagedata-chunkcount: 1
+x-ms-exchange-antispam-messagedata-0:
+ =?Windows-1252?Q?ZIXUrgXdkSZ/tPTHRWMdTGcUcC8quv8lXCrCxWC9t/PYxef3PbxF0IPL?=
+ =?Windows-1252?Q?P/MOKiaQ+xFijxc/V/WYwXp91Rms5sVP5jRsWrZZ4VPtQOM4zC+yTNgu?=
+ =?Windows-1252?Q?xHe6mJgTU5Ok8Ua40o2uM92UPqew9QW1dymSEZ1iecJ/RyzcObqTOQ/W?=
+ =?Windows-1252?Q?W01c5HNTAVN3UPGorlaXbP5cvlPMRVoinIa+qPS4I0sYLmh8NMBfjlxY?=
+ =?Windows-1252?Q?xZyaCtBKd850hhh640s6qb6EOfc/RfTc+/jaFHWuXvr2H5p5B0GW3NTD?=
+ =?Windows-1252?Q?lrOem9EzMTAXZ6nYIaQYmBiapugA1BYJZOutqNy83u2/iQdQAT1pRDxO?=
+ =?Windows-1252?Q?3cSAstvj/JvqiiPxgpeQ7zjKsrEnnU31013QZxZp4noZSzrfBOrV7Qat?=
+ =?Windows-1252?Q?zeBY7uyTOcgGRqlYe3qfn2lZkZNROga7C0XK3Yy0eQ6Ji9rl2gccmsKb?=
+ =?Windows-1252?Q?F697oETwT3vm5qIaaBypOOp5zFLZrSHriJXv4Zk2GajWZqcRzAzYUD+0?=
+ =?Windows-1252?Q?zr1wD7wRHuzs8buYNFwmLUQpDbBU0zGbT8QjeZdvSsFdUILHhoQpZxj5?=
+ =?Windows-1252?Q?TVuLUO+kc5RkZ6DEvwEJUluyvMhwfmAT1ecvDMmoSKZFbUunpouui3hJ?=
+ =?Windows-1252?Q?SJOAGs5gjNnsHbLUqvPRGHK/B3xYV5CaQDPcGznGGxoTERfCfueAtvAH?=
+ =?Windows-1252?Q?YIPYVRej0bsatLq1p2nOmJuR7IywqrdR5mH6Z2rw+W3zjIYfK9+6oFNc?=
+ =?Windows-1252?Q?6FlUZgtS+rQPCfFdF6Fvf8OmnqGoHgkB+ErUveCLvHI0mWFswn03rRHA?=
+ =?Windows-1252?Q?yz8iXqjsmAohUGo2FxtGbiFkewMwYn0lg2mguPdf6c3uTRST3TRzUI8T?=
+ =?Windows-1252?Q?C6l+nCaxOb5fUSFO+6pFd0Q7Cs0dJ+rjQJW+BmxZ/Chl051wP3/KDsEd?=
+ =?Windows-1252?Q?D47JmHDPHPZ8i8G/32TIqZ2i+FnT1tkFowdZwwcWFcDF9nDcW01eqn6p?=
+ =?Windows-1252?Q?JiGELDcLs1p2D2jv58tvMJ+IRXnyXQQwybPIY260QwSoCx9wazarAzZ2?=
+ =?Windows-1252?Q?mGxeU/5DAeaC/0KYw0JgZJxjM5uRLyPH8SLgCT7rrh1U5m/+2Tn5xrVp?=
+ =?Windows-1252?Q?oPLGPCQCeHG0RgRzw0JwUoiufNlKQoTjkE9XL2+YjCiha5RNIjEKRLmb?=
+ =?Windows-1252?Q?gVxa4iG9G6fF9ehAuyJNxNXYpXANgpaRF47mUJI7VppXXa2kFouJpjtE?=
+ =?Windows-1252?Q?B1tzblFcg9GYgyCRDtguzwwLr58y+UiymyHAPwRdpW2rB/hfxboO6m0w?=
+ =?Windows-1252?Q?EPZLcrkyODhkcgPte78nPcFBOCIR3aDN8WXZzZ7z1jY5tl9bd5de5LIu?=
+ =?Windows-1252?Q?YwxztRw3fUa/T8EwSap/I7dtoS/uQTwACQk67vHWpjIWei1Wrin+e7B+?=
+ =?Windows-1252?Q?/PTb4UVan4aqDOA/m0y5ePVnSfNgN3Z8P1XBgpqcdtueLf3DFieJz3nN?=
+ =?Windows-1252?Q?xUJxCDU35yPQuRBlmoo+9JAE07ZthQ=3D=3D?=
+Content-Type: multipart/alternative;
+	boundary="_000_PH0PR04MB7576FEC5C0CFC24344C0D557C5EE2PH0PR04MB7576namp_"
+MIME-Version: 1.0
+X-OriginatorOrg: sct-15-20-9412-4-msonline-outlook-7fd9e.templateTenant
+X-MS-Exchange-CrossTenant-AuthAs: Internal
+X-MS-Exchange-CrossTenant-AuthSource: PH0PR04MB7576.namprd04.prod.outlook.com
+X-MS-Exchange-CrossTenant-RMS-PersistedConsumerOrg: 00000000-0000-0000-0000-000000000000
+X-MS-Exchange-CrossTenant-Network-Message-Id: 4a0dac45-3d78-4f96-4951-08ded1712b22
+X-MS-Exchange-CrossTenant-originalarrivaltime: 23 Jun 2026 21:48:31.8165
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 84df9e7f-e9f6-40af-b435-aaaaaaaaaaaa
+X-MS-Exchange-CrossTenant-rms-persistedconsumerorg: 00000000-0000-0000-0000-000000000000
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: SJ0PR04MB7744
+
+--_000_PH0PR04MB7576FEC5C0CFC24344C0D557C5EE2PH0PR04MB7576namp_
+Content-Type: text/plain; charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
+
+Hi,
+Yes, Thursday July 9th works, thank you.
+Alessandra
+
+Get Outlook for Android<https://aka.ms/AAb9ysg>
+________________________________
+From: Master Butler, inc <customercare@masterbutlerinc.com>
+Sent: Tuesday, 23 June 2026 14:30:10
+Subject: Pending Appt 7/9
+
+
+Hello,
+
+
+We want to reach out regarding a tentative appointment we are holding for y=
+ou on July 9th. Please let us know if you=92d like the spot. We would love =
+to add you to our schedule!
+
+
+At your service,
+
+Jessica
+Office Manager
+Master Butler, inc
+www.masterbutlerinc.com
+
+
+
+
+--_000_PH0PR04MB7576FEC5C0CFC24344C0D557C5EE2PH0PR04MB7576namp_
+Content-Type: text/html; charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
+
+<html>
+<head>
+<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3DWindows-1=
+252">
+</head>
+<body>
+<div dir=3D"auto" style=3D"font-family: Aptos, Aptos_MSFontService, -apple-=
+system, Roboto, Arial, Helvetica, sans-serif; font-size: 12pt; color: rgb(3=
+3, 33, 33);">
+Hi,</div>
+<div dir=3D"auto" style=3D"font-family: Aptos, Aptos_MSFontService, -apple-=
+system, Roboto, Arial, Helvetica, sans-serif; font-size: 12pt; color: rgb(3=
+3, 33, 33);">
+Yes, Thursday July 9<sup>th</sup>&nbsp;works, thank you.</div>
+<div style=3D"font-family: Aptos, Aptos_MSFontService, -apple-system, Robot=
+o, Arial, Helvetica, sans-serif; font-size: 12pt; color: rgb(33, 33, 33);" =
+dir=3D"auto">
+Alessandra&nbsp;</div>
+<div id=3D"ms-outlook-mobile-body-separator-line" data-applydefaultfontstyl=
+es=3D"true" dir=3D"auto" style=3D"font-family: Aptos, Aptos_MSFontService, =
+-apple-system, Roboto, Arial, Helvetica, sans-serif; font-size: 12pt;">
+<div style=3D"font-family: Aptos, Aptos_MSFontService, -apple-system, Robot=
+o, Arial, Helvetica, sans-serif; font-size: 12pt;">
+<br>
+</div>
+</div>
+<div id=3D"ms-outlook-mobile-signature" dir=3D"auto" style=3D"font-family: =
+Aptos, Aptos_MSFontService, -apple-system, Roboto, Arial, Helvetica, sans-s=
+erif; font-size: 12pt; color: rgb(33, 33, 33);">
+<span style=3D"font-family: Aptos, Aptos_MSFontService, -apple-system, Robo=
+to, Arial, Helvetica, sans-serif; font-size: 12pt; color: rgb(33, 33, 33);"=
+>Get
+</span><a href=3D"https://aka.ms/AAb9ysg" style=3D"font-family: Aptos, Apto=
+s_MSFontService, -apple-system, Roboto, Arial, Helvetica, sans-serif; font-=
+size: 12pt;">Outlook for Android</a></div>
+<hr style=3D"display:inline-block;width:98%" tabindex=3D"-1">
+<div id=3D"divRplyFwdMsg" dir=3D"ltr"><font face=3D"Calibri, sans-serif" st=
+yle=3D"font-size:11pt" color=3D"#000000"><b>From:</b> Master Butler, inc &l=
+t;customercare@masterbutlerinc.com&gt;<br>
+<b>Sent:</b> Tuesday, 23 June 2026 14:30:10<br>
+<b>Subject:</b> Pending Appt 7/9</font>
+<div>&nbsp;</div>
+</div>
+<div style=3D"line-break:after-white-space">
+<p style=3D"margin:0px; font-size:13px; line-height:normal; font-family:&qu=
+ot;Helvetica Neue&quot;; font-size-adjust:none; font-kerning:auto; font-var=
+iant-alternates:normal; font-variant-ligatures:normal; font-variant-numeric=
+:normal; font-variant-east-asian:normal; font-feature-settings:normal">
+Hello,</p>
+<p style=3D"margin:0px; font-size:13px; line-height:normal; font-family:&qu=
+ot;Helvetica Neue&quot;; font-size-adjust:none; font-kerning:auto; font-var=
+iant-alternates:normal; font-variant-ligatures:normal; font-variant-numeric=
+:normal; font-variant-east-asian:normal; font-feature-settings:normal; min-=
+height:15px">
+<br>
+</p>
+<p style=3D"margin:0px; font-size:13px; line-height:normal; font-family:&qu=
+ot;Helvetica Neue&quot;; font-size-adjust:none; font-kerning:auto; font-var=
+iant-alternates:normal; font-variant-ligatures:normal; font-variant-numeric=
+:normal; font-variant-east-asian:normal; font-feature-settings:normal">
+We want to reach out regarding a tentative appointment we are holding for y=
+ou on July 9th. Please let us know if you=92d like the spot. We would love =
+to add you to our schedule!&nbsp;</p>
+<br class=3D"x_Apple-interchange-newline">
+<div></div>
+<br class=3D"x_Apple-interchange-newline">
+<div>
+<div>At your service,<br>
+<br>
+Jessica<br>
+Office Manager<br>
+Master Butler, inc<br>
+www.masterbutlerinc.com<br>
+<br>
+<br>
+</div>
+</div>
+<br>
+</div>
+</body>
+</html>
+
+--_000_PH0PR04MB7576FEC5C0CFC24344C0D557C5EE2PH0PR04MB7576namp_--

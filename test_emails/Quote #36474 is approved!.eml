@@ -1,0 +1,796 @@
+Delivered-To: customercare@masterbutlerinc.com
+Received: by 2002:a05:6918:d42f:b0:481:8ede:28fa with SMTP id bz47csp525568ysb;
+        Thu, 25 Jun 2026 12:53:30 -0700 (PDT)
+X-Received: by 2002:a05:7301:37c4:b0:304:ab8:f899 with SMTP id 5a478bee46e88-30c84bcdac4mr4123054eec.8.1782417210257;
+        Thu, 25 Jun 2026 12:53:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1782417210; cv=none;
+        d=google.com; s=arc-20260327;
+        b=gR6fK+BTvoxeu203RgjaXY/SZPv27Jry6dNHY8GM9FOXAzUIwBgH5TfZxuEB1MVpSG
+         WRExMu8uDvDhv2f163EelUudfkcceDbngVHjAoUGXI7lH5CTy3ooVd5xSHF5qTcWLFfp
+         hUm2QbUnDBwPm3zH3vM9bRoHIRbqyGNqXpkcW5irhkOKa/8gdb6fuFinXYvCMbYtUVpN
+         9/OpYgxSPo3JGTUy32LDRh2fNlEHA7bCXIAm3LXrMUlm/fyDcyjm7WWOy+948T3uS9FF
+         HOv3tBPRpj8oUv6e/VBz7dQl0tDQAizRt8sqV5bZEjQE+UVowq7J2EKixTG2ltOU4dsY
+         LqSA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=content-language:thread-index:mime-version:message-id:date:subject
+         :in-reply-to:references:to:from:xfinity-graffiti:xfinity-qid
+         :dkim-signature;
+        bh=8qWGnqtpg6kXs72XjqdQ2B36Z9zUiw3JozhJJtWGoT0=;
+        fh=zwxs1jIkelVGJMQhxRzztQXftQtwuhaFWJXUFTk/168=;
+        b=QhnGM+raiZPK+kUotVD5QMNyYX2xrRV79TSr9o2iVz3QlYeoT0moapO+ByjDIvmwmW
+         cI7qMrlBEulWhq18XEqgkC0cN6NwRayo8Mm+GBDD9KfOBz3vtbbNqr3cv3COyTNdWFf3
+         L9Ev+4PQUg/NOtu/rdaHz2GnVkhN2e9yTP4j9uTof/oAYpZ4Qx0Sarc6M9KH/6uqPtvY
+         O/rTczf9kYC3ArC8+sCFf5WU7e1+8BOfR++JRoKd6qblmYmvP5D7qqOfvpHwwvwMTSBo
+         mUGRRLX/jZUs8cP8Lvw80vK4XxSSGkRObAd7nmgUDpOIYsEke1AUJcITOPtCo4QKwZZ9
+         VZbw==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@comcast.net header.s=20190202a header.b=ZroW0rfy;
+       spf=pass (google.com: domain of dang1612@comcast.net designates 2001:558:fd02:2446::5 as permitted sender) smtp.mailfrom=dang1612@comcast.net;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=comcast.net
+Return-Path: <dang1612@comcast.net>
+Received: from resqmta-h2p-567354.sys.comcast.net (resqmta-h2p-567354.sys.comcast.net. [2001:558:fd02:2446::5])
+        by mx.google.com with ESMTPS id 5a478bee46e88-30c7c6f6946si17515952eec.45.2026.06.25.12.53.29
+        for <customercare@masterbutlerinc.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Thu, 25 Jun 2026 12:53:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dang1612@comcast.net designates 2001:558:fd02:2446::5 as permitted sender) client-ip=2001:558:fd02:2446::5;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@comcast.net header.s=20190202a header.b=ZroW0rfy;
+       spf=pass (google.com: domain of dang1612@comcast.net designates 2001:558:fd02:2446::5 as permitted sender) smtp.mailfrom=dang1612@comcast.net;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=comcast.net
+Received: from resomta-h2p-554993.sys.comcast.net ([96.102.179.194])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 256/256 bits)
+	(Client did not present a certificate)
+	by resqmta-h2p-567354.sys.comcast.net with ESMTPS
+	id clQHwClixU2EHcq8fwljGo; Thu, 25 Jun 2026 19:53:29 +0000
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=comcast.net;
+	s=20190202a; t=1782417209;
+	bh=8qWGnqtpg6kXs72XjqdQ2B36Z9zUiw3JozhJJtWGoT0=;
+	h=Received:Received:From:To:Subject:Date:Message-ID:MIME-Version:
+	 Content-Type:Xfinity-Spam-Result;
+	b=ZroW0rfyIcr4pwnVExpqyeeqLAGYXiG8qjr8nnx4Sgnz12iy/aqNXdVa6lGEuDObh
+	 EaD56lJoFaw4gwhwMU8eYU8BA3kg/vuLUTa4eZtix79tkz7rcv2dNPnyKdAiZguY40
+	 vK0t8W+zQGVqDuekaL6eB+uT5ExvASr3xSiKZguEBXZ539ROabrqUwh3xWoJdKRTIj
+	 cUFPt15Xo+yzRzCHAMzoYGfiVRNMsQRZCLVzT0321p8fEWV7verav3hGMbz5EDnTPd
+	 vPC2TAz+LoSL3ot2v8k1mNIQmtM/S9T4O2iFqScslnSo3P5ebAykeIf1IvR9tSCTXd
+	 ns99VD5jnUDqQ==
+Received: from DESKTOPLM9SBDI ([174.164.247.208])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 256/256 bits)
+	(Client did not present a certificate)
+	by resomta-h2p-554993.sys.comcast.net with ESMTPSA
+	id cq8cw0h0Ci3btcq8ewTWwA; Thu, 25 Jun 2026 19:53:28 +0000
+Xfinity-QID: cq8cw0h0Ci3btcq8ewTWwA
+Xfinity-Graffiti: 78205940640
+From: <dang1612@comcast.net>
+To: "'Master Butler, inc'" <customercare@masterbutlerinc.com>
+References: <6a3c5431eec29_388f1382441b2@ip-172-16-4-5.ec2.internal.mail> <3AE288AB-04BE-47F7-ABA3-166BB63F65E7@masterbutlerinc.com>
+In-Reply-To: <3AE288AB-04BE-47F7-ABA3-166BB63F65E7@masterbutlerinc.com>
+Subject: RE: Quote #36474 is approved!
+Date: Thu, 25 Jun 2026 12:53:25 -0700
+Message-ID: <00e301dd04dc$4a8db4e0$dfa91ea0$@comcast.net>
+MIME-Version: 1.0
+Content-Type: multipart/related;
+	boundary="----=_NextPart_000_00E4_01DD04A1.9E306380"
+X-Mailer: Microsoft Outlook 16.0
+Thread-Index: AQE89ObiEWIvJNLxgcxOUnw8f5JJbQL6VBypt3f7sOA=
+Content-Language: en-us
+X-CMAE-Envelope: MS4xfIvFF0O7dMN5+7g4nNNjQW9E8SAHzzq30lgRPFBptlI4WwJVrfRHQ77QFzoCzQcJr4+P9F183xgAnMPpxER978GbYnCCY+fEIbyeMjeslgkvjYKQ0T74
+ rhixTuVV7ojEASYL0mgRVnr57PvCW75i1GAYBcp1zy0ZypXAqIz8gNKGAD9TZisTxU0TpYzffQTa6jiLb+F+bRXyz+nOjkyiIPM=
+
+This is a multipart message in MIME format.
+
+------=_NextPart_000_00E4_01DD04A1.9E306380
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_001_00E5_01DD04A1.9E306380"
+
+
+------=_NextPart_001_00E5_01DD04A1.9E306380
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+Hello,
+
+=20
+
+July 1st works for us.
+
+=20
+
+Thank you,
+
+=20
+
+David Angiuli
+
+=20
+
+From: Master Butler, inc <customercare@masterbutlerinc.com>=20
+Sent: Wednesday, June 24, 2026 4:00 PM
+To: dang1612@comcast.net
+Subject: Fwd: Quote #36474 is approved!
+
+=20
+
+Thank you for approving your quote!  Our next opening in your area is =
+July 1st.  Please let us know if that will work for you. =20
+
+
+
+
+
+At your service,=20
+
+Martha
+Scheduling Coordinator
+Master Butler Inc.
+customercare@masterbutlerinc.com
+
+
+
+
+
+Begin forwarded message:
+
+=20
+
+From: The Jobber Team <noreply@txn.getjobber.com>
+
+Subject: Quote #36474 is approved!
+
+Date: June 24, 2026 at 4:03:30=E2=80=AFPM MDT
+
+To: customercare@masterbutlerinc.com
+
+=20
+
+
+
+
+=20
+
+=20
+
+=20
+
+=20
+
+
+=20
+
+ <https://getjobber.com/>=20
+
+=20
+
+=20
+
+
+=20
+
+=20
+
+=20
+
+=20
+
+
+=20
+
+=20
+
+=20
+
+=20
+
+
+=20
+
+
+Quote Approved=20
+
+
+Lora & David Angiuli just approved Quote #36474 that was created on =
+06/24/2026 for the amount of $297.81.
+
+You may now convert this quote into a job.=20
+
+
+
+=20
+
+=20
+
+
+=20
+
+=20
+
+=20
+
+=20
+
+
+
+
+=20
+
+=20
+
+=20
+
+=20
+
+
+=20
+
+=20
+
+=20
+
+=20
+
+
+=20
+
+
+Questions?
+
+
+Visit our  <https://help.getjobber.com/hc/en-us> Help Center=20
+
+=20
+
+=20
+
+
+=20
+
+=20
+
+=20
+
+=20
+
+
+
+
+=20
+
+=20
+
+=20
+
+=20
+
+
+=20
+
+=20
+
+=20
+
+=20
+
+
+=20
+
+Delivered by Jobber | 10130 103 Street NW, Edmonton, AB T5J 3N9, Canada
+ <https://getjobber.com/terms_of_service> Terms of Service |  =
+<https://getjobber.com/privacy_policy> Privacy policy=20
+
+Copyright =C2=A9 2026, Octopusapp, Inc.=20
+
+=20
+
+=20
+
+
+=20
+
+=20
+
+=20
+
+
+
+=20
+
+
+------=_NextPart_001_00E5_01DD04A1.9E306380
+Content-Type: text/html;
+	charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" =
+xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
+xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns:m=3D"http://schemas.microsoft.com/office/2004/12/omml" =
+xmlns=3D"http://www.w3.org/TR/REC-html40"><head><meta =
+http-equiv=3DContent-Type content=3D"text/html; charset=3Dutf-8"><meta =
+name=3DGenerator content=3D"Microsoft Word 15 (filtered medium)"><!--[if =
+!mso]><style>v\:* {behavior:url(#default#VML);}
+o\:* {behavior:url(#default#VML);}
+w\:* {behavior:url(#default#VML);}
+.shape {behavior:url(#default#VML);}
+</style><![endif]--><title> Quote Approved </title><style><!--
+/* Font Definitions */
+@font-face
+	{font-family:Helvetica;
+	panose-1:2 11 6 4 2 2 2 2 2 4;}
+@font-face
+	{font-family:"Cambria Math";
+	panose-1:2 4 5 3 5 4 6 3 2 4;}
+@font-face
+	{font-family:Calibri;
+	panose-1:2 15 5 2 2 2 4 3 2 4;}
+@font-face
+	{font-family:Aptos;}
+/* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{margin:0in;
+	font-size:12.0pt;
+	font-family:"Aptos",sans-serif;}
+h2
+	{mso-style-priority:9;
+	mso-style-link:"Heading 2 Char";
+	mso-margin-top-alt:auto;
+	margin-right:0in;
+	mso-margin-bottom-alt:auto;
+	margin-left:0in;
+	font-size:18.0pt;
+	font-family:"Aptos",sans-serif;
+	font-weight:bold;}
+h4
+	{mso-style-priority:9;
+	mso-style-link:"Heading 4 Char";
+	mso-margin-top-alt:auto;
+	margin-right:0in;
+	mso-margin-bottom-alt:auto;
+	margin-left:0in;
+	font-size:12.0pt;
+	font-family:"Aptos",sans-serif;
+	font-weight:bold;}
+a:link, span.MsoHyperlink
+	{mso-style-priority:99;
+	color:blue;
+	text-decoration:underline;}
+span.Heading2Char
+	{mso-style-name:"Heading 2 Char";
+	mso-style-priority:9;
+	mso-style-link:"Heading 2";
+	font-family:"Aptos Display",sans-serif;
+	color:#0F4761;}
+span.Heading4Char
+	{mso-style-name:"Heading 4 Char";
+	mso-style-priority:9;
+	mso-style-link:"Heading 4";
+	font-family:"Aptos",sans-serif;
+	color:#0F4761;
+	font-style:italic;}
+span.EmailStyle22
+	{mso-style-type:personal-reply;
+	font-family:"Aptos",sans-serif;
+	color:windowtext;}
+.MsoChpDefault
+	{mso-style-type:export-only;
+	font-size:10.0pt;
+	mso-ligatures:none;}
+@page WordSection1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.0in 1.0in 1.0in;}
+div.WordSection1
+	{page:WordSection1;}
+--></style><!--[if gte mso 9]><xml>
+<o:shapedefaults v:ext=3D"edit" spidmax=3D"1026" />
+</xml><![endif]--><!--[if gte mso 9]><xml>
+<o:shapelayout v:ext=3D"edit">
+<o:idmap v:ext=3D"edit" data=3D"1" />
+</o:shapelayout></xml><![endif]--></head><body lang=3DEN-US link=3Dblue =
+vlink=3Dpurple style=3D'word-wrap:break-word;overflow-wrap: =
+break-word;-webkit-nbsp-mode: space;line-break:after-white-space'><div =
+class=3DWordSection1><p class=3DMsoNormal><span =
+style=3D'font-size:11.0pt'>Hello,<o:p></o:p></span></p><p =
+class=3DMsoNormal><span =
+style=3D'font-size:11.0pt'><o:p>&nbsp;</o:p></span></p><p =
+class=3DMsoNormal><span style=3D'font-size:11.0pt'>July 1<sup>st</sup> =
+works for us.<o:p></o:p></span></p><p class=3DMsoNormal><span =
+style=3D'font-size:11.0pt'><o:p>&nbsp;</o:p></span></p><p =
+class=3DMsoNormal><span style=3D'font-size:11.0pt'>Thank =
+you,<o:p></o:p></span></p><p class=3DMsoNormal><span =
+style=3D'font-size:11.0pt'><o:p>&nbsp;</o:p></span></p><p =
+class=3DMsoNormal><span style=3D'font-size:11.0pt'>David =
+Angiuli<o:p></o:p></span></p><p class=3DMsoNormal><span =
+style=3D'font-size:11.0pt'><o:p>&nbsp;</o:p></span></p><div><div =
+style=3D'border:none;border-top:solid #E1E1E1 1.0pt;padding:3.0pt 0in =
+0in 0in'><p class=3DMsoNormal><b><span =
+style=3D'font-size:11.0pt;font-family:"Calibri",sans-serif'>From:</span><=
+/b><span style=3D'font-size:11.0pt;font-family:"Calibri",sans-serif'> =
+Master Butler, inc &lt;customercare@masterbutlerinc.com&gt; =
+<br><b>Sent:</b> Wednesday, June 24, 2026 4:00 PM<br><b>To:</b> =
+dang1612@comcast.net<br><b>Subject:</b> Fwd: Quote #36474 is =
+approved!<o:p></o:p></span></p></div></div><p =
+class=3DMsoNormal><o:p>&nbsp;</o:p></p><p class=3DMsoNormal><span =
+style=3D'font-size:9.0pt;font-family:"Arial",sans-serif'>Thank you for =
+approving your quote!&nbsp; Our next opening in your area is July =
+1st.&nbsp; Please let us know if that will work for =
+you.&nbsp;&nbsp;</span><o:p></o:p></p><div><p class=3DMsoNormal><span =
+style=3D'font-family:"Arial",sans-serif'><br =
+id=3DlineBreakAtBeginningOfMessage><br></span><o:p></o:p></p><div><div><p=
+ class=3DMsoNormal>At your service,&nbsp;<br><br>Martha<br>Scheduling =
+Coordinator<br>Master Butler =
+Inc.<br>customercare@masterbutlerinc.com<o:p></o:p></p></div></div><div><=
+p class=3DMsoNormal><br><br><o:p></o:p></p><blockquote =
+style=3D'margin-top:5.0pt;margin-bottom:5.0pt'><div><p =
+class=3DMsoNormal>Begin forwarded message:<o:p></o:p></p></div><p =
+class=3DMsoNormal><o:p>&nbsp;</o:p></p><div><p =
+class=3DMsoNormal><b><span =
+style=3D'font-family:"Helvetica",sans-serif'>From: </span></b><span =
+style=3D'font-family:"Helvetica",sans-serif'>The Jobber Team =
+&lt;noreply@txn.getjobber.com&gt;</span><o:p></o:p></p></div><div><p =
+class=3DMsoNormal><b><span =
+style=3D'font-family:"Helvetica",sans-serif'>Subject: Quote #36474 is =
+approved!</span></b><o:p></o:p></p></div><div><p =
+class=3DMsoNormal><b><span =
+style=3D'font-family:"Helvetica",sans-serif'>Date: </span></b><span =
+style=3D'font-family:"Helvetica",sans-serif'>June 24, 2026 at =
+4:03:30=E2=80=AFPM MDT</span><o:p></o:p></p></div><div><p =
+class=3DMsoNormal><b><span =
+style=3D'font-family:"Helvetica",sans-serif'>To: </span></b><span =
+style=3D'font-family:"Helvetica",sans-serif'>customercare@masterbutlerinc=
+.com</span><o:p></o:p></p></div><p =
+class=3DMsoNormal><o:p>&nbsp;</o:p></p><div><div><table =
+class=3DMsoNormalTable border=3D0 cellspacing=3D0 cellpadding=3D0 =
+width=3D"100%" style=3D'width:100.0%;border-collapse:collapse'><tr><td =
+width=3D"100%" valign=3Dtop style=3D'width:100.0%;padding:0in 0in 0in =
+0in'><div align=3Dcenter><table class=3DMsoNormalTable border=3D0 =
+cellspacing=3D0 cellpadding=3D0 width=3D600 =
+style=3D'width:6.25in'><tr><td style=3D'padding:0in 0in 0in 0in'><table =
+class=3DMsoNormalTable border=3D0 cellspacing=3D0 cellpadding=3D0 =
+width=3D"100%" style=3D'width:100.0%;border-collapse:collapse'><tr><td =
+width=3D"5%" style=3D'width:5.0%;background:white;padding:0in 0in 0in =
+0in'><p class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"90%" =
+style=3D'width:90.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td></tr></table><p =
+class=3DMsoNormal><span =
+style=3D'display:none'><o:p>&nbsp;</o:p></span></p><table =
+class=3DMsoNormalTable border=3D0 cellspacing=3D0 cellpadding=3D0 =
+width=3D"100%" =
+style=3D'width:100.0%;border-collapse:collapse;border-spacing: 0px =
+!important'><tr><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"90%" =
+style=3D'width:90.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'color:black'><a href=3D"https://getjobber.com/"><span =
+style=3D'font-family:"Helvetica",sans-serif;border:solid windowtext =
+1.0pt;padding:0in;text-decoration:none'><img border=3D0 width=3D134 =
+height=3D24 style=3D'width:1.3958in;height:.25in' id=3D"Picture_x0020_1" =
+src=3D"cid:~WRD0000.jpg" alt=3D"Image removed by sender. =
+Jobber"></span></a></span><span =
+style=3D'font-family:"Helvetica",sans-serif;color:#47545C'><o:p></o:p></s=
+pan></p></td><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td></tr></table><p =
+class=3DMsoNormal><span =
+style=3D'display:none'><o:p>&nbsp;</o:p></span></p><table =
+class=3DMsoNormalTable border=3D0 cellspacing=3D0 cellpadding=3D0 =
+width=3D"100%" =
+style=3D'width:100.0%;border-collapse:collapse;border-spacing: 0px =
+!important'><tr><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"90%" =
+style=3D'width:90.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td></tr></table><p =
+class=3DMsoNormal><span =
+style=3D'display:none'><o:p>&nbsp;</o:p></span></p><table =
+class=3DMsoNormalTable border=3D0 cellspacing=3D0 cellpadding=3D0 =
+width=3D"100%" =
+style=3D'width:100.0%;border-collapse:collapse;border-spacing: 0px =
+!important'><tr><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"90%" =
+style=3D'width:90.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td></tr></table><p =
+class=3DMsoNormal><span =
+style=3D'display:none'><o:p>&nbsp;</o:p></span></p><table =
+class=3DMsoNormalTable border=3D0 cellspacing=3D0 cellpadding=3D0 =
+width=3D"100%" =
+style=3D'width:100.0%;border-collapse:collapse;border-spacing: 0px =
+!important'><tr><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"90%" =
+style=3D'width:90.0%;background:white;padding:0in 0in 0in 0in'><h2 =
+style=3D'mso-margin-top-alt:0in;margin-right:0in;margin-bottom:.25in;marg=
+in-left:0in;line-height:24.0pt'><span =
+style=3D'font-family:"Helvetica",sans-serif;color:#012939'>Quote =
+Approved <o:p></o:p></span></h2><p =
+style=3D'mso-margin-top-alt:0in;margin-right:0in;margin-bottom:.25in;marg=
+in-left:0in;line-height:18.0pt'><span =
+style=3D'font-family:"Helvetica",sans-serif;color:#424E56'>Lora &amp; =
+David Angiuli just approved Quote #36474 that was created on 06/24/2026 =
+for the amount of $297.81.<br><br>You may now convert this quote into a =
+job. <o:p></o:p></span></p><p class=3DMsoNormal =
+style=3D'line-height:18.0pt'><span =
+style=3D'font-family:"Helvetica",sans-serif;color:#47545C'><img =
+border=3D0 width=3D280 height=3D44 =
+style=3D'width:2.9166in;height:.4583in' id=3D"_x0000_i1026" =
+src=3D"cid:image002.png@01DD04A1.9C817B00" alt=3D"View Quote =
+"></span><span =
+style=3D'font-family:"Helvetica",sans-serif;color:#47545C'><o:p></o:p></s=
+pan></p></td><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td></tr></table><p =
+class=3DMsoNormal><span =
+style=3D'display:none'><o:p>&nbsp;</o:p></span></p><table =
+class=3DMsoNormalTable border=3D0 cellspacing=3D0 cellpadding=3D0 =
+width=3D"100%" =
+style=3D'width:100.0%;border-collapse:collapse;border-spacing: 0px =
+!important'><tr><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"90%" =
+style=3D'width:90.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td></tr></table></td></tr></table></div>=
+</td></tr></table><p class=3DMsoNormal><o:p>&nbsp;</o:p></p><table =
+class=3DMsoNormalTable border=3D0 cellspacing=3D0 cellpadding=3D0 =
+width=3D"100%" =
+style=3D'width:100.0%;border-collapse:collapse;border-spacing: 0px =
+!important'><tr><td width=3D"100%" valign=3Dtop =
+style=3D'width:100.0%;padding:0in 0in 0in 0in'><div =
+align=3Dcenter><table class=3DMsoNormalTable border=3D0 cellspacing=3D0 =
+cellpadding=3D0 width=3D600 style=3D'width:6.25in'><tr><td =
+style=3D'padding:0in 0in 0in 0in'><table class=3DMsoNormalTable =
+border=3D0 cellspacing=3D0 cellpadding=3D0 width=3D"100%" =
+style=3D'width:100.0%'><tr><td width=3D"5%" =
+style=3D'width:5.0%;padding:0in 0in 0in 0in'><p class=3DMsoNormal =
+style=3D'line-height:1.5pt'><span =
+style=3D'font-size:1.5pt'>&nbsp;<o:p></o:p></span></p></td><td =
+width=3D"90%" style=3D'width:90.0%;background:#E9E9E9;padding:0in 0in =
+0in 0in'><p class=3DMsoNormal style=3D'line-height:1.5pt'><span =
+style=3D'font-size:1.5pt;color:black'>&nbsp;</span><span =
+style=3D'font-size:1.5pt'><o:p></o:p></span></p></td><td width=3D"5%" =
+style=3D'width:5.0%;padding:0in 0in 0in 0in'><p class=3DMsoNormal =
+style=3D'line-height:1.5pt'><span =
+style=3D'font-size:1.5pt'>&nbsp;<o:p></o:p></span></p></td></tr></table><=
+p class=3DMsoNormal><span =
+style=3D'display:none'><o:p>&nbsp;</o:p></span></p><table =
+class=3DMsoNormalTable border=3D0 cellspacing=3D0 cellpadding=3D0 =
+width=3D"100%" =
+style=3D'width:100.0%;border-collapse:collapse;border-spacing: 0px =
+!important'><tr><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"90%" =
+style=3D'width:90.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td></tr></table><p =
+class=3DMsoNormal><span =
+style=3D'display:none'><o:p>&nbsp;</o:p></span></p><table =
+class=3DMsoNormalTable border=3D0 cellspacing=3D0 cellpadding=3D0 =
+width=3D"100%" =
+style=3D'width:100.0%;border-collapse:collapse;border-spacing: 0px =
+!important'><tr><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"90%" =
+style=3D'width:90.0%;background:white;padding:0in 0in 0in 0in'><h4 =
+style=3D'mso-margin-top-alt:0in;margin-right:0in;margin-bottom:6.0pt;marg=
+in-left:0in;line-height:18.0pt'><span =
+style=3D'font-family:"Helvetica",sans-serif;color:#012939'>Questions?<o:p=
+></o:p></span></h4><div><p class=3DMsoNormal =
+style=3D'line-height:18.0pt'><span =
+style=3D'font-family:"Helvetica",sans-serif;color:#424E56'>Visit our <a =
+href=3D"https://help.getjobber.com/hc/en-us" target=3D"_blank"><span =
+style=3D'color:#3CA2E0;text-decoration:none'>Help Center</span></a> =
+<o:p></o:p></span></p></div></td><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td></tr></table><p =
+class=3DMsoNormal><span =
+style=3D'display:none'><o:p>&nbsp;</o:p></span></p><table =
+class=3DMsoNormalTable border=3D0 cellspacing=3D0 cellpadding=3D0 =
+width=3D"100%" =
+style=3D'width:100.0%;border-collapse:collapse;border-spacing: 0px =
+!important'><tr><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"90%" =
+style=3D'width:90.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:24.0pt'><span =
+style=3D'font-size:24.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td></tr></table></td></tr></table></div>=
+</td></tr></table><p class=3DMsoNormal><o:p>&nbsp;</o:p></p><table =
+class=3DMsoNormalTable border=3D0 cellspacing=3D0 cellpadding=3D0 =
+width=3D"100%" =
+style=3D'width:100.0%;border-collapse:collapse;border-spacing: 0px =
+!important'><tr><td width=3D"100%" valign=3Dtop =
+style=3D'width:100.0%;background:white;padding:0in 0in 0in 0in'><div =
+align=3Dcenter><table class=3DMsoNormalTable border=3D0 cellspacing=3D0 =
+cellpadding=3D0 width=3D600 style=3D'width:6.25in'><tr><td =
+style=3D'padding:0in 0in 0in 0in'><table class=3DMsoNormalTable =
+border=3D0 cellspacing=3D0 cellpadding=3D0 width=3D"100%" =
+style=3D'width:100.0%'><tr><td width=3D"5%" =
+style=3D'width:5.0%;padding:0in 0in 0in 0in'><p class=3DMsoNormal =
+style=3D'line-height:1.5pt'><span =
+style=3D'font-size:1.5pt'>&nbsp;<o:p></o:p></span></p></td><td =
+width=3D"90%" style=3D'width:90.0%;background:#E9E9E9;padding:0in 0in =
+0in 0in'><p class=3DMsoNormal style=3D'line-height:1.5pt'><span =
+style=3D'font-size:1.5pt;color:black'>&nbsp;</span><span =
+style=3D'font-size:1.5pt'><o:p></o:p></span></p></td><td width=3D"5%" =
+style=3D'width:5.0%;padding:0in 0in 0in 0in'><p class=3DMsoNormal =
+style=3D'line-height:1.5pt'><span =
+style=3D'font-size:1.5pt'>&nbsp;<o:p></o:p></span></p></td></tr></table><=
+p class=3DMsoNormal><span =
+style=3D'display:none'><o:p>&nbsp;</o:p></span></p><table =
+class=3DMsoNormalTable border=3D0 cellspacing=3D0 cellpadding=3D0 =
+width=3D"100%" =
+style=3D'width:100.0%;border-collapse:collapse;border-spacing: 0px =
+!important'><tr><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"90%" =
+style=3D'width:90.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td></tr></table><p =
+class=3DMsoNormal><span =
+style=3D'display:none'><o:p>&nbsp;</o:p></span></p><table =
+class=3DMsoNormalTable border=3D0 cellspacing=3D0 cellpadding=3D0 =
+width=3D"100%" =
+style=3D'width:100.0%;border-collapse:collapse;border-spacing: 0px =
+!important'><tr><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"90%" =
+style=3D'width:90.0%;background:white;padding:0in 0in 0in 0in'><p =
+style=3D'mso-margin-top-alt:0in;margin-right:0in;margin-bottom:.25in;marg=
+in-left:0in;line-height:15.0pt'><strong><span =
+style=3D'font-size:9.0pt;font-family:"Helvetica",sans-serif;color:#898989=
+'>Delivered by Jobber</span></strong><span =
+style=3D'font-size:9.0pt;font-family:"Helvetica",sans-serif;color:#898989=
+'> | 10130 103 Street NW, Edmonton, AB T5J 3N9, Canada<br><a =
+href=3D"https://getjobber.com/terms_of_service"><span =
+style=3D'color:#969696;text-decoration:none'>Terms of Service</span></a> =
+| <a href=3D"https://getjobber.com/privacy_policy"><span =
+style=3D'color:#969696;text-decoration:none'>Privacy policy</span></a> =
+<br><br>Copyright =C2=A9 2026, Octopusapp, Inc. =
+<o:p></o:p></span></p></td><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td></tr></table><p =
+class=3DMsoNormal><span =
+style=3D'display:none'><o:p>&nbsp;</o:p></span></p><table =
+class=3DMsoNormalTable border=3D0 cellspacing=3D0 cellpadding=3D0 =
+width=3D"100%" =
+style=3D'width:100.0%;border-collapse:collapse;border-spacing: 0px =
+!important'><tr><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"90%" =
+style=3D'width:90.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td><td width=3D"5%" =
+style=3D'width:5.0%;background:white;padding:0in 0in 0in 0in'><p =
+class=3DMsoNormal style=3D'line-height:18.0pt'><span =
+style=3D'font-size:18.0pt;font-family:"Helvetica",sans-serif;color:#47545=
+C'>&nbsp;<o:p></o:p></span></p></td></tr></table></td></tr></table></div>=
+</td></tr></table><p class=3DMsoNormal><span style=3D'border:solid =
+windowtext 1.0pt;padding:0in'><img border=3D0 width=3D1 height=3D1 =
+style=3D'width:.0104in;height:.0104in' id=3D"Picture_x0020_3" =
+src=3D"cid:~WRD0000.jpg" alt=3D"Image removed by =
+sender."></span><o:p></o:p></p></div></div></blockquote></div><p =
+class=3DMsoNormal><o:p>&nbsp;</o:p></p></div></div></body></html>
+------=_NextPart_001_00E5_01DD04A1.9E306380--
+
+------=_NextPart_000_00E4_01DD04A1.9E306380
+Content-Type: image/jpeg;
+	name="~WRD0000.jpg"
+Content-Transfer-Encoding: base64
+Content-ID: <~WRD0000.jpg>
+
+/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a
+HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIy
+MjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCABkAGQDASIA
+AhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQA
+AAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3
+ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWm
+p6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEA
+AwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSEx
+BhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElK
+U1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3
+uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iii
+gAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKA
+CiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAK
+KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoo
+ooAKKKKACiiigAooooAKKKKACiiigD//2Q==
+
+------=_NextPart_000_00E4_01DD04A1.9E306380
+Content-Type: image/png;
+	name="image002.png"
+Content-Transfer-Encoding: base64
+Content-ID: <image002.png@01DD04A1.9C817B00>
+
+iVBORw0KGgoAAAANSUhEUgAAARgAAAAsCAYAAAC+EqeDAAAAAXNSR0ICQMB9xQAAAAlwSFlzAAAO
+xAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUATWljcm9zb2Z0IE9mZmljZX/tNXEAAAOoSURBVHja
+7Zu/attAHICVLY/QQKFphtKxhELoVjqFUFpKhiYKBtdkKKGEYA8uBOyzl/oR4ql5Ar+AJ+OH8GTw
+1kFDxo5XS7ZOp9Ppnys3FD7DF7Atne5Efp9+v7uz0+v1nJC2aD+5Eo3jM/FBAAAUpdY9vfkmvr4d
+DAa7ulOCP/6Hn8X7H4f9pxIAYFOO+gcPDXFRjwkGuQBAldS7518CwdyK1j43BACq5E3/xS/HcXac
+y27tjBsCAFXT7rb3HH+ChpsBANUL5vo5ggEABAMACAYAAMEAAIIBAAQDAIBgAADBAACCAQBAMACA
+YAAAwUCVnMh7T65es6b1mM5MGq+x7DxSXzvTsVx4Wle8uZyMTrZ/7eHy2jP/WvzPIBgohTudZ4ij
+KSfrbxezZXA/mmA0Edpe3p10/8G1EQyCgdJP57u1OCwBNBqvv5nL++Hj9THKouIZizsaq74vptvK
+ZBAMgoGtlEkqsP0MQYkonsG40yjIAwFogR6erwe/NWNSbdtEFmVR1gBXEgzbSzk+cVx07Ums7BrL
+eyUxW+YUnZ81dkAwkFkmGYFqEUxyfsYQShjUqoSJB6wSQOK4AmJI9DOUUwnBqM+Sr1WmlC6Y3LED
+goGMMskMSFMw+vuh2Y6ZTSSzCz0YVbDaJpqz5GMtYYoKRuvL8rqhADsJ2VpKpEJjBwQDqWVSIujN
+AMp4+uvBGLYTvFeymK/aCqRRsASqWjCpQjDPtwim4NgBwYC1TLIEqRGQ0fHZQaaOW4oqmpNproN2
+2dYo58lfuEQqKZjUdiOhrDKspGCKjh0QDNjKpNk4YyLWEEzeEnF4np+1eNFciZKNN8/ch3OYJrv1
+Hhg3sdK1/Qym8NgBwYClTJKWOZHUORiplo5da1ZgtBsGpVFmZD31k8vUq41v9r0w8XIv+GzY1Pqw
++RyMmsAtPHZAMGApkyxBv8kqkq1dJS19wjcvKHM22hl9TetXuVWktPbiGRirSAgGNiiTbPtFFpbs
+xH/i5+4FsW7my/+ZgikZ608F1pnMYnYXrej4bWsZzmKZ3fjn2sbljrL2wUT9n+gZ0LDE2AHBwP8v
+xonHb4UAwQAAggEABAMAgGAAAMEAAIIBAEAwAIBgAADBAAAUF0xDXNS5GQBQvWDae05LXL/kZgBA
+lRz1Dx4cx9lxer2e81G8+8lNAYCqqHVPb3y3BIIZDAa7SAYA/pbX/We/z8Wn775XlGBCWuLq1WW3
+duZP/AIAlOFKNI5vRWtfd8ofXc9hWGCVeq8AAAAASUVORK5CYII=
+
+------=_NextPart_000_00E4_01DD04A1.9E306380--
+

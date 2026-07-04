@@ -1,0 +1,876 @@
+Delivered-To: customercare@masterbutlerinc.com
+Received: by 2002:a05:7301:3aa0:b0:30b:c18d:a472 with SMTP id kf32csp771241dyb;
+        Wed, 24 Jun 2026 10:58:36 -0700 (PDT)
+X-Received: by 2002:a05:620a:4402:b0:926:16a9:cf08 with SMTP id af79cd13be357-927849f8342mr700389685a.51.1782323916566;
+        Wed, 24 Jun 2026 10:58:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1782323916; cv=none;
+        d=google.com; s=arc-20260327;
+        b=eSczqOSRktr6bV0nvQoWk/qnWf//mmniGiAOxE+DyM1uNv0uZipa8//IQNFzLiGBDH
+         bFQXNcr3BlzM5PzCo/mOI9VClXpTbsRs9weB5GnarC4NrppcpRX/w9usgfjuVaroyMAj
+         RsFdgY7vJpCQ5S25HM6IexOUZinu0oaGvhNx43bkkFjpQ9JBIOw5Pz5wcRqxtEUrE1hO
+         YSJOrQF7s5ey1qgkjxW6ZKcDFfNVmhSkeWx96st8BycZ44CEfVVRoChWoeAlvsaY8Tdy
+         QFukNIV99pHjvpy7CUANE+3qSz9ZY0GYkpRP2cL7g0PG01TzzWd7jB040pZDSx1BzSda
+         avhQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=mime-version:subject:references:in-reply-to:message-id:to:reply-to
+         :from:date:dkim-signature;
+        bh=eRDRWq9y59GwjTUS/YKADO1Jl2CE4vXITbplL7Flqu0=;
+        fh=Jo1a5m+IpOPU3hKyaRFi6XZCN1dGo10E2NrSlVSugW8=;
+        b=UxMl4IFWO5ltHvZ8NiEDyH6Z9zUhonEZALJDEq+mC49AmNxgfdSUG0KQGFQo6fLhm4
+         3LLbrS+qNq0LH9uIeBtRXY5sZYbCweOKwQXqk6iaLowh7gKSF5SHW2tLjxtW5LiMvOOh
+         qLhK8GhIgQxhKvpoP6L//62h7HxECXnb1LCsE8WyAkoogEmzLuhMo3K0lvZzPwi4L1Jn
+         40Stn7pfgiHZbM0XpxB5+ZyHhmCCukGioFicZAUXuyGHYtGn5d4h7UsGLVDF6kK11/ER
+         olPpSsw2knN2gL2SHZCPoBanlvTZdBOI1/6beqSiQ26beisbK0iU/rPG1TYA+KJT5bq6
+         5yrw==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@yahoo.com header.s=s2048 header.b="YKX/pR1R";
+       spf=pass (google.com: domain of vadimsaveliev@yahoo.com designates 98.137.66.146 as permitted sender) smtp.mailfrom=vadimsaveliev@yahoo.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=yahoo.com
+Return-Path: <vadimsaveliev@yahoo.com>
+Received: from sonic317-20.consmr.mail.gq1.yahoo.com (sonic317-20.consmr.mail.gq1.yahoo.com. [98.137.66.146])
+        by mx.google.com with ESMTPS id af79cd13be357-92601f1af61si795365985a.327.2026.06.24.10.58.36
+        for <customercare@masterbutlerinc.com>
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Wed, 24 Jun 2026 10:58:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vadimsaveliev@yahoo.com designates 98.137.66.146 as permitted sender) client-ip=98.137.66.146;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@yahoo.com header.s=s2048 header.b="YKX/pR1R";
+       spf=pass (google.com: domain of vadimsaveliev@yahoo.com designates 98.137.66.146 as permitted sender) smtp.mailfrom=vadimsaveliev@yahoo.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=yahoo.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yahoo.com; s=s2048; t=1782323915; bh=eRDRWq9y59GwjTUS/YKADO1Jl2CE4vXITbplL7Flqu0=; h=Date:From:Reply-To:To:In-Reply-To:References:Subject:From:Subject:Reply-To; b=YKX/pR1R13qCkQkk80FS4tvKRHaoIes6F28emel9CWgJNk+1ZYc3TfG1XFz7ezZWIh8k6tcUQGPImW1zzeloYXG8SPpOmSEwHe1b2NJcL31PF0ezXkh8HrNgl6AiIBdiJrK9uMoKpVKBytwI7hvL7T5Btw1KGVuUvyyFx3yZ2U/4U4oUsU5AMbeVtylBHnwhBiazWu9mgbRWUPLOEbifd2+JKEHw7J+bsdAXNuNjAA5gzyMKnV8Jlrl7zXRxmu0oLlEs0J44oVQJAmKX6n+uwME96FgJRa2uOeSWS6qSE13+ea7Pcybd3dzF1ytLdhuJ1EkIE8FeKuvGNUljWkbWSQ==
+X-SONIC-DKIM-SIGN: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yahoo.com; s=s2048; t=1782323915; bh=7aqPC8W1KLC32RmPzFpguhcE4CHYyt+m0ZsIZbTUgsK=; h=X-Sonic-MF:Date:From:To:Subject:From:Subject; b=pTHlcr8kr5l149vCuDbU2Z772L7uaqNKxW1IE1ctXUW5NbUiJTI4J1nto1EE6AktCGQiuruyQGoYG1nMK1hovSZnGVYE1ntZd65ppQLslstreZnFrIieyKzkx+TBbaivoIzb4fzIfYwgD6OUWtmU9rXsFSZ7P1CuXgT4fwJvJOm779vCEs2ZCxKD8n+I8KZQ5rO5xwVCR6RRAa04C2KzAUuMh7oswGMIwWX8HVNMs48DQQnDHgK6olP/DKxEynWT8Z2bz8LA+OY/ozu3kLbpORrSh2ilp4P96jOZkCqrKfeVmSLI7AEy/QqDX8AyV6jit7kStl80KkoH9LCmd/nWMg==
+X-YMail-OSG: wrkNxmsVM1kMDOBCiRyVHljt8hR4mvu6bxe86vWE8HzlQLw3JZOQuVKB_Oa9JBC
+ K6OzknCNVMOPly5YKmU7pz59PMxrR08o1J8jA.qEBYlmRmqZJvJmAbKeMbifGFoNBfpn3tEMh4vx
+ zY.RlL5ZYwppGiDBJC1Zbg9p80ixU0Cfgwb_.HeD.6boN4QeZ3KQLz80RUjFECtmdo6Ok4BOcotJ
+ GmpWWRkR_BK8Z5vLAnTb0sPkFRH5CiiySs0N6et9VeEJoUlZ0rbeORhpNDROVmDatvRyEKORSYmp
+ INCibM75egmsFQWaVYvU7L2z2oTVCqb_9pa_8tiZoN48CrYXqYP21F4vXUtvYrqPqRJ9aTbyAfqR
+ 0K4qyMEwmV2bULvKV6LZGSAb..JiWjYYYPJC23j1iHfFI.dQinJOb4kz8VJDb.l59oEgpu8YUwv_
+ 5fJxdORQRtOzqXMvBNbo16m1_XTJ5UoLbeIzV3LWAR8gpoSxQSALLifwMWBtUvG1sJdgUJG2aGge
+ lC7TdTipw7tgevYEZo8E.niaLKfB7o10Sh9SRtKD3TmTITCF4uoZESw.igjeuU0n_ebOLFv9FV0o
+ MNG1GU7._gVi2WKehFVhjDT36Czg.uCuaJOH2XiHdobqXEnZVVEBcYx.kuteNagL3pDx73UX4h28
+ gXYERKIERDFLSV0oZk8phKtvaX5q28hT8yi5AkqaMY4ok7SVdUAVJrHTm8zr0iLvW.glyX9b9cJG
+ jI9Wahc9M3jKZekrmub1cHb3NXKj3s_XO9rjFkUi350UZNS1xivEQ0NkTFNbj2vNteGoqgMTINlI
+ ZTAywPNjbwDVJNOwYmRE7T_FhHPXRwnVQgmtLUNUgvK8bDMlFeMThOVvtgO.PFpznHPpb_GI4KTR
+ ZMEVDFS16rniDjtBXCiGoT9RddxDfENzT3SNjDpjcLQ3Nt4rMs53uiX39odnLS_3hd6Bj.WyV7Cf
+ k3u4A9FlXCmER2MdGLWBXLOUiWIj19XIcUjJGaXcJAsM8G7PHKsrHBnRmoN3VwQr.4FA_kLUsWny
+ SizQA15z.Lo2CXaFrGBhLgqM8U4dnoXRmMEkjtHHvksF14OfdohbWB05xj2jFbxtxTKtk4baQK5o
+ bOM5YSwrMBPnDx8chnXIQfve9Lnc35zQ6ho7l5.76nnajREk8Y_aZ0aJOtJKKD8rFsedSIlb7r0l
+ .60_CDj7Vcrq43y_TlKhnSqba__UyR4BsIXg7oj.lH3DNfT0EMexQS47xw4SNa8pWcnsq74qWRgh
+ ssvOhWFHXsGFfeacG83XNoV.6r.elQ24TQ6AXTBRH.bFUvHZOdRxzHljmJ.K8sOl5mDJdiiNzd3j
+ NQp2QtqmdGB4t_6tP6VQ7N8zTPGXFJHqd62dqPJ4IYCY400fqG6fCwrEi2lSoPO.qMqPIN7OuOOT
+ DJVk0einLmNxfhXme5OAj8MLHmLHLgkwoo3zaXpviDkD8Q6VtAA_yG5cGpKdqHzFCVBaF87PIxbj
+ MfN03XeF5uJIZQ6fmbJGgpEri3n7oIj.YMSlkag5lmlXXVrkYAjR66pJxDUPLNzAhojTJdObRNYk
+ e_frHlA0AS5ngqIKKXv0ip1KbHnPDOiWj9KRnoppimy8fRmEsQVCHDxRqazSakm__OrbsGP7XugX
+ .zT56ZRd99sqjIYM5xWcnXK2KIhSp5oFKGSXBEvvnWEjuMhEbXUz2nQEozWewPTs8B9lS12rptf.
+ V8Uvg6Q7DyXjBFcfAi87YZx8YUTm1Dr9OR27rWVnKqs5usnp2C3vXqfxO4G1g704AdQPuuthijBx
+ 1Uu0wRdUFC22ytvKm2HyhvdTysCZ0vcdXXlmvHkA0ld2PR2C5tBj9.FnnrWPDOaPmEjBV.rtfPLN
+ IvHW4fmJvhlNXlOLj40nxNmValNlxKntjAQ4sFKDvzwXqRVdLjYQvjCipczZqWIrd_1g.xrESdJ7
+ H5xhrSIHfmZmbj1blTodZ0kcpjNg0Kd9v72tFC0dykCEys181WaNvHr_O1gcAN1EYfDa6geLmu55
+ Bd55UoXJ7JzDGnGol2cJGx0nEFRuDNdIaa1oEd_0sVO7GG9WJrkU66o7SY2HZwkB9VLFfsK8Av.Q
+ 5M1gGp7EMlFJrDz_7OI7K_d5IGypmoXb1SohUV.sH2E.IMZWk08usNi9ZWZVtZC0OLTxosI23sc2
+ H_k3R__P6TvWDIODn.XKR6TrPyIp4DG5WAttzzgBy8juyKlpPXz5MXxl14VGUJEQBGHFsthULMLh
+ 0xBskZSfJrNchsYNHRPOzac2o8gceYhSObVQ5Ou0TdFDf8Ta.3r1N7PrLZB9e__nRBo_z9.CYVfD
+ UM.Kj
+X-Sonic-MF: <vadimsaveliev@yahoo.com>
+X-Sonic-ID: 62e8eb8b-604f-47f0-bd30-a09967fbd9bc
+Received: from sonic.gate.mail.ne1.yahoo.com by sonic317.consmr.mail.gq1.yahoo.com with HTTP; Wed, 24 Jun 2026 17:58:35 +0000
+Date: Wed, 24 Jun 2026 17:58:32 +0000 (UTC)
+From: Vadim  Tank  Saveliev <vadimsaveliev@yahoo.com>
+Reply-To: vadimsaveliev@yahoo.com
+To: "Master Butler, inc" <customercare@masterbutlerinc.com>
+Message-ID: <1012426098.1680665.1782323912032@mail.yahoo.com>
+In-Reply-To: <FCC6034D-CFEE-4570-B62F-DDA7217FB960@masterbutlerinc.com>
+References: <BEC81EF5-32F0-46B5-ADBF-CCA6A224037E@gmail.com> <741035359.23360.1704926388772@mail.yahoo.com> <C845F4AB-14BB-4A1F-B6D0-CDE3E6B4BA32@gmail.com> <579771358.332150.1705008802086@mail.yahoo.com> <A3C577DE-893B-4AD1-BCEA-D412DC81F5E4@gmail.com> <1720550382.393522.1705020623540@mail.yahoo.com> <F34F54DA-FCCA-4261-B084-D51F6D1AC020@gmail.com> <302290558.7971784.1724105869887@mail.yahoo.com> <ED859212-BF0D-49E0-988A-F39C2081F1C8@masterbutlerinc.com> <926310068.8332621.1724185442861@mail.yahoo.com> <29FFFD6A-E620-4540-B9E4-726C2D020ED8@masterbutlerinc.com> <1093943029.8737604.1724272819363@mail.yahoo.com> <CAJTFuJPVxqamE0nXH+dHOhJ2TSH8iEGvNQg5zdw7vTCua3D9LA@mail.gmail.com> <480092819.746899.1747099604891@mail.yahoo.com> <941236D2-AA75-4111-8EAA-62702C167832@masterbutlerinc.com> <1344328344.59542.1747161667321@mail.yahoo.com> <1DC70077-A9FA-47FB-888F-926D17A9E74B@masterbutlerinc.com> <1654567121.170141.1747180255513@mail.yahoo.com> <2741676C-0F43-47BD-B1D9-DCD0A8A579F5@masterbutlerinc.com> <715288801.3005041.1762215356225@mail.yahoo.com> <39F42D39-EDC8-4097-A3C6-2FFEBC011F69@masterbutlerinc.com> <1604075.3349316.1762295111728@mail.yahoo.com> <89FAB29A-9952-4C3D-BF23-57984FA9A756@masterbutlerinc.com> <1202218704.3392378.1762302864396@mail.yahoo.com> <8CBE81AD-98B6-4E24-BE71-60D411DF2B39@masterbutlerinc.com> <463447223.3082202.1762305513287@mail.yahoo.com> <04A8A143-9F96-4A5D-AF0C-A086D6A7862A@masterbutlerinc.com> <218757407.2499.1781744571670@mail.yahoo.com> <365D1DB0-2FD9-4007-B77C-0E77DC4F8D4B@masterbutlerinc.com> <2076625447.1486957.1782269948183@mail.yahoo.com> <FCC6034D-CFEE-4570-B62F-DDA7217FB960@masterbutlerinc.com>
+Subject: Re: Reminder for Winter Gutter and Roof Cleaning
+MIME-Version: 1.0
+Content-Type: multipart/alternative; 
+	boundary="----=_Part_1680664_2130435083.1782323912029"
+X-Mailer: WebService/1.1.26016 YMailNodin
+Content-Length: 33980
+
+------=_Part_1680664_2130435083.1782323912029
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+ Thank you. You can start in my absence. We trust your company - we provide=
+ service to us many years.
+
+Best regards,
+Mara & Vadim
+     On Wednesday, June 24, 2026 at 09:19:12 a.m. PDT, Master Butler, inc <=
+customercare@masterbutlerinc.com> wrote: =20
+=20
+ Vadim,
+Thank you for approving your quote. We have a last minute opening this afte=
+rnoon, June 24th. Please let us know if this will work for you. We look for=
+ward to hearing from you!=C2=A0
+At your service,
+
+LaRee=C2=A0
+Scheduling Coordinator=C2=A0
+Master Butler, inc
+customercare@masterbutlerinc.com
+
+
+
+
+
+On Jun 23, 2026, at 10:59=E2=80=AFPM, Vadim Tank Saveliev <vadimsaveliev@ya=
+hoo.com> wrote:
+
+ Thank you! We approved. We are ready to schedule.
+
+Best regards,
+Mara & Vadim
+
+ On Thursday, June 18, 2026 at 09:32:02 a.m. PDT, Master Butler, inc <custo=
+mercare@masterbutlerinc.com> wrote:=20
+=20
+=20
+ Thank you for reaching out to us again!=C2=A0 I=E2=80=99ve just sent over =
+your quote.=C2=A0 If you don=E2=80=99t see it, please check your =E2=80=98j=
+unk=E2=80=99 folder.=C2=A0 Please let us know of any questions and how you=
+=E2=80=99d like to proceed.
+
+At your service,=C2=A0
+
+Martha
+Scheduling Coordinator
+Master Butler Inc.
+customercare@masterbutlerinc.com
+
+
+On Jun 17, 2026, at 7:02=E2=80=AFPM, Vadim Tank Saveliev <vadimsaveliev@yah=
+oo.com> wrote:
+
+ Hello,
+
+We need your service again. I would like to schedule gutter cleaning and ro=
+of maintenance: in the past your company put some white powder on the roof =
+to prevent moss. We'd like to do it again too.
+
+Also, we recently painted the house and I would like to request external wi=
+ndow cleaning for all windows around the house.
+
+
+Best regards,
+Vadim Saveliev
+
+ On Tuesday, November 4, 2025 at 05:30:34 p.m. PST, Master Butler, inc <cus=
+tomercare@masterbutlerinc.com> wrote:=20
+=20
+=20
+ You=E2=80=99re welcome!
+
+At your service,
+
+Jessica
+Office Manager
+Master Butler, inc
+www.masterbutlerinc.com
+
+
+
+
+On Nov 4, 2025, at 5:18=E2=80=AFPM, Vadim Tank Saveliev <vadimsaveliev@yaho=
+o.com> wrote:
+
+=20
+Thank you!!!
+ On Tuesday, November 4, 2025 at 04:59:42 p.m. PST, Master Butler, inc <cus=
+tomercare@masterbutlerinc.com> wrote:=20
+=20
+=20
+ Great! We have you confirmed on November 7th with morning arrival between =
+9-10am for a gutter cleaning, roof blow off, and moss treatment. Our techni=
+cian will reach out prior to arrival. Thank you for booking with us!
+
+At your service,
+
+Jessica
+Office Manager
+Master Butler, inc
+www.masterbutlerinc.com
+
+
+
+
+On Nov 4, 2025, at 4:34=E2=80=AFPM, Vadim Tank Saveliev <vadimsaveliev@yaho=
+o.com> wrote:
+
+ Thank you. November 7th wcan work if it will be before 3 pm.
+
+
+Best regards,
+Vadim
+
+ On Tuesday, November 4, 2025 at 04:32:33 p.m. PST, Master Butler, inc <cus=
+tomercare@masterbutlerinc.com> wrote:=20
+=20
+=20
+ Thank you for approving your quote! We have November 7th available. Please=
+ let us know if that works for you. Thanks!
+
+At your service,
+
+Jessica
+Office Manager
+Master Butler, inc
+www.masterbutlerinc.com
+
+
+
+
+On Nov 4, 2025, at 2:25=E2=80=AFPM, Vadim Tank Saveliev <vadimsaveliev@yaho=
+o.com> wrote:
+
+ Thank you! I approved. We can schedule now.
+
+
+Best regards,
+Vadim
+
+ On Tuesday, November 4, 2025 at 10:54:24 a.m. PST, Master Butler, inc <cus=
+tomercare@masterbutlerinc.com> wrote:=20
+=20
+=20
+ Thank you for reaching out to us again! I=E2=80=99ve just sent over a quot=
+e. If you don=E2=80=99t see it, please check your =E2=80=98junk=E2=80=99 fo=
+lders.=C2=A0 Please let us know if you have any questions and how you=E2=80=
+=99d like to proceed.
+At your service,
+
+LaRee=C2=A0
+Scheduling Coordinator=C2=A0
+Master Butler, inc
+customercare@masterbutlerinc.com
+
+
+
+
+
+On Nov 3, 2025, at 7:15=E2=80=AFPM, Vadim Tank Saveliev <vadimsaveliev@yaho=
+o.com> wrote:
+
+ Hello,
+
+After last storm a contractor informed me that gutters in my house are full=
+ of debris. I need your service again. I would like to schedule gutter clea=
+ning and roof maintenance: in the past your company put some white powder o=
+n the roof to prevent moss. We'd like to do it again too.
+
+
+Best regards,
+Vadim Saveliev
+
+ On Tuesday, May 13, 2025 at 04:58:17 p.m. PDT, Master Butler, inc <custome=
+rcare@masterbutlerinc.com> wrote:=20
+=20
+=20
+ Great! We have you confirmed on June 2nd for a gutter cleaning, roof blow =
+off, and moss treatment. Our technician will reach out prior to arrival. Th=
+ank you for booking with us!
+
+At your service,
+
+Jessica
+Office Manager
+Master Butler, inc
+www.masterbutlerinc.com
+
+
+
+
+On May 13, 2025, at 4:50=E2=80=AFPM, Vadim Tank Saveliev <vadimsaveliev@yah=
+oo.com> wrote:
+
+ OK, I confirm June 2nd.
+
+Best regards,
+Vadim
+
+ On Tuesday, May 13, 2025 at 02:11:43 p.m. PDT, Master Butler, inc <custome=
+rcare@masterbutlerinc.com> wrote:=20
+=20
+=20
+ Great! Thank you for approving your quote! We have June 2nd available. Ple=
+ase let us know if that works for you. Thanks!
+
+At your service,
+
+Jessica
+Office Manager
+Master Butler, inc
+www.masterbutlerinc.com
+
+
+
+
+On May 13, 2025, at 11:41=E2=80=AFAM, Vadim Tank Saveliev <vadimsaveliev@ya=
+hoo.com> wrote:
+
+=20
+Thank you! I approved. We can schedule now.
+
+
+Best regards,
+Vadim
+ On Tuesday, May 13, 2025 at 11:23:37 a.m. PDT, Master Butler, inc <custome=
+rcare@masterbutlerinc.com> wrote:=20
+=20
+=20
+ Thank you for reaching out to us again! I=E2=80=99ve just sent over a quot=
+e. If you don=E2=80=99t see it, please check your =E2=80=98junk=E2=80=99 fo=
+lders.
+Please let us know if you have any questions and how you=E2=80=99d like to =
+proceed.
+At your service,
+
+LaRee Eyres
+Scheduling Coordinator=C2=A0
+Master Butler, inc
+customercare@masterbutlerinc.com
+
+
+
+
+On May 12, 2025, at 9:26=E2=80=AFPM, Vadim Tank Saveliev <vadimsaveliev@yah=
+oo.com> wrote:
+
+ Hello,
+
+Spring is here and would like to use your service again. It will be nice to=
+ schedule gutter cleaning and roof maintenance: in the past your company pu=
+t some white powder on the roof to prevent moss. We'd like to do it again.
+
+
+Best regards,
+Vadim Saveliev
+
+ On Wednesday, August 21, 2024 at 05:15:55 p.m. PDT, Master Butler, inc <cu=
+stomercare@masterbutlerinc.com> wrote:=20
+=20
+=20
+ Great! Your home is confirmed on September=C2=A013th for a gutter cleaning=
+ and a dryer vent cleaning. Your technician will reach out to you within an=
+ hour of his arrival that day. Thank you for booking with us!=20
+
+At your service
+
+LaRee
+Scheduling Coordinator
+Master Butler Inc.
+customercare@masterbutlerinc.com
+
+On Wed, Aug 21, 2024 at 1:40=E2=80=AFPM Vadim Tank Saveliev <vadimsaveliev@=
+yahoo.com> wrote:
+ Hello, Martha
+
+Friday, 13th sounds scary :) and OK for us. Thank you!
+
+
+Best regards,
+Vadim
+
+ On Wednesday, August 21, 2024 at 01:12:30 p.m. PDT, Master Butler Inc. <cu=
+stomercare@masterbutlerinc.com> wrote:=20
+=20
+=20
+ Thank you for approving your quote!=C2=A0 Our next opening on a Friday is =
+September 13th.=C2=A0 Please let us know if that will work for you.=C2=A0=
+=C2=A0
+
+At your service,=C2=A0
+
+Martha
+Scheduling Coordinator
+Master Butler Inc.
+customercare@masterbutlerinc.com
+
+
+
+
+On Aug 20, 2024, at 2:24=E2=80=AFPM, Vadim Tank Saveliev <vadimsaveliev@yah=
+oo.com> wrote:
+
+ Thank you, Martha. I've approved it and I'm ready to schedule an appointme=
+nt. Any Monday, Wednesday, or Friday will be good.
+
+
+Best regards,
+Vadim
+ On Tuesday, August 20, 2024 at 12:08:20 p.m. PDT, Master Butler Inc. <cust=
+omercare@masterbutlerinc.com> wrote:=20
+=20
+=20
+ Thank you for reaching out to us again!=C2=A0 I=E2=80=99ve just sent over =
+your quote.=C2=A0 If you don=E2=80=99t see it, please check your =E2=80=98j=
+unk=E2=80=99 folder.=C2=A0 Please let us know of any questions and how you=
+=E2=80=99d like to proceed.
+
+At your service,=C2=A0
+
+Martha
+Scheduling Coordinator
+Master Butler Inc.
+customercare@masterbutlerinc.com
+
+
+
+
+On Aug 19, 2024, at 4:17=E2=80=AFPM, Vadim Tank Saveliev <vadimsaveliev@yah=
+oo.com> wrote:
+
+ Hello,
+
+I think it's time for your service again. It will be nice to schedule gutte=
+r cleaning and roof maintenance: in the past your company put some white po=
+wder on the roof to prevent moss. We'd like to do it again.
+
+
+Best regards,
+Vadim
+
+ On Friday, January 12, 2024 at 12:15:11 p.m. PST, Master Butler <tomfricke=
+@gmail.com> wrote:=20
+=20
+=20
+ Great!=C2=A0 We have your appointment confirmed on February 16th for a gut=
+ter cleaning, roof blow off, and moss treatment.=C2=A0Thank you for booking=
+ with us.=C2=A0 We look forward to servicing your home!
+
+At your service,=C2=A0
+
+Martha
+Scheduling Coordinator
+tomfricke@gmail.com
+www.masterbutlerinc.com
+
+
+On Jan 11, 2024, at 5:50 PM, Vadim Tank Saveliev <vadimsaveliev@yahoo.com> =
+wrote:
+
+ OK. February 16th it is. Thank you.
+
+
+Best regards,
+Vadim
+
+ On Thursday, January 11, 2024 at 03:29:19 p.m. PST, Master Butler <tomfric=
+ke@gmail.com> wrote:=20
+=20
+=20
+ Thank you for approving your quote!=C2=A0 Our next opening in your area is=
+ Friday, February 16th.=C2=A0 Please let us know if that will work for you.=
+=C2=A0=C2=A0
+
+At your service,=C2=A0
+
+Martha
+Scheduling Coordinator
+tomfricke@gmail.com
+www.masterbutlerinc.com
+
+
+On Jan 11, 2024, at 2:33 PM, Vadim Tank Saveliev <vadimsaveliev@yahoo.com> =
+wrote:
+
+ Thank you. I've got it. And I approved it. if you are ready to schedule th=
+e service - please do it on any Monday, Wednesday, or Friday.
+
+
+Best regards,
+Vadim
+
+ On Thursday, January 11, 2024 at 12:40:41 p.m. PST, Master Butler <tomfric=
+ke@gmail.com> wrote:=20
+=20
+=20
+ Great!=C2=A0I=E2=80=99ve just sent over your quote.=C2=A0 If you don=E2=80=
+=99t see it, please check your =E2=80=98junk=E2=80=99 folder.=C2=A0 Please =
+let us know of any questions and how you=E2=80=99d like to proceed.
+
+At your service,=C2=A0
+
+Martha
+Scheduling Coordinator
+tomfricke@gmail.com
+www.masterbutlerinc.com
+
+
+On Jan 10, 2024, at 3:39 PM, Vadim Tank Saveliev <vadimsaveliev@yahoo.com> =
+wrote:
+
+ Hello,
+
+Yes, thank you. It will be nice to schedule gutter cleaning and roof mainte=
+nance: in the past your company put some white powder on the roof to preven=
+t moss. We'd like to do it again.
+
+
+Best regards,
+Saveliev Family
+
+ On Wednesday, January 10, 2024 at 01:38:19 p.m. PST, Master Butler <tomfri=
+cke@gmail.com> wrote:=20
+=20
+=20
+ Hello,
+
+A quick reminder:
+
+Your home was serviced by our team last fall or winter. Now is a good time =
+to schedule your gutters and roof cleaning.=C2=A0 Recent winter/wind storms=
+ have dropped new debris and the last of those falls leaves have officially=
+ dropped. =C2=A0 Please let us know if you would like to be added to our Fe=
+bruary schedule if we haven=E2=80=99t serviced your home already this fall/=
+winter.=C2=A0
+=C2=A0Moss treatment is a great addition to your gutter/roof cleaning as we=
+ll.=C2=A0 Treating the moss on your roof will prolong the life of your roof=
+ and is great preventative maintenance.=C2=A0=C2=A0
+
+Please reply to this email for a free quote and scheduling options.
+
+
+At your service,
+
+The Master Butler Team
+=20
+
+=20
+
+=20
+
+=20
+
+=20
+
+=20
+
+--=20
+At your service,
+
+The Team at Master Butler
+customercare@masterbutlerinc.com
+www.masterbutlerinc.com
+
+=20
+
+=20
+
+=20
+
+=20
+
+=20
+
+=20
+
+=20
+
+=20
+
+=20
+
+ =20
+------=_Part_1680664_2130435083.1782323912029
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div>                Thank you.  You can start in my absence.  We trust you=
+r company - we provide service to us many years.<br><br>Best regards,<br>Ma=
+ra &amp; Vadim<br>            </div>            <div class=3D"yahoo_quoted"=
+ style=3D"margin:10px 0px 0px 0.8ex;border-left:1px solid #ccc;padding-left=
+:1ex;">                        <div style=3D"font-family:'Helvetica Neue', =
+Helvetica, Arial, sans-serif;font-size:13px;color:#26282a;">               =
+                 <div>                        On Wednesday, June 24, 2026 a=
+t 09:19:12 a.m. PDT, Master Butler, inc &lt;customercare@masterbutlerinc.co=
+m&gt; wrote:                    </div>                    <div><br></div>  =
+                  <div><br></div>                                          =
+      <div><div id=3D"yiv0814937777"><div><div><span>Vadim,</span><span></s=
+pan></div><div><span><br></span></div><span>Thank you for approving your qu=
+ote. We have a last minute opening this afternoon, June 24th. Please let us=
+ know if this will work for you. We look forward to hearing from you!&nbsp;=
+</span><span><br id=3D"yiv0814937777lineBreakAtBeginningOfMessage"><div>At =
+your service,<br><br>LaRee&nbsp;<br>Scheduling Coordinator&nbsp;<br>Master =
+Butler, inc<br>customercare@masterbutlerinc.com<br><br><br class=3D"yiv0814=
+937777Apple-interchange-newline"><br class=3D"yiv0814937777Apple-interchang=
+e-newline"></div><br><blockquote type=3D"cite">On Jun 23, 2026, at 10:59=E2=
+=80=AFPM, Vadim Tank Saveliev &lt;vadimsaveliev@yahoo.com&gt; wrote:<br><br=
+ class=3D"yiv0814937777Apple-interchange-newline">                Thank you=
+!  We approved.  We are ready to schedule.<br><br>Best regards,<br>Mara &am=
+p; Vadim<br><br>                                                           =
+                                             On Thursday, June 18, 2026 at =
+09:32:02 a.m. PDT, Master Butler, inc &lt;customercare@masterbutlerinc.com&=
+gt; wrote:                    <br>                    <br>                 =
+   <br>                                                Thank you for reachi=
+ng out to us again!&nbsp; I=E2=80=99ve just sent over your quote.&nbsp; If =
+you don=E2=80=99t see it, please check your =E2=80=98junk=E2=80=99 folder.&=
+nbsp; Please let us know of any questions and how you=E2=80=99d like to pro=
+ceed.<br><br clear=3D"none" id=3D"yiv0814937777lineBreakAtBeginningOfMessag=
+e">At your service,&nbsp;<br clear=3D"none"><br clear=3D"none">Martha<br cl=
+ear=3D"none">Scheduling Coordinator<br clear=3D"none">Master Butler Inc.<br=
+ clear=3D"none">customercare@masterbutlerinc.com<br><br clear=3D"none"><blo=
+ckquote type=3D"cite">On Jun 17, 2026, at 7:02=E2=80=AFPM, Vadim Tank Savel=
+iev &lt;vadimsaveliev@yahoo.com&gt; wrote:<br><br clear=3D"none" class=3D"y=
+iv0814937777Apple-interchange-newline">                Hello,<br clear=3D"n=
+one"><br clear=3D"none">We need your service again. I would like to schedul=
+e gutter cleaning and roof maintenance: in the past your company put some w=
+hite powder on the roof to prevent moss. We'd like to do it again too.<br c=
+lear=3D"none"><br clear=3D"none">Also, we recently painted the house and I =
+would like to request external window cleaning for all windows around the h=
+ouse.<br clear=3D"none"><br clear=3D"none"><br clear=3D"none">Best regards,=
+<br clear=3D"none">Vadim Saveliev<br clear=3D"none"><br clear=3D"none">    =
+                                                                           =
+                         On Tuesday, November 4, 2025 at 05:30:34 p.m. PST,=
+ Master Butler, inc &lt;customercare@masterbutlerinc.com&gt; wrote:        =
+            <br>                    <br clear=3D"none">                    =
+<br clear=3D"none">                                                You=E2=
+=80=99re welcome!<br><br clear=3D"none" id=3D"yiv0814937777lineBreakAtBegin=
+ningOfMessage">At your service,<br><br clear=3D"none">Jessica<br>Office Man=
+ager<br>Master Butler, inc<br>www.masterbutlerinc.com<br><br clear=3D"none"=
+><br clear=3D"none" class=3D"yiv0814937777Apple-interchange-newline"><br cl=
+ear=3D"none"><blockquote type=3D"cite">On Nov 4, 2025, at 5:18=E2=80=AFPM, =
+Vadim Tank Saveliev &lt;vadimsaveliev@yahoo.com&gt; wrote:<br><br clear=3D"=
+none" class=3D"yiv0814937777Apple-interchange-newline">                <br =
+clear=3D"none">Thank you!!!<br clear=3D"none">                             =
+                                                                           =
+On Tuesday, November 4, 2025 at 04:59:42 p.m. PST, Master Butler, inc &lt;c=
+ustomercare@masterbutlerinc.com&gt; wrote:                    <br>         =
+           <br clear=3D"none">                    <br clear=3D"none">      =
+                                          Great! We have you confirmed on N=
+ovember 7th with morning arrival between 9-10am for a gutter cleaning, roof=
+ blow off, and moss treatment. Our technician will reach out prior to arriv=
+al. Thank you for booking with us!<br><br clear=3D"none" id=3D"yiv081493777=
+7lineBreakAtBeginningOfMessage">At your service,<br><br clear=3D"none">Jess=
+ica<br>Office Manager<br>Master Butler, inc<br>www.masterbutlerinc.com<br><=
+br clear=3D"none"><br clear=3D"none" class=3D"yiv0814937777Apple-interchang=
+e-newline"><br clear=3D"none"><blockquote type=3D"cite">On Nov 4, 2025, at =
+4:34=E2=80=AFPM, Vadim Tank Saveliev &lt;vadimsaveliev@yahoo.com&gt; wrote:=
+<br><br clear=3D"none" class=3D"yiv0814937777Apple-interchange-newline">   =
+             Thank you.  November 7th wcan work if it will be before 3 pm.<=
+br clear=3D"none"><br clear=3D"none"><br clear=3D"none">Best regards,<br cl=
+ear=3D"none">Vadim<br clear=3D"none"><br clear=3D"none">                   =
+                                                                           =
+          On Tuesday, November 4, 2025 at 04:32:33 p.m. PST, Master Butler,=
+ inc &lt;customercare@masterbutlerinc.com&gt; wrote:                    <br=
+>                    <br clear=3D"none">                    <br clear=3D"no=
+ne">                                                Thank you for approving=
+ your quote! We have November 7th available. Please let us know if that wor=
+ks for you. Thanks!<br><br clear=3D"none" id=3D"yiv0814937777lineBreakAtBeg=
+inningOfMessage">At your service,<br><br clear=3D"none">Jessica<br>Office M=
+anager<br>Master Butler, inc<br>www.masterbutlerinc.com<br><br clear=3D"non=
+e"><br clear=3D"none" class=3D"yiv0814937777Apple-interchange-newline"><br =
+clear=3D"none"><blockquote type=3D"cite">On Nov 4, 2025, at 2:25=E2=80=AFPM=
+, Vadim Tank Saveliev &lt;vadimsaveliev@yahoo.com&gt; wrote:<br><br clear=
+=3D"none" class=3D"yiv0814937777Apple-interchange-newline">                =
+Thank you! I approved. We can schedule now.<br clear=3D"none"><br clear=3D"=
+none"><br clear=3D"none">Best regards,<br clear=3D"none">Vadim<br clear=3D"=
+none"><br clear=3D"none">                                                  =
+                                                      On Tuesday, November =
+4, 2025 at 10:54:24 a.m. PST, Master Butler, inc &lt;customercare@masterbut=
+lerinc.com&gt; wrote:                    <br>                    <br clear=
+=3D"none">                    <br clear=3D"none">                          =
+                      Thank you for reaching out to us again! I=E2=80=99ve =
+just sent over a quote. If you don=E2=80=99t see it, please check your =E2=
+=80=98junk=E2=80=99 folders.&nbsp; Please let us know if you have any quest=
+ions and how you=E2=80=99d like to proceed.<br>At your service,<br clear=3D=
+"none"><br clear=3D"none">LaRee&nbsp;<br clear=3D"none">Scheduling Coordina=
+tor&nbsp;<br clear=3D"none">Master Butler, inc<br>customercare@masterbutler=
+inc.com<br><br clear=3D"none"><br clear=3D"none" class=3D"yiv0814937777Appl=
+e-interchange-newline"><br clear=3D"none" class=3D"yiv0814937777Apple-inter=
+change-newline"><br clear=3D"none"><blockquote type=3D"cite">On Nov 3, 2025=
+, at 7:15=E2=80=AFPM, Vadim Tank Saveliev &lt;vadimsaveliev@yahoo.com&gt; w=
+rote:<br><br clear=3D"none" class=3D"yiv0814937777Apple-interchange-newline=
+">                Hello,<br clear=3D"none"><br clear=3D"none">After last st=
+orm a contractor informed me that gutters in my house are full of debris.  =
+I need your service again.  I would like to schedule gutter cleaning and ro=
+of maintenance: in the past your company put some white powder on the roof =
+to prevent moss. We'd like to do it again too.<br clear=3D"none"><br clear=
+=3D"none"><br clear=3D"none">Best regards,<br clear=3D"none">Vadim Saveliev=
+<br clear=3D"none"><br clear=3D"none">                                     =
+                                                                   On Tuesd=
+ay, May 13, 2025 at 04:58:17 p.m. PDT, Master Butler, inc &lt;customercare@=
+masterbutlerinc.com&gt; wrote:                    <br>                    <=
+br clear=3D"none">                    <br clear=3D"none">                  =
+                              Great! We have you confirmed on June 2nd for =
+a gutter cleaning, roof blow off, and moss treatment. Our technician will r=
+each out prior to arrival. Thank you for booking with us!<br><br clear=3D"n=
+one" id=3D"yiv0814937777lineBreakAtBeginningOfMessage">At your service,<br>=
+<br clear=3D"none">Jessica<br>Office Manager<br>Master Butler, inc<br>www.m=
+asterbutlerinc.com<br><br clear=3D"none"><br clear=3D"none" class=3D"yiv081=
+4937777Apple-interchange-newline"><br clear=3D"none"><blockquote type=3D"ci=
+te">On May 13, 2025, at 4:50=E2=80=AFPM, Vadim Tank Saveliev &lt;vadimsavel=
+iev@yahoo.com&gt; wrote:<br><br clear=3D"none" class=3D"yiv0814937777Apple-=
+interchange-newline">                OK, I confirm June 2nd.<br clear=3D"no=
+ne"><br clear=3D"none">Best regards,<br clear=3D"none">Vadim<br clear=3D"no=
+ne"><br clear=3D"none">                                                    =
+                                                    On Tuesday, May 13, 202=
+5 at 02:11:43 p.m. PDT, Master Butler, inc &lt;customercare@masterbutlerinc=
+.com&gt; wrote:                    <br>                    <br clear=3D"non=
+e">                    <br clear=3D"none">                                 =
+               Great! Thank you for approving your quote! We have June 2nd =
+available. Please let us know if that works for you. Thanks!<br><br clear=
+=3D"none" id=3D"yiv0814937777lineBreakAtBeginningOfMessage">At your service=
+,<br><br clear=3D"none">Jessica<br>Office Manager<br>Master Butler, inc<br>=
+www.masterbutlerinc.com<br><br clear=3D"none"><br clear=3D"none" class=3D"y=
+iv0814937777Apple-interchange-newline"><br clear=3D"none"><blockquote type=
+=3D"cite">On May 13, 2025, at 11:41=E2=80=AFAM, Vadim Tank Saveliev &lt;vad=
+imsaveliev@yahoo.com&gt; wrote:<br><br clear=3D"none" class=3D"yiv081493777=
+7Apple-interchange-newline">                <br clear=3D"none">Thank you!  =
+I approved.  We can schedule now.<br clear=3D"none"><br clear=3D"none"><br =
+clear=3D"none">Best regards,<br clear=3D"none">Vadim<br clear=3D"none">    =
+                                                                           =
+                         On Tuesday, May 13, 2025 at 11:23:37 a.m. PDT, Mas=
+ter Butler, inc &lt;customercare@masterbutlerinc.com&gt; wrote:            =
+        <br>                    <br clear=3D"none">                    <br =
+clear=3D"none">                                                Thank you fo=
+r reaching out to us again! I=E2=80=99ve just sent over a quote. If you don=
+=E2=80=99t see it, please check your =E2=80=98junk=E2=80=99 folders.<br>Ple=
+ase let us know if you have any questions and how you=E2=80=99d like to pro=
+ceed.<br>At your service,<br clear=3D"none"><br clear=3D"none">LaRee Eyres<=
+br clear=3D"none">Scheduling Coordinator&nbsp;<br clear=3D"none">Master But=
+ler, inc<br>customercare@masterbutlerinc.com<br><br clear=3D"none"><br clea=
+r=3D"none" class=3D"yiv0814937777Apple-interchange-newline"><br clear=3D"no=
+ne"><blockquote type=3D"cite">On May 12, 2025, at 9:26=E2=80=AFPM, Vadim Ta=
+nk Saveliev &lt;vadimsaveliev@yahoo.com&gt; wrote:<br><br clear=3D"none" cl=
+ass=3D"yiv0814937777Apple-interchange-newline">                Hello,<br cl=
+ear=3D"none"><br clear=3D"none">Spring is here and would like to use your s=
+ervice again. It will be nice to schedule gutter cleaning and roof maintena=
+nce: in the past your company put some white powder on the roof to prevent =
+moss. We'd like to do it again.<br clear=3D"none"><br clear=3D"none"><br cl=
+ear=3D"none">Best regards,<br clear=3D"none">Vadim Saveliev<br clear=3D"non=
+e"><br clear=3D"none">                                                     =
+                                                   On Wednesday, August 21,=
+ 2024 at 05:15:55 p.m. PDT, Master Butler, inc &lt;customercare@masterbutle=
+rinc.com&gt; wrote:                    <br>                    <br clear=3D=
+"none">                    <br clear=3D"none">                             =
+                   Great! Your home is confirmed on September&nbsp;13th for=
+ a gutter cleaning and a dryer vent cleaning. Your technician will reach ou=
+t to you within an hour of his arrival that day. Thank you for booking with=
+ us! <br clear=3D"none"><br clear=3D"none">At your service<br clear=3D"none=
+"><br clear=3D"none">LaRee<br clear=3D"none">Scheduling Coordinator<br clea=
+r=3D"none">Master Butler Inc.<br clear=3D"none">customercare@masterbutlerin=
+c.com<br clear=3D"none"><br clear=3D"none">On Wed, Aug 21, 2024 at 1:40=E2=
+=80=AFPM Vadim  Tank  Saveliev &lt;vadimsaveliev@yahoo.com&gt; wrote:<br cl=
+ear=3D"none">                Hello, Martha<br clear=3D"none"><br clear=3D"n=
+one">Friday, 13th sounds scary :) and OK for us.  Thank you!<br clear=3D"no=
+ne"><br clear=3D"none"><br clear=3D"none">Best regards,<br clear=3D"none">V=
+adim<br clear=3D"none"><br clear=3D"none">                                 =
+                                                                       On W=
+ednesday, August 21, 2024 at 01:12:30 p.m. PDT, Master Butler Inc. &lt;cust=
+omercare@masterbutlerinc.com&gt; wrote:                    <br>            =
+        <br clear=3D"none">                    <br clear=3D"none">         =
+                                       Thank you for approving your quote!&=
+nbsp; Our next opening on a Friday is September 13th.&nbsp; Please let us k=
+now if that will work for you.&nbsp;&nbsp;<br><br clear=3D"none" id=3D"yiv0=
+814937777m_-2156455994257490389yiv6980891430lineBreakAtBeginningOfMessage">=
+At your service,&nbsp;<br clear=3D"none"><br clear=3D"none">Martha<br clear=
+=3D"none">Scheduling Coordinator<br clear=3D"none">Master Butler Inc.<br>cu=
+stomercare@masterbutlerinc.com<br><br clear=3D"none"><br clear=3D"none"><br=
+ clear=3D"none"><blockquote type=3D"cite">On Aug 20, 2024, at 2:24=E2=80=AF=
+PM, Vadim Tank Saveliev &lt;vadimsaveliev@yahoo.com&gt; wrote:<br><br clear=
+=3D"none">                Thank you, Martha.  I've approved it and I'm read=
+y to schedule an appointment.  Any Monday, Wednesday, or Friday will be goo=
+d.<br clear=3D"none"><br clear=3D"none"><br clear=3D"none">Best regards,<br=
+ clear=3D"none">Vadim<br clear=3D"none">                                   =
+                                                                     On Tue=
+sday, August 20, 2024 at 12:08:20 p.m. PDT, Master Butler Inc. &lt;customer=
+care@masterbutlerinc.com&gt; wrote:                    <br>                =
+    <br clear=3D"none">                    <br clear=3D"none">             =
+                                   Thank you for reaching out to us again!&=
+nbsp; I=E2=80=99ve just sent over your quote.&nbsp; If you don=E2=80=99t se=
+e it, please check your =E2=80=98junk=E2=80=99 folder.&nbsp; Please let us =
+know of any questions and how you=E2=80=99d like to proceed.<br><br clear=
+=3D"none" id=3D"yiv0814937777m_-2156455994257490389yiv6980891430lineBreakAt=
+BeginningOfMessage">At your service,&nbsp;<br clear=3D"none"><br clear=3D"n=
+one">Martha<br clear=3D"none">Scheduling Coordinator<br clear=3D"none">Mast=
+er Butler Inc.<br>customercare@masterbutlerinc.com<br><br clear=3D"none"><b=
+r clear=3D"none"><br clear=3D"none"><blockquote type=3D"cite">On Aug 19, 20=
+24, at 4:17=E2=80=AFPM, Vadim Tank Saveliev &lt;vadimsaveliev@yahoo.com&gt;=
+ wrote:<br><br clear=3D"none">                Hello,<br clear=3D"none"><br =
+clear=3D"none">I think it's time for your service again. It will be nice to=
+ schedule gutter cleaning and roof maintenance: in the past your company pu=
+t some white powder on the roof to prevent moss. We'd like to do it again.<=
+br clear=3D"none"><br clear=3D"none"><br clear=3D"none">Best regards,<br cl=
+ear=3D"none">Vadim<br clear=3D"none"><br clear=3D"none">                   =
+                                                                           =
+          On Friday, January 12, 2024 at 12:15:11 p.m. PST, Master Butler &=
+lt;tomfricke@gmail.com&gt; wrote:                    <br>                  =
+  <br clear=3D"none">                    <br clear=3D"none">               =
+                                 Great!&nbsp; We have your appointment conf=
+irmed on February 16th for a gutter cleaning, roof blow off, and moss treat=
+ment.&nbsp;Thank you for booking with us.&nbsp; We look forward to servicin=
+g your home!<br><br clear=3D"none">At your service,&nbsp;<br clear=3D"none"=
+><br clear=3D"none">Martha<br clear=3D"none">Scheduling Coordinator<br clea=
+r=3D"none">tomfricke@gmail.com<br clear=3D"none">www.masterbutlerinc.com<br=
+><br clear=3D"none"><blockquote type=3D"cite">On Jan 11, 2024, at 5:50 PM, =
+Vadim Tank Saveliev &lt;vadimsaveliev@yahoo.com&gt; wrote:<br><br clear=3D"=
+none">                OK.  February 16th it is.  Thank you.<br clear=3D"non=
+e"><br clear=3D"none"><br clear=3D"none">Best regards,<br clear=3D"none">Va=
+dim<br clear=3D"none"><br clear=3D"none">                                  =
+                                                                  On Thursd=
+ay, January 11, 2024 at 03:29:19 p.m. PST, Master Butler &lt;tomfricke@gmai=
+l.com&gt; wrote:                <br>                <br clear=3D"none">    =
+            <br clear=3D"none">                Thank you for approving your=
+ quote!&nbsp; Our next opening in your area is Friday, February 16th.&nbsp;=
+ Please let us know if that will work for you.&nbsp;&nbsp;<br><br clear=3D"=
+none">At your service,&nbsp;<br clear=3D"none"><br clear=3D"none">Martha<br=
+ clear=3D"none">Scheduling Coordinator<br clear=3D"none">tomfricke@gmail.co=
+m<br clear=3D"none">www.masterbutlerinc.com<br><br clear=3D"none"><blockquo=
+te type=3D"cite">On Jan 11, 2024, at 2:33 PM, Vadim Tank Saveliev &lt;vadim=
+saveliev@yahoo.com&gt; wrote:<br><br clear=3D"none">                Thank y=
+ou.  I've got it.  And I approved it.  if you are ready to schedule the ser=
+vice - please do it on any Monday, Wednesday, or Friday.<br clear=3D"none">=
+<br clear=3D"none"><br clear=3D"none">Best regards,<br clear=3D"none">Vadim=
+<br clear=3D"none"><br clear=3D"none">                                     =
+                                                               On Thursday,=
+ January 11, 2024 at 12:40:41 p.m. PST, Master Butler &lt;tomfricke@gmail.c=
+om&gt; wrote:                <br>                <br clear=3D"none">       =
+         <br clear=3D"none">                Great!&nbsp;I=E2=80=99ve just s=
+ent over your quote.&nbsp; If you don=E2=80=99t see it, please check your =
+=E2=80=98junk=E2=80=99 folder.&nbsp; Please let us know of any questions an=
+d how you=E2=80=99d like to proceed.<br><br clear=3D"none">At your service,=
+&nbsp;<br clear=3D"none"><br clear=3D"none">Martha<br clear=3D"none">Schedu=
+ling Coordinator<br clear=3D"none">tomfricke@gmail.com<br clear=3D"none">ww=
+w.masterbutlerinc.com<br><br clear=3D"none"><blockquote type=3D"cite">On Ja=
+n 10, 2024, at 3:39 PM, Vadim Tank Saveliev &lt;vadimsaveliev@yahoo.com&gt;=
+ wrote:<br><br clear=3D"none">                Hello,<br clear=3D"none"><br =
+clear=3D"none">Yes, thank you.  It will be nice to schedule gutter cleaning=
+ and roof maintenance: in the past your company put some white powder on th=
+e roof to prevent moss.  We'd like to do it again.<br clear=3D"none"><br cl=
+ear=3D"none"><br clear=3D"none">Best regards,<br clear=3D"none">Saveliev Fa=
+mily<br clear=3D"none"><br clear=3D"none">                                 =
+                                                                   On Wedne=
+sday, January 10, 2024 at 01:38:19 p.m. PST, Master Butler &lt;tomfricke@gm=
+ail.com&gt; wrote:                <br>                <br clear=3D"none">  =
+              <br clear=3D"none">                Hello,<br><br clear=3D"non=
+e">A quick reminder:<br><br clear=3D"none">Your home was serviced by our te=
+am last fall or winter. Now is a good time to schedule your gutters and roo=
+f cleaning.&nbsp; Recent winter/wind storms have dropped new debris and the=
+ last of those falls leaves have officially dropped. &nbsp; Please let us k=
+now if you would like to be added to our February schedule if we haven=E2=
+=80=99t serviced your home already this fall/winter.&nbsp;<br>&nbsp;Moss tr=
+eatment is a great addition to your gutter/roof cleaning as well.&nbsp; Tre=
+ating the moss on your roof will prolong the life of your roof and is great=
+ preventative maintenance.&nbsp;&nbsp;<br><br clear=3D"none">Please reply t=
+o this email for a free quote and scheduling options.<br><br clear=3D"none"=
+><br clear=3D"none">At your service,<br><br clear=3D"none">The Master Butle=
+r Team<br>                            </blockquote><br clear=3D"none">     =
+                       </blockquote><br clear=3D"none">                    =
+        </blockquote><br clear=3D"none">                            </block=
+quote><br clear=3D"none">                            </blockquote><br clear=
+=3D"none">                            <br clear=3D"all"><br clear=3D"none">=
+-- <br clear=3D"none">At your service,<br><br clear=3D"none">The Team at Ma=
+ster Butler<br>customercare@masterbutlerinc.com<br>www.masterbutlerinc.com<=
+br><br clear=3D"none">                            </blockquote><br clear=3D=
+"none">                            </blockquote><br clear=3D"none">        =
+                    </blockquote><br clear=3D"none">                       =
+     </blockquote><br clear=3D"none">                            </blockquo=
+te><br clear=3D"none">                            </blockquote><br clear=3D=
+"none">                            </blockquote><br clear=3D"none">        =
+                    </blockquote><br clear=3D"none">                       =
+     </blockquote><br></span></div></div></div>            </div>          =
+      </div>
+------=_Part_1680664_2130435083.1782323912029--

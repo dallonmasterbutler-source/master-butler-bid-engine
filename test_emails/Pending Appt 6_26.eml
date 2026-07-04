@@ -1,0 +1,247 @@
+Delivered-To: customercare@masterbutlerinc.com
+Received: by 2002:a05:6918:2464:b0:435:70be:4d4e with SMTP id bg36csp750855ysb;
+        Wed, 24 Jun 2026 11:21:05 -0700 (PDT)
+X-Received: by 2002:a05:620a:3726:b0:915:8f76:7ff9 with SMTP id af79cd13be357-9277ed14dc0mr696425785a.49.1782325265547;
+        Wed, 24 Jun 2026 11:21:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1782325265; cv=none;
+        d=google.com; s=arc-20260327;
+        b=cpyuwMlC7xpyxyQ94r3PEIxiFBitjEv3GXOTGzANMA0+e7Yp+GdqOy9HcHZA7fYEKt
+         CFy8bKS9cA7trtcr6g+Beh2VYiEHyNaT2sV0dSHNt87A6ziuXIol/mTYJu9hBL6lHOfr
+         zI4uhPzQifCM8K3LnW6BUEfNk590j9OErIpaobfoiIHHVeQJaIhdQxgPiCjySGEUh+d3
+         m5+ByTMTDfFJS0P5ZKuESfJhzsgxWUReB3G7r8KDS4xM+WRcbqGWQ3iOnXOn6rXd8gsX
+         kk2LIoFnYUU3TjO9P5AOHvpTD1V/gZH0RqBIughUVM8rPlPmmuy2dMDJ6KbkYEQIxsBh
+         2tLw==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=message-id:in-reply-to:to:references:date:subject:mime-version:from
+         :dkim-signature;
+        bh=0rArPDibZGuZTU5zr3QtZfyB4UIPha3sMz1FKT4KPIc=;
+        fh=Jo1a5m+IpOPU3hKyaRFi6XZCN1dGo10E2NrSlVSugW8=;
+        b=H9RpGOsZaVaBKxVkDWiX11jrCrusIAYtZN4LBDe3u6EF57JE7GVmdJ+d2dzPLllD8+
+         1Zdw8Xl3cHTHzXpYimA4ZKP2ftIELHn9jCSIIyCtWEuI9ite+PFR3aE8n4duVKQu/tFf
+         q9e2r1nv3hzz+UYzPAKblw7939jRdW2UBUKESUonp40eHFS2+MOudulTME92e8ATJF4K
+         7nQ1Q2QU1h9V1l8pIOBRTuzGCl6HQ8zlvPzI9driMyxfPAK4LIZB5929DEVccHALoIdg
+         9vwRW3SERmftEP0+4yNp66tyZX+ClRHNMMA4cYc2XgxE5wRede0fyUZN9fgVh59NHYTV
+         A9Xw==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@yahoo.com header.s=s2048 header.b=rofQppdd;
+       spf=pass (google.com: domain of jacquet10@yahoo.com designates 74.6.129.124 as permitted sender) smtp.mailfrom=jacquet10@yahoo.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=yahoo.com
+Return-Path: <jacquet10@yahoo.com>
+Received: from sonic309-14.consmr.mail.bf2.yahoo.com (sonic309-14.consmr.mail.bf2.yahoo.com. [74.6.129.124])
+        by mx.google.com with ESMTPS id af79cd13be357-925fdd531f4si790502785a.133.2026.06.24.11.21.05
+        for <customercare@masterbutlerinc.com>
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Wed, 24 Jun 2026 11:21:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jacquet10@yahoo.com designates 74.6.129.124 as permitted sender) client-ip=74.6.129.124;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@yahoo.com header.s=s2048 header.b=rofQppdd;
+       spf=pass (google.com: domain of jacquet10@yahoo.com designates 74.6.129.124 as permitted sender) smtp.mailfrom=jacquet10@yahoo.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=yahoo.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yahoo.com; s=s2048; t=1782325265; bh=0rArPDibZGuZTU5zr3QtZfyB4UIPha3sMz1FKT4KPIc=; h=From:Subject:Date:References:To:In-Reply-To:From:Subject:Reply-To; b=rofQppddHZH7YB5u+X6w9pVmiFgmxX8f/kq4UWq62wi+gdQcAWwwkWb8IqCORf89NJjBYXbAZ1QgYVbY2Hls/SeAY46+4Qna7+h9mCU/iejMgL7ZNRagzAjHB5oW+LlNArZm4w+zMBEce/7dCvgKievTLgAq/VQmdrW2BvQb0C31gP0i8wvYDmz787Ax560X0QIXstlFgF2ZE1X1umTG4HCjcip/MUdwJyX3rNpOky2BFd7jOS9KIF4waflpUPoJZ7cX7JVkAbBcinqzQzbMd2D5nesPk0un5YpaAoo3VHBblO2gLmcgertcN17YLvPUI4/ZzSBO2YoWiE2kjGCoMQ==
+X-SONIC-DKIM-SIGN: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yahoo.com; s=s2048; t=1782325265; bh=zypU+2JqC2HAYMwXVv9Jp8myvqU5k+FU2qlNsPPOvq6=; h=X-Sonic-MF:From:Subject:Date:To:From:Subject; b=c/WtoAkbl3c+gTkilXT4ZcoJdufQAJ+F1gL8y/cq2bYB0CiYEWlRWqqd7+ktC2ovbTvIj0MUOTx7/PY0j5Uspci+4lz0qNF/aPNkYwExTmykxPWcnPesLCyX9teL5LMAzgESZa7MRyqfr0FH5CeAeoR2EtTZTasldJs5eMTh011KrkGNZ7UtviPeh/jD5btoTqrp2RqEx9DsEEID/ZNXrdJIcbXxAWMiZ9UxWID1VKToL26V2MCoYyXNY1RiRG0lnrS+maVtr8SBkZfSDl/ib0hhdtL6CS8IWa2G0lMevpN4lJYvuu/Wb+H4rxxO5Fy77OowrMLegrj1aL5ZowM+5A==
+X-YMail-OSG: 6m464dQVM1lyuaWI7v3kwlIqaCsShwQb9lwx85Fa2k3SW016bFvkKxpNGsoqYnl
+ NuRGFaN4nbA2G5bApZt1FFe93l1O5h8exsDU.grNdqPZHrGKkaTM5m1Cu.QBZNbL.9xZMR.AUoEN
+ zSk8iz6sfVq_sF4HSiy1Zx5vGilcXW2KQUAcNO3P61RHN94lH0y6UOxTSATBqXYg75jxjqxYRVmK
+ i6mqUTm0P7oP3tp3QyJvovVYBTVlW3ctcOMBM2S22nPoiYh0AVzY3OOe.53zZ3H97mS2f5JenPFk
+ AW8HWMiWVMHuvT2heyiRozRqjFYDRj70Eg3E7YheVjLS5Bt0A9_5yVaLr1wPVz8MH1X6M.EKVdQr
+ IkBol2yWaxQBypNMjOOSRfwPSUA.6O5kcbNek9YQo3mcmFq8JeCr5WRaqPvjWihPMtNjlsKJcglf
+ 82_Qw.kfkteCn60ukcp4OHKYPHCEREDPczwF.YaU2JqWUfztJdH80AaKp7td9.hgKh8k2jedOVGL
+ CepG8B24wYMgKq7YrI8S7nAsiAiwYKQ7FRqugWmWHvAZYbOD8Y1OfRmQ.IO2OcycKu7upQBmY5pU
+ Asb3mmKSiXJAUuzwMH64kIHEYj_nPpbo.cuDSRw.5QQUqWDy3te8hd2d6vxcUh15z7.zJrhZK31x
+ 4tYL.xqNN75WKm.ZH0Uso5KUXI0iVmIyLE77lzEac6EbVauyVRwI1LDNFB6fkRZbnshsjbmanLyt
+ 8O13WsqwYdwR14JPjt.qJEA5KoGL7xSnWTGHXn6cf7crSYrUvMSy73WCFnrtrCTgvOWtXk0HrIZQ
+ 07K3fyBV5SL_Ri4E84RkCBQHVTFJGb45kiEwHTr9GgRDEhLnel.R_WVQbjw7YtCF85_sX_cKrZeT
+ er63UJN8GA5heaLD1GC_LswtOZX1pCA9HK3D2JvONhakcfFxh3VRKJ4DhuUyUQULvY3D54LxgF4H
+ Wl.HcdM6XH1.xrgzfdzkwLgSgxDD91hyohO.a2.4MkVtKIts5DnWh7t2lMKVpcy4Jog3LbbZDInL
+ 04WnyHTrNvQmrsDcZmF4VrGBFCGe5SsvzzBRqWLQv5zO_sBv5WhMoXQKacsyJ7tdp9f.zWFb0Jvr
+ K37DdUFPnC954XgnGDZn313Oara84C7fWSbbZ8sULLjkuNhKUYHArdHP_a6fdII4tI_6Xf._M1fk
+ nUZETY4EHuw_3I8jQVeFTZKQZlnncSTwZikj61QlXDeIzRjBZ5cDnShveh96YBnTdn7muye3wcd.
+ ML6RJNIBjJo5mm7yZZm.ZRr8yOB07MOp.g1SYs7dh0Ri9lN3TavPpFJYMllIR2__w2U53A7bq67R
+ Hv0pM4ckO5PEX7l.mmvh4qmQQhwL8L_fKyvUErQjgCpEBeQjxessPtA6YwhU7Ykg1k7PKcZ6W6aF
+ IAnVcrmN_RnrFTJaEgPkihrZkj7dLI8Rj4Mk_R2C3QWkEdseQEgo3HGwpgZRy83xSY__pnYkuKnx
+ iCr6kJAAXCiFVZLsh3V4PnNO9gu63ASvP9aD7SbL3MIW41cXjb46OTZGRfdIe3RQVv0mkj.QaRqi
+ XLXZ0kjrAjwMjg8eFIAEyKcWcei.a1pckQcrM4d1J2s1lArM.R8UYlEs63wnd8eVYo0M8kAy9kFi
+ tnB.NLZJ2SIkjZtuYnqVL0jlshv.wRnonOOlGQul9fDAE4RjLRBoU6XXcISBlEde0GKqXJGX4vN7
+ DkUv33Gf8eyEsErxocwBhbBuM3r8fwUVCEbw4sJJPagBOtNIMLmKdxk1Q3rIGOoU16UGez3xUp3M
+ q_V6yvsZmysItFjUUDv_UgdiWRXHWZkLF09TG9OrApIQ5l.EeMkviCJSH83aoBNhsCYJGGVg.ZRc
+ 5NptSdAB9ntwqALBUhAsfUA.OHFBbr9FOX2U6Vpn_GiNFVs5Z4Z6n4_K16vpECEhZpN7yrsGmbtd
+ mkjlEWN1hlFw9u6huWoQr_1YByE32baho_UPUswYrsF_9wBtZvIo5bldkffcC0KMs_eYprNEgMQg
+ _OA.3HwPwEGFbJea7YJkfnAVtgC1.YdH3NYOd0KrEzGw8cVlbnjpTHaK9cbf75scvtAwE7z8Xzwm
+ PioEGgiqRcpefDr5.mh5Ne9lVj_qDKONuUDx5VCmfZyxTH6sJaf7Bgy45sJUykT33T84bUuHA9vf
+ Uj8zo6hMbhJayySzVNPirk2tJSrkJWFECL9hpQYklu3axsXNYSZ7W4aDfz0i7CMhodl64vqgrk5u
+ rXZffqZpgrikYKZTwccxWNbWLyHu3Rdtch0k67oIlZlK5oIppTRQLxwM4M6SaC80f91qK7Cc5BFh
+ rrvrjanKPK3nrHBqU_0U-
+X-Sonic-MF: <jacquet10@yahoo.com>
+X-Sonic-ID: f6a3bad3-0087-4ebf-97b4-da2f2c1a36bf
+Received: from sonic.gate.mail.ne1.yahoo.com by sonic309.consmr.mail.bf2.yahoo.com with HTTP; Wed, 24 Jun 2026 18:21:05 +0000
+Received: by hermes--production-gq1-6dc558886b-ncv44 (Yahoo Inc. Hermes SMTP Server) with ESMTPA ID 6644d506e5c2f13a19be313990005e5a;
+          Wed, 24 Jun 2026 18:20:59 +0000 (UTC)
+From: Jacqueline Tang <jacquet10@yahoo.com>
+Content-Type: multipart/alternative;
+	boundary="Apple-Mail=_CC0A471D-BC04-452D-B740-9F1D26FCA036"
+Mime-Version: 1.0 (Mac OS X Mail 16.0 \(3864.600.51.1.1\))
+Subject: Re: Pending Appt 6/26
+Date: Wed, 24 Jun 2026 11:20:48 -0700
+References: <AB144AE4-77B3-4E3E-9F03-D93147761E48@masterbutlerinc.com>
+ <3A274A42-BF33-4111-871D-779068993C2B@yahoo.com>
+ <AD11A341-6724-434F-BB1D-8DAE52A3F33A@masterbutlerinc.com>
+To: "Master Butler, inc" <customercare@masterbutlerinc.com>
+In-Reply-To: <AD11A341-6724-434F-BB1D-8DAE52A3F33A@masterbutlerinc.com>
+Message-Id: <BCDBD2ED-6946-46D8-9566-711CCD655F83@yahoo.com>
+X-Mailer: Apple Mail (2.3864.600.51.1.1)
+Content-Length: 6508
+
+
+--Apple-Mail=_CC0A471D-BC04-452D-B740-9F1D26FCA036
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=utf-8
+
+Hi LaRee,
+
+Thank you for assisting me on this.=20
+
+Hmm=E2=80=A6 If 6/26 is still open, I=E2=80=99ll try to make this work.  =
+What time will everything starts?
+
+Thanks,
+Jacqueline
+
+> On Jun 24, 2026, at 5:19=E2=80=AFAM, Master Butler, inc =
+<customercare@masterbutlerinc.com> wrote:
+>=20
+> Thank you for letting us know! We don=E2=80=99t have any openings next =
+week currently. We do have an opening on July 10th and we can place you =
+on our standby list for any earlier openings that become available. Will =
+that work for you?=20
+> =20
+> At your service,
+>=20
+> LaRee=20
+> Scheduling Coordinator=20
+> Master Butler, inc
+> customercare@masterbutlerinc.com
+>=20
+>=20
+>=20
+>=20
+>> On Jun 24, 2026, at 2:58=E2=80=AFAM, Jacqueline Tang =
+<jacquet10@yahoo.com> wrote:
+>>=20
+>> Hi Jessica,
+>>=20
+>> I am not available on the 26th.  Are there openings next week except =
+7/2?
+>>=20
+>> Thanks,
+>> Jacqueline
+>>=20
+>>> On Jun 23, 2026, at 2:19=E2=80=AFPM, Master Butler, inc =
+<customercare@masterbutlerinc.com> wrote:
+>>>=20
+>>> Hello,
+>>>=20
+>>> We want to reach out regarding a tentative appointment we are =
+holding for you on June 26th. Please let us know if you=E2=80=99d like =
+the spot. We would love to add you to our schedule!=20
+>>>=20
+>>>=20
+>>> At your service,
+>>>=20
+>>> Jessica
+>>> Office Manager
+>>> Master Butler, inc
+>>> www.masterbutlerinc.com
+>>>=20
+>>>=20
+>>>=20
+>>=20
+>=20
+
+
+--Apple-Mail=_CC0A471D-BC04-452D-B740-9F1D26FCA036
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/html;
+	charset=utf-8
+
+<html aria-label=3D"message body"><head><meta http-equiv=3D"content-type" =
+content=3D"text/html; charset=3Dutf-8"></head><body =
+style=3D"overflow-wrap: break-word; -webkit-nbsp-mode: space; =
+line-break: after-white-space;">Hi LaRee,<div><br></div><div>Thank you =
+for assisting me on this.&nbsp;</div><div><br></div><div>Hmm=E2=80=A6 If =
+6/26 is still open, I=E2=80=99ll try to make this work. &nbsp;What time =
+will everything =
+starts?</div><div><br></div><div>Thanks,</div><div>Jacqueline<br =
+id=3D"lineBreakAtBeginningOfMessage"><div><br><blockquote =
+type=3D"cite"><div>On Jun 24, 2026, at 5:19=E2=80=AFAM, Master Butler, =
+inc &lt;customercare@masterbutlerinc.com&gt; wrote:</div><br =
+class=3D"Apple-interchange-newline"><div><meta http-equiv=3D"content-type"=
+ content=3D"text/html; charset=3Dutf-8"><div style=3D"overflow-wrap: =
+break-word; -webkit-nbsp-mode: space; line-break: =
+after-white-space;">Thank you for letting us know! We don=E2=80=99t have =
+any openings next week currently. We do have an opening on July 10th and =
+we can place you on our standby list for any earlier openings that =
+become available. Will that work for you?&nbsp;<div>&nbsp;<br =
+id=3D"lineBreakAtBeginningOfMessage"><div>
+<meta charset=3D"UTF-8"><div dir=3D"auto" style=3D"caret-color: rgb(0, =
+0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; =
+text-transform: none; white-space: normal; word-spacing: 0px; =
+-webkit-text-stroke-width: 0px; text-decoration: none; overflow-wrap: =
+break-word; -webkit-nbsp-mode: space; line-break: =
+after-white-space;"><div>At your =
+service,<br><br>LaRee&nbsp;<br>Scheduling Coordinator&nbsp;<br>Master =
+Butler, =
+inc</div><div>customercare@masterbutlerinc.com</div><div><br></div></div><=
+br class=3D"Apple-interchange-newline"><br =
+class=3D"Apple-interchange-newline">
+</div>
+<div><br><blockquote type=3D"cite"><div>On Jun 24, 2026, at 2:58=E2=80=AFA=
+M, Jacqueline Tang &lt;jacquet10@yahoo.com&gt; wrote:</div><br =
+class=3D"Apple-interchange-newline"><div><meta http-equiv=3D"content-type"=
+ content=3D"text/html; charset=3Dutf-8"><div style=3D"overflow-wrap: =
+break-word; -webkit-nbsp-mode: space; line-break: after-white-space;">Hi =
+Jessica,<div><br></div><div>I am not available on the 26th. &nbsp;Are =
+there openings next week except =
+7/2?</div><div><br></div><div>Thanks,</div><div>Jacqueline<br =
+id=3D"lineBreakAtBeginningOfMessage"><div><br><blockquote =
+type=3D"cite"><div>On Jun 23, 2026, at 2:19=E2=80=AFPM, Master Butler, =
+inc &lt;customercare@masterbutlerinc.com&gt; wrote:</div><br =
+class=3D"Apple-interchange-newline"><div><meta http-equiv=3D"content-type"=
+ content=3D"text/html; charset=3Dutf-8"><div style=3D"overflow-wrap: =
+break-word; -webkit-nbsp-mode: space; line-break: =
+after-white-space;"><div style=3D"margin: 0px; font-style: normal; =
+font-variant-caps: normal; font-width: normal; font-size: 13px; =
+line-height: normal; font-family: &quot;Helvetica Neue&quot;; =
+font-size-adjust: none; font-kerning: auto; font-variant-alternates: =
+normal; font-variant-ligatures: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+font-feature-settings: normal; font-optical-sizing: auto; =
+font-variation-settings: normal;">Hello,</div><div style=3D"margin: 0px; =
+font-style: normal; font-variant-caps: normal; font-width: normal; =
+font-size: 13px; line-height: normal; font-family: &quot;Helvetica =
+Neue&quot;; font-size-adjust: none; font-kerning: auto; =
+font-variant-alternates: normal; font-variant-ligatures: normal; =
+font-variant-numeric: normal; font-variant-east-asian: normal; =
+font-variant-position: normal; font-feature-settings: normal; =
+font-optical-sizing: auto; font-variation-settings: normal; min-height: =
+15px;"><br></div><div style=3D"margin: 0px; font-style: normal; =
+font-variant-caps: normal; font-width: normal; font-size: 13px; =
+line-height: normal; font-family: &quot;Helvetica Neue&quot;; =
+font-size-adjust: none; font-kerning: auto; font-variant-alternates: =
+normal; font-variant-ligatures: normal; font-variant-numeric: normal; =
+font-variant-east-asian: normal; font-variant-position: normal; =
+font-feature-settings: normal; font-optical-sizing: auto; =
+font-variation-settings: normal;">We want to reach out regarding a =
+tentative appointment we are holding for you on June 26th. Please let us =
+know if you=E2=80=99d like the spot. We would love to add you to our =
+schedule!&nbsp;</div><div><br></div><div><br></div><div>
+<div>At your service,<br><br>Jessica<br>Office Manager<br>Master Butler, =
+inc<br>www.masterbutlerinc.com<br><br><br></div>
+
+</div>
+=
+<br></div></div></blockquote></div><br></div></div></div></blockquote></di=
+v><br></div></div></div></blockquote></div><br></div></body></html>=
+
+--Apple-Mail=_CC0A471D-BC04-452D-B740-9F1D26FCA036--
