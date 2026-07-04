@@ -7,6 +7,8 @@ It follows the exact same math as the HTML calculator.
 Read it top to bottom like a recipe. Every section has a plain-English note.
 """
 
+import math
+
 
 # ─────────────────────────────────────────────────────────────
 # STEP 1: THE MULTIPLIER TABLES
@@ -53,6 +55,34 @@ ACCESS = {
     "tight": 1.1,
 }
 
+# ── WINDOW-ONLY KNOBS ──
+# Windows have their OWN multipliers. They do NOT use roof pitch or debris,
+# because how steep the roof is doesn't change how hard windows are to clean.
+
+WINDOW_STYLE = {
+    "standard": 1.0,
+    "large": 1.2,      # large / picture windows
+    "mixed": 1.25,     # mixed / custom
+}
+
+WINDOW_CONDITION = {
+    "normal": 1.0,
+    "1_2_years": 1.15,   # not cleaned in 1-2 years
+    "3_plus_years": 1.35, # 3+ years — also gets an office note
+}
+
+WINDOW_ACCESS = {
+    "standard": 1.0,
+    "some_hard_reach": 1.15,
+    "skylights_interior": 1.3,
+}
+
+FRENCH_PANE = {
+    "none": 1.0,
+    "some": 1.35,      # ~25-50% french panes
+    "majority": 1.6,   # ~50-75%+ french panes
+}
+
 
 # ─────────────────────────────────────────────────────────────
 # STEP 2: A HELPER THAT CLEANS UP THE FINAL PRICE
@@ -61,8 +91,20 @@ ACCESS = {
 # ─────────────────────────────────────────────────────────────
 
 def round_to_5(amount):
-    """Round a dollar amount to the nearest $5, like the calculator does."""
-    return round(amount / 5) * 5
+    """Match the calculator EXACTLY.
+
+    The calculator doesn't just round the raw price. It builds a small range —
+    10% below and 10% above — rounds each end to the nearest $5, then shows the
+    MIDDLE of that range (also rounded to $5) as the price.
+
+    We copy that here so our numbers can never drift from the calculator.
+    (We round halves UP, the way the calculator's JavaScript does.)
+    """
+    def r5(x):
+        return math.floor(x / 5 + 0.5) * 5   # nearest $5, halves round up
+    low = r5(amount * 0.9)
+    high = r5(amount * 1.1)
+    return r5((low + high) / 2)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -82,10 +124,19 @@ def calculate_bid(prop):
     roof_mult = ROOF_MATERIAL[prop["roof_material"]]
     access_mult = ACCESS[prop["access"]]
 
-    # The "base" stack applies to most services
+    # The "base" stack applies to gutters/roof/moss work
     base = stories_mult * pitch_mult * debris_mult * access_mult
     # Gutters and roof work also multiply by gutter type and roof material
     gutter_roof = base * gutter_mult * roof_mult
+
+    # Windows get their OWN stack — stories & access, plus the window knobs.
+    # Notice: NO pitch, NO debris here. That's the fix.
+    window_style_mult = WINDOW_STYLE[prop["window_style"]]
+    window_condition_mult = WINDOW_CONDITION[prop["window_condition"]]
+    window_access_mult = WINDOW_ACCESS[prop["window_access"]]
+    french_mult = FRENCH_PANE[prop["french_pane"]]
+    window_mult = (stories_mult * window_style_mult
+                   * window_condition_mult * window_access_mult * access_mult)
 
     results = []   # we'll collect each service's price here
     notes = []     # and any warnings the office should see
@@ -116,9 +167,23 @@ def calculate_bid(prop):
             notes.append("Moss treatment over $150 — get a second opinion.")
 
     # ── WINDOWS (EXTERIOR ONLY) ──
+    # Uses window_mult (not base), then french pane on top.
     if prop["services"].get("windows"):
-        price = round_to_5(sqft * 0.07 * base)
+        price = round_to_5(sqft * 0.07 * window_mult * french_mult)
         results.append(("Window Cleaning (Exterior Only)", price))
+
+    # ── WINDOWS (IN & OUT) ──
+    # Same window scaling, but a higher rate ($0.13) because the
+    # tech cleans the inside too.
+    if prop["services"].get("windows_inout"):
+        price = round_to_5(sqft * 0.13 * window_mult * french_mult)
+        results.append(("Windows In & Out", price))
+
+    # Safety check: the calculator lets you pick ONE window service, not both.
+    # If both got turned on by mistake, let the office know.
+    if prop["services"].get("windows") and prop["services"].get("windows_inout"):
+        notes.append("Both window services selected — usually pick just one "
+                     "(Exterior Only OR In & Out). Double-check with the office.")
 
     # ── PITCH & ROOF SAFETY FLAGS ──
     if pitch_mult >= 1.5:
@@ -129,6 +194,10 @@ def calculate_bid(prop):
         notes.append("3-story property: flag for office review (tech-doability varies).")
     if roof_mult >= 1.35:
         notes.append("Shake or full metal roof: DRY DAY ONLY. Verify with Tom.")
+    if window_condition_mult >= 1.35 and (prop["services"].get("windows")
+                                          or prop["services"].get("windows_inout")):
+        notes.append("Windows not cleaned in 3+ years — consult customer and "
+                     "document condition with photos before starting.")
 
     return results, notes
 
@@ -149,6 +218,10 @@ if __name__ == "__main__":
         "gutter_type": "standard",
         "roof_material": "standard",
         "access": "normal",
+        "window_style": "standard",
+        "window_condition": "normal",
+        "window_access": "standard",
+        "french_pane": "none",
         "services": {
             "gutters": True,
             "roof": True,
