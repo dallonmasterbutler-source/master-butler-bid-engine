@@ -130,12 +130,60 @@ SECOND_OPINION_LIMITS = {
 PRICE_RANGE = 0.10   # ±10% low/high band
 ROUND_STEP = 5       # round every price to the nearest $5
 
+# ─────────────────────────────────────────────────────────────
+# STEP 1c: PRESSURE WASHING (sqft-based — calibrated July 2026)
+# Model fits ALL our real anchors: Connie's 250 sqft patio = $100,
+# and the Jobber tiers 100→$60, 400→$120, 900→$190.
+# "Declining block": the first 250 sqft costs more per-foot than the rest,
+# because setup/haul time is baked into every job no matter how small.
+# ─────────────────────────────────────────────────────────────
+
+PW_CONCRETE = {
+    "first_block_sqft": 250,    # the "setup-heavy" portion
+    "first_block_rate": 0.40,   # $/sqft for the first 250 sqft
+    "remainder_rate":   0.15,   # $/sqft beyond that
+    "minimum":          60,     # never quote below this
+}
+
+PW_HOUSE_WASH_RATE = 0.20       # $/sqft × stories (from calculator)
+
+# Surface buildup — the "heavy debris" exception Dallon called out.
+PW_BUILDUP = {
+    "clean":    1.0,
+    "moderate": 1.2,
+    "heavy":    1.4,   # also triggers a confirm-with-photo flag
+}
+
+# Target hourly rates (price ÷ rate = estimated job hours, feeds pathing)
+TARGET_HOURLY = {
+    "gutters": 125, "gutters_specialty": 150, "roof": 150,
+    "moss": 150, "windows": 100, "pressure": 115,
+}
+
+# Flat-fee services
+DRYER_VENT_ADDON = 100   # when booked with another service
+DRYER_VENT_ALONE = 150   # when booked by itself
+WET_DAY_GUTTER_MULT = 1.3  # gutters cost more on wet days (wet debris)
+
 
 # ─────────────────────────────────────────────────────────────
 # STEP 2: A HELPER THAT CLEANS UP THE FINAL PRICE
 # Your calculator shows a range (±10%) and rounds to the nearest $5.
 # This little function does that rounding for us.
 # ─────────────────────────────────────────────────────────────
+
+def pw_concrete_price(sqft, buildup="clean"):
+    """Price a flat concrete surface (patio/driveway/sidewalk) from its area.
+
+    First 250 sqft at the higher rate (setup baked in), the rest cheaper,
+    never below the minimum. Buildup multiplies at the end.
+    Fits: Connie 250→$100, Jobber tiers 100→$60, 400→$120, 900→$190.
+    """
+    first = min(sqft, PW_CONCRETE["first_block_sqft"]) * PW_CONCRETE["first_block_rate"]
+    rest = max(0, sqft - PW_CONCRETE["first_block_sqft"]) * PW_CONCRETE["remainder_rate"]
+    raw = max(PW_CONCRETE["minimum"], first + rest)
+    return raw * PW_BUILDUP[buildup]
+
 
 def round_to_5(amount):
     """Match the calculator EXACTLY.
@@ -189,18 +237,41 @@ def calculate_bid(prop):
     results = []   # we'll collect each service's price here
     notes = []     # and any warnings the office should see
 
-    # ── GUTTER CLEANING ──
+    def add(name, price, hourly_key):
+        """Record one service line with its ±range and estimated hours."""
+        results.append({
+            "name": name,
+            "price": price,
+            "low": round_to_5(price * (1 - PRICE_RANGE)),
+            "high": round_to_5(price * (1 + PRICE_RANGE)),
+            "hours": round(price / TARGET_HOURLY[hourly_key], 1),
+        })
+
+    # Gutter guards include the roof blow-off in ONE combined line item.
+    has_guards = prop["gutter_type"] == "guards"
+
+    # ── GUTTER CLEANING (optionally with wet-day pricing) ──
     if prop["services"].get("gutters"):
         price = round_to_5(sqft * RATES["gutter_cleaning"] * gutter_roof)
-        results.append(("Gutter Cleaning", price))
+        hourly = "gutters_specialty" if roof_mult >= 1.35 else "gutters"
+        if has_guards:
+            add("Gutter Guards Cleaning (incl. roof blow off)", price, hourly)
+            notes.append("Gutter guards: roof blow off is included in this "
+                         "line — do not bill it separately.")
+        else:
+            add("Gutter Cleaning", price, hourly)
+        if prop.get("wet_day"):
+            wet = round_to_5(price * WET_DAY_GUTTER_MULT)
+            notes.append(f"Wet day option: gutters ${wet} if worked wet "
+                         f"(dry day ${price}). Present both to customer.")
         if price > SECOND_OPINION_LIMITS["gutter_cleaning"]:
             notes.append("Gutters over $300 — get a second opinion before quoting.")
 
-    # ── ROOF BLOW OFF ──
-    if prop["services"].get("roof"):
+    # ── ROOF BLOW OFF (skipped automatically when guards include it) ──
+    if prop["services"].get("roof") and not has_guards:
         price = max(PRICE_FLOORS["roof_blow_off"],
                     round_to_5(sqft * RATES["roof_blow_off"] * gutter_roof))
-        results.append(("Roof Blow Off", price))
+        add("Roof Blow Off", price, "roof")
         if price > SECOND_OPINION_LIMITS["roof_blow_off"]:
             notes.append("Roof blow off over $150 — get a second opinion.")
 
@@ -208,7 +279,9 @@ def calculate_bid(prop):
     if prop["services"].get("moss"):
         price = max(PRICE_FLOORS["moss_treatment"],
                     round_to_5(sqft * RATES["moss_treatment"] * gutter_roof))
-        results.append(("Moss Treatment", price))
+        add("Moss Treatment", price, "moss")
+        notes.append("Moss treatment product billed separately: $14.50/canister, "
+                     "1-3 typical, tech determines on-site.")
         if price > SECOND_OPINION_LIMITS["moss_treatment"]:
             notes.append("Moss treatment over $150 — get a second opinion.")
 
@@ -216,13 +289,51 @@ def calculate_bid(prop):
     # Uses window_mult (not base), then french pane on top.
     if prop["services"].get("windows"):
         price = round_to_5(sqft * RATES["windows_exterior"] * window_mult * french_mult)
-        results.append(("Window Cleaning (Exterior Only)", price))
+        add("Window Cleaning (Exterior Only)", price, "windows")
 
     # ── WINDOWS (IN & OUT) ──
     # Same window scaling, but a higher rate because the tech cleans inside too.
     if prop["services"].get("windows_inout"):
         price = round_to_5(sqft * RATES["windows_in_out"] * window_mult * french_mult)
-        results.append(("Windows In & Out", price))
+        add("Windows In & Out", price, "windows")
+
+    # ── PRESSURE WASHING (sqft-based; measured area required) ──
+    # prop["surfaces"] holds measured areas, e.g. {"patio": 250, "driveway": 600}
+    # If a surface was requested but has no measurement, we don't guess —
+    # we flag it for a human quote.
+    buildup = prop.get("buildup", "clean")
+    surface_names = {"patio": "Pressure Wash Patio",
+                     "driveway": "Pressure Wash Driveway",
+                     "sidewalk": "Pressure Wash Sidewalk"}
+    for key, label in surface_names.items():
+        if key in prop.get("services", {}) and prop["services"][key]:
+            area = prop.get("surfaces", {}).get(key)
+            if area:
+                price = round_to_5(pw_concrete_price(area, buildup))
+                add(f"{label} (~{area} sqft)", price, "pressure")
+                if buildup == "heavy":
+                    notes.append(f"{label}: HEAVY buildup priced in (1.4x) — "
+                                 "confirm with photo before appointment.")
+            else:
+                notes.append(f"{label}: requested but NO measurement available "
+                             "— needs office/expert quote (get photo or dimensions).")
+
+    # ── HOUSE WASH ──
+    if prop["services"].get("house_wash"):
+        price = round_to_5(sqft * PW_HOUSE_WASH_RATE * stories_mult * access_mult)
+        add("House Washing", price, "pressure")
+        notes.append("House wash: homeowner must be present for this service.")
+
+    # ── DECK — always a custom quote (send photos), per Jobber policy ──
+    if prop["services"].get("deck"):
+        notes.append("Deck pressure wash: ALWAYS custom quote — request photos.")
+
+    # ── DRYER VENT (flat fee; cheaper as an add-on) ──
+    if prop["services"].get("dryer_vent"):
+        others = len(results) > 0
+        price = DRYER_VENT_ADDON if others else DRYER_VENT_ALONE
+        results.append({"name": "Dryer Vent Cleaning", "price": price,
+                        "low": price, "high": price, "hours": 1.0})
 
     # Safety check: the calculator lets you pick ONE window service, not both.
     # If both got turned on by mistake, let the office know.
@@ -244,7 +355,23 @@ def calculate_bid(prop):
         notes.append("Windows not cleaned in 3+ years — consult customer and "
                      "document condition with photos before starting.")
 
-    return results, notes
+    # ── CONFIDENCE SCORE (data-quality based — works from day one) ──
+    # Starts at 100 and loses points for anything missing or risky.
+    # Later, Vision/Solar will fill these fields; today they're inputs.
+    confidence = 100
+    if not prop.get("sqft"):
+        confidence -= 30
+    if prop.get("pitch") == "unknown":
+        confidence -= 15
+    if any("NO measurement" in n for n in notes):
+        confidence -= 25
+    if pitch_mult >= 1.35 or stories_mult >= 1.35:
+        confidence -= 10   # steep/tall = more ways to be wrong
+    if buildup == "heavy":
+        confidence -= 10
+    confidence = max(0, confidence)
+
+    return results, notes, confidence
 
 
 # ─────────────────────────────────────────────────────────────
@@ -275,23 +402,26 @@ if __name__ == "__main__":
         },
     }
 
-    services, notes = calculate_bid(example_house)
+    services, notes, confidence = calculate_bid(example_house)
 
-    print("=" * 45)
+    print("=" * 62)
     print("  MASTER BUTLER — BID ESTIMATE")
-    print("=" * 45)
+    print("=" * 62)
     print(f"  Property: {example_house['sqft']} sq ft, "
-          f"{example_house['stories']}-story")
-    print("-" * 45)
+          f"{example_house['stories']}-story   |   Confidence: {confidence}%")
+    print("-" * 62)
 
     total = 0
-    for name, price in services:
-        print(f"  {name:<38} ${price}")
-        total += price
+    total_hours = 0
+    for s in services:
+        rng = f"(${s['low']}-${s['high']})"
+        print(f"  {s['name']:<38} ${s['price']:<5} {rng:<12} {s['hours']}h")
+        total += s["price"]
+        total_hours += s["hours"]
 
-    print("-" * 45)
-    print(f"  {'TOTAL ESTIMATE':<38} ${total}")
-    print("=" * 45)
+    print("-" * 62)
+    print(f"  {'TOTAL ESTIMATE':<38} ${total}   ~{round(total_hours,1)} hrs on site")
+    print("=" * 62)
 
     if notes:
         print("\n  ⚠ OFFICE NOTES:")
