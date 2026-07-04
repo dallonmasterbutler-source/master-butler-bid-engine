@@ -1,3 +1,6 @@
 data/
 __pycache__/
 .DS_Store
+.env
+*.json.secret
+client_secret*.json
