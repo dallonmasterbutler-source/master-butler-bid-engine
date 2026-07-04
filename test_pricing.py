@@ -84,6 +84,29 @@ check("Confidence dropped", 1 if conf < 80 else 0, 1)
 print("\n── RULE: heavy buildup = 1.4x ──")
 check("250 sqft heavy patio", round_to_5(pw_concrete_price(250, "heavy")), 140)
 
+print("\n── RULE: roof-data sanity checks (no network needed) ──")
+from property_data import validate_roof, pitch_band
+
+ok, flags, ded = validate_roof(438)            # the real Woodinville shed hit
+check("Tiny roof rejected", 0 if ok else 1, 1)
+ok, flags, ded = validate_roof(1235, 4212)     # the real Ying Wan mismatch
+check("Bad ratio rejected", 0 if ok else 1, 1)
+ok, flags, ded = validate_roof(2716, 2200)     # the real Alison (good data)
+check("Good roof accepted", 1 if ok else 0, 1)
+check("Good roof no deduction", ded, 0)
+ok, flags, ded = validate_roof(None)
+check("Missing solar deducts 25", ded, 25)
+
+print("\n── RULE: measured pitch maps to the right knob ──")
+check("5/12 is moderate", pitch_band(5)[0] == "moderate", True)
+check("9/12 is steep", pitch_band(9)[0] == "steep", True)
+check("11/12 is TOM ONLY", pitch_band(11.5)[0] == "tom_only", True)
+
+print("\n── RULE: 3-story stays flagged no matter what (SAFETY) ──")
+r, notes, conf = calculate_bid(house(stories="3", services={"gutters": True}))
+check("3-story office flag present",
+      1 if any("3-story" in n for n in notes) else 0, 1)
+
 print("\n" + "=" * 50)
 print(f"RESULT: {passed} passed, {failed} failed")
 exit(1 if failed else 0)

@@ -29,22 +29,30 @@ from bid_engine import calculate_bid
 # ─────────────────────────────────────────────────────────────
 
 KNOWN_PROPERTIES = {
-    # address fragment (lowercased) -> facts we verified from records
-    "24323 se 42nd": {"sqft": 2540, "stories": "2"},   # Jing Xu, Sammamish
+    # address fragment (lowercased) -> facts we verified from records.
+    # (In production this table becomes a county-records/listing lookup.)
+    "24323 se 42nd": {"sqft": 2540, "stories": "2"},   # Jing Xu, Issaquah
     "325 7th ave":   {"sqft": 1910, "stories": "1"},   # Dawn Goehner, Kirkland
     "2005 265th":    {"sqft": 3730, "stories": "2"},   # Shibu, Sammamish
     "22225 ne 31st": {"sqft": 2820, "stories": "2"},   # Sammamish
 }
 
 
-def lookup_property(address):
-    """Pretend to be the Google APIs. Returns facts or 'unknown'."""
+def records_for(address):
+    """What property records tell us (stub table for now)."""
     if address:
         addr = address.lower()
         for fragment, facts in KNOWN_PROPERTIES.items():
             if fragment in addr:
-                return {**facts, "source": "records (stub)"}
-    return {"sqft": None, "stories": "2", "source": "NOT FOUND — needs lookup"}
+                return facts
+    return {}
+
+
+def lookup(address):
+    """LIVE lookup: geocode + Solar roof measurement + sanity grading."""
+    from property_data import lookup_property
+    facts, flags, deduction = lookup_property(address, records_for(address))
+    return facts, flags, deduction
 
 
 # ─────────────────────────────────────────────────────────────
@@ -92,8 +100,8 @@ def build_property(parsed, facts):
     prop = {
         "sqft": facts["sqft"],
         "stories": facts["stories"],
-        # Unknown conditions default to the SAFE middle; Vision fills these later
-        "pitch": "moderate", "debris": "moderate",
+        # Pitch now comes MEASURED from Solar; debris still needs Vision/photos
+        "pitch": facts.get("pitch", "moderate"), "debris": "moderate",
         "gutter_type": "guards" if "roof_blow_off_guards" in parsed["services"] else "standard",
         "roof_material": "standard", "access": "normal",
         "window_style": "standard", "window_condition": "normal",
@@ -122,11 +130,13 @@ def process(eml_path):
     print(f"    Services asked: {', '.join(parsed['services'])}")
     print(f"    Address: {parsed['address'] or '— none given —'}")
 
-    facts = lookup_property(parsed["address"])
-    print(f"    Property: {facts['sqft'] or '???'} sqft "
-          f"[{facts['source']}]")
+    facts, data_flags, deduction = lookup(parsed["address"])
+    roof = f", roof {facts['roof_sqft']:,.0f} sqft" if facts.get("roof_sqft") else ""
+    print(f"    Property: {facts['sqft'] or '???'} sqft, "
+          f"{facts['stories']}-story, pitch {facts['pitch']}{roof}")
 
     prop, office_flags = build_property(parsed, facts)
+    office_flags = data_flags + office_flags
 
     if not prop["sqft"]:
         print("    → DRAFT HELD: no square footage — office must supply it.")
@@ -135,6 +145,7 @@ def process(eml_path):
         return
 
     results, notes, confidence = calculate_bid(prop)
+    confidence = max(0, confidence - deduction)   # data quality lowers trust
 
     print(f"\n    DRAFT BID  (confidence {confidence}%)")
     total = 0
