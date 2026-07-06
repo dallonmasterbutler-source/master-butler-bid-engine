@@ -13,9 +13,9 @@ Hard safety rules baked in (not optional):
     practice records are obvious and easy to delete.
 
 Jobber uses a GraphQL API. Auth is OAuth (Client ID + Secret → token).
-Exact field names are verified by introspecting the live schema the
-first time we connect with real credentials — anything uncertain is
-marked  # VERIFY  below.
+All field names were verified against the LIVE schema on July 5, 2026
+(quoteCreate attributes, property nesting, searchTerm client lookup).
+Access tokens auto-refresh — no human re-authorization needed.
 """
 
 import json
