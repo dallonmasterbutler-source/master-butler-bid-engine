@@ -21,6 +21,7 @@ marked  # VERIFY  below.
 import json
 import os
 import urllib.request
+import urllib.parse
 import urllib.error
 from pathlib import Path
 
@@ -39,10 +40,44 @@ def _env(name, default=None):
 
 
 JOBBER_API_URL = "https://api.getjobber.com/api/graphql"
-JOBBER_GRAPHQL_VERSION = "2023-11-15"          # VERIFY current version at connect time
+JOBBER_TOKEN_URL = "https://api.getjobber.com/api/oauth/token"
+JOBBER_GRAPHQL_VERSION = "2023-11-15"          # verified against live schema Jul 2026
 CLIENT_ID = _env("JOBBER_CLIENT_ID")
 CLIENT_SECRET = _env("JOBBER_CLIENT_SECRET")
-ACCESS_TOKEN = _env("JOBBER_ACCESS_TOKEN")     # filled after the one-time "Allow" handshake
+ACCESS_TOKEN = _env("JOBBER_ACCESS_TOKEN")     # short-lived (~60 min)
+REFRESH_TOKEN = _env("JOBBER_REFRESH_TOKEN")   # long-lived; used to mint new access tokens
+
+
+def refresh_access_token():
+    """Jobber access tokens die after ~an hour. This trades our long-lived
+    refresh token for a fresh access token and saves it back to .env,
+    so the system never needs a human to re-do the Allow handshake."""
+    global ACCESS_TOKEN, REFRESH_TOKEN
+    body = urllib.parse.urlencode({
+        "grant_type": "refresh_token",
+        "refresh_token": REFRESH_TOKEN,
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+    }).encode()
+    req = urllib.request.Request(JOBBER_TOKEN_URL, data=body,
+        headers={"Content-Type": "application/x-www-form-urlencoded"})
+    tokens = json.load(urllib.request.urlopen(req, timeout=30))
+    ACCESS_TOKEN = tokens["access_token"]
+    # Jobber rotates refresh tokens: save BOTH back to .env
+    new_refresh = tokens.get("refresh_token", REFRESH_TOKEN)
+    REFRESH_TOKEN = new_refresh
+    env_path = Path(__file__).parent / ".env"
+    lines = env_path.read_text().splitlines()
+    out = []
+    for line in lines:
+        if line.startswith("JOBBER_ACCESS_TOKEN="):
+            out.append(f"JOBBER_ACCESS_TOKEN={ACCESS_TOKEN}")
+        elif line.startswith("JOBBER_REFRESH_TOKEN="):
+            out.append(f"JOBBER_REFRESH_TOKEN={new_refresh}")
+        else:
+            out.append(line)
+    env_path.write_text("\n".join(out) + "\n")
+    return ACCESS_TOKEN
 
 # Default to the safe settings. Flip these only once live testing is verified.
 DRY_RUN = _env("JOBBER_DRY_RUN", "true").lower() != "false"
@@ -53,8 +88,9 @@ TEST_MODE = _env("JOBBER_TEST_MODE", "true").lower() != "false"
 # THE GRAPHQL CALLS WE NEED (all reads/writes go through here)
 # ─────────────────────────────────────────────────────────────
 
-def _post(query, variables, label):
-    """Send one GraphQL request — or, in dry-run, just show it."""
+def _post(query, variables, label, _retried=False):
+    """Send one GraphQL request — or, in dry-run, just show it.
+    If the access token has expired (401), auto-refresh once and retry."""
     payload = {"query": query, "variables": variables}
     if DRY_RUN or not ACCESS_TOKEN:
         print(f"\n[DRY RUN] Would send to Jobber → {label}")
@@ -73,6 +109,9 @@ def _post(query, variables, label):
     try:
         resp = json.load(urllib.request.urlopen(req, timeout=30))
     except urllib.error.HTTPError as e:
+        if e.code == 401 and not _retried and REFRESH_TOKEN:
+            refresh_access_token()          # token died — mint a new one
+            return _post(query, variables, label, _retried=True)
         return {"error": e.code, "body": e.read().decode()[:500]}
     if resp.get("errors"):
         return {"error": "graphql", "body": resp["errors"]}
@@ -80,25 +119,30 @@ def _post(query, variables, label):
 
 
 # ── Find a client by email (so we don't create duplicates) ──
+# Live schema note: there is NO email filter — we use searchTerm, then
+# confirm the exact email match ourselves before trusting it.
 FIND_CLIENT = """
-query FindClient($email: String!) {
-  clients(filter: { email: $email }, first: 1) {   # VERIFY filter arg name
-    nodes { id firstName lastName emails { address } }
+query FindClient($term: String!) {
+  clients(searchTerm: $term, first: 5) {
+    nodes { id name emails { address } }
   }
 }
 """
 
 def find_client(email):
-    data = _post(FIND_CLIENT, {"email": email}, "find client by email")
-    if data.get("dry_run"):
+    data = _post(FIND_CLIENT, {"term": email}, "find client by email")
+    if data.get("dry_run") or data.get("error"):
         return None
-    nodes = data.get("clients", {}).get("nodes", [])
-    return nodes[0]["id"] if nodes else None
+    for node in data.get("clients", {}).get("nodes", []):
+        addrs = [e["address"].lower() for e in node.get("emails", [])]
+        if email.lower() in addrs:          # exact match only
+            return node["id"]
+    return None
 
 
-# ── Create a client ──
+# ── Create a client ──  (input fields verified against live schema)
 CREATE_CLIENT = """
-mutation CreateClient($input: ClientCreateInput!) {   # VERIFY input type
+mutation CreateClient($input: ClientCreateInput!) {
   clientCreate(input: $input) {
     client { id }
     userErrors { message }
@@ -128,27 +172,45 @@ def find_or_create_client(name, email, phone=None):
 
 
 # ── Create a property under a client ──
+# Live schema: propertyCreate(clientId:, input: { properties: [...] })
+# and each property carries a structured address (street1/city/province/…).
 CREATE_PROPERTY = """
-mutation CreateProperty($input: PropertyCreateInput!) {   # VERIFY
-  propertyCreate(input: $input) {
-    property { id }
+mutation CreateProperty($clientId: EncodedId!, $input: PropertyCreateInput!) {
+  propertyCreate(clientId: $clientId, input: $input) {
+    properties { id }
     userErrors { message }
   }
 }
 """
 
+def split_address(address):
+    """'20613 NE 34th Pl, Sammamish, WA 98074' -> structured pieces."""
+    parts = [p.strip() for p in (address or "").split(",")]
+    street = parts[0] if parts else ""
+    city = parts[1] if len(parts) > 1 else ""
+    state_zip = parts[2].split() if len(parts) > 2 else []
+    province = state_zip[0] if state_zip else "WA"
+    postal = state_zip[1] if len(state_zip) > 1 else ""
+    return {"street1": street, "city": city, "province": province,
+            "postalCode": postal, "country": "US"}
+
 def create_property(client_id, address):
-    variables = {"input": {"clientId": client_id, "address": {"street": address}}}
+    variables = {"clientId": client_id,
+                 "input": {"properties": [{"address": split_address(address)}]}}
     data = _post(CREATE_PROPERTY, variables, "create property")
     if data.get("dry_run"):
         return "DRY_RUN_PROPERTY_ID"
-    return data.get("propertyCreate", {}).get("property", {}).get("id")
+    props = data.get("propertyCreate", {}).get("properties") or []
+    return props[0]["id"] if props else None
 
 
 # ── Create a DRAFT quote from our bid line items ──
+# Live schema: quoteCreate takes `attributes` (QuoteCreateAttributes).
+# We deliberately DO NOT set `transitionQuoteTo` — leaving it unset is
+# what keeps the quote a DRAFT that only a human can send.
 CREATE_QUOTE = """
-mutation CreateQuote($input: QuoteCreateInput!) {   # VERIFY
-  quoteCreate(input: $input) {
+mutation CreateQuote($attributes: QuoteCreateAttributes!) {
+  quoteCreate(attributes: $attributes) {
     quote { id quoteNumber }
     userErrors { message }
   }
@@ -158,24 +220,26 @@ mutation CreateQuote($input: QuoteCreateInput!) {   # VERIFY
 def create_draft_quote(client_id, property_id, bid):
     """bid = the dict from calculate_bid: has line items + office notes.
 
-    We attach our office notes and confidence as a message on the quote so
+    We attach our office notes and confidence as the quote message so
     the reviewer sees exactly why the engine priced it this way.
     """
     line_items = [{
         "name": s["name"],
         "quantity": 1,
         "unitPrice": float(s["price"]),
+        "saveToProductsAndServices": False,   # don't pollute their catalog
     } for s in bid["services"]]
 
     note_lines = [f"Auto-generated draft — confidence {bid['confidence']}%."]
     note_lines += [f"⚠ {n}" for n in bid["notes"]]
 
-    variables = {"input": {
+    variables = {"attributes": {
         "clientId": client_id,
         "propertyId": property_id,
+        "title": "TEST - Bid Engine draft" if TEST_MODE else "Service Quote",
         "lineItems": line_items,
-        "message": "\n".join(note_lines),   # VERIFY field name for internal note
-        # NOTE: no "send" / "deliver" field is set anywhere. Draft only.
+        "message": "\n".join(note_lines),
+        # NOTE: no transitionQuoteTo, no send/deliver anywhere. Draft only.
     }}
     return _post(CREATE_QUOTE, variables, "create DRAFT quote")
 
