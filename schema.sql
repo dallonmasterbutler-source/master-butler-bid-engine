@@ -66,8 +66,7 @@ CREATE TABLE IF NOT EXISTS bids (
                                     'sent','accepted','declined','expired',
                                     'on_hold','archived')),
     confidence    INT,                -- 0-100 data-quality score
-    total         NUMERIC(10,2),
-    line_items    JSONB NOT NULL,     -- [{name, price, low, high, hours}, ...]
+    total         NUMERIC(10,2),      -- summary; per-service detail in bid_lines
     office_notes  TEXT[],             -- the ⚠ flags shown to reviewers
     auto_send_allowed BOOLEAN NOT NULL DEFAULT FALSE,  -- HARD-LOCKED OFF
     reviewed_by   TEXT,
@@ -77,6 +76,34 @@ CREATE TABLE IF NOT EXISTS bids (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_bids_status ON bids (status);
+
+-- ── BID LINES (one row per service — the LEARNING RECORD) ────
+-- This is where the three numbers live side by side for EVERY service:
+--   system_price  = what the live engine proposed
+--   shadow_price  = what the background learning engine WOULD propose
+--                   (shadow mode — never affects the real bid)
+--   final_price   = what the office approved
+-- Plus the WHY, captured in the office workflow (NOT from customer email):
+--   adjust_reason = one-tap category (what the machine learns from)
+--   adjust_note   = optional one-line internal note (never sent to customer)
+CREATE TABLE IF NOT EXISTS bid_lines (
+    id            SERIAL PRIMARY KEY,
+    bid_id        INT REFERENCES bids(id),
+    service       TEXT NOT NULL,      -- 'gutter_cleaning','pw_driveway','moss_treatment',...
+    measured_inputs JSONB,           -- {sqft, roof_sqft, area, rate_used, multipliers}
+    system_price  NUMERIC(10,2),     -- live engine's proposal
+    shadow_price  NUMERIC(10,2),     -- learning engine's silent proposal (shadow mode)
+    final_price   NUMERIC(10,2),     -- office-approved (NULL until reviewed)
+    adjust_reason TEXT CHECK (adjust_reason IN (
+                    'too_low','too_high','heavy_buildup','hard_access',
+                    'measurement_off','added_service','relationship_discount',
+                    'other')),        -- internal only
+    adjust_note   TEXT,               -- optional free text, INTERNAL, never to customer
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_bid_lines_service ON bid_lines (service);
+-- ^ indexed by service so "show me every driveway: system vs shadow vs final vs why"
+--   is one fast query, across the board, for any service.
 
 -- ── AUDIT LOG (every decision, human or machine) ─────────────
 CREATE TABLE IF NOT EXISTS audit_log (
