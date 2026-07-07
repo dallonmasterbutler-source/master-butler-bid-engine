@@ -174,6 +174,12 @@ WET_DAY_GUTTER_MULT = 1.3  # gutters cost more on wet days (wet debris)
 # setup, and insurance make anything smaller a money-loser).
 JOB_MINIMUM = 150
 
+# ── SCHEDULING BY DOLLARS (Dallon's rule, July 2026) ──
+# The schedule blocks time by job dollars (price is a time proxy: ~$400 job
+# ≈ 4-hour block). A tech-day is booked to $850–$1,100 of work; anything
+# over $1,100 is too much for one tech to finish in a day.
+DAY_CAPACITY = {"day_low": 850, "day_high": 1100}
+
 # ─────────────────────────────────────────────────────────────
 # STEP 1d: SEASONAL RULES (from office training docs, July 2026)
 # Light season runs mid-Sept through December and OWNS the schedule.
@@ -449,6 +455,13 @@ def calculate_bid(prop):
                         "low": bump, "high": bump, "hours": 0})
         notes.append(f"Job under ${JOB_MINIMUM} minimum — added "
                      f"${bump} adjustment to reach the visit minimum.")
+
+    # ── DAY-CAPACITY CHECK (schedule is booked by dollars) ──
+    booked_total = sum(s["price"] for s in results)
+    if booked_total > DAY_CAPACITY["day_high"]:
+        notes.append(f"SCHEDULING: ${booked_total} exceeds one tech-day "
+                     f"(${DAY_CAPACITY['day_high']} max) — split across days "
+                     "or assign a helper.")
 
     # ── SEASONAL SCHEDULING RULES ──
     import datetime

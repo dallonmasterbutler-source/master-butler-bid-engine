@@ -150,6 +150,13 @@ check("Combined-visit pricing near Dallon's real $215", total, 215, tolerance=10
 check("Setup-once note present",
       1 if any("setup priced once" in n for n in notes) else 0, 1)
 
+print("\n── RULE: >\$1,100 exceeds a tech-day → split flag ──")
+r, notes, _ = calculate_bid(house(sqft=6000, services={"gutters": True, "windows_inout": True}))
+big_total = sum(s["price"] for s in r)
+check("Big job flagged for split", 1 if (big_total > 1100) == any("exceeds one tech-day" in n for n in notes) else 0, 1)
+r, notes, _ = calculate_bid(house(services={"gutters": True}))
+check("Normal job NOT flagged", 0 if any("exceeds one tech-day" in n for n in notes) else 1, 1)
+
 print("\n" + "=" * 50)
 print(f"RESULT: {passed} passed, {failed} failed")
 exit(1 if failed else 0)

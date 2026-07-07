@@ -230,6 +230,9 @@ def create_draft_quote(client_id, property_id, bid):
         "saveToProductsAndServices": False,   # don't pollute their catalog
     } for s in bid["services"]]
 
+    # INTERNAL notes (confidence, hazards, move-items) go on the quote as a
+    # pinned internal note — the office/tech see them, the CUSTOMER NEVER DOES.
+    # The client-facing `message` stays clean and professional.
     note_lines = [f"Auto-generated draft — confidence {bid['confidence']}%."]
     note_lines += [f"⚠ {n}" for n in bid["notes"]]
 
@@ -238,7 +241,10 @@ def create_draft_quote(client_id, property_id, bid):
         "propertyId": property_id,
         "title": "TEST - Bid Engine draft" if TEST_MODE else "Service Quote",
         "lineItems": line_items,
-        "message": "\n".join(note_lines),
+        "message": "Thank you for requesting a quote from Master Butler! "
+                   "Please review the services below and let us know of any "
+                   "questions.",              # customer-facing, generic, safe
+        "notes": [{"message": "\n".join(note_lines), "pinned": True}],
         # NOTE: no transitionQuoteTo, no send/deliver anywhere. Draft only.
     }}
     return _post(CREATE_QUOTE, variables, "create DRAFT quote")
