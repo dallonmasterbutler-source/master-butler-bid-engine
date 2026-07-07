@@ -114,6 +114,14 @@ check("Small job bumped to $150", sum(s["price"] for s in r), 150)
 check("Minimum note present",
       1 if any("minimum" in n.lower() for n in notes) else 0, 1)
 
+print("\n── ANCHOR 6: Dallon's own home (guards blow-off, low pitch = $250, ~1h) ──")
+r, notes, _ = calculate_bid(house(sqft=3368, stories="2", pitch="mild",
+                                  debris="moderate", gutter_type="guards",
+                                  services={"gutters": True}))
+g = line(r, "guards")
+check("Guards blow-off near \$250", g["price"], 250, tolerance=15)
+check("Hours near 1h (blower job)", 1 if 0.5 <= g["hours"] <= 1.3 else 0, 1)
+
 print("\n── RULE: lights + gutter guards = DECLINE ──")
 r, notes, _ = calculate_bid(house(gutter_type="guards",
                                   services={"holiday_lights": True}))

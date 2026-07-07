@@ -106,6 +106,10 @@ FRENCH_PANE = {
 
 RATES = {
     "gutter_cleaning":  0.06,
+    "guards_blow_off":  0.06,   # dedicated Jobber SKU: blow-off over installed
+                                # guards — a fast blower job, NOT gutter
+                                # cleaning x1.25 (calibrated on Dallon's own
+                                # home: $250, 45-60 min)
     "roof_blow_off":    0.02,
     "moss_treatment":   0.015,
     "windows_exterior": 0.07,
@@ -158,6 +162,7 @@ PW_BUILDUP = {
 TARGET_HOURLY = {
     "gutters": 125, "gutters_specialty": 150, "roof": 150,
     "moss": 150, "windows": 100, "pressure": 115,
+    "guards_blow_off": 300,   # blower work: Pricing doc says 200-400/hr
 }
 
 # Flat-fee services
@@ -304,13 +309,17 @@ def calculate_bid(prop):
 
     # ── GUTTER CLEANING (optionally with wet-day pricing) ──
     if prop["services"].get("gutters"):
-        price = round_to_5(sqft * RATES["gutter_cleaning"] * gutter_roof)
-        hourly = "gutters_specialty" if roof_mult >= 1.35 else "gutters"
         if has_guards:
-            add("Gutter Guards Cleaning (incl. roof blow off)", price, hourly)
-            notes.append("Gutter guards: roof blow off is included in this "
-                         "line — do not bill it separately.")
+            # Guards = blow-off over the guards: its own flat SKU rate on the
+            # base stack only. It is NOT gutter cleaning with a premium.
+            price = round_to_5(sqft * RATES["guards_blow_off"] * base * roof_mult)
+            add("Roof Blow Off for Gutter Guards", price, "guards_blow_off")
+            notes.append("Gutter guards: this is the blow-off-over-guards "
+                         "service — under-guard cleaning is a separate custom "
+                         "quote if requested.")
         else:
+            price = round_to_5(sqft * RATES["gutter_cleaning"] * gutter_roof)
+            hourly = "gutters_specialty" if roof_mult >= 1.35 else "gutters"
             add("Gutter Cleaning", price, hourly)
         if prop.get("wet_day"):
             wet = round_to_5(price * WET_DAY_GUTTER_MULT)
