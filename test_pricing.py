@@ -157,6 +157,19 @@ check("Big job flagged for split", 1 if (big_total > 1100) == any("exceeds one t
 r, notes, _ = calculate_bid(house(services={"gutters": True}))
 check("Normal job NOT flagged", 0 if any("exceeds one tech-day" in n for n in notes) else 1, 1)
 
+print("\n── RULE: asphalt policy (Dallon's home lesson) ──")
+from vision import vision_to_prop_fields
+all_asphalt = {"surfaces": [{"type": "driveway", "material": "asphalt",
+                             "sqft_low": 500, "sqft_high": 700}]}
+f, n = vision_to_prop_fields(all_asphalt)
+check("All-asphalt driveway NOT auto-priced", 0 if f.get("surfaces", {}).get("driveway") else 1, 1)
+check("All-asphalt office flag", 1 if any("ENTIRELY ASPHALT" in x for x in n) else 0, 1)
+mixed = {"surfaces": [{"type": "driveway", "material": "concrete", "sqft_low": 400, "sqft_high": 500},
+                      {"type": "driveway", "material": "asphalt", "sqft_low": 200, "sqft_high": 300}]}
+f, n = vision_to_prop_fields(mixed)
+check("Mixed driveway fully priced (both areas)", f["surfaces"]["driveway"], 700)
+check("Customer disclosure present", 1 if any(x.startswith("CUSTOMER:") for x in n) else 0, 1)
+
 print("\n" + "=" * 50)
 print(f"RESULT: {passed} passed, {failed} failed")
 exit(1 if failed else 0)

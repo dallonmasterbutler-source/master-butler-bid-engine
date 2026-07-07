@@ -233,8 +233,11 @@ def create_draft_quote(client_id, property_id, bid):
     # INTERNAL notes (confidence, hazards, move-items) go on the quote as a
     # pinned internal note — the office/tech see them, the CUSTOMER NEVER DOES.
     # The client-facing `message` stays clean and professional.
+    customer_lines = [n[len("CUSTOMER:"):].strip()
+                      for n in bid["notes"] if n.startswith("CUSTOMER:")]
     note_lines = [f"Auto-generated draft — confidence {bid['confidence']}%."]
-    note_lines += [f"⚠ {n}" for n in bid["notes"]]
+    note_lines += [f"⚠ {n}" for n in bid["notes"]
+                   if not n.startswith("CUSTOMER:")]
 
     variables = {"attributes": {
         "clientId": client_id,
@@ -243,7 +246,9 @@ def create_draft_quote(client_id, property_id, bid):
         "lineItems": line_items,
         "message": "Thank you for requesting a quote from Master Butler! "
                    "Please review the services below and let us know of any "
-                   "questions.",              # customer-facing, generic, safe
+                   "questions."
+                   + ("".join("\n\n" + c for c in customer_lines)),
+                   # customer-facing: generic text + explicit CUSTOMER: notes only
         "notes": [{"message": "\n".join(note_lines), "pinned": True}],
         # NOTE: no transitionQuoteTo, no send/deliver anywhere. Draft only.
     }}

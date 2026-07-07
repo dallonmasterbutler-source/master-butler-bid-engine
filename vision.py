@@ -85,6 +85,9 @@ Measurement rules (from real calibration jobs):
   and then writing "moderate" is the #1 known error — real jobs priced
   "moderate" on joint-moss photos ran 40% over. When in doubt between
   moderate and heavy, choose heavy.
+- If one continuous area contains MULTIPLE materials (e.g. a concrete
+  apron meeting an asphalt drive), report EACH material as its own
+  surfaces entry with its own sqft — never blend them into one.
 - Only report what you can see. Missing things go in not_determinable."""
 
 
@@ -148,11 +151,29 @@ def vision_to_prop_fields(v):
 
     # surfaces → measured areas (use midpoint; widen note if frame-limited)
     surfaces = {}
+    driveway_materials = [s.get("material") for s in v.get("surfaces", [])
+                          if s.get("type") == "driveway"]
+    all_asphalt_driveway = (driveway_materials
+                            and all(m == "asphalt" for m in driveway_materials))
     for s in v.get("surfaces", []):
         key = {"driveway": "driveway", "patio": "patio", "entry": "patio",
                "sidewalk": "sidewalk", "deck": "deck"}.get(s["type"])
         if not key or key == "deck":        # decks stay custom-quote
             continue
+        # ASPHALT POLICY (Dallon, July 2026):
+        #  * entirely-asphalt driveway → office/custom flag, don't auto-price
+        #  * mixed concrete+asphalt → price it ALL, but disclose to customer
+        #    (asphalt is softer; some customers choose to skip it)
+        if s.get("type") == "driveway" and all_asphalt_driveway:
+            notes.append("Driveway is ENTIRELY ASPHALT — office/custom quote "
+                         "per policy (softer surface; some customers decline).")
+            continue
+        if s.get("material") == "asphalt":
+            notes.append("CUSTOMER: Part of your driveway is asphalt, which is "
+                         "a softer surface than concrete. We're happy to "
+                         "include or skip that section — just let us know.")
+            notes.append("Driveway includes an asphalt section — priced in "
+                         "total; customer may opt out of that portion.")
         mid = int((s["sqft_low"] + s["sqft_high"]) / 2)
         surfaces[key] = surfaces.get(key, 0) + mid
         if s.get("continues_beyond_frame"):
