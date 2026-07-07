@@ -165,6 +165,53 @@ DRYER_VENT_ADDON = 100   # when booked with another service
 DRYER_VENT_ALONE = 150   # when booked by itself
 WET_DAY_GUTTER_MULT = 1.3  # gutters cost more on wet days (wet debris)
 
+# No visit goes out below this, period (Dallon's floor — drive time,
+# setup, and insurance make anything smaller a money-loser).
+JOB_MINIMUM = 150
+
+# ─────────────────────────────────────────────────────────────
+# STEP 1d: SEASONAL RULES (from office training docs, July 2026)
+# Light season runs mid-Sept through December and OWNS the schedule.
+# ─────────────────────────────────────────────────────────────
+
+SEASONS = {
+    # (start_month, start_day, end_month, end_day): rule name
+    "light_season":   ((9, 15), (12, 31)),   # lights take priority, always
+    "winter_freeze":  ((10, 15), (2, 28)),   # PW + windows suspended
+}
+
+
+def seasonal_notes(when, services):
+    """Office scheduling rules by date. Returns notes; never blocks a bid —
+    the office decides, but the system must SAY it so weird bids don't slip."""
+    notes = []
+    m, d = when.month, when.day
+
+    def in_window(start, end):
+        (sm, sd), (em, ed) = start, end
+        if (sm, sd) <= (em, ed):                       # same-year window
+            return (sm, sd) <= (m, d) <= (em, ed)
+        return (m, d) >= (sm, sd) or (m, d) <= (em, ed)  # wraps New Year
+
+    light_season = in_window(*SEASONS["light_season"])
+    winter = in_window(*SEASONS["winter_freeze"])
+
+    if light_season:
+        if services.get("holiday_lights"):
+            notes.append("LIGHT SEASON: holiday lights take scheduling "
+                         "priority — book first.")
+        if services.get("gutters") or services.get("roof") or services.get("moss"):
+            notes.append("LIGHT SEASON: push gutter/roof work to December "
+                         "or a low week. No gutter cleaning on homes with "
+                         "lights already installed.")
+    if winter and any(services.get(s) for s in
+                      ("windows", "windows_inout", "patio", "driveway",
+                       "sidewalk", "deck", "house_wash")):
+        notes.append("WINTER SUSPENSION (Oct 15–late Feb): pressure washing "
+                     "and window cleaning are paused for freezing temps — "
+                     "quote now, offer scheduling from end of February.")
+    return notes
+
 
 # ─────────────────────────────────────────────────────────────
 # STEP 2: A HELPER THAT CLEANS UP THE FINAL PRICE
@@ -354,6 +401,31 @@ def calculate_bid(prop):
                                           or prop["services"].get("windows_inout")):
         notes.append("Windows not cleaned in 3+ years — consult customer and "
                      "document condition with photos before starting.")
+
+    # ── HOLIDAY LIGHTS (Tom quotes labor; engine enforces the hard rules) ──
+    if prop["services"].get("holiday_lights"):
+        if has_guards:
+            notes.append("DECLINE LIGHTS: home has gutter guards — we cannot "
+                         "install holiday lights on gutter guards (clip "
+                         "corrosion issue). Send the standard decline verbiage.")
+        else:
+            notes.append("HOLIDAY LIGHTS: forward to Tom for custom labor "
+                         "quote ($385 minimum; ~175 linear ft material on an "
+                         "average home; C7 warm white unless requested).")
+
+    # ── JOB MINIMUM (no visit below $150) ──
+    running_total = sum(s["price"] for s in results)
+    if 0 < running_total < JOB_MINIMUM:
+        bump = JOB_MINIMUM - running_total
+        results.append({"name": "Service Minimum Adjustment", "price": bump,
+                        "low": bump, "high": bump, "hours": 0})
+        notes.append(f"Job under ${JOB_MINIMUM} minimum — added "
+                     f"${bump} adjustment to reach the visit minimum.")
+
+    # ── SEASONAL SCHEDULING RULES ──
+    import datetime
+    when = prop.get("request_date") or datetime.date.today()
+    notes.extend(seasonal_notes(when, prop["services"]))
 
     # ── CONFIDENCE SCORE (data-quality based — works from day one) ──
     # Starts at 100 and loses points for anything missing or risky.

@@ -107,6 +107,32 @@ r, notes, conf = calculate_bid(house(stories="3", services={"gutters": True}))
 check("3-story office flag present",
       1 if any("3-story" in n for n in notes) else 0, 1)
 
+print("\n── RULE: $150 job minimum (Dallon's floor) ──")
+r, notes, _ = calculate_bid(house(sqft=800, stories="1", pitch="mild",
+                                  debris="minimal", services={"moss": True}))
+check("Small job bumped to $150", sum(s["price"] for s in r), 150)
+check("Minimum note present",
+      1 if any("minimum" in n.lower() for n in notes) else 0, 1)
+
+print("\n── RULE: lights + gutter guards = DECLINE ──")
+r, notes, _ = calculate_bid(house(gutter_type="guards",
+                                  services={"holiday_lights": True}))
+check("Decline note present",
+      1 if any("DECLINE LIGHTS" in n for n in notes) else 0, 1)
+
+print("\n── RULE: seasonal scheduling notes ──")
+import datetime
+r, notes, _ = calculate_bid(house(request_date=datetime.date(2026, 10, 20),
+                                  services={"gutters": True, "windows": True}))
+check("Light-season gutter push note",
+      1 if any("LIGHT SEASON" in n for n in notes) else 0, 1)
+check("Winter window suspension note",
+      1 if any("WINTER SUSPENSION" in n for n in notes) else 0, 1)
+r, notes, _ = calculate_bid(house(request_date=datetime.date(2026, 6, 1),
+                                  services={"gutters": True, "windows": True}))
+check("No seasonal notes in June",
+      1 if not any("SEASON" in n or "SUSPENSION" in n for n in notes) else 0, 1)
+
 print("\n" + "=" * 50)
 print(f"RESULT: {passed} passed, {failed} failed")
 exit(1 if failed else 0)

@@ -4,15 +4,14 @@ Hi team,
 
 As some of you know, I'm building a tool that will do the research half of
 bidding for us — it reads the customer's email, looks up the property,
-measures the roof from satellite photos, and drafts the bid. Your job becomes
-reviewing and approving instead of researching and typing.
+measures the roof from satellite photos, and drafts the bid. Your job becomes easier I hope and you are able to review and approve instead of researching and typing.
 
 Before I design the screen you'll be using every day, I want to build it
 around how YOU actually work. Please answer the questions below.
 
 HOW TO DO IT: Just hit REPLY and type your answer under each question.
 Rough, honest answers beat polished ones. "I don't know" is a fine answer.
-Please answer on your own (not together) — I want each person's real take.
+I want each person's real take.
 Takes about 10 minutes.
 
 ========================================
@@ -45,7 +44,7 @@ ANSWER:
 ========================================
 PART 2 — THE FIRST LOOK
 ========================================
-Imagine you sit down with your coffee and open the new dashboard.
+Imagine you sit down with your drink and open the new dashboard.
 
 5. What's the FIRST thing you want to see? Pick ONE:
    a) A list of new bids waiting for me, oldest first
