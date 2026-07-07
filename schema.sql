@@ -105,12 +105,18 @@ CREATE TABLE IF NOT EXISTS bid_lines (
     system_price  NUMERIC(10,2),     -- live engine's proposal
     shadow_price  NUMERIC(10,2),     -- learning engine's silent proposal (shadow mode)
     final_price   NUMERIC(10,2),     -- office-approved (NULL until reviewed)
-    invoiced_price NUMERIC(10,2),    -- what the customer ACTUALLY paid, pulled
-                                     -- back from the Jobber invoice by the
-                                     -- nightly reconciler. Catches on-site tech
-                                     -- adjustments that never touch our
-                                     -- dashboard. This is ground truth — it
-                                     -- grades system, office, AND shadow.
+    invoiced_price NUMERIC(10,2),    -- the PRE-DISCOUNT line price on the final
+                                     -- Jobber invoice. Office convention: when a
+                                     -- job was underquoted they raise the line to
+                                     -- the TRUE price and add an "honor 20XX
+                                     -- pricing" discount — so the line item, NOT
+                                     -- the total, is ground truth for learning.
+    honored_discount NUMERIC(10,2),  -- the honor-pricing discount amount (the gap
+                                     -- between quoted and true). >0 = this job
+                                     -- was underquoted and honored.
+    next_year_price NUMERIC(10,2),   -- parsed from "price for 20XX will be $X" in
+                                     -- the discount text — a stored PROMISE the
+                                     -- system pre-loads into next year's quote.
     reconciled_at TIMESTAMPTZ,       -- when the reconciler last checked this line
     adjust_reason TEXT CHECK (adjust_reason IN (
                     'too_low','too_high','heavy_buildup','hard_access',
