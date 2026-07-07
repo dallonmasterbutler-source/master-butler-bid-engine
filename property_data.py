@@ -34,6 +34,7 @@ def _api_key():
 # ─────────────────────────────────────────────────────────────
 
 # A detached-home roof smaller than this is probably a shed/garage/wrong hit
+BIG_ROOF_NO_RECORDS = 4000   # no-records readings above this get distrusted
 SUSPICIOUS_ROOF_SQFT = 800
 
 # Roof-to-house ratios outside this band mean "probably the wrong building"
@@ -61,6 +62,16 @@ def validate_roof(roof_sqft, records_sqft=None):
                          f"{records_sqft:,.0f} sqft (ratio {ratio:.2f}) — "
                          "mismatch, Solar may have measured the wrong building.")
             return False, flags, 20
+    elif roof_sqft > BIG_ROOF_NO_RECORDS:
+        # Calibrated on Gavin's rural rambler: Solar returned 4,146 sqft +
+        # "steep" for a ~2,200 mild rambler — it grabbed a shop/outbuilding.
+        # Rural lots often have big outbuildings; without records to
+        # cross-check, a big reading is a MAYBE, not a fact.
+        flags.append(f"Roof measured {roof_sqft:,.0f} sqft with no records to "
+                     "cross-check — on rural/large lots Solar sometimes grabs "
+                     "a shop or outbuilding. Verify building before trusting "
+                     "size AND pitch.")
+        return True, flags, 15   # usable but distrusted
 
     return True, flags, 0
 

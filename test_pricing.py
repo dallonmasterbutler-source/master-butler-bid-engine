@@ -94,6 +94,11 @@ check("Bad ratio rejected", 0 if ok else 1, 1)
 ok, flags, ded = validate_roof(2716, 2200)     # the real Alison (good data)
 check("Good roof accepted", 1 if ok else 0, 1)
 check("Good roof no deduction", ded, 0)
+ok, flags, ded = validate_roof(4146)           # the real Gavin outbuilding grab
+check("Big roof w/o records distrusted", ded, 15)
+check("Outbuilding flag present", 1 if any("outbuilding" in f for f in flags) else 0, 1)
+ok, flags, ded = validate_roof(3508)           # Shane's real legit roof
+check("Shane-size roof still trusted", ded, 0)
 ok, flags, ded = validate_roof(None)
 check("Missing solar deducts 25", ded, 25)
 
