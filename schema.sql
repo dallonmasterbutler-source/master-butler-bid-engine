@@ -119,8 +119,11 @@ CREATE TABLE IF NOT EXISTS bid_lines (
                                      -- system pre-loads into next year's quote.
     reconciled_at TIMESTAMPTZ,       -- when the reconciler last checked this line
     adjust_reason TEXT CHECK (adjust_reason IN (
-                    'too_low','too_high','heavy_buildup','hard_access',
-                    'measurement_off','added_service','relationship_discount',
+                    -- THE OFFICE'S OWN WORDS (questionnaire Q9, July 2026):
+                    'specialty_windows','heavy_tree_coverage','difficult_roof',
+                    'rate_pricing_update','new_info_photos',
+                    'tech_adjustment_last_job','last_quote_too_old',
+                    'underbid_on_review','difficult_customer_premium',
                     'other')),        -- internal only
     adjust_note   TEXT,               -- optional free text, INTERNAL, never to customer
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
