@@ -133,6 +133,15 @@ r, notes, _ = calculate_bid(house(request_date=datetime.date(2026, 6, 1),
 check("No seasonal notes in June",
       1 if not any("SEASON" in n or "SUSPENSION" in n for n in notes) else 0, 1)
 
+print("\n── ANCHOR 5: Real Boden job (entry+walkways, heavy moss, ~600sqft = $215) ──")
+r, notes, _ = calculate_bid(house(buildup="heavy",
+                                  services={"patio": True, "sidewalk": True},
+                                  surfaces={"patio": 200, "sidewalk": 400}))
+total = sum(s["price"] for s in r)
+check("Combined-visit pricing near Dallon's real $215", total, 215, tolerance=10)
+check("Setup-once note present",
+      1 if any("setup priced once" in n for n in notes) else 0, 1)
+
 print("\n" + "=" * 50)
 print(f"RESULT: {passed} passed, {failed} failed")
 exit(1 if failed else 0)

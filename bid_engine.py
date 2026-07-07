@@ -353,22 +353,36 @@ def calculate_bid(prop):
     # prop["surfaces"] holds measured areas, e.g. {"patio": 250, "driveway": 600}
     # If a surface was requested but has no measurement, we don't guess —
     # we flag it for a human quote.
+    # The setup-heavy "first block" premium applies ONCE PER VISIT, not per
+    # surface — the truck sets up one time. (Learned from the real Boden job:
+    # entry + walkways priced separately would double-charge the setup.)
+    # We price the COMBINED area, then split the total across surfaces
+    # proportionally so each line item still shows its own price.
     buildup = prop.get("buildup", "clean")
     surface_names = {"patio": "Pressure Wash Patio",
                      "driveway": "Pressure Wash Driveway",
                      "sidewalk": "Pressure Wash Sidewalk"}
-    for key, label in surface_names.items():
-        if key in prop.get("services", {}) and prop["services"][key]:
-            area = prop.get("surfaces", {}).get(key)
-            if area:
-                price = round_to_5(pw_concrete_price(area, buildup))
-                add(f"{label} (~{area} sqft)", price, "pressure")
-                if buildup == "heavy":
-                    notes.append(f"{label}: HEAVY buildup priced in (1.4x) — "
-                                 "confirm with photo before appointment.")
-            else:
-                notes.append(f"{label}: requested but NO measurement available "
-                             "— needs office/expert quote (get photo or dimensions).")
+    measured = {k: prop.get("surfaces", {}).get(k)
+                for k in surface_names
+                if prop.get("services", {}).get(k)}
+    areas = {k: a for k, a in measured.items() if a}
+    if areas:
+        combined_price = pw_concrete_price(sum(areas.values()), buildup)
+        total_area = sum(areas.values())
+        for key, area in areas.items():
+            share = round_to_5(combined_price * area / total_area)
+            add(f"{surface_names[key]} (~{area} sqft)", share, "pressure")
+        if buildup == "heavy":
+            notes.append("Pressure washing: HEAVY buildup priced in (1.4x) — "
+                         "confirm with photo before appointment.")
+        if len(areas) > 1:
+            notes.append("Multiple PW surfaces: setup priced once for the "
+                         "visit, split across line items.")
+    for key, a in measured.items():
+        if not a:
+            notes.append(f"{surface_names[key]}: requested but NO measurement "
+                         "available — needs office/expert quote (get photo "
+                         "or dimensions).")
 
     # ── HOUSE WASH ──
     if prop["services"].get("house_wash"):
