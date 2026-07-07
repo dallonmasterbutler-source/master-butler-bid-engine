@@ -70,6 +70,17 @@ CREATE TABLE IF NOT EXISTS bids (
     office_notes  TEXT[],             -- the ⚠ flags shown to reviewers
     auto_send_allowed BOOLEAN NOT NULL DEFAULT FALSE,  -- HARD-LOCKED OFF
     reviewed_by   TEXT,
+    escalated_to  TEXT,               -- 'dallon' / 'tom' — hard jobs only;
+                                      -- office handles normal bids themselves
+    hold_reason   TEXT CHECK (hold_reason IN (
+                    'seasonal_pw_windows',  -- winterized washers, resume ~late Feb
+                    'standby_gutters',      -- backlog that fills low light weeks
+                    'awaiting_photos','awaiting_customer','other')),
+    hold_until    DATE,               -- resurface date: bid pops back into the
+                                      -- office queue automatically. A held bid
+                                      -- is ALWAYS answered first (customer gets
+                                      -- a reply with the timeline) — hold parks
+                                      -- the work, never the response.
     sent_at       TIMESTAMPTZ,
     expires_at    TIMESTAMPTZ,        -- sent + 30 days (Tom to confirm window)
     jobber_quote_id TEXT,
