@@ -204,6 +204,75 @@ def create_property(client_id, address):
     return props[0]["id"] if props else None
 
 
+
+
+# ─────────────────────────────────────────────────────────────
+# CUSTOM FIELDS — the office's own data model, auto-filled
+# IDs are the QUOTE-level configurations from the live account.
+# Dropdown values must match the office's option strings EXACTLY —
+# including their trailing/double spaces. Do not "clean" them.
+# ─────────────────────────────────────────────────────────────
+
+CF_QUOTE = {
+    "must_know":     "Z2lkOi8vSm9iYmVyL0N1c3RvbUZpZWxkQ29uZmlndXJhdGlvblRleHQvMjc5MjQ0",
+    "sqft":          "Z2lkOi8vSm9iYmVyL0N1c3RvbUZpZWxkQ29uZmlndXJhdGlvblRleHQvMjkzMzAz",
+    "gutter_safety": "Z2lkOi8vSm9iYmVyL0N1c3RvbUZpZWxkQ29uZmlndXJhdGlvbkRyb3Bkb3duLzI3OTIyMg==",
+    "roof_safety":   "Z2lkOi8vSm9iYmVyL0N1c3RvbUZpZWxkQ29uZmlndXJhdGlvbkRyb3Bkb3duLzI3OTIyNg==",
+}
+
+MUST_UPDATE = "Must be updated "     # the office's own "unknown" convention
+
+
+def safety_options(pitch, roof_material, stories):
+    """Map measured pitch/roof/stories onto the office's safety dropdowns.
+
+    CONSERVATIVE BY DESIGN: anything ambiguous gets "Must be updated " —
+    the office's own convention for "a human decides." The system only
+    answers when the answer is obvious.
+    Returns (gutter_safety_value, roof_safety_value).
+    """
+    specialty = roof_material in ("shake", "metal_full", "metal_mixed")
+
+    if stories == "3" or stories == "3_exp_tech":
+        return MUST_UPDATE, MUST_UPDATE          # tech assignment = office call
+    if pitch == "tom_only":
+        if specialty:
+            return "Tom, dry day, safety ", "Tom, dry day, safety "
+        return "Only Tom can service  gutters ", "Tom can service roof"
+    if pitch == "steep":
+        if specialty:
+            return MUST_UPDATE, MUST_UPDATE      # steep + specialty = human call
+        return "Experienced Technician", "Experienced Technician"
+    if pitch in ("mild", "moderate"):
+        if specialty:
+            return "Experienced Technician, Dry Day", "Experienced Technician, Dry Day"
+        return "Employee can service gutters", "Employee can service roof "
+    return MUST_UPDATE, MUST_UPDATE
+
+
+def build_custom_fields(prop_info):
+    """prop_info: {sqft, sqft_source, pitch, roof_material, stories, must_know}."""
+    if not prop_info:
+        return []
+    fields = []
+    if prop_info.get("sqft"):
+        note = f"{prop_info['sqft']}"
+        if prop_info.get("sqft_source"):
+            note += f" ({prop_info['sqft_source']})"
+        fields.append({"customFieldConfigurationId": CF_QUOTE["sqft"],
+                       "valueText": note})
+    g, r = safety_options(prop_info.get("pitch"), prop_info.get("roof_material"),
+                          prop_info.get("stories"))
+    fields.append({"customFieldConfigurationId": CF_QUOTE["gutter_safety"],
+                   "valueDropdown": g})
+    fields.append({"customFieldConfigurationId": CF_QUOTE["roof_safety"],
+                   "valueDropdown": r})
+    if prop_info.get("must_know"):
+        fields.append({"customFieldConfigurationId": CF_QUOTE["must_know"],
+                       "valueText": prop_info["must_know"][:500]})
+    return fields
+
+
 # ── Create a DRAFT quote from our bid line items ──
 # Live schema: quoteCreate takes `attributes` (QuoteCreateAttributes).
 # We deliberately DO NOT set `transitionQuoteTo` — leaving it unset is
@@ -217,7 +286,7 @@ mutation CreateQuote($attributes: QuoteCreateAttributes!) {
 }
 """
 
-def create_draft_quote(client_id, property_id, bid):
+def create_draft_quote(client_id, property_id, bid, prop_info=None):
     """bid = the dict from calculate_bid: has line items + office notes.
 
     We attach our office notes and confidence as the quote message so
@@ -250,6 +319,7 @@ def create_draft_quote(client_id, property_id, bid):
                    + ("".join("\n\n" + c for c in customer_lines)),
                    # customer-facing: generic text + explicit CUSTOMER: notes only
         "notes": [{"message": "\n".join(note_lines), "pinned": True}],
+        "customFields": build_custom_fields(prop_info),
         # NOTE: no transitionQuoteTo, no send/deliver anywhere. Draft only.
     }}
     return _post(CREATE_QUOTE, variables, "create DRAFT quote")
@@ -259,13 +329,14 @@ def create_draft_quote(client_id, property_id, bid):
 # THE ONE FUNCTION THE PIPELINE CALLS
 # ─────────────────────────────────────────────────────────────
 
-def push_approved_bid(customer, bid):
-    """customer = {name, email, phone, address}; bid = calculate_bid output.
+def push_approved_bid(customer, bid, prop_info=None):
+    """customer = {name, email, phone, address}; bid = calculate_bid output;
+    prop_info = measured facts for custom fields (sqft, pitch, roof, stories).
     Creates client (if new) + property + DRAFT quote. Never sends."""
     client_id = find_or_create_client(
         customer.get("name"), customer.get("email"), customer.get("phone"))
     property_id = create_property(client_id, customer.get("address", ""))
-    return create_draft_quote(client_id, property_id, bid)
+    return create_draft_quote(client_id, property_id, bid, prop_info)
 
 
 # ─────────────────────────────────────────────────────────────
