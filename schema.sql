@@ -105,6 +105,13 @@ CREATE TABLE IF NOT EXISTS bid_lines (
     system_price  NUMERIC(10,2),     -- live engine's proposal
     shadow_price  NUMERIC(10,2),     -- learning engine's silent proposal (shadow mode)
     final_price   NUMERIC(10,2),     -- office-approved (NULL until reviewed)
+    invoiced_price NUMERIC(10,2),    -- what the customer ACTUALLY paid, pulled
+                                     -- back from the Jobber invoice by the
+                                     -- nightly reconciler. Catches on-site tech
+                                     -- adjustments that never touch our
+                                     -- dashboard. This is ground truth — it
+                                     -- grades system, office, AND shadow.
+    reconciled_at TIMESTAMPTZ,       -- when the reconciler last checked this line
     adjust_reason TEXT CHECK (adjust_reason IN (
                     'too_low','too_high','heavy_buildup','hard_access',
                     'measurement_off','added_service','relationship_discount',
