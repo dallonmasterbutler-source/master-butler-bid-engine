@@ -66,15 +66,29 @@ def validate_roof(roof_sqft, records_sqft=None):
 
 
 def pitch_band(pitch_over_12):
-    """Convert a measured x/12 pitch to our calculator knob."""
+    """Convert a measured x/12 pitch to our calculator knob.
+
+    CONSERVATIVE NEAR BOUNDARIES (calibrated July 2026): satellite pitch
+    reads ramblers about one band HIGH — two ground-truth checks (Dallon's
+    and Shane's homes, both actually mild) came back "moderate". Within
+    the grace zone above a band edge we price the CHEAPER band and flag
+    for verification, instead of silently upcharging 20%.
+    """
+    GRACE = 1.0   # x/12 units above a band edge that still price down
     if pitch_over_12 is None:
         return "moderate", ["Pitch unknown — assumed moderate; verify."]
-    if pitch_over_12 <= 4:
-        return "mild", []
+    if pitch_over_12 <= 4 + GRACE:
+        flags = ([] if pitch_over_12 <= 4 else
+                 [f"Pitch measured {pitch_over_12:.0f}/12 — near mild/moderate "
+                  "boundary, priced as MILD; verify on-site."])
+        return "mild", flags
     if pitch_over_12 <= 8:
+        # NO grace at the moderate/steep edge: "steep" decides WHO can be
+        # on the roof (safety), not just price. Never rounded down.
         return "moderate", []
     if pitch_over_12 <= 10:
         return "steep", []
+    # NO grace above steep: 11-12/12 is a SAFETY call, never rounded down.
     return "tom_only", []
 
 

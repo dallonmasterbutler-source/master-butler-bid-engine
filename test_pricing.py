@@ -98,7 +98,10 @@ ok, flags, ded = validate_roof(None)
 check("Missing solar deducts 25", ded, 25)
 
 print("\n── RULE: measured pitch maps to the right knob ──")
-check("5/12 is moderate", pitch_band(5)[0] == "moderate", True)
+check("5/12 rounds DOWN to mild (grace zone)", pitch_band(5)[0] == "mild", True)
+check("5/12 carries verify flag", 1 if pitch_band(5)[1] else 0, 1)
+check("6/12 is moderate", pitch_band(6)[0] == "moderate", True)
+check("10.5/12 does NOT round down (safety)", pitch_band(10.5)[0] == "tom_only", True)
 check("9/12 is steep", pitch_band(9)[0] == "steep", True)
 check("11/12 is TOM ONLY", pitch_band(11.5)[0] == "tom_only", True)
 
