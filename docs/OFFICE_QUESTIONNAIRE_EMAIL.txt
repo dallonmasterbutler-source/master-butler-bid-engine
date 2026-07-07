@@ -1,0 +1,201 @@
+SUBJECT: 10 minutes: help me design your new bidding tool (reply to this email)
+
+Hi team,
+
+As some of you know, I'm building a tool that will do the research half of
+bidding for us — it reads the customer's email, looks up the property,
+measures the roof from satellite photos, and drafts the bid. Your job becomes
+reviewing and approving instead of researching and typing.
+
+Before I design the screen you'll be using every day, I want to build it
+around how YOU actually work. Please answer the questions below.
+
+HOW TO DO IT: Just hit REPLY and type your answer under each question.
+Rough, honest answers beat polished ones. "I don't know" is a fine answer.
+Please answer on your own (not together) — I want each person's real take.
+Takes about 10 minutes.
+
+========================================
+PART 1 — HOW YOU WORK TODAY
+========================================
+
+1. Walk me through what you do when a bid request email comes in, step by
+step, like you're training a new hire. Every step counts — even "open a
+new tab" or "ask Tom."
+
+ANSWER:
+
+
+2. What part of doing a bid takes the LONGEST?
+
+ANSWER:
+
+
+3. What part do you dislike the most? (Not always the same thing!)
+
+ANSWER:
+
+
+4. What's an app or website you use (work or personal) that feels EASY and
+fast? Jobber, banking, Instagram, anything.
+
+ANSWER:
+
+
+========================================
+PART 2 — THE FIRST LOOK
+========================================
+Imagine you sit down with your coffee and open the new dashboard.
+
+5. What's the FIRST thing you want to see? Pick ONE:
+   a) A list of new bids waiting for me, oldest first
+   b) Only the bids that need something from me (problems first)
+   c) A summary of everything: how many waiting, sent, accepted
+   d) Today's schedule, then the bids
+   e) Something else (describe)
+
+ANSWER:
+
+
+6. When you look at a LIST of waiting bids, which THREE things matter most
+at a glance?
+   a) Customer name
+   b) Address / neighborhood
+   c) Which services they want
+   d) The total dollar amount
+   e) How confident the system is in its numbers
+   f) Any warning flags (steep roof, hazards, etc.)
+   g) How long the bid has been waiting
+   h) Whether they're a repeat customer
+
+ANSWER (pick 3):
+
+
+7. How do you want to know something needs YOUR attention?
+   a) It's at the top of the list, marked in color
+   b) A separate "needs attention" section
+   c) An email/notification
+   d) I'll check the dashboard when I check it — don't ping me
+
+ANSWER:
+
+
+========================================
+PART 3 — REVIEWING ONE BID
+========================================
+Now you've opened one bid. The system shows what it found and the prices
+it calculated.
+
+8. To trust a price the system came up with, what would you want to SEE
+next to it? Pick all that apply:
+   a) The photos it looked at
+   b) The measurements it used (sqft, roof size, pitch)
+   c) The math (rate x size = price)
+   d) What we charged similar houses before
+   e) A confidence score ("system is 90% sure")
+   f) Honestly, I'd want to double-check it myself for a while
+
+ANSWER:
+
+
+9. When YOU adjust a price up or down today, what are the usual reasons?
+List as many as you can — this list literally becomes buttons on the screen.
+
+ANSWER:
+
+
+10. After you change a price, how much explaining are you willing to do so
+the system can learn? Be honest!
+   a) One tap on a reason button — that's it
+   b) A tap, plus a short note when it's unusual
+   c) I'll write a sentence every time if it makes the system smarter
+   d) Zero — the new price should speak for itself
+
+ANSWER:
+
+
+11. What would make you NOT trust this system?
+
+ANSWER:
+
+
+12. If the system isn't sure about something (say, it couldn't see the back
+of the house), what should it do?
+   a) Show me its best guess, clearly marked "low confidence"
+   b) Leave that line blank and ask me to fill it in
+   c) Hold the whole bid and tell me why
+   d) Depends (explain)
+
+ANSWER:
+
+
+========================================
+PART 4 — LOOK & FEEL
+========================================
+
+13. Where will you MOSTLY use this?
+   a) Computer with a big screen
+   b) Laptop
+   c) iPad/tablet
+   d) Phone
+   e) A mix (which?)
+
+ANSWER:
+
+
+14. Which describes your taste in screens?
+   a) Show me everything on one screen, I'll find what I need
+   b) Show me a little at a time, big and clear, I'll click for more
+   c) Somewhere in between
+
+ANSWER:
+
+
+15. Text size and buttons:
+   a) Standard is fine
+   b) Bigger please — I don't want to squint or mis-tap
+
+ANSWER:
+
+
+16. Is there an app or website you WISH our tools looked and felt like?
+What do you like about it?
+
+ANSWER:
+
+
+========================================
+PART 5 — THE STUFF WE'D NEVER THINK TO ASK
+========================================
+
+17. What's a mistake that happens in bidding today that you'd love this
+system to make impossible?
+
+ANSWER:
+
+
+18. What's something about YOUR job that Dallon and Tom probably don't
+realize you deal with every day?
+
+ANSWER:
+
+
+19. If this tool could do ONE more thing for you — anything, magic allowed —
+what would it be?
+
+ANSWER:
+
+
+20. Anything that worries you about this whole idea? Real answers help me
+build it right. This tool is meant to take the busywork off your plate —
+not replace the judgment that only you have.
+
+ANSWER:
+
+
+========================================
+
+That's it — thank you! Your answers directly decide what this thing looks
+like.
+
+Dallon
