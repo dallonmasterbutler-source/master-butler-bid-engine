@@ -174,10 +174,15 @@ JOB_MINIMUM = 150
 # Light season runs mid-Sept through December and OWNS the schedule.
 # ─────────────────────────────────────────────────────────────
 
+# DATES ARE DEFAULTS, NOT LAWS — the office adjusts these year to year
+# (weather shifts, light volume varies). Change them here; nothing else
+# in the code needs touching.
 SEASONS = {
-    # (start_month, start_day, end_month, end_day): rule name
+    # (start_month, start_day), (end_month, end_day)
     "light_season":   ((9, 15), (12, 31)),   # lights take priority, always
-    "winter_freeze":  ((10, 15), (2, 28)),   # PW + windows suspended
+    "winter_freeze":  ((10, 15), (2, 28)),   # washers WINTERIZED (physical,
+                                             # not policy) + windows paused;
+                                             # both reopen together ~late Feb
 }
 
 
@@ -201,9 +206,9 @@ def seasonal_notes(when, services):
             notes.append("LIGHT SEASON: holiday lights take scheduling "
                          "priority — book first.")
         if services.get("gutters") or services.get("roof") or services.get("moss"):
-            notes.append("LIGHT SEASON: push gutter/roof work to December "
-                         "or a low week. No gutter cleaning on homes with "
-                         "lights already installed.")
+            notes.append("LIGHT SEASON: add to the STANDBY GUTTERS backlog — "
+                         "these jobs fill low light weeks or December. "
+                         "No gutter cleaning on homes with lights installed.")
     if winter and any(services.get(s) for s in
                       ("windows", "windows_inout", "patio", "driveway",
                        "sidewalk", "deck", "house_wash")):
