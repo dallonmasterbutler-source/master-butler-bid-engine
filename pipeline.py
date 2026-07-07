@@ -13,10 +13,29 @@ Nothing is sent anywhere. This is the "assembly line" the real system
 will run; today it runs on saved emails so we can watch it work.
 """
 
+import email
+import email.policy
 from pathlib import Path
 
 from email_parser import parse_eml
 from bid_engine import calculate_bid
+
+
+def extract_photos(eml_path):
+    """Pull attached photos (>50KB — real pics, not logos) to a temp folder."""
+    msg = email.message_from_bytes(Path(eml_path).read_bytes(),
+                                   policy=email.policy.default)
+    outdir = Path("/tmp/pipeline_photos") / Path(eml_path).stem
+    outdir.mkdir(parents=True, exist_ok=True)
+    photos = []
+    for i, part in enumerate(msg.walk()):
+        if part.get_content_type().startswith("image/"):
+            data = part.get_payload(decode=True)
+            if data and len(data) > 50_000:
+                p = outdir / f"photo_{len(photos)+1}.jpg"
+                p.write_bytes(data)
+                photos.append(p)
+    return photos
 
 
 # ─────────────────────────────────────────────────────────────
@@ -97,9 +116,12 @@ def build_property(parsed, facts):
     if "windows_unspecified" in parsed["services"]:
         office_flags.append("Windows: in/out not specified — confirm with customer.")
 
+    if not facts.get("stories"):
+        office_flags.append("Stories unknown — assumed 2 (verify; matters "
+                            "for safety flags and window/house-wash pricing).")
     prop = {
         "sqft": facts["sqft"],
-        "stories": facts["stories"],
+        "stories": facts.get("stories") or "2",
         # Pitch now comes MEASURED from Solar; debris still needs Vision/photos
         "pitch": facts.get("pitch", "moderate"), "debris": "moderate",
         "gutter_type": "guards" if "roof_blow_off_guards" in parsed["services"] else "standard",
@@ -138,11 +160,49 @@ def process(eml_path):
     prop, office_flags = build_property(parsed, facts)
     office_flags = data_flags + office_flags
 
-    if not prop["sqft"]:
+    # ── VISION: if the customer sent photos, look at them ──
+    # Merge policy: records/Solar own sqft & stories; Vision owns what
+    # only photos can show (buildup, surfaces, move-items, hazards).
+    photos = extract_photos(eml_path)
+    if photos:
+        print(f"    Photos attached: {len(photos)} — running Vision...")
+        try:
+            from vision import analyze_photos, vision_to_prop_fields
+            v, cost = analyze_photos(photos,
+                                     extra_context=parsed["newest_message"][:300])
+            vfields, vnotes = vision_to_prop_fields(v)
+            prop["buildup"] = vfields.get("buildup", prop.get("buildup", "clean"))
+            if vfields.get("surfaces"):
+                prop["surfaces"].update(vfields["surfaces"])
+                # photos measured a surface → make sure it gets priced
+                for k in vfields["surfaces"]:
+                    prop["services"].setdefault(k, True)
+            if vfields.get("roof_material") and prop["roof_material"] == "standard":
+                prop["roof_material"] = vfields["roof_material"]
+            office_flags += vnotes
+            upsells = [s for s in v.get("services_suggested", [])
+                       if s in SERVICE_TO_ENGINE
+                       and SERVICE_TO_ENGINE[s][0] not in prop["services"]]
+            if upsells:
+                office_flags.append("Photos suggest possible add-ons: "
+                                    + ", ".join(upsells))
+            print(f"    Vision: buildup={prop.get('buildup')}, "
+                  f"surfaces={vfields.get('surfaces', {})} (${cost:.2f})")
+        except Exception as e:
+            office_flags.append(f"Vision failed ({e}) — photos need manual look.")
+
+    # House sqft is only required by services that PRICE on it.
+    # A pressure-washing-only job prices on photo-measured surface areas.
+    NEEDS_HOUSE_SQFT = {"gutters", "roof", "moss", "windows",
+                        "windows_inout", "house_wash"}
+    needs_sqft = any(prop["services"].get(s) for s in NEEDS_HOUSE_SQFT)
+    if needs_sqft and not prop["sqft"]:
         print("    → DRAFT HELD: no square footage — office must supply it.")
         for f in office_flags:
             print(f"      ⚠ {f}")
         return
+    if not prop["sqft"]:
+        prop["sqft"] = 0   # PW-only: engine ignores it, confidence notes it
 
     results, notes, confidence = calculate_bid(prop)
     confidence = max(0, confidence - deduction)   # data quality lowers trust

@@ -16,6 +16,7 @@ Cost: roughly 1-6 cents per bid depending on photo count.
 """
 
 import json
+import re
 import base64
 import subprocess
 import urllib.request
@@ -47,7 +48,9 @@ def _prep_image(path):
 PROMPT = """You are the property assessor for Master Butler, a home services company
 (gutter cleaning, roof blow-off, moss treatment, window cleaning, pressure washing).
 Analyze these customer/property photos and return ONLY a JSON object — no prose,
-no markdown fences — with exactly this shape:
+no markdown fences. The very first character of your reply must be "{" and the
+last must be "}". The JSON must be strictly valid: double-quoted keys, no
+trailing commas, no comments. Exactly this shape:
 
 {
  "surfaces": [
@@ -95,27 +98,46 @@ def analyze_photos(photo_paths, extra_context=""):
                for p in photos]
     text = PROMPT
     if extra_context:
-        text += f"\n\nContext from the customer's request: {extra_context}"
+        clean = re.sub(r"[^\x20-\x7E\n]", " ", extra_context)  # strip mail junk chars
+        text += f"\n\nContext from the customer's request: {clean}"
     content.append({"type": "text", "text": text})
 
-    req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
-        data=json.dumps({"model": MODEL, "max_tokens": 1200,
-                         "messages": [{"role": "user", "content": content}]}).encode(),
-        headers={"x-api-key": _api_key(), "anthropic-version": "2023-06-01",
-                 "content-type": "application/json"})
-    resp = json.load(urllib.request.urlopen(req, timeout=180))
+    cost = 0.0
+    last_err = None
+    for attempt in (1, 2):                      # one retry on bad JSON
+        req = urllib.request.Request(
+            "https://api.anthropic.com/v1/messages",
+            data=json.dumps({"model": MODEL, "max_tokens": 3000,   # thinking + JSON both fit
+                             "messages": [{"role": "user", "content": content}]}).encode(),
+            headers={"x-api-key": _api_key(), "anthropic-version": "2023-06-01",
+                     "content-type": "application/json"})
+        resp = json.load(urllib.request.urlopen(req, timeout=180))
+        if resp.get("error"):
+            raise RuntimeError(f"API error: {resp['error']}")
 
-    raw = resp["content"][0]["text"].strip()
-    # tolerate accidental markdown fences
-    if raw.startswith("```"):
-        raw = raw.strip("`")
-        raw = raw[raw.find("{"):raw.rfind("}") + 1]
-    parsed = json.loads(raw)
+        # take the text block regardless of position (never assume [0]);
+        # Sonnet may emit a thinking block first — and if output ran long,
+        # the text block can be missing entirely: retry in that case.
+        raw = next((b["text"] for b in resp["content"]
+                    if b.get("type") == "text"), None)
+        if raw is None:
+            last_err = RuntimeError("no text block (thinking consumed budget)")
+            continue
+        raw = raw.strip()
+        # keep only the outermost JSON object (tolerates fences/prose)
+        if "{" in raw:
+            raw = raw[raw.find("{"):raw.rfind("}") + 1]
+        # repair the two most common model slips: trailing commas, // comments
+        raw = re.sub(r",\s*([}\]])", r"\1", raw)
+        raw = re.sub(r"^\s*//.*$", "", raw, flags=re.MULTILINE)
 
-    u = resp.get("usage", {})
-    cost = (u.get("input_tokens", 0) * 3 + u.get("output_tokens", 0) * 15) / 1e6
-    return parsed, cost
+        u = resp.get("usage", {})
+        cost += (u.get("input_tokens", 0) * 3 + u.get("output_tokens", 0) * 15) / 1e6
+        try:
+            return json.loads(raw), cost
+        except json.JSONDecodeError as e:
+            last_err = e                        # retry once, then give up loudly
+    raise RuntimeError(f"Vision returned unparseable JSON twice: {last_err}")
 
 
 def vision_to_prop_fields(v):
