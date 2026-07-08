@@ -274,6 +274,18 @@ def process(eml_path):
     results, notes, confidence = calculate_bid(prop)
     confidence = max(0, confidence - deduction)   # data quality lowers trust
 
+    # TECH FIELD-NOTE MINIMUMS: the tech saw the roof; the office didn't.
+    try:
+        import minimums
+        mnotes = minimums.apply(results, email=parsed.get("sender_email"),
+                                phone=parsed.get("phone"),
+                                address=parsed.get("address"))
+        notes += mnotes
+        if any("REVIEW" in n for n in mnotes):
+            confidence = min(confidence, 45)   # forces office eyes
+    except Exception:
+        pass
+
     print(f"\n    DRAFT BID  (confidence {confidence}%)")
     total = 0
     for s in results:

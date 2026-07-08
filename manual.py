@@ -104,6 +104,15 @@ def process_manual(name, address, phone="", email="", services=None,
         else:
             results, notes, confidence = calculate_bid(prop)
             confidence = max(0, confidence - deduction)
+            try:
+                import minimums
+                mnotes = minimums.apply(results, email=email, phone=phone,
+                                        address=addr)
+                notes += mnotes
+                if any("REVIEW" in n for n in mnotes):
+                    confidence = min(confidence, 45)
+            except Exception:
+                pass
             total = sum(s["price"] for s in results)
             record["draft"] = {
                 "customer": {"name": name, "email": email, "phone": phone,

@@ -38,10 +38,9 @@ def _canon(s):
 
 
 def is_dns(node):
-    """Return the matching marker text, or None."""
+    """Return the matching marker text, or None. EXPLICIT text only —
+    Dallon (Jul 8): name asterisks are meaningless, ignore them."""
     name = (node.get("name") or "").lower()
-    if name.startswith("*") or name.startswith("xx"):
-        return f"name marker: {node['name'][:40]}"
     for t in (node.get("tags") or {}).get("nodes", []):
         lbl = (t.get("label") or "").lower()
         if any(m in lbl for m in MARKERS):
@@ -55,9 +54,46 @@ def is_dns(node):
     return None
 
 
+SVC_WORDS = {"gutter": "gutter", "roof": "roof", "moss": "moss",
+             "window": "window", "pressure": "pressure", "pw": "pressure",
+             "house wash": "house wash", "driveway": "pressure"}
+
+PRICE_PAT = re.compile(
+    r"(?:raise|increase|minimum|min\.?|at least|no less than|charge|"
+    r"price to|should be)[^.\n$]{0,40}\$\s?(\d{2,4})", re.I)
+
+
+def price_notes(node):
+    """Tech field notes like 'Raise gutter price to at least $400' ->
+    per-client service minimums the engine applies automatically."""
+    found = []
+    for nt in (node.get("notes") or {}).get("nodes", []):
+        msg = nt.get("message") or ""
+        for m in PRICE_PAT.finditer(msg):
+            amt = int(m.group(1))
+            if not 50 <= amt <= 3000:
+                continue
+            ctx = msg[max(0, m.start()-60):m.end()+20].lower()
+            svc = next((v for k, v in SVC_WORDS.items() if k in ctx), "any")
+            found.append({"service": svc, "min": amt,
+                          "note": msg.strip()[:160]})
+    if not found:
+        return None
+    return {"name": node["name"],
+            "emails": [e["address"].lower()
+                       for e in node.get("emails") or [] if e.get("address")],
+            "phones": ["".join(ch for ch in p["number"] if ch.isdigit())[-10:]
+                       for p in node.get("phones") or [] if p.get("number")],
+            "addresses": [_canon(f"{a.get('street','')} {a.get('city','')}")
+                          for a in [pr.get("address") or {}
+                                    for pr in node.get("properties") or []]
+                          if a.get("street")],
+            "minimums": found}
+
+
 def sweep(limit=100000):
     jc.DRY_RUN = False
-    out, scanned, cursor = [], 0, None
+    out, mins, scanned, cursor = [], [], 0, None
     while scanned < limit:
         data = None
         for attempt in range(8):
@@ -78,6 +114,12 @@ def sweep(limit=100000):
         block = data["clients"]
         for n in block["nodes"]:
             scanned += 1
+            pn = price_notes(n)
+            if pn:
+                mins.append(pn)
+                print(f"  💲 {n['name'][:34]}: "
+                      + "; ".join(f"{m['service']} ≥ ${m['min']}"
+                                  for m in pn["minimums"]))
             why = is_dns(n)
             if not why:
                 continue
@@ -103,14 +145,16 @@ def sweep(limit=100000):
         time.sleep(1.5)
 
     Path("data/dns_list.json").write_text(json.dumps(out, indent=1))
-    print(f"\nscanned {scanned} clients -> {len(out)} DO-NOT-SERVICE entries")
+    Path("data/client_minimums.json").write_text(json.dumps(mins, indent=1))
+    print(f"\nscanned {scanned} clients -> {len(out)} DO-NOT-SERVICE, "
+          f"{len(mins)} clients with tech price-notes")
     try:
         from cloudpush import push
-        push(blobs={"dns_list": out})
+        push(blobs={"dns_list": out, "client_minimums": mins})
         print("mirrored to cloud")
     except Exception as e:
         print(f"(cloud mirror skipped: {e})")
-    return out
+    return out, mins
 
 
 if __name__ == "__main__":
