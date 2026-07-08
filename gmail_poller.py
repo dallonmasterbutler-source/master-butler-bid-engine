@@ -225,6 +225,66 @@ def _sweep_sent(M, seen):
         seen.add(mid)
 
 
+def _bid_for_quote(quote_number):
+    """Which of OUR bids does this Jobber quote belong to? (scoreboard)"""
+    if not quote_number:
+        return None
+    try:
+        import clouddb
+        if clouddb.available():
+            sb = clouddb.get_blob("scoreboard") or {}
+        else:
+            f = BASE / "data" / "scoreboard.json"
+            sb = json.loads(f.read_text()) if f.exists() else {}
+        for row in sb.get("rows", []):
+            if str(row.get("office_quote")) == str(quote_number):
+                return row["stamp"]
+    except Exception:
+        pass
+    return None
+
+
+def _attach_event(target_stamp, ev, event_stamp):
+    """Write the lifecycle event ONTO the customer's own bid record."""
+    try:
+        import clouddb
+        rec = None
+        if clouddb.available():
+            rec = dict(clouddb.all_shadow()).get(target_stamp)
+        if rec is None:
+            f = BASE / "data" / "shadow_bids" / f"{target_stamp}.json"
+            rec = json.loads(f.read_text()) if f.exists() else None
+        if rec is None:
+            return
+        rec.setdefault("events", []).append(
+            {"at": datetime.now().isoformat(timespec="seconds"),
+             "event": ev.get("event"), "quote": ev.get("quote_number"),
+             "detail": (ev.get("client") or "")[:60]})
+        labels = {"quote_approved":
+                  f"🎉 QUOTE #{ev.get('quote_number')} APPROVED — convert "
+                  "it to a job in Jobber.",
+                  "changes_requested":
+                  f"✏️ Customer requested CHANGES on quote "
+                  f"#{ev.get('quote_number')} — needs office attention.",
+                  "request_received":
+                  f"📥 Jobber request received (quote "
+                  f"#{ev.get('quote_number')})."}
+        if ev.get("event") in labels:
+            rec["office_alert"] = labels[ev["event"]]
+        if clouddb.available():
+            clouddb.ingest_shadow(target_stamp, rec)
+        else:
+            f = BASE / "data" / "shadow_bids" / f"{target_stamp}.json"
+            f.write_text(json.dumps(rec, indent=1))
+            try:
+                from cloudpush import push
+                push(records=[(target_stamp, rec)])
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"  (event attach failed: {e})")
+
+
 def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     """Run one raw email through the pipeline; save the shadow draft."""
     SHADOW_DIR.mkdir(parents=True, exist_ok=True)
@@ -275,6 +335,13 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     if parsed.get("jobber_event"):
         ev = parsed["jobber_event"]
         record["jobber_event"] = ev
+        # ONE CUSTOMER = ONE ROW (Dallon Jul 8): a Jobber event about a
+        # quote we track ATTACHES to that customer's bid instead of
+        # spawning a second queue item.
+        target = _bid_for_quote(ev.get("quote_number"))
+        if target:
+            _attach_event(target, ev, stamp)
+            record["merged_into"] = target
         if ev["event"] == "quote_approved":
             record["office_alert"] = (
                 f"🎉 QUOTE #{ev.get('quote_number')} APPROVED"

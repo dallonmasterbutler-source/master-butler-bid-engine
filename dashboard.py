@@ -179,10 +179,40 @@ def _internal_senders():
     return out
 
 
+_SPAM_CACHE = {"at": 0.0, "v": []}
+
+
+def _learned_spam():
+    import time as _t
+    if _t.time() - _SPAM_CACHE["at"] > 60:
+        _SPAM_CACHE["v"] = _blob_rw("learned_spam", [])
+        _SPAM_CACHE["at"] = _t.time()
+    return _SPAM_CACHE["v"]
+
+
+_SOLICIT = ("circling back", "quick call", "per service area",
+            "in your market", "commercial quotes", "lead generation",
+            "seo", "google ranking", "book a call", "grow your business",
+            "we only work with one company", "guarantee you",
+            "schedule a demo", "increase your revenue")
+
+
+def _looks_solicitation(rec):
+    """Someone selling TO us, not a homeowner: sales phrases + no
+    property address. Conservative — one phrase isn't enough."""
+    if rec.get("address") or rec.get("kind") == "phone_lead":
+        return False
+    body = ((rec.get("newest_message") or "") + " "
+            + (rec.get("subject") or "")).lower()
+    return sum(1 for s in _SOLICIT if s in body) >= 2
+
+
 def classify_row(rec):
     """'main' (customer work) or ('aside', reason) for the drawer."""
     # Jobber EVENTS outrank every filter: an approval or change-request
     # is action for the office; receipts and the rest go to the drawer.
+    if rec.get("merged_into"):
+        return "aside", "update folded into the customer's bid"
     ev = rec.get("jobber_event")
     if ev:
         if ev.get("event") in ("quote_approved", "changes_requested",
@@ -190,6 +220,11 @@ def classify_row(rec):
             return "main", None
         return "aside", f"jobber event: {ev.get('event')}"
     sender = (rec.get("from") or "").lower()
+    for s in _learned_spam():
+        if s and s in sender:
+            return "aside", "spam (office taught me this sender)"
+    if _looks_solicitation(rec):
+        return "aside", "solicitation to US, not a customer (auto)"
     for s in _internal_senders():
         if s in sender:
             return "aside", "internal (Dallon/Tom/company)"
@@ -1274,6 +1309,11 @@ def bid_page(stamp, user=None):
    <input type='hidden' name='address' value='{esc(b.get('address'))}'>
    <input type='text' name='question' placeholder='the ONE question for Dallon/Tom'>
    <button class='red'>Escalate → standardized form</button>
+  </form>
+  <form method='POST' action='/mark_spam' style='margin-top:6px'>
+   <input type='hidden' name='stamp' value='{stamp}'>
+   <input type='hidden' name='sender' value='{esc(b['from'])}'>
+   <button class='gray'>🚫 Spam — never show this sender again</button>
   </form>
   <form method='POST' action='/flag_review' style='margin-top:6px'>
    <input type='hidden' name='stamp' value='{stamp}'>
@@ -2557,6 +2597,24 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(303)
             self.send_header("Location", "/settings?msg=" +
                              urllib.parse.quote("Saved."))
+            self.end_headers()
+            return
+        elif self.path == "/mark_spam":
+            import re as _r
+            m = _r.search(r"@([\w.-]+)", get("sender"))
+            sender_key = (m.group(1).lower() if m
+                          else get("sender").lower()[:40])
+            spam = _blob_rw("learned_spam", [])
+            if sender_key and sender_key not in spam:
+                spam.append(sender_key)
+                _blob_save("learned_spam", spam)
+                _SPAM_CACHE["at"] = 0
+            save_review({"stamp": get("stamp"), "action": "learned_spam",
+                         "customer": get("sender"),
+                         "note": f"sender '{sender_key}' will be filed as "
+                                 "spam from now on"})
+            self.send_response(303)
+            self.send_header("Location", "/")
             self.end_headers()
             return
         elif self.path == "/msg_unread":
