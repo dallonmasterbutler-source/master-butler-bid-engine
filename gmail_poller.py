@@ -109,6 +109,14 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
               "subject": parsed["subject"], "kind": parsed["kind"],
               "services": parsed["services"], "address": parsed["address"],
               "phone": parsed.get("phone")}
+    if parsed["kind"] == "phone_lead":
+        lead = parsed.get("lead") or {}
+        record["office_alert"] = (
+            f"PHONE LEAD — call back {parsed.get('phone')}"
+            + (f" ({lead['duration']} voicemail" if lead.get("duration") else " (voicemail")
+            + (f", {lead['when']})" if lead.get("when") else ")")
+            + " — customer called, expects a call not an email.")
+
     if "Spam" in folder and parsed["kind"] == "new_request":
         record["office_alert"] = ("FOUND IN SPAM — real request; office "
                                   "should rescue it from the spam folder")

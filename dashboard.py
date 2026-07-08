@@ -143,6 +143,8 @@ def classify_row(rec):
             return "aside", "robot mail"
     if "Spam" in (rec.get("folder") or "") and rec.get("kind") != "new_request":
         return "aside", "spam folder, not a request"
+    if rec.get("kind") == "phone_lead":
+        return "main", None          # a caller is a customer — front of house
     if rec.get("kind") in ("new_request", "question", "scheduling"):
         return "main", None
     return "aside", f"kind: {rec.get('kind')}"

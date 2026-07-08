@@ -206,6 +206,28 @@ def classify(text: str, services: list) -> str:
 # STEP 6: PUT IT ALL TOGETHER — parse one .eml file
 # ─────────────────────────────────────────────────────────────
 
+def parse_phone_lead(text, subject=""):
+    """Pull the callback facts out of a voicemail-notification email.
+    Real CopyCall format: 'you were just left a 1:00 long message
+    (number 201) in mailbox 4252221063 from 12069738356, on Tuesday...'"""
+    m = re.search(r"\bfrom\s+(\d{10,11})\b", text)
+    if not m:
+        return None
+    digits = m.group(1)[-10:]
+    pretty = f"({digits[:3]}) {digits[3:6]}-{digits[6:]}"
+    dur = re.search(r"(\d+:\d\d)\s+long", text)
+    when = re.search(r"on\s+([A-Z][a-z]+day[^,]*,[^,]*(?:,\s*\d{4})?"
+                     r"(?:\s+at\s+[\d:]+\s*[AP]M)?)", text)
+    box = re.search(r"mailbox\s+(\d+)", text + " " + subject)
+    return {
+        "caller": pretty,
+        "duration": dur.group(1) if dur else None,
+        "when": when.group(1).strip() if when else None,
+        "mailbox": box.group(1) if box else None,
+        "display": f"☎ Voicemail from {pretty}",
+    }
+
+
 def parse_eml(path) -> dict:
     raw = Path(path).read_bytes()
     msg = email.message_from_bytes(raw, policy=email.policy.default)
@@ -228,6 +250,27 @@ def parse_eml(path) -> dict:
 
     fresh = newest_message_only(body)
     services = find_services(fresh)
+
+    # ── PHONE LEADS (CopyCall etc.): calls arriving dressed as email ──
+    # The sender is the SERVICE, the customer is a phone number in the
+    # body. No transcript = nothing to bid on, but a very real customer
+    # waiting for a CALL BACK. (Dallon, Jul 7 2026.)
+    if "copycall" in sender_email.lower():
+        lead = parse_phone_lead(fresh or body, msg.get("Subject", ""))
+        if lead:
+            return {
+                "file": Path(path).name,
+                "sender_name": lead["display"],
+                "sender_email": sender_email,
+                "subject": msg.get("Subject", "").strip(),
+                "newest_message": (fresh or body)[:300],
+                "address": None,
+                "phone": lead["caller"],
+                "services": [],
+                "kind": "phone_lead",
+                "lead": lead,
+                "has_attachments": False,
+            }
 
     return {
         "file": Path(path).name,

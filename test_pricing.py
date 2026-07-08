@@ -432,6 +432,21 @@ lane, why = classify_row({"from": "Spammer <win@lottery.biz>", "kind": "other",
                           "folder": "[Gmail]/Spam"})
 check("Spam junk goes to the drawer", 1 if lane == "aside" else 0, 1)
 
+print("\n── RULE: phone leads (CopyCall voicemails = call back, not email) ──")
+from email_parser import parse_phone_lead
+REAL_COPYCALL = ("We just wanted to let you know you were just left a 1:00 "
+                 "long message (number 201) in mailbox 4252221063 from "
+                 "12069738356, on Tuesday, July 07, 2026 at 05:19:45 PM, so "
+                 "you might want to check it when you get a chance.  Thanks!")
+lead = parse_phone_lead(REAL_COPYCALL)
+check("Caller number extracted", 1 if lead and lead["caller"] == "(206) 973-8356" else 0, 1)
+check("Duration extracted", 1 if lead and lead["duration"] == "1:00" else 0, 1)
+check("No number = no lead (never a fake)",
+      1 if parse_phone_lead("check your voicemail sometime") is None else 0, 1)
+lane, _ = classify_row({"from": "☎ Voicemail from (206) 973-8356 "
+                        "<messages@copycall.com>", "kind": "phone_lead"})
+check("Phone lead rides the MAIN queue", 1 if lane == "main" else 0, 1)
+
 print("\n── RULE: office↔system service-name bridge (offline) ──")
 from store import _service_key
 check("'Gutter Cleaning - Composition' bridges to gutter",
