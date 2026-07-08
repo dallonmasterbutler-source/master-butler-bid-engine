@@ -113,6 +113,12 @@ def poll_once():
             _remember(msg_id)
             seen.add(msg_id)
 
+    # LIVE MESSAGES: also sweep the Sent folder, so replies the office
+    # sends from Gmail still show up in the dashboard conversation.
+    try:
+        _sweep_sent(M, seen)
+    except Exception as e:
+        print(f"  (sent sweep skipped: {e})")
     M.logout()
     _keep_cloud_warm()          # heartbeat on EVERY poll, however invoked
 
@@ -140,6 +146,43 @@ def poll_once():
         except Exception as e:
             print(f"  (quote sync skipped: {e})")
     return new_count
+
+
+def _sweep_sent(M, seen):
+    """Log outbound mail (office replies from Gmail) to the message log.
+    Uses the same Message-ID ledger — each sent mail processed once."""
+    import email as _email
+    typ, _ = M.select('"[Gmail]/Sent Mail"', readonly=True)
+    if typ != "OK":
+        return
+    from datetime import timedelta
+    since = (datetime.now() - timedelta(days=3)).strftime("%d-%b-%Y")
+    typ, data = M.search(None, f'SINCE {since}')
+    ids = data[0].split() if data and data[0] else []
+    import msglog
+    for num in ids[-40:]:
+        typ, hdr = M.fetch(num, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
+        mid = "sent-" + (hdr[0][1].decode(errors="replace")
+                         .split(":", 1)[-1].strip() or num.decode())
+        if mid in seen:
+            continue
+        typ, full = M.fetch(num, "(BODY.PEEK[])")
+        msg = _email.message_from_bytes(full[0][1],
+                                        policy=_email.policy.default)
+        to_addr = _email.utils.parseaddr(msg.get("To", ""))[1]
+        body = ""
+        plain = msg.get_body(preferencelist=("plain",))
+        if plain is not None:
+            body = plain.get_content()
+        else:
+            h = msg.get_body(preferencelist=("html",))
+            if h is not None:
+                body = _re.sub(r"<[^>]+>", " ", h.get_content())
+        msglog.record("out", to_addr, subject=msg.get("Subject", ""),
+                      body=body,
+                      at=None)
+        _remember(mid)
+        seen.add(mid)
 
 
 def shadow_process(raw_bytes, msg_id, folder="INBOX"):
@@ -222,6 +265,18 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     if "Spam" in folder and parsed["kind"] == "new_request":
         record["office_alert"] = ("FOUND IN SPAM — real request; office "
                                   "should rescue it from the spam folder")
+
+    # LIVE MESSAGES: every human inbound lands in the conversation log
+    try:
+        import msglog
+        if parsed.get("sender_email") and parsed["kind"] != "jobber_event":
+            msglog.record("in", parsed["sender_email"],
+                          name=parsed.get("sender_name") or "",
+                          subject=parsed.get("subject") or record["subject"],
+                          body=parsed.get("newest_message") or "",
+                          stamp=stamp)
+    except Exception:
+        pass
 
     # DUPLICATE LINKING: same person/thread/address within 30 days gets
     # LINKED, never dropped — the office decides "same job" vs "new job".

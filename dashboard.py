@@ -421,22 +421,37 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',
      sans-serif;margin:0;background:var(--bg);color:var(--ink);
      font-size:14.5px;line-height:1.5}
 h1,h2,h3,.total,.stat b{font-family:'Hanken Grotesk','Inter',sans-serif}
-header{background:#fff;color:var(--green);padding:0 26px;min-height:60px;
-       font-size:19px;font-weight:800;letter-spacing:-.2px;
+.rail{position:fixed;left:0;top:0;bottom:0;width:212px;z-index:60;
+      background:linear-gradient(175deg,var(--green),#08301f);
+      display:flex;flex-direction:column;padding:20px 12px}
+.rail .brand{color:#fff;font-family:'Hanken Grotesk',sans-serif;
+      font-weight:800;font-size:17px;padding:2px 10px 18px;
+      letter-spacing:-.2px}
+.rail .brandsub{color:#7ea892;font-size:9.5px;font-weight:700;
+      text-transform:uppercase;letter-spacing:1.6px;margin-top:3px}
+.rail nav{display:flex;flex-direction:column;gap:3px;flex:1}
+.rail nav a{color:#cfe0d6;font-size:13.5px;font-weight:600;
+      padding:10px 12px;border-radius:10px;display:flex;
+      align-items:center;gap:10px}
+.rail nav a:hover{background:rgba(255,255,255,.09);color:#fff;
+      text-decoration:none}
+.rail nav a.active{background:var(--gold);color:var(--green);
+      font-weight:800}
+.rail .ico{width:20px;text-align:center}
+.rail .railfoot{color:#5f8a74;font-size:10.5px;padding:12px 10px 2px;
+      line-height:1.45;border-top:1px solid rgba(255,255,255,.08)}
+.main{margin-left:212px;min-height:100vh;display:flex;
+      flex-direction:column}
+header{background:#fff;color:var(--green);padding:0 26px;min-height:56px;
+       font-size:17px;font-weight:800;letter-spacing:-.2px;
        border-bottom:1px solid var(--line);
        box-shadow:0 1px 2px rgba(16,24,40,.04);
        display:flex;align-items:center;flex-wrap:wrap;gap:8px;
        position:sticky;top:0;z-index:50;
        font-family:'Hanken Grotesk',sans-serif}
-header small{font-weight:500;color:var(--mut);font-size:12px;margin-left:8px}
-header .nav{margin-left:auto;font-size:13.5px;font-weight:600}
-header .nav a{color:var(--mut);padding:19px 12px 17px;display:inline-block}
-header .nav a:hover{color:var(--green);text-decoration:none}
-header .nav a.active{color:var(--gold);font-weight:800;
-       border-bottom:2px solid var(--gold)}
 header #who{color:var(--mut)}
 header #who b{color:var(--green)}
-.wrap{max-width:1200px;margin:0 auto;padding:24px 20px 48px}
+.wrap{max-width:1180px;margin:0;padding:24px 24px 48px;flex:1}
 .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;
       padding:10px 16px;box-shadow:0 1px 2px rgba(16,24,40,.04);
@@ -521,10 +536,18 @@ details.card[open] summary{margin-bottom:8px}
        letter-spacing:-1px}
 .confbadge{border-radius:10px;padding:6px 14px;font-weight:700;
        font-size:15px;color:#fff}
-footer{max-width:1200px;margin:8px auto 28px;padding:0 20px;
+footer{margin:8px 0 28px;padding:0 24px;
        color:#a3aaa2;font-size:12px}
 @media(max-width:860px){.grid{grid-template-columns:1fr}
-       header{font-size:16px;height:auto;padding:10px 16px;position:static}
+       .rail{position:static;width:auto;flex-direction:row;
+             align-items:center;padding:10px;overflow-x:auto}
+       .rail nav{flex-direction:row;gap:2px}
+       .rail nav a{padding:8px 10px;font-size:12px}
+       .rail .ico{display:none}
+       .rail .brand{padding:0 10px 0 4px;font-size:14px}
+       .rail .brandsub,.rail .railfoot{display:none}
+       .main{margin-left:0}
+       header{font-size:15px;height:auto;padding:10px 16px;position:static}
        .headline .total{font-size:26px}}
 </style>"""
 
@@ -537,28 +560,31 @@ FAVICON = ("<link rel='icon' href=\"data:image/svg+xml,<svg xmlns='http://"
 def page(title, body, refresh=None):
     auto = (f"<meta http-equiv='refresh' content='{refresh}'>"
             if refresh else "")
+    links = (("/", "📥", "Bid queue", "Bid queue"),
+             ("/messages", "💬", "Messages", "Messages"),
+             ("/new", "➕", "New lead", "New lead"),
+             ("/drafts", "📝", "Drafts", "Drafts"),
+             ("/winback", "📞", "Win-back", "Win-back"),
+             ("/scoreboard", "📊", "Scoreboard", "Scoreboard"),
+             ("/brief", "☀️", "Morning brief", "Morning brief"))
+    nav = "".join(
+        f"<a href='{href}' class='{'active' if title == t else ''}'>"
+        f"<span class='ico'>{ico}</span>{label}</a>"
+        for href, ico, label, t in links)
+    mode = ("approve pushes DRAFT quotes to Jobber" if _push_enabled()
+            else "shadow mode · nothing sends without you")
     return (f"<!doctype html><html><head><meta charset='utf-8'>"
             f"<meta name='viewport' content='width=device-width,initial-scale=1'>"
             f"{auto}{FAVICON}"
             f"<title>{title}</title>{STYLE}</head><body>"
-            f"<header>🎩 Master Butler <small>Bid Review — "
-            f"{'approve pushes DRAFT quotes to Jobber' if _push_enabled() else 'shadow mode · nothing sends without you'}"
-            f"</small>"
-            + "<span class='nav'>"
-            + "".join(f"<a href='{href}' class="
-                      f"'{'active' if title == t else ''}'>{label}</a> "
-                      for href, label, t in (
-                          ("/", "Queue", "Bid queue"),
-                          ("/new", "+ New lead", "New lead"),
-                          ("/drafts", "Drafts", "Drafts"),
-                          ("/winback", "Win-back", "Win-back"),
-                          ("/scoreboard", "Scoreboard", "Scoreboard"),
-                          ("/brief", "Morning brief", "Morning brief")))
-            + "</span>"
-            # WHO'S WORKING (Dallon, Jul 8: "we need a way to know who
-            # worked on what bid"). Cookie-based name tag: every action
-            # (approve, hold, flag, contacted) is stamped with it.
-            + """<span id='who' style='margin-left:10px;font-size:13px'></span>
+            f"<aside class='rail'>"
+            f"<div class='brand'>🎩 Master Butler"
+            f"<div class='brandsub'>Monroe WA · Office</div></div>"
+            f"<nav>{nav}</nav>"
+            f"<div class='railfoot'>{mode}</div></aside>"
+            f"<div class='main'>"
+            f"<header><b>{title}</b>"
+            + """<span id='who' style='margin-left:auto;font-size:13px'></span>
 <script>
 (function(){
   var m=document.cookie.match(/office_user=([^;]+)/);
@@ -566,15 +592,14 @@ def page(title, body, refresh=None):
   function set(n){document.cookie='office_user='+encodeURIComponent(n)
     +';path=/;max-age=31536000';location.reload();}
   if(m){var n=decodeURIComponent(m[1]);
-    el.innerHTML='👤 <b>'+n+'</b> <a href="#" style="color:#dfe7e2;'
-      +'opacity:.7">change</a>';
+    el.innerHTML='👤 <b>'+n+'</b> <a href="#" style="opacity:.6">change</a>';
     el.querySelector('a').onclick=function(e){e.preventDefault();
       document.cookie='office_user=;path=/;max-age=0';location.reload();};
   } else {
-    el.innerHTML='Who\\u2019s working? ';
+    el.innerHTML='Who\u2019s working? ';
     ['LaRee','Jessica','Dallon','Tom'].forEach(function(n){
       var a=document.createElement('a');a.href='#';a.textContent=n;
-      a.style.cssText='margin:0 4px;color:#c9a227;font-weight:700';
+      a.style.cssText='margin:0 5px;color:#c9a227;font-weight:700';
       a.onclick=function(e){e.preventDefault();set(n);};
       el.appendChild(a);});
   }
@@ -583,7 +608,7 @@ def page(title, body, refresh=None):
             f"<div class='wrap'>{body}</div>"
             f"<footer>Every quote is a draft until a human sends it · the "
             f"inbox is never marked read · every price traces to a real "
-            f"job.</footer></body></html>").encode()
+            f"job.</footer></div></body></html>").encode()
 
 
 def esc(s):
@@ -1418,6 +1443,89 @@ def _winback_save(d):
         (BASE / "data" / "winback_done.json").write_text(json.dumps(d))
 
 
+def messages_page(sel=None):
+    """LIVE conversation center: every customer message in and out,
+    cleaned up, newest thread first — reply without opening Gmail."""
+    import msglog
+    ts = msglog.threads()
+    if not ts:
+        return page("Messages", "<div class='card'>No conversations "
+                    "logged yet — they build up as mail flows.</div>")
+    if sel is None:
+        sel = ts[0][0]
+    items = ""
+    for addr, name, msgs in ts[:40]:
+        last = msgs[-1]
+        active = addr == sel
+        arrow = "←" if last["dir"] == "in" else "→"
+        items += (
+            f"<a href='/messages?t={urllib.parse.quote(addr)}' "
+            f"style='display:block;padding:11px 14px;border-radius:12px;"
+            f"margin-bottom:4px;text-decoration:none;"
+            f"{'background:#0b3d2e;color:#fff' if active else ''}'>"
+            f"<b style='font-size:13.5px;"
+            f"{'color:#fff' if active else 'color:#0b3d2e'}'>"
+            f"{esc(name)[:26]}</b>"
+            f"<div style='font-size:12px;{'color:#bcd3c7' if active else 'color:#8a929c'};"
+            f"white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"
+            f"{arrow} {esc((last.get('body') or last.get('subject') or '')[:44])}"
+            f"</div></a>")
+    thread_html = ""
+    tname, tmsgs = sel, []
+    for addr, name, msgs in ts:
+        if addr == sel:
+            tname, tmsgs = name, msgs
+            break
+    for m in tmsgs[-30:]:
+        inbound = m["dir"] == "in"
+        thread_html += (
+            f"<div style='display:flex;"
+            f"justify-content:{'flex-start' if inbound else 'flex-end'};"
+            f"margin-bottom:10px'>"
+            f"<div style='max-width:78%;padding:10px 14px;border-radius:14px;"
+            f"{'background:#f2f5f3;color:#20242a' if inbound else 'background:#0b3d2e;color:#eef4f0'}'>"
+            f"<div style='font-size:10px;font-weight:700;opacity:.65;"
+            f"margin-bottom:3px'>"
+            f"{esc(m.get('name') or '') if inbound else 'Master Butler' + (' · ' + esc(m['by']) if m.get('by') else '')}"
+            f" · {esc(m['at'][:16].replace('T', ' '))}</div>"
+            f"<div style='white-space:pre-wrap;font-size:13.5px'>"
+            f"{esc(msglog.clean_body(m.get('body') or '') or m.get('subject') or '')}</div>"
+            + (f"<div style='margin-top:4px'><a href='/bid/{m['stamp']}' "
+               f"style='font-size:11px;color:{'#177245' if inbound else '#c9a227'}'>"
+               f"open the bid →</a></div>" if m.get("stamp") else "")
+            + "</div></div>")
+    last_subject = next((m.get("subject") for m in reversed(tmsgs)
+                         if m.get("subject")), "")
+    reply_subject = (last_subject if last_subject.lower().startswith("re:")
+                     else f"Re: {last_subject}" if last_subject
+                     else "Master Butler")
+    body = f"""
+<div style='display:grid;grid-template-columns:290px 1fr;gap:16px;
+            align-items:start'>
+ <div class='card' style='padding:12px'>
+  <h3 style='padding:0 6px'>Conversations</h3>{items}</div>
+ <div class='card'>
+  <h2 style='margin-top:0'>{esc(tname)}
+   <span class='subtext' style='font-weight:400'>{esc(sel)}</span></h2>
+  <div style='max-height:520px;overflow-y:auto;padding:6px 2px'>
+   {thread_html or "<div class='subtext'>No messages yet.</div>"}
+  </div>
+  <form method='POST' action='/msg_send' style='margin-top:12px;
+        border-top:1px solid var(--line);padding-top:14px'>
+   <input type='hidden' name='to' value='{esc(sel)}'>
+   <input type='hidden' name='subject' value='{esc(reply_subject)}'>
+   <textarea name='body' rows='3' placeholder='Reply as customercare@ —
+sends real email to {esc(tname)} when you hit Send'></textarea>
+   <div style='display:flex;justify-content:space-between;
+               align-items:center;margin-top:8px'>
+    <span class='subtext'>Sends from customercare@masterbutlerinc.com,
+    signed with your name tag.</span>
+    <button class='big'>Send reply</button>
+   </div>
+  </form></div></div>"""
+    return page("Messages", body)
+
+
 def winback_page():
     """LaRee's call-back list: loyal clients (2+ yrs, 3+ jobs) who went
     quiet. Ranked by lifetime value; one click marks them contacted."""
@@ -1740,6 +1848,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(drafts_page())
         if self.path == "/winback":
             return self._send(winback_page())
+        if self.path.startswith("/messages"):
+            q = urllib.parse.urlparse(self.path).query
+            sel = urllib.parse.parse_qs(q).get("t", [None])[0]
+            return self._send(messages_page(sel))
         if self.path == "/brief":
             return self._send(brief_page())
         if self.path.startswith("/new"):
@@ -1949,6 +2061,28 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/review_seen":
             save_review({"stamp": get("stamp"), "action": "review_seen",
                          "customer": get("customer")})
+        elif self.path == "/msg_send":
+            # OFFICE-DRIVEN reply: a named human hits Send; nothing
+            # automated ever posts here.
+            import mailer
+            import msglog
+            to, subj = get("to"), get("subject") or "Master Butler"
+            text = get("body").strip()
+            if text:
+                ok, why = mailer.send_reply(to, subj, text, _user)
+                if ok:
+                    msglog.record("out", to, subject=subj, body=text,
+                                  by=_user or "")
+                    save_review({"stamp": "", "action": "customer_reply",
+                                 "customer": to, "note": text[:120]})
+                else:
+                    save_review({"stamp": "", "action": "reply_FAILED",
+                                 "customer": to, "note": why[:150]})
+            self.send_response(303)
+            self.send_header("Location",
+                             f"/messages?t={urllib.parse.quote(to)}")
+            self.end_headers()
+            return
         elif self.path == "/winback_done":
             if get("name"):
                 d = _winback_done()

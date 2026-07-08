@@ -11,6 +11,7 @@ Follows the KEY-READING RULE: .env file first, then os.environ
 """
 
 import os
+import re
 import smtplib
 from email.message import EmailMessage
 from pathlib import Path
@@ -201,6 +202,31 @@ def drain_outbox():
         return sent
     except Exception:
         return 0
+
+
+def send_reply(to_addr, subject, body, by):
+    """OFFICE-DRIVEN customer reply from the dashboard Messages page.
+    This is a compose tool for a HUMAN — it requires a named office
+    user, exactly one recipient, and never runs from automation.
+    Sent via Gmail API (falls back to SMTP on the Mac)."""
+    to_addr = (to_addr or "").strip()
+    if not by:
+        return False, "pick your name in the top bar first"
+    if not re.match(r"^[\w.+-]+@[\w.-]+\.\w+$", to_addr):
+        return False, "invalid recipient address"
+    addr, pw = _creds()
+    if not (addr and pw):
+        return False, "no mail credentials"
+    msg = EmailMessage()
+    msg["From"] = f"Master Butler <{addr}>"
+    msg["To"] = to_addr
+    msg["Subject"] = subject
+    msg.set_content(body + f"\n\n— {by}\nMaster Butler, inc\n"
+                           "customercare@masterbutlerinc.com")
+    ok, why = _api_send(msg)
+    if not ok:
+        ok, why = _smtp_send(msg, addr, pw)
+    return ok, why
 
 
 def send_review_flag(bid, note="", link=""):
