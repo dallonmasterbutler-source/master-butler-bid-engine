@@ -96,7 +96,8 @@ SERVICE_TO_ENGINE = {
 }
 
 # Services the engine can't price yet — always office review
-OFFICE_ONLY = {"moss_removal", "holiday_lights", "bird_control",
+OFFICE_ONLY = {"moss_removal", "holiday_lights", "permanent_lights",
+               "bird_control",
                "exterior_gutter_cleaning", "pressure_washing"}
 
 
@@ -111,6 +112,12 @@ def build_property(parsed, facts):
                 services["gutters"] = True   # guards line includes blow-off
             else:
                 services[key] = val
+        elif svc == "permanent_lights":
+            office_flags.append(
+                "PERMANENT LIGHT INSTALL requested — price ≈3× a seasonal "
+                "holiday-light job (Dallon's rule; seasonal min $385 → "
+                "permanent ≈$1,150+; real anchor: quote #36521 at $1,200). "
+                "Forward to Tom for the labor quote.")
         elif svc in OFFICE_ONLY:
             office_flags.append(f"'{svc}' requested — office quotes this one.")
     if "windows_unspecified" in parsed["services"]:

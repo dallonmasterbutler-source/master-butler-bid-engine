@@ -613,6 +613,14 @@ def calculate_bid(prop):
                          "quote ($385 minimum; ~175 linear ft material on an "
                          "average home; C7 warm white unless requested).")
 
+    # ── PERMANENT LIGHTS (Dallon Jul 8: ≈3× a seasonal install) ──
+    if prop["services"].get("permanent_lights"):
+        notes.append("PERMANENT LIGHT INSTALL: price ≈3× a seasonal "
+                     "holiday-light job (Dallon's rule — seasonal min $385 "
+                     "→ permanent ≈$1,150+; real anchor: quote #36521 at "
+                     "$1,200 install). Forward to Tom for the labor quote; "
+                     "provisional until more real jobs land.")
+
     # ── JOB MINIMUM (no visit below $150) ──
     running_total = sum(s["price"] for s in results)
     if 0 < running_total < JOB_MINIMUM:

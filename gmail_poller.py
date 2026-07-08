@@ -320,6 +320,41 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
                 f"(matched by {hit['matched_by']}; marker: {hit['why'][:80]}). "
                 "Do not quote or schedule; tell Dallon/Tom if unsure.")
 
+    # OPEN-QUOTE CHECK (Dallon Jul 8, the Shadi/Nithya lesson): a known
+    # customer writing in usually continues an EXISTING quote thread —
+    # say so before anyone drafts a duplicate.
+    if parsed["kind"] == "new_request" and parsed.get("sender_email") \
+            and not record.get("dns_match"):
+        try:
+            import jobber_client as jc
+            oq = jc.find_open_quote(parsed["sender_email"], scan=80)
+        except Exception:
+            oq = None
+        if oq:
+            lines = "; ".join(
+                f"{li['name'][:32]} ${li['totalPrice']:.0f}"
+                for li in (oq.get("lineItems") or {}).get("nodes", [])
+                if (li.get("totalPrice") or 0) > 0)[:150]
+            record["open_quote_ctx"] = {
+                "number": oq["quoteNumber"], "status": oq["quoteStatus"],
+                "total": oq["amounts"]["total"],
+                "created": (oq.get("createdAt") or "")[:10],
+                "url": oq.get("jobberWebUri")}
+            if oq["quoteStatus"] == "approved":
+                record["office_alert"] = (
+                    f"📎 CUSTOMER ALREADY APPROVED quote "
+                    f"#{oq['quoteNumber']} (${oq['amounts']['total']}, "
+                    f"{(oq.get('createdAt') or '')[:10]}: {lines}). This "
+                    "email is likely about scheduling that work — not a "
+                    "new request.")
+            else:
+                record["office_alert"] = (
+                    f"📎 EXISTING OPEN QUOTE #{oq['quoteNumber']} "
+                    f"(${oq['amounts']['total']}, {oq['quoteStatus']} "
+                    f"since {(oq.get('createdAt') or '')[:10]}: {lines}). "
+                    "Likely a follow-up — reply on that quote, don't send "
+                    "a second one.")
+
     # NEW-or-RETURNING (techs' ask): first job = say so, exactly once.
     if parsed["kind"] == "new_request" and parsed.get("sender_email"):
         try:

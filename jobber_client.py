@@ -645,8 +645,9 @@ def create_draft_quote(client_id, property_id, bid, prop_info=None,
 OPEN_QUOTES = """
 query Recent($first: Int!) {
   quotes(first: $first, sort: {key: CREATED_AT, direction: DESCENDING}) {
-    nodes { id quoteNumber quoteStatus jobberWebUri
+    nodes { id quoteNumber quoteStatus jobberWebUri createdAt
             amounts { total }
+            lineItems(first: 8) { nodes { name totalPrice } }
             client { emails { address } } }
   }
 }
@@ -667,14 +668,17 @@ def find_open_quote(email_addr, scan=40):
         DRY_RUN = was
     if data.get("error"):
         return None
+    approved_recent = None
     for q in data.get("quotes", {}).get("nodes", []):
-        if q.get("quoteStatus") not in OPEN_STATUSES:
-            continue
         addrs = [e["address"].lower() for e in (q.get("client") or {})
                  .get("emails", [])]
-        if email_addr.lower() in addrs:
-            return q
-    return None
+        if email_addr.lower() not in addrs:
+            continue
+        if q.get("quoteStatus") in OPEN_STATUSES:
+            return q                       # truly open beats everything
+        if q.get("quoteStatus") == "approved" and approved_recent is None:
+            approved_recent = q            # Nithya case: bought, unscheduled
+    return approved_recent
 
 
 ADD_LINES = """
