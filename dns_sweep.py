@@ -38,9 +38,14 @@ def _canon(s):
 
 
 def is_dns(node):
-    """Return the matching marker text, or None. EXPLICIT text only —
-    Dallon (Jul 8): name asterisks are meaningless, ignore them."""
+    """Return the matching marker text, or None.
+
+    Asterisked names ARE the office's do-not-service convention —
+    verified empirically Jul 8: every sampled *-name client has ZERO
+    invoices and ZERO quotes (a record kept only as a warning)."""
     name = (node.get("name") or "").lower()
+    if name.startswith("*") or name.startswith("xx"):
+        return f"name marker: {node['name'][:40]}"
     for t in (node.get("tags") or {}).get("nodes", []):
         lbl = (t.get("label") or "").lower()
         if any(m in lbl for m in MARKERS):
