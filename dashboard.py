@@ -323,6 +323,10 @@ def bid_status(b, holds, flags_open, sb_status, claims):
     """One glanceable state per bid. Priority: hold > flagged > someone
     working > decided/office outcome > needs review."""
     stamp = b["stamp"]
+    if b.get("dns_match"):
+        return ("<span style='display:inline-block;background:#1c1c1c;"
+                "color:#ff6b5e;border-radius:999px;padding:3px 12px;"
+                "font-size:11.5px;font-weight:800'>⛔ DO NOT SERVICE</span>")
     if stamp in holds:
         return status_pill("on hold")
     if stamp in flags_open:
@@ -939,6 +943,15 @@ def bid_page(stamp, user=None):
     # else already has it open, say so LOUDLY before any buttons.
     other = claim_bid(stamp, user)
     collision = ""
+    if b.get("dns_match"):
+        h = b["dns_match"]
+        collision += (
+            f"<div class='band' style='background:#1c1c1c;border-color:"
+            f"#000;border-left-color:#ff6b5e'><b style='color:#ff6b5e'>"
+            f"⛔ DO NOT SERVICE</b> <span style='color:#ddd'>— matches "
+            f"&ldquo;{esc(h['name'])}&rdquo; in Jobber (by "
+            f"{esc(h['matched_by'])}). Do not quote or schedule; "
+            f"questions go to Dallon/Tom.</span></div>")
     if other:
         collision = (
             f"<div class='band' style='background:#e5edff;border-color:"
@@ -1982,6 +1995,10 @@ class Handler(BaseHTTPRequestHandler):
                 rec = (json.loads(rec_path.read_text())
                        if rec_path.exists() else {})
                 d = rec.get("draft")
+                if rec.get("dns_match"):     # HARD BLOCK, even when live
+                    entry["note"] = ("REFUSED: do-not-service match — "
+                                     "no quote pushed")
+                    d = None
                 if d:
                     import jobber_client as jc
                     res = jc.push_approved_bid(d["customer"], d["bid"],

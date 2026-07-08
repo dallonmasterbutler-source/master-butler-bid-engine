@@ -202,6 +202,24 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
               "services": parsed["services"], "address": parsed["address"],
               "phone": parsed.get("phone"),
               "newest_message": parsed.get("newest_message")}
+    # DO-NOT-SERVICE GUARD (Dallon): match by email, phone, ADDRESS
+    # (new-email evaders), or name — flag loudly before anyone quotes.
+    if parsed["kind"] in ("new_request", "scheduling"):
+        try:
+            import dns_check
+            hit = dns_check.check(email=parsed.get("sender_email"),
+                                  phone=parsed.get("phone"),
+                                  address=parsed.get("address"),
+                                  name=parsed.get("sender_name"))
+        except Exception:
+            hit = None
+        if hit:
+            record["dns_match"] = hit
+            record["office_alert"] = (
+                f"⛔ DO NOT SERVICE — matches '{hit['name']}' in Jobber "
+                f"(matched by {hit['matched_by']}; marker: {hit['why'][:80]}). "
+                "Do not quote or schedule; tell Dallon/Tom if unsure.")
+
     # NEW-or-RETURNING (techs' ask): first job = say so, exactly once.
     if parsed["kind"] == "new_request" and parsed.get("sender_email"):
         try:

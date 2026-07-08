@@ -126,6 +126,19 @@ def process_manual(name, address, phone="", email="", services=None,
         import traceback
         record["pipeline_error"] = traceback.format_exc()[-500:]
 
+    # DO-NOT-SERVICE GUARD: manual entries get the same door check.
+    try:
+        import dns_check
+        hit = dns_check.check(email=email, phone=phone,
+                              address=record.get("address"), name=name)
+    except Exception:
+        hit = None
+    if hit:
+        record["dns_match"] = hit
+        record["office_alert"] = (
+            f"⛔ DO NOT SERVICE — matches '{hit['name']}' in Jobber "
+            f"(matched by {hit['matched_by']}). Do not quote or schedule.")
+
     _save(stamp, record, eml_path)
     _imagery_async(stamp, record, eml_path)
     return stamp, record
