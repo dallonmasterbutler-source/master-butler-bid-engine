@@ -35,20 +35,34 @@ def normalize_address(addr: str) -> str:
     return a
 
 
+def normalize_phone(phone: str) -> str:
+    """Digits only, last 10 (handles +1, dashes, dots, spaces)."""
+    digits = re.sub(r"\D", "", phone or "")
+    return digits[-10:] if len(digits) >= 10 else digits
+
+
 def check_duplicate(incoming: dict, open_requests: list) -> dict:
-    """Compare one incoming request against open ones.
+    """Compare one incoming request against open ones — PROPERTY-AWARE.
+
+    Identity = email/phone. A JOB = identity + ADDRESS. The realty lesson
+    (Dallon, Jul 2026): one client, many houses — the same sender at a
+    DIFFERENT address is a NEW JOB from a multi-property client, never a
+    duplicate. (Jobber can't split notes per location; our records can,
+    so notes/history stay per-property.)
 
     incoming / open request fields used:
-      sender_email, address, thread_id (email References), received (datetime)
+      sender_email, phone, address, thread_id, received (datetime)
 
-    Returns {"verdict": "new" | "suspected_duplicate", "match": <request or None>,
-             "reason": str}
+    Returns {"verdict": "new" | "suspected_duplicate" | "multi_property",
+             "match": <request or None>, "reason": str}
     """
     email_n = normalize_email(incoming.get("sender_email"))
+    phone_n = normalize_phone(incoming.get("phone"))
     addr_n = normalize_address(incoming.get("address"))
     thread = incoming.get("thread_id")
     when = incoming.get("received") or datetime.now()
 
+    multi = None    # remember a same-client-different-house hit
     for prior in open_requests:
         age = when - (prior.get("received") or when)
         if age > timedelta(days=WINDOW_DAYS):
@@ -59,17 +73,30 @@ def check_duplicate(incoming: dict, open_requests: list) -> dict:
             return {"verdict": "suspected_duplicate", "match": prior,
                     "reason": "reply in the same email thread"}
 
-        # Same sender within the window
-        if email_n and normalize_email(prior.get("sender_email")) == email_n:
-            return {"verdict": "suspected_duplicate", "match": prior,
-                    "reason": f"same sender within {WINDOW_DAYS} days"}
+        prior_addr = normalize_address(prior.get("address"))
+        same_person = (
+            (email_n and normalize_email(prior.get("sender_email")) == email_n)
+            or (phone_n and normalize_phone(prior.get("phone")) == phone_n))
 
-        # Same property address within the window (different email is fine —
-        # spouses submit for the same house)
-        if addr_n and normalize_address(prior.get("address")) == addr_n:
+        if same_person:
+            if addr_n and prior_addr and addr_n != prior_addr:
+                # realty / property manager: same client, different house
+                multi = multi or {
+                    "verdict": "multi_property", "match": prior,
+                    "reason": "same client, DIFFERENT address — separate "
+                              "job; notes stay per-property"}
+                continue
+            return {"verdict": "suspected_duplicate", "match": prior,
+                    "reason": f"same contact within {WINDOW_DAYS} days"
+                              + (" at the same address" if addr_n else "")}
+
+        # Same property, different contact (spouses submit for one house)
+        if addr_n and prior_addr == addr_n:
             return {"verdict": "suspected_duplicate", "match": prior,
                     "reason": f"same property address within {WINDOW_DAYS} days"}
 
+    if multi:
+        return multi
     return {"verdict": "new", "match": None, "reason": "no open match"}
 
 

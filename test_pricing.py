@@ -378,6 +378,39 @@ check("Year is NOT a price ('free in 2025, charge full next year')",
 check("Tiny numbers rejected (15% is not $15)",
       parse_next_year_price("honor 2026 pricing, 15 percent adjustment") or 0, 0)
 
+print("\n── RULE: duplicates are PROPERTY-aware (the realty lesson) ──")
+from datetime import datetime as _dt
+from dedup import check_duplicate, normalize_phone
+realty_1 = {"sender_email": "office@realty.com", "phone": "(425) 555-0100",
+            "address": "100 Main St, Monroe, WA 98272",
+            "thread_id": None, "received": _dt(2026, 7, 1)}
+realty_2 = {"sender_email": "office@realty.com", "phone": "425-555-0100",
+            "address": "200 Pine Ave, Everett, WA 98208",
+            "thread_id": None, "received": _dt(2026, 7, 3)}
+v = check_duplicate(realty_2, [realty_1])
+check("Realty: same client + DIFFERENT house = multi_property, NOT duplicate",
+      1 if v["verdict"] == "multi_property" else 0, 1)
+same_again = {"sender_email": "office@realty.com", "phone": None,
+              "address": "100 main street monroe wa 98272",
+              "thread_id": None, "received": _dt(2026, 7, 2)}
+v = check_duplicate(same_again, [realty_1])
+check("Same client + SAME house = duplicate",
+      1 if v["verdict"] == "suspected_duplicate" else 0, 1)
+phone_only = {"sender_email": "personal@gmail.com", "phone": "+1 425.555.0100",
+              "address": "100 Main St, Monroe, WA 98272",
+              "thread_id": None, "received": _dt(2026, 7, 2)}
+v = check_duplicate(phone_only, [realty_1])
+check("Different email, SAME phone + house = duplicate (phone catches it)",
+      1 if v["verdict"] == "suspected_duplicate" else 0, 1)
+check("Phone normalizing (+1 425.555.0100 = (425) 555-0100)",
+      1 if normalize_phone("+1 425.555.0100") == normalize_phone("(425) 555-0100") else 0, 1)
+spouse = {"sender_email": "spouse@other.com", "phone": "360-555-9999",
+          "address": "100 main st monroe wa 98272",
+          "thread_id": None, "received": _dt(2026, 7, 2)}
+v = check_duplicate(spouse, [realty_1])
+check("Different contact, same house = still linked (spouse case)",
+      1 if v["verdict"] == "suspected_duplicate" else 0, 1)
+
 print("\n── RULE: office↔system service-name bridge (offline) ──")
 from store import _service_key
 check("'Gutter Cleaning - Composition' bridges to gutter",

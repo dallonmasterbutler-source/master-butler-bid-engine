@@ -107,7 +107,8 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     record = {"message_id": msg_id, "received": stamp, "folder": folder,
               "from": f"{parsed['sender_name']} <{parsed['sender_email']}>",
               "subject": parsed["subject"], "kind": parsed["kind"],
-              "services": parsed["services"], "address": parsed["address"]}
+              "services": parsed["services"], "address": parsed["address"],
+              "phone": parsed.get("phone")}
     if "Spam" in folder and parsed["kind"] == "new_request":
         record["office_alert"] = ("FOUND IN SPAM — real request; office "
                                   "should rescue it from the spam folder")
@@ -123,6 +124,7 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
             priors.append({
                 "stamp": pj.stem,
                 "sender_email": m.group(1) if m else "",
+                "phone": pr.get("phone"),
                 "address": pr.get("address"),
                 "thread_id": None,
                 "received": datetime.strptime(pj.stem, "%Y%m%d-%H%M%S"),
@@ -130,6 +132,7 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
         m = _re.search(r"<([^>]+)>", record["from"])
         verdict = check_duplicate(
             {"sender_email": m.group(1) if m else "",
+             "phone": record.get("phone"),
              "address": record.get("address"),
              "received": datetime.now()}, priors)
         if verdict["verdict"] == "suspected_duplicate":
@@ -137,6 +140,14 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
             record["office_alert"] = (record.get("office_alert", "") +
                 f" POSSIBLE DUPLICATE of {verdict['match']['stamp']} "
                 f"({verdict['reason']}) — same job or new job?").strip()
+        elif verdict["verdict"] == "multi_property":
+            # realty / property manager: same client, another house —
+            # NEW job, own property record, notes stay per-property
+            record["same_client_as"] = verdict["match"]["stamp"]
+            record["office_alert"] = (record.get("office_alert", "") +
+                " MULTI-PROPERTY CLIENT (same contact as "
+                f"{verdict['match']['stamp']}, different address) — "
+                "separate quote; keep notes on THIS property.").strip()
     except Exception:
         pass    # linking is a bonus, never a blocker
 
