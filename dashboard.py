@@ -2157,18 +2157,48 @@ class Handler(BaseHTTPRequestHandler):
                     if d.get("total"):
                         ctx = (f"Our draft quote for them totals "
                                f"${d['total']}. ")
+                    if rec.get("office_alert"):
+                        ctx += (f"Office context on this customer: "
+                                f"{rec['office_alert'][:300]} ")
                     if rec.get("dns_match"):
                         ctx += ("WARNING: customer is marked DO NOT "
                                 "SERVICE — draft a polite decline. ")
+                last_in = next((m for m in reversed(thread)
+                                if m["dir"] == "in"), None)
+                if not last_in:
+                    return self._send(messages_page(to, draft=(
+                        "(No customer message to answer in this thread — "
+                        "pick one of LaRee's templates instead.)")))
+                if any(s in to for s in _internal_senders()):
+                    return self._send(messages_page(to, draft=(
+                        "(Internal thread — no customer reply needed.)")))
+                system = (
+                    "You draft email replies FROM the office staff of "
+                    "Master Butler (home exterior cleaning: gutters, roofs, "
+                    "windows, pressure washing — Monroe, WA) TO a customer. "
+                    "You are ghost-writing as Master Butler; you are never "
+                    "talking to the office and never mention AI, drafts, "
+                    "templates, or internal systems. Voice examples of how "
+                    "this office writes:\n"
+                    "1) 'Thank you for reaching out to us! I\u2019ve just "
+                    "sent over your quote. If you don\u2019t see it, please "
+                    "check your junk folder. Please let us know of any "
+                    "questions and how you\u2019d like to proceed.'\n"
+                    "2) 'Thank you for approving your quote! Our next "
+                    "opening in your area is [DATE]. Please let us know if "
+                    "that will work for you.'\n"
+                    "Rules: 2-5 sentences, plain warm English, no emojis, "
+                    "never invent specific dates, prices, or promises not "
+                    "present in the context. If you need a date/price the "
+                    "context doesn't give, write [DATE] or [PRICE] as a "
+                    "placeholder for the office to fill. Output ONLY the "
+                    "reply body — no subject line, no signature, no "
+                    "commentary.")
                 prompt = (
-                    "You write short, warm customer-service replies for "
-                    "Master Butler, a home exterior cleaning company in "
-                    "Monroe WA (gutters, roofs, windows, pressure washing). "
-                    "Style: friendly, plain, 2-4 sentences, no emojis, no "
-                    "promises about exact dates or prices not given below, "
-                    "never mention internal systems. "
-                    f"{ctx}Conversation so far:\n{convo}\n\n"
-                    "Write ONLY the reply body (no subject, no signature).")
+                    f"{ctx}Conversation so far (oldest first):\n{convo}\n\n"
+                    f"The customer's LATEST message, which you are "
+                    f"replying to:\n\"{msglog.clean_body(last_in.get('body') or '')[:500]}\"\n\n"
+                    "Draft Master Butler's reply.")
                 import os as _os
                 import urllib.request as _ur
                 key = None
@@ -2183,6 +2213,7 @@ class Handler(BaseHTTPRequestHandler):
                     data=json.dumps({
                         "model": "claude-haiku-4-5-20251001",
                         "max_tokens": 300,
+                        "system": system,
                         "messages": [{"role": "user", "content": prompt}],
                     }).encode(),
                     headers={"x-api-key": key,
@@ -2190,6 +2221,12 @@ class Handler(BaseHTTPRequestHandler):
                              "content-type": "application/json"})
                 r = json.load(_ur.urlopen(req, timeout=30))
                 draft = r["content"][0]["text"].strip()
+                # our signature is appended at send time — strip any the
+                # model added by imitating the thread
+                draft = re.split(
+                    r"\n(?:At your service|Best regards|Sincerely|"
+                    r"Warm regards|Thanks,\s*$|— *Master Butler)",
+                    draft)[0].rstrip()
             except Exception as e:
                 draft = f"(draft failed: {e} — just type your reply)"
             return self._send(messages_page(to, draft=draft))
