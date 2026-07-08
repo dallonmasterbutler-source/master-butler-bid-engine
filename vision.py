@@ -79,12 +79,15 @@ Measurement rules (from real calibration jobs):
 - If a walkway/path visibly continues beyond any photo's frame, set
   continues_beyond_frame true AND stretch sqft_high generously — segmented
   photos of long paths under-measure badly.
-- HARD RULE, no judgment call: IF you can see moss or algae in the joints
-  or edges of any walkway/patio AND that surface is shaded (trees, hedges,
-  north side), THEN buildup level MUST be "heavy". Describing joint moss
-  and then writing "moderate" is the #1 known error — real jobs priced
-  "moderate" on joint-moss photos ran 40% over. When in doubt between
-  moderate and heavy, choose heavy.
+- BUILDUP CALIBRATION (owner's definition, July 2026 — heavy is RARE):
+  almost everything comes off with a pressure washer, and dirt, algae
+  film, staining, and SOME growth in joints is NORMAL for the Pacific
+  Northwest — that is "moderate" at most, often "clean".
+  "heavy" means the crew will be pushing PULPED MOSS around and cleaning
+  crack by crack: thick moss carpeting essentially EVERY joint, or
+  visible mats/mounds of organic debris on the surface itself.
+  When in doubt between moderate and heavy, choose MODERATE and say in
+  `detail` why heavy was considered — the office confirms from the photo.
 - If one continuous area contains MULTIPLE materials (e.g. a concrete
   apron meeting an asphalt drive), report EACH material as its own
   surfaces entry with its own sqft — never blend them into one.
