@@ -439,6 +439,20 @@ def bid_page(stamp):
         notes.insert(0, b["office_alert"])
     notes_html = "".join(f"<div>⚠ {esc(n)}</div>" for n in notes) or \
                  "<div>(no flags)</div>"
+    # Must Know rides at the TOP of the one stack (Martha's no-hunting rule)
+    mk = get_must_know(b.get("address"))
+    if mk:
+        notes_html = (f"<div style='font-weight:600'>📌 MUST KNOW "
+                      f"(this property): {esc(mk)}</div>") + notes_html
+
+    prior = property_history(b.get("address"), stamp)
+    history_card = ""
+    if prior:
+        rows = "".join(
+            f"<div>🏠 <a href='/bid/{s}'>{esc(r.get('from'))[:34]}</a> — "
+            f"{esc(r.get('kind'))}, {s[:8]}</div>" for s, r in prior[:5])
+        history_card = ("<div class='card'><h3 style='margin-top:0'>We've "
+                        "seen this home before</h3>" + rows + "</div>")
 
     hist = similar_history(b.get("services") or [])
     hist_html = "".join(
@@ -479,8 +493,18 @@ def bid_page(stamp):
   <div><b>Folder:</b> {esc(b.get('folder', 'INBOX'))}</div>
  </div>
  {gallery_card}
+ {history_card}
  <div class='card'><h3 style='margin-top:0'>All notes — one stack</h3>
-  <div class='notes'>{notes_html}</div></div>
+  <div class='notes'>{notes_html}</div>
+  {"<form method='POST' action='/must_know' style='margin-top:8px'>"
+   f"<input type='hidden' name='stamp' value='{stamp}'>"
+   f"<input type='hidden' name='address' value='{esc(b.get('address'))}'>"
+   f"<input type='text' name='text' value='{esc(mk)}' placeholder="
+   "'Must Know for this property (gate code, dog, sprinklers…)'>"
+   "<button class='gray' style='margin-top:4px'>Save Must Know</button>"
+   "</form>" if b.get("address") else
+   "<div style='color:#888;font-size:13px;margin-top:8px'>Must Know "
+   "needs an address on the request — none was parsed here.</div>"}</div>
  <div class='card'><h3 style='margin-top:0'>System draft</h3>
   <pre>{esc(b.get('pipeline_output') or '(no draft — ' +
              esc(b.get('kind')) + ')')}</pre></div>
@@ -550,6 +574,54 @@ def drafts_page():
                      f"</h3><div style='color:#888;font-size:13px'>{hint}"
                      f"</div>{items or '<div>(none yet)</div>'}</div>")
     return page("Drafts", sections)
+
+
+def _slug(address):
+    return re.sub(r"[^a-z0-9]+", "-", (address or "").lower()).strip("-")[:60]
+
+
+MUSTKNOW_FILE = BASE / "data" / "must_know.json"
+
+
+def get_must_know(address):
+    """Per-PROPERTY standing notes (LaRee's rule: keyed to the address,
+    not the customer — survives owner changes)."""
+    slug = _slug(address)
+    if not slug:
+        return ""
+    if clouddb.available():
+        return clouddb.get_blob(f"mustknow:{slug}") or ""
+    if MUSTKNOW_FILE.exists():
+        return json.loads(MUSTKNOW_FILE.read_text()).get(slug, "")
+    return ""
+
+
+def set_must_know(address, text):
+    slug = _slug(address)
+    if not slug:
+        return
+    if clouddb.available():
+        clouddb.put_blob(f"mustknow:{slug}", text)
+        return
+    data = (json.loads(MUSTKNOW_FILE.read_text())
+            if MUSTKNOW_FILE.exists() else {})
+    data[slug] = text
+    MUSTKNOW_FILE.write_text(json.dumps(data, indent=1))
+
+
+def property_history(address, current_stamp):
+    """Have we seen THIS HOME before? Prior requests at the same address,
+    regardless of who owned it (LaRee's property-first rule)."""
+    slug = _slug(address)
+    if not slug:
+        return []
+    hits = []
+    for stamp, rec in _shadow_source():
+        if stamp == current_stamp:
+            continue
+        if _slug(rec.get("address")) == slug:
+            hits.append((stamp, rec))
+    return hits
 
 
 def brief_page():
@@ -693,6 +765,8 @@ class Handler(BaseHTTPRequestHandler):
                     entry["jobber_quote"] = ("no structured draft on this "
                                              "record — re-run needed")
             save_review(entry)
+        elif self.path == "/must_know":
+            set_must_know(get("address"), get("text").strip())
         elif self.path == "/duplicate":
             save_review({"stamp": get("stamp"), "action": get("verdict"),
                          "customer": get("customer"),
