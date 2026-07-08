@@ -130,6 +130,11 @@ try:
             blobs[key] = json.loads(f.read_text())
     if brief_text:
         blobs["brief"] = brief_text
+    senders = Path("data") / "internal_senders.txt"
+    if senders.exists():
+        blobs["internal_senders"] = [
+            l.strip() for l in senders.read_text().splitlines()
+            if l.strip() and not l.startswith("#")]
     n += push(blobs=blobs)
     print(f"   {n} item(s) mirrored to the cloud")
 except Exception as e:

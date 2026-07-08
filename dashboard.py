@@ -121,11 +121,14 @@ NOISE_SENDERS = ["no-reply", "noreply", "donotreply", "marketing@",
 
 
 def _internal_senders():
-    extra = BASE / "data" / "internal_senders.txt"
     out = list(INTERNAL_DEFAULT)
+    extra = BASE / "data" / "internal_senders.txt"
     if extra.exists():
         out += [l.strip().lower() for l in extra.read_text().splitlines()
                 if l.strip() and not l.startswith("#")]
+    if clouddb.available():
+        out += [s.lower() for s in
+                (clouddb.get_blob("internal_senders") or [])]
     return out
 
 
