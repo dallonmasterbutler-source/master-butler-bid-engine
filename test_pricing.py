@@ -48,9 +48,9 @@ print("── ANCHOR 1: The original comp test house = $545 ──")
 # Gutter line $235 is above Tom's $175 floor, so no bump → $545 holds.
 r, notes1, _ = calculate_bid(house(services={"gutters": True, "roof": True,
                                              "moss": True, "windows": True}))
-# Calculator truth was $545; Tom's $200 window minimum (Jul 8) lifts the
-# small exterior-window line, so the comp house now totals $575.
-check("Comp house total (w/ Tom's $200 window min)", sum(s["price"] for s in r), 575)
+# Calculator truth was $545. Window floors (Jul 8): its windows ride a
+# multi-service visit, so the BUNDLED $175 floor applies → total $550.
+check("Comp house total (w/ bundled window floor)", sum(s["price"] for s in r), 550)
 from bid_engine import GUTTER_CLEANING_MINIMUM, WINDOWS_MINIMUM
 check("Gutter min is Tom's $175 (Jul 8)", GUTTER_CLEANING_MINIMUM, 175)
 check("Windows min is Tom's $200 (Jul 8)", WINDOWS_MINIMUM, 200)
@@ -282,6 +282,20 @@ check("Office's 'Terrce' spelling still matches",
       1 if rate and rate["name"] == "Mountlake Terrce 3113" else 0, 1)
 rate, note = match_tax_rate("Portland", None, rates=TAX_FIXTURE)
 check("Unknown city = NOT set + flag", 1 if rate is None and note else 0, 1)
+# WA-code join: a location code in the Jobber rate NAME wins outright
+import jobber_client as _jc
+_orig = _jc.wa_dor_location_code
+_jc.wa_dor_location_code = lambda s, c, z: ("4231", 0.091)
+rate, note = match_tax_rate("Snohomish", "98290", rates=TAX_FIXTURE,
+                            street="9209 190th Ave SE")
+check("WA state code resolves the ambiguous city exactly",
+      1 if rate and "4231" in rate["name"] else 0, 1)
+_jc.wa_dor_location_code = lambda s, c, z: ("9999", 0.10)
+rate, note = match_tax_rate("Snohomish", "98290", rates=TAX_FIXTURE,
+                            street="9209 190th Ave SE")
+check("Unknown state code = flag telling office to add the rate once",
+      1 if rate is None and note and "9999" in note else 0, 1)
+_jc.wa_dor_location_code = _orig
 
 print("\n── RULE: aerial cross-check (flag-don't-guess, offline) ──")
 from aerial import cross_check, _imagery_year
@@ -472,9 +486,19 @@ r, notes, _ = calculate_bid(house(sqft=900, pitch="mild", debris="minimal",
                                   services={"gutters": True}))
 g = line(r, "Gutter")
 check("Tiny gutter job floors at $175", g["price"], 175)
-# tiny window job floors at $200
+# tiny SOLO window job floors at $200
 r, notes, _ = calculate_bid(house(sqft=700, services={"windows": True}))
-check("Tiny window job floors at $200", line(r, "Window")["price"], 200)
+check("Tiny SOLO window job floors at $200", line(r, "Window")["price"], 200)
+# same tiny windows BUNDLED with gutters floors at $175 (ladders out)
+r, notes, _ = calculate_bid(house(sqft=700, services={"windows": True,
+                                                      "gutters": True}))
+check("Tiny BUNDLED window job floors at $175", line(r, "Window")["price"], 175)
+# the Kirkland lesson: 2-story ~1550sqft exterior was $110 — now ≥$175
+r, notes, _ = calculate_bid(house(sqft=1550, pitch="mild",
+                                  services={"windows": True, "gutters": True,
+                                            "roof": True, "moss": True}))
+check("Kirkland-size bundled exterior windows now ≥ $175",
+      1 if line(r, "Window")["price"] >= 175 else 0, 1)
 # gutters+blow-off over $500 = Tom review flag
 r, notes, _ = calculate_bid(house(sqft=5500, pitch="steep",
                                   services={"gutters": True, "roof": True}))

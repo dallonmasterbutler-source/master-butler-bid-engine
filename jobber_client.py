@@ -355,7 +355,29 @@ def fetch_tax_rates(refresh=False):
     return rates
 
 
-def match_tax_rate(city, postal=None, rates=None):
+def wa_dor_location_code(street, city, zip_code):
+    """Ask Washington State's own tax API for the address's location
+    code + rate. Free, official, auto-updates when the state changes
+    rates (Tom's question). Returns (code, rate) or (None, None)."""
+    import urllib.parse
+    try:
+        q = urllib.parse.urlencode({"output": "text", "addr": street,
+                                    "city": city or "", "zip": zip_code or ""})
+        resp = urllib.request.urlopen(
+            f"https://webgis.dor.wa.gov/webapi/AddressRates.aspx?{q}",
+            timeout=15).read().decode()
+        parts = dict(p.split("=", 1) for p in resp.split() if "=" in p)
+        code = parts.get("LocationCode")
+        rate = float(parts.get("Rate", 0) or 0)
+        # ResultCode 0-5 = address/zip-level match; 9 = not found
+        if code and code != "-1" and parts.get("ResultCode") not in ("9",):
+            return code, rate
+    except Exception:
+        pass
+    return None, None
+
+
+def match_tax_rate(city, postal=None, rates=None, street=None):
     """Match a city (+ ZIP for county splits) to ONE office tax rate.
 
     Returns (rate_dict, note_string). Exactly one of the two is None:
@@ -364,6 +386,23 @@ def match_tax_rate(city, postal=None, rates=None):
     """
     if rates is None:
         rates = fetch_tax_rates()
+
+    # BEST PATH: Washington's own API → location code → the office's
+    # Jobber rate carrying that code in its name ("Monroe 3112",
+    # "Snohomish 4231" — the office named them with the state's codes).
+    # Exact per-ADDRESS answer; kills the Snohomish/Bellevue ambiguity.
+    if street:
+        code, wa_rate = wa_dor_location_code(street, city, postal)
+        if code:
+            hits = [r for r in rates if code in r["name"]]
+            if len(hits) == 1:
+                return hits[0], None
+            if not hits and wa_rate:
+                return None, (f"⚠ TAX: WA state says code {code} "
+                              f"({wa_rate*100:.1f}%) but no Jobber rate "
+                              "carries that code — office: add it once, "
+                              "then this fills automatically.")
+
     city_key = (city or "").strip().lower()
     if not city_key:
         return None, "⚠ TAX not set — no city on the address."
@@ -427,7 +466,8 @@ def create_draft_quote(client_id, property_id, bid, prop_info=None,
     tax_rate_id = None
     if address:
         addr = split_address(address)
-        rate, tax_note = match_tax_rate(addr["city"], addr["postalCode"])
+        rate, tax_note = match_tax_rate(addr["city"], addr["postalCode"],
+                                        street=addr["street1"])
         if rate:
             tax_rate_id = rate["id"]
             note_lines.append(f"Tax auto-attached: {rate['label']}")

@@ -189,7 +189,12 @@ WET_DAY_GUTTER_MULT = 1.3  # gutters cost more on wet days (wet debris)
 JOB_MINIMUM = 150
 GUTTER_CLEANING_MINIMUM = 175   # Tom ruled Jul 8 (was $250) — lower easy
                                 # gutter jobs to WIN more of them
-WINDOWS_MINIMUM = 200           # Tom ruled Jul 8 — raise window work
+# Windows floors (Tom Jul 8 + Dallon refinement): every window job is
+# AT LEAST an hour of work. Solo window visit = $200 floor. Windows in
+# a MULTI-SERVICE visit = $175 floor (ladders already out, but the hour
+# is still real). History says windows are our #1 quiet underbid.
+WINDOWS_MINIMUM = 200            # windows-only visit
+WINDOWS_MINIMUM_BUNDLED = 175    # windows within a multi-service visit
 
 # ── TOM'S DRY-SEASON ROOF-LANE RULES (Jul 8 call) ──
 # The roof lane = gutters + roof blow-off + moss treatment.
@@ -404,24 +409,33 @@ def calculate_bid(prop):
         if price > SECOND_OPINION_LIMITS["moss_treatment"]:
             notes.append("Moss treatment over $150 — get a second opinion.")
 
+    # Window floor depends on the VISIT: solo window job = $200; windows
+    # riding a multi-service visit = $175 (ladders already out).
+    _non_window = ("gutters", "roof", "moss", "driveway", "patio",
+                   "sidewalk", "house_wash", "dryer_vent", "deck")
+    _bundled = any(prop["services"].get(k) for k in _non_window)
+    _win_floor = WINDOWS_MINIMUM_BUNDLED if _bundled else WINDOWS_MINIMUM
+
     # ── WINDOWS (EXTERIOR ONLY) ──
     # Uses window_mult (not base), then french pane on top.
     if prop["services"].get("windows"):
         price = round_to_5(sqft * RATES["windows_exterior"] * window_mult * french_mult)
-        if price < WINDOWS_MINIMUM:      # Tom's $200 window floor (Jul 8)
-            price = WINDOWS_MINIMUM
-            notes.append(f"Windows raised to the ${WINDOWS_MINIMUM} minimum "
-                         "(Tom, Jul 2026).")
+        if price < _win_floor:
+            price = _win_floor
+            notes.append(f"Windows raised to the ${_win_floor} "
+                         f"{'bundled ' if _bundled else ''}minimum — every "
+                         "window job is at least an hour (Tom/Dallon, Jul 2026).")
         add("Window Cleaning (Exterior Only)", price, "windows")
 
     # ── WINDOWS (IN & OUT) ──
     # Same window scaling, but a higher rate because the tech cleans inside too.
     if prop["services"].get("windows_inout"):
         price = round_to_5(sqft * RATES["windows_in_out"] * window_mult * french_mult)
-        if price < WINDOWS_MINIMUM:
-            price = WINDOWS_MINIMUM
-            notes.append(f"Windows raised to the ${WINDOWS_MINIMUM} minimum "
-                         "(Tom, Jul 2026).")
+        if price < _win_floor:
+            price = _win_floor
+            notes.append(f"Windows raised to the ${_win_floor} "
+                         f"{'bundled ' if _bundled else ''}minimum — every "
+                         "window job is at least an hour (Tom/Dallon, Jul 2026).")
         add("Windows In & Out", price, "windows")
 
     # ── PRESSURE WASHING (sqft-based; measured area required) ──
