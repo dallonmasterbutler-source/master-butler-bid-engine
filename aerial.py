@@ -179,6 +179,32 @@ def survey(address, extra_context=""):
     return reading, tile, cost
 
 
+def fetch_streetview(address):
+    """Curb-side photo of the property (the tech-pulling-up view) —
+    LaRee's all-sides wish. Returns the path, or None where Google's
+    car never drove (rural roads). Cached like the tiles."""
+    key = _maps_key()
+    slug = re.sub(r"[^a-z0-9]+", "-", address.lower()).strip("-")[:60]
+    AERIAL_DIR.mkdir(parents=True, exist_ok=True)
+    out = AERIAL_DIR / f"{slug}-street.jpg"
+    if out.exists():
+        return out
+    loc = urllib.parse.quote(address)
+    # metadata first — free, and tells us if imagery exists at all
+    meta = json.load(urllib.request.urlopen(
+        "https://maps.googleapis.com/maps/api/streetview/metadata?"
+        f"location={loc}&key={key}", timeout=30))
+    if meta.get("status") != "OK":
+        return None
+    try:
+        out.write_bytes(urllib.request.urlopen(
+            "https://maps.googleapis.com/maps/api/streetview?size=640x640"
+            f"&location={loc}&fov=80&key={key}", timeout=30).read())
+    except urllib.error.HTTPError:
+        return None       # imagery exists but fetch refused — try next run
+    return out
+
+
 # Trees change; imagery older than this can't be trusted for canopy calls.
 MAX_TREE_IMAGERY_AGE_YEARS = 5
 

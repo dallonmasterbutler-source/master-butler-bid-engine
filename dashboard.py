@@ -329,14 +329,19 @@ def bid_photos(stamp):
 
 
 def aerial_tile_for(address):
-    """Already-fetched aerial tile for this address, if any."""
+    """Already-fetched imagery for this address: (aerial_png, street_jpg)."""
     if not address or not AERIAL.exists():
-        return None
+        return None, None
     slug = re.sub(r"[^a-z0-9]+", "-", address.lower()).strip("-")[:40]
-    for p in AERIAL.glob("*.png"):
-        if p.name.startswith(slug[:24]):
-            return p.name
-    return None
+    tile = street = None
+    for p in AERIAL.iterdir():
+        if not p.name.startswith(slug[:24]):
+            continue
+        if p.suffix == ".png":
+            tile = p.name
+        elif p.name.endswith("-street.jpg"):
+            street = p.name
+    return tile, street
 
 
 def bid_page(stamp):
@@ -350,14 +355,16 @@ def bid_page(stamp):
         f"<a href='/photo/{stamp}/{i}' target='_blank'>"
         f"<img src='/photo/{stamp}/{i}' style='height:110px;margin:4px;"
         f"border-radius:6px'></a>" for i in range(len(photos)))
-    tile = aerial_tile_for(b.get("address"))
-    if tile:
-        gallery += (f"<a href='/aerial/{tile}' target='_blank'>"
-                    f"<img src='/aerial/{tile}' style='height:110px;margin:4px;"
-                    f"border-radius:6px;border:2px solid #0b6e4f'"
-                    f" title='aerial view'></a>")
+    tile, street = aerial_tile_for(b.get("address"))
+    for extra, color, label in ((tile, "#0b6e4f", "aerial view"),
+                                (street, "#1a5276", "street view")):
+        if extra:
+            gallery += (f"<a href='/aerial/{extra}' target='_blank'>"
+                        f"<img src='/aerial/{extra}' style='height:110px;"
+                        f"margin:4px;border-radius:6px;border:2px solid "
+                        f"{color}' title='{label}'></a>")
     gallery_card = (f"<div class='card'><h3 style='margin-top:0'>Photos it "
-                    f"used {'(green border = aerial)' if tile else ''}</h3>"
+                    f"used {'(green = aerial, blue = street)' if tile or street else ''}</h3>"
                     f"{gallery or '<div style=color:#888>No photos on this '
                     'request — the photo-request button drafts the ask.</div>'}"
                     "</div>")
@@ -467,8 +474,9 @@ class Handler(BaseHTTPRequestHandler):
                                   ctype="image/jpeg")
         m = re.match(r"^/aerial/([\w.-]+)$", self.path)
         if m and (AERIAL / m.group(1)).exists():
-            return self._send((AERIAL / m.group(1)).read_bytes(),
-                              ctype="image/png")
+            f = AERIAL / m.group(1)
+            ctype = "image/jpeg" if f.suffix == ".jpg" else "image/png"
+            return self._send(f.read_bytes(), ctype=ctype)
         return self._send(b"not found", 404)
 
     def do_POST(self):
