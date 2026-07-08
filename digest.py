@@ -73,6 +73,16 @@ def build():
         if taught:
             lines.append(f"  ({len(taught)} came with a teaching reason/note)")
 
+    try:
+        ideas = [x for x in db.load_ideas() if x.get("status") == "open"]
+        if ideas:
+            lines.append("")
+            lines.append(f"💡 IDEAS FROM THE OFFICE ({len(ideas)} open):")
+            for x in ideas[:6]:
+                lines.append(f"  · {x['who']}: {x['text'][:90]}")
+    except Exception:
+        pass
+
     lines += ["", "STANDING FLAGS FOR DALLON:",
               "  · Tom: $250 gutter min (provisional in engine) + Workspace",
               "  · Martha: roof-blow-off-solo policy",

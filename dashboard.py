@@ -517,7 +517,8 @@ def home_page():
         "<table><tr><th>Waiting</th><th>From</th><th>Kind</th>"
         "<th>Services</th><th>Conf.</th><th class='num'>Est.</th></tr>" + rows +
         "</table>" + aside_html + "</div>"
-        "<div>" + scoreboard_card() + held_card(live_holds, bids) +
+        "<div>" + scoreboard_card() + ideas_card() +
+        held_card(live_holds, bids) +
         "<div class='card'><h3 style='margin-top:0'>Recent decisions"
         "</h3>" + rev_rows + "</div>"
         "<div class='card'><h3 style='margin-top:0'>Schedule glance</h3>"
@@ -901,6 +902,59 @@ def property_history(address, current_stamp):
     return hits
 
 
+IDEAS_FILE = BASE / "data" / "ideas.json"
+
+
+def load_ideas():
+    if clouddb.available():
+        return clouddb.get_blob("ideas") or []
+    if IDEAS_FILE.exists():
+        return json.loads(IDEAS_FILE.read_text())
+    return []
+
+
+def save_ideas(ideas):
+    if clouddb.available():
+        clouddb.put_blob("ideas", ideas)
+        return
+    IDEAS_FILE.write_text(json.dumps(ideas, indent=1))
+
+
+def add_idea(who, text):
+    ideas = load_ideas()
+    ideas.append({"at": datetime.now().isoformat(timespec="seconds"),
+                  "who": who or "office", "text": text.strip(),
+                  "status": "open"})
+    save_ideas(ideas)
+
+
+def ideas_card():
+    """The office's direct line: 'Dallon, I thought of this…'"""
+    ideas = load_ideas()
+    open_ideas = [(i, x) for i, x in enumerate(ideas)
+                  if x.get("status") == "open"]
+    rows = "".join(
+        f"<div style='padding:6px 0;border-bottom:1px dashed #eee'>"
+        f"💡 <b>{esc(x['who'])}</b>: {esc(x['text'])[:120]}"
+        f"<form method='POST' action='/idea_done' style='display:inline'>"
+        f"<input type='hidden' name='idx' value='{i}'>"
+        f"<button class='gray' style='padding:2px 8px;font-size:11px;"
+        f"margin-left:6px'>done</button></form></div>"
+        for i, x in open_ideas) or \
+        "<div class='subtext'>No open ideas — the box is below.</div>"
+    return f"""<div class='card'>
+<h3 style='margin-top:0'>💡 Ideas for Dallon
+ {f"<span class='chip win'>{len(open_ideas)} open</span>" if open_ideas else ''}</h3>
+{rows}
+<form method='POST' action='/idea' style='margin-top:10px'>
+ <input type='text' name='who' placeholder='your name'
+        style='width:38%;margin-bottom:6px'>
+ <input type='text' name='text'
+        placeholder='Dallon, I thought of this — can we add/take away…'>
+ <button class='gray' style='margin-top:6px'>Send to Dallon</button>
+</form></div>"""
+
+
 def scoreboard_page():
     """Full scoreboard table — every shadow draft vs the office."""
     if clouddb.available():
@@ -1168,6 +1222,15 @@ class Handler(BaseHTTPRequestHandler):
             save_review({"stamp": get("stamp"), "action": "welcome_drafted",
                          "customer": get("customer"),
                          "note": f"draft: {path.name}"})
+        elif self.path == "/idea":
+            if get("text").strip():
+                add_idea(get("who"), get("text"))
+        elif self.path == "/idea_done":
+            ideas = load_ideas()
+            i = int(get("idx") or -1)
+            if 0 <= i < len(ideas):
+                ideas[i]["status"] = "done"
+                save_ideas(ideas)
         elif self.path == "/must_know":
             set_must_know(get("address"), get("text").strip())
         elif self.path == "/duplicate":
