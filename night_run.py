@@ -117,6 +117,28 @@ try:
         o.unlink()
 except Exception as e:
     print(f"   backup skipped ({e})")
+# CLOUD-MEMORY BACKUP: pull the database's whole brain down nightly.
+try:
+    import gzip
+    import urllib.request
+    from base64 import b64encode
+    from cloudpush import _cfg
+    url, pw = _cfg("DASHBOARD_URL"), _cfg("DASHBOARD_PASSWORD")
+    if url and pw:
+        req = urllib.request.Request(
+            url.rstrip("/") + "/api/backup",
+            headers={"Authorization": "Basic "
+                     + b64encode(f"office:{pw}".encode()).decode()})
+        raw = urllib.request.urlopen(req, timeout=300).read()
+        bdir = Path("data/backups"); bdir.mkdir(parents=True, exist_ok=True)
+        out = bdir / f"cloud-{datetime.now():%Y%m%d}.json.gz"
+        out.write_bytes(gzip.compress(raw))
+        print(f"   cloud backup -> {out} ({out.stat().st_size//1024} KB)")
+        for o in sorted(bdir.glob("cloud-*.json.gz"))[:-14]:
+            o.unlink()
+except Exception as e:
+    print(f"   cloud backup skipped ({e})")
+
 try:
     import mailer
     n = mailer.drain_outbox()

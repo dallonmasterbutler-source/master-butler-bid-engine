@@ -2195,6 +2195,27 @@ class Handler(BaseHTTPRequestHandler):
                    if clouddb.available() else None)
             return self._send(json.dumps(val).encode(),
                               ctype="application/json")
+        if self.path == "/api/backup":
+            # FULL cloud-memory dump (minus photo bytes — regenerable).
+            # The Mac pulls this nightly: if the database ever dies, the
+            # queue, decisions, and learning history restore from here.
+            if not clouddb.available():
+                return self._send(b"{}", ctype="application/json")
+            import clouddb as cdb
+            dump = {"at": datetime.now().isoformat(timespec="seconds"),
+                    "shadow_records": {}, "reviews": load_reviews(),
+                    "blobs": {}, "photo_index": []}
+            for stamp, rec in cdb.all_shadow():
+                dump["shadow_records"][stamp] = rec
+            with cdb._conn() as conn:
+                for (k, v) in conn.execute(
+                        "select key, value from kv_blobs").fetchall():
+                    dump["blobs"][k] = v if not isinstance(v, str) \
+                        else json.loads(v)
+                dump["photo_index"] = [list(r) for r in conn.execute(
+                    "select ref, kind, idx from photos").fetchall()]
+            return self._send(json.dumps(dump).encode(),
+                              ctype="application/json")
         if self.path == "/api/records":   # slim record list for the Mac's
             slim = []                     # quote-sync (scoreboard) matching
             for stamp, r in _shadow_source():
