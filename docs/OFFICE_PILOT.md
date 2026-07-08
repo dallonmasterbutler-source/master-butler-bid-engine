@@ -1,5 +1,22 @@
 # Master Butler Bid Engine — How To Run It (plain English)
 
+## ⭐ THE CLOUD DASHBOARD (what the office uses)
+**https://masterbutler-dashboard.onrender.com** — works from any
+computer or iPad. Username: anything. Password: ask Dallon (it's the
+office-shared one; also recorded in the .env file on his Mac).
+
+Pages: **Queue** (bids oldest-first, auto-refreshes every 2 min) ·
+**Drafts** (photo requests + escalations to copy out) · **Scoreboard**
+(system vs office) · **Morning brief**. Every bid page: photos +
+aerial/street views, all notes in one stack, per-property MUST KNOW
+(gate codes, dogs — stays with the ADDRESS even if the owner changes),
+approve/adjust with reason buttons, hold with auto-resurface, escalate,
+duplicate resolution.
+
+New bids appear automatically as long as Dallon's Mac is awake and the
+watcher below is running (the Mac is still the ears; the cloud is the
+face and the memory).
+
 Everything below is SAFE: shadow mode never touches the office inbox's
 unread counts, and nothing here can send anything to a customer. All
 "sends" are text drafts a human copies out by hand.
