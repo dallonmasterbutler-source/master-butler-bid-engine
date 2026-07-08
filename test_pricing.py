@@ -44,10 +44,18 @@ def check(label, actual, expected, tolerance=0):
     else: failed += 1
 
 
-print("── ANCHOR 1: The original comp test house = $545 ──")
-r, _, _ = calculate_bid(house(services={"gutters": True, "roof": True,
-                                        "moss": True, "windows": True}))
-check("Comp house total", sum(s["price"] for s in r), 545)
+print("── ANCHOR 1: The original comp test house ──")
+# Calculator truth was $545 (gutter line $235). Office practice floors
+# gutter cleaning at $250 → $560 under the CURRENT provisional minimum.
+# If Tom approves dropping the min, this reverts to 545.
+r, notes1, _ = calculate_bid(house(services={"gutters": True, "roof": True,
+                                             "moss": True, "windows": True}))
+check("Comp house total (w/ $250 gutter min)", sum(s["price"] for s in r), 560)
+check("Gutter-min note explains the bump",
+      1 if any("service minimum" in n for n in notes1) else 0, 1)
+from bid_engine import GUTTER_CLEANING_MINIMUM
+check("Gutter min is the office's current $250 (pending Tom)",
+      GUTTER_CLEANING_MINIMUM, 250)
 
 print("\n── ANCHOR 2: Real shake job (Sammamish, charged $350) ──")
 r, _, _ = calculate_bid(house(sqft=2200, stories="1", pitch="moderate",

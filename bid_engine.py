@@ -187,6 +187,7 @@ WET_DAY_GUTTER_MULT = 1.3  # gutters cost more on wet days (wet debris)
 # No visit goes out below this, period (Dallon's floor — drive time,
 # setup, and insurance make anything smaller a money-loser).
 JOB_MINIMUM = 150
+GUTTER_CLEANING_MINIMUM = 250   # office's current floor — PENDING TOM RULING
 
 # ── SCHEDULING BY DOLLARS (Dallon's rule, July 2026) ──
 # The schedule blocks time by job dollars (price is a time proxy: ~$400 job
@@ -341,6 +342,14 @@ def calculate_bid(prop):
                          "quote if requested.")
         else:
             price = round_to_5(sqft * RATES["gutter_cleaning"] * gutter_roof)
+            # Current office practice: gutter cleaning never quotes below
+            # $250 (Jessica/Dallon, Jul 2026). PROVISIONAL — Tom may approve
+            # lowering it (strategy: win the easy jobs). One-number change.
+            if price < GUTTER_CLEANING_MINIMUM:
+                price = GUTTER_CLEANING_MINIMUM
+                notes.append(f"Gutter cleaning raised to the "
+                             f"${GUTTER_CLEANING_MINIMUM} service minimum "
+                             "(current office practice, pending Tom).")
             hourly = "gutters_specialty" if roof_mult >= 1.35 else "gutters"
             add("Gutter Cleaning", price, hourly)
         if prop.get("wet_day"):
