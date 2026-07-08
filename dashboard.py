@@ -51,6 +51,23 @@ SLA_HOURS = 24
 REPLIES_ENABLED = False
 
 
+SERVICE_LABELS = {
+    "gutter_cleaning": "Gutters", "roof_blow_off": "Roof blow off",
+    "roof_blow_off_guards": "Roof (over guards)",
+    "moss_treatment": "Moss treatment", "moss_removal": "Moss removal",
+    "windows_exterior": "Windows (ext)", "windows_in_out": "Windows (in+out)",
+    "windows_unspecified": "Windows", "house_wash": "House wash",
+    "pw_driveway": "Driveway wash", "pw_patio": "Patio wash",
+    "pw_sidewalk": "Sidewalk wash", "pw_deck": "Deck wash",
+    "pressure_washing": "Pressure washing", "dryer_vent": "Dryer vent",
+    "holiday_lights": "Holiday lights",
+}
+
+
+def svc_label(s):
+    return SERVICE_LABELS.get(s, (s or "").replace("_", " ").capitalize())
+
+
 def _push_enabled():
     env = BASE / ".env"
     if env.exists():
@@ -728,7 +745,7 @@ def home_page():
 
     rows = ""
     for b in queue:                       # already oldest first
-        services = "".join(f"<span class='chip'>{esc(s)}</span>"
+        services = "".join(f"<span class='chip'>{esc(svc_label(s))}</span>"
                            for s in (b.get("services") or [])) or "—"
         flags = ""
         badge = ""
@@ -754,7 +771,7 @@ def home_page():
                  f"<div class='subtext'>{sub}</div>{badge}</td>"
                  f"<td>{bid_status(b, live_holds, flags_open, sbs, claims)}"
                  f"</td>"
-                 f"<td>{esc(b.get('kind'))}</td><td>{services}{flags}</td>"
+                 f"<td>{esc({'new_request': 'New request', 'phone_lead': 'Phone lead', 'scheduling': 'Scheduling', 'other': 'Other', 'jobber_event': 'Jobber'}.get(b.get('kind'), b.get('kind')))}</td><td>{services}{flags}</td>"
                  f"<td>{ring}</td><td class='num'><b>{total}</b></td></tr>")
     if not rows:
         rows = "<tr><td colspan=7>Queue is empty — all caught up. ✅</td></tr>"
@@ -1868,7 +1885,7 @@ def scoreboard_page():
                 f"href='{esc(r['jobber_url'])}' target='_blank' "
                 f"rel='noopener'>Jobber #{r['office_quote']} ↗</a>"
                 if r.get("jobber_url") else f"#{r['office_quote']}")
-        svcs = "".join(f"<span class='chip'>{esc(s)}</span>"
+        svcs = "".join(f"<span class='chip'>{esc(svc_label(s))}</span>"
                        for s in (r.get("services") or [])[:4])
         sp = (f"<div class='subtext'>by {esc(r['salesperson'])}</div>"
               if r.get("salesperson") else "")
@@ -1890,7 +1907,7 @@ def scoreboard_page():
 
     wrows = "".join(
         f"<tr><td><b>{cname(r)}</b></td>"
-        f"<td>{', '.join((r.get('services') or [])[:4])}</td>"
+        f"<td>{', '.join(svc_label(s) for s in (r.get('services') or [])[:4])}</td>"
         f"<td class='num'>${r['system_total']:,.0f}</td></tr>"
         for r in waiting)
     waiting_card = (
@@ -2030,7 +2047,7 @@ def property_page(slug):
         f"<tr><td>{s[:4]}-{s[4:6]}-{s[6:8]}</td>"
         f"<td><a href='/bid/{s}'>{esc(r.get('from'))[:40]}</a></td>"
         f"<td>{esc(r.get('kind'))}</td>"
-        f"<td>{', '.join(r.get('services') or []) or '—'}</td>"
+        f"<td>{', '.join(svc_label(s) for s in r.get('services') or []) or '—'}</td>"
         f"<td>{('Jobber #' + esc(quotes[s])) if s in quotes else '—'}</td>"
         f"</tr>" for s, r in reversed(matches))
     gallery = ""
