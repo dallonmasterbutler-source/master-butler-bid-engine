@@ -112,11 +112,38 @@ def geocode(address, key):
     url = ("https://maps.googleapis.com/maps/api/geocode/json?"
            + urllib.parse.urlencode({"address": address, "key": key}))
     r = json.load(urllib.request.urlopen(url, timeout=15))
-    if r["status"] == "OK":
-        res = r["results"][0]
-        loc = res["geometry"]["location"]
-        return {"lat": loc["lat"], "lng": loc["lng"],
-                "formatted": res["formatted_address"]}
+    if r["status"] != "OK":
+        return None
+    res = r["results"][0]
+    loc = res["geometry"]["location"]
+    out = {"lat": loc["lat"], "lng": loc["lng"],
+           "formatted": res["formatted_address"],
+           "precision": res["geometry"].get("location_type")}
+    # A non-ROOFTOP pin sits on the ROAD, not the house (Dan Fricke's
+    # aerial showed pavement between two neighbors). Ask Solar for the
+    # nearest building and recenter on its roof — fixes the photos AND
+    # the parcel/assessor lookup in one move.
+    if out["precision"] != "ROOFTOP":
+        c = _building_center(out["lat"], out["lng"], key)
+        if c:
+            out["lat"], out["lng"] = c
+            out["recentered"] = True
+    return out
+
+
+def _building_center(lat, lng, key):
+    url = ("https://solar.googleapis.com/v1/buildingInsights:findClosest?"
+           + urllib.parse.urlencode({"location.latitude": lat,
+                                     "location.longitude": lng,
+                                     "requiredQuality": "LOW",
+                                     "key": key}))
+    try:
+        r = json.load(urllib.request.urlopen(url, timeout=20))
+    except Exception:
+        return None
+    c = r.get("center") or {}
+    if c.get("latitude") is not None:
+        return c["latitude"], c["longitude"]
     return None
 
 
@@ -180,6 +207,33 @@ def lookup_property(address, records=None):
     out["lat"], out["lng"] = geo["lat"], geo["lng"]
     if geo["formatted"].split(",")[0].lower() not in (address or "").lower():
         flags.append(f"Address normalized to: {geo['formatted']}")
+    if geo.get("recentered"):
+        flags.append("Map pin was street-approximate — recentered on the "
+                     "nearest building. VERIFY the right house is in the "
+                     "photos.")
+        deduction += 10
+
+    # COUNTY ASSESSOR (public record) — the authoritative size answer.
+    if not out["sqft"]:
+        try:
+            import assessor
+            rec = assessor.lookup(geo["lat"], geo["lng"])
+        except Exception:
+            rec = None
+        if rec and rec.get("sqft"):
+            out["sqft"] = rec["sqft"]
+            out["sqft_source"] = f"{rec['county']} County assessor record"
+            if rec.get("stories") and not out["stories"]:
+                s = rec["stories"]
+                out["stories"] = str(int(s)) if s == int(s) else str(s)
+            if rec.get("roof_material"):
+                out["assessor_roof"] = rec["roof_material"]
+                low = rec["roof_material"].lower()
+                if "metal" in low:
+                    flags.append("Assessor record says METAL roof — "
+                                 "calibration pending, office reviews price.")
+            flags.append(f"Size from public record: {rec['sqft']} sqft "
+                         f"({rec['county']} County parcel {rec['parcel']}).")
 
     roof = solar_roof(geo["lat"], geo["lng"], key)
     roof_sqft = roof["roof_sqft"] if roof else None
