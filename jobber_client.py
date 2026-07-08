@@ -227,6 +227,41 @@ def caller_id(phone):
     return None
 
 
+# ── New-or-returning check (read-only) ──
+# Techs asked for a one-time "new customer" note on first jobs. This is
+# the fact that powers it: invoice count 0 = their first job, exactly once.
+CLIENT_SUMMARY = """
+query Summary($term: String!) {
+  clients(searchTerm: $term, first: 5) {
+    nodes { emails { address }
+            invoices(first: 1) { totalCount } }
+  }
+}
+"""
+
+
+def client_summary(email_addr):
+    """Exact-email match -> {'known': bool, 'invoices': N} or None on
+    lookup failure. READ-ONLY: runs live even in dry-run mode."""
+    global DRY_RUN
+    if not email_addr:
+        return None
+    was = DRY_RUN
+    DRY_RUN = False
+    try:
+        data = _post(CLIENT_SUMMARY, {"term": email_addr}, "client summary")
+    finally:
+        DRY_RUN = was
+    if data.get("dry_run") or data.get("error"):
+        return None
+    for node in data.get("clients", {}).get("nodes", []):
+        addrs = [e["address"].lower() for e in node.get("emails", [])]
+        if email_addr.lower() in addrs:
+            return {"known": True,
+                    "invoices": node["invoices"]["totalCount"]}
+    return {"known": False, "invoices": 0}
+
+
 # ── Create a client ──  (input fields verified against live schema)
 CREATE_CLIENT = """
 mutation CreateClient($input: ClientCreateInput!) {

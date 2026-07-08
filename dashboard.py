@@ -413,6 +413,7 @@ def page(title, body, refresh=None):
                           ("/", "Queue", "Bid queue"),
                           ("/new", "+ New lead", "New lead"),
                           ("/drafts", "Drafts", "Drafts"),
+                          ("/winback", "Win-back", "Win-back"),
                           ("/scoreboard", "Scoreboard", "Scoreboard"),
                           ("/brief", "Morning brief", "Morning brief")))
             + "</span></header>"
@@ -809,7 +810,14 @@ def bid_page(stamp):
             + (f"<span class='ring' style='width:48px;height:48px;"
                f"border-color:{conf_color};color:{conf_color};"
                f"font-size:13px'>{conf}%</span>" if conf is not None else "")
-            + f"<span class='chip'>{esc(b.get('kind'))}</span></div>")
+            + f"<span class='chip'>{esc(b.get('kind'))}</span>"
+            + (("<span class='chip' style='background:#eaf5ec;color:#1e8449;"
+                "font-weight:700'>🆕 FIRST JOB — add the &ldquo;new customer"
+                "&rdquo; note in Jobber</span>")
+               if b.get("customer_status") == "new" else
+               (f"<span class='chip'>{esc(b['customer_status'])}</span>"
+                if b.get("customer_status") else ""))
+            + "</div>")
     price_card = ""
     if bid_d.get("services"):
         # LaRee: each proposed line shows what THIS property actually
@@ -1151,6 +1159,81 @@ def ideas_card():
 </form></div>"""
 
 
+def _winback_done():
+    if clouddb.available():
+        return clouddb.get_blob("winback_done") or {}
+    p = BASE / "data" / "winback_done.json"
+    return json.loads(p.read_text()) if p.exists() else {}
+
+
+def _winback_save(d):
+    if clouddb.available():
+        clouddb.put_blob("winback_done", d)
+    else:
+        (BASE / "data" / "winback_done.json").write_text(json.dumps(d))
+
+
+def winback_page():
+    """LaRee's call-back list: loyal clients (2+ yrs, 3+ jobs) who went
+    quiet. Ranked by lifetime value; one click marks them contacted."""
+    if clouddb.available():
+        rep = clouddb.get_blob("churn_report") or {}
+    else:
+        p = BASE / "data" / "churn_report.json"
+        rep = json.loads(p.read_text()) if p.exists() else {}
+    rows = rep.get("loyal_then_gone") or []
+    if not rows:
+        return page("Win-back", "<div class='card'>No churn report yet.</div>")
+    done = _winback_done()
+    remaining = sum(1 for r in rows if r["name"] not in done)
+    body_rows = ""
+    for r in rows:
+        key = r["name"]
+        is_done = key in done
+        phone = r.get("phone") or ""
+        jump = ("<span class='chip' style='background:#fdecea;color:#b03a2e'>"
+                "price jumped</span>" if r.get("price_jump") else "")
+        mark = (f"<span class='subtext'>✓ contacted "
+                f"{esc((done.get(key) or {}).get('at', ''))[:10]}</span>"
+                if is_done else
+                f"<form method='POST' action='/winback_done' "
+                f"style='display:inline'>"
+                f"<input type='hidden' name='name' value='{esc(key)}'>"
+                f"<button class='gray' style='padding:4px 12px'>✓ contacted"
+                f"</button></form>")
+        body_rows += (
+            f"<tr{' style=opacity:.45' if is_done else ''} "
+            f"data-n='{esc(key.lower())}'>"
+            f"<td><b style='font-size:15px'>{esc(key)}</b>"
+            + (f"<br><span class='subtext'>{esc(phone)}</span>" if phone else "")
+            + f"</td><td class='num'>{r['n']}</td>"
+            f"<td>{esc(r['first'][:4])}–{esc(r['last'][:4])}</td>"
+            f"<td>{esc(r['last'])}</td>"
+            f"<td class='num'>${r.get('typical') or '—'}</td>"
+            f"<td class='num'><b>${r['lifetime']:,}</b></td>"
+            f"<td>{jump}</td><td>{mark}</td></tr>")
+    body = f"""
+<div class='card'>
+ <h2 style='margin-top:0'>📞 Win-back list</h2>
+ <p style='font-size:15px'>Loyal customers (2+ years, 3+ jobs) we haven't
+ seen in 20+ months — worth <b>${rep.get('lost_lifetime_value', 0):,}</b>
+ lifetime combined. Sorted by value: start at the top.
+ <b>{remaining}</b> left to contact. A friendly "we miss you — want your
+ usual {datetime.now():%B} cleaning?" is the whole script.</p>
+ <input id='wbf' type='text' placeholder='type a name to filter…'
+        style='max-width:340px' oninput="
+   var v=this.value.toLowerCase();
+   document.querySelectorAll('tr[data-n]').forEach(function(t){{
+     t.style.display = t.dataset.n.indexOf(v)>=0 ? '' : 'none';}});">
+ <table style='margin-top:10px'>
+  <tr><th>Customer</th><th class='num'>Jobs</th><th>Years</th>
+      <th>Last visit</th><th class='num'>Typical</th>
+      <th class='num'>Lifetime</th><th></th><th></th></tr>
+  {body_rows}
+ </table></div>"""
+    return page("Win-back", body)
+
+
 def scoreboard_page():
     """Full scoreboard table — every shadow draft vs the office."""
     if clouddb.available():
@@ -1337,6 +1420,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(scoreboard_page())
         if self.path == "/drafts":
             return self._send(drafts_page())
+        if self.path == "/winback":
+            return self._send(winback_page())
         if self.path == "/brief":
             return self._send(brief_page())
         if self.path.startswith("/new"):
@@ -1533,6 +1618,16 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/review_seen":
             save_review({"stamp": get("stamp"), "action": "review_seen",
                          "customer": get("customer")})
+        elif self.path == "/winback_done":
+            if get("name"):
+                d = _winback_done()
+                d[get("name")] = {"at": datetime.now().isoformat(
+                    timespec="seconds")}
+                _winback_save(d)
+                self.send_response(303)
+                self.send_header("Location", "/winback")
+                self.end_headers()
+                return
         elif self.path == "/combine":
             if _push_enabled():
                 rec_src = dict(_shadow_source()).get(get("stamp")) or {}

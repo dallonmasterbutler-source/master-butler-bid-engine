@@ -149,6 +149,18 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
               "services": parsed["services"], "address": parsed["address"],
               "phone": parsed.get("phone"),
               "newest_message": parsed.get("newest_message")}
+    # NEW-or-RETURNING (techs' ask): first job = say so, exactly once.
+    if parsed["kind"] == "new_request" and parsed.get("sender_email"):
+        try:
+            import jobber_client as jc
+            cs = jc.client_summary(parsed["sender_email"])
+        except Exception:
+            cs = None
+        if cs is not None:
+            if not cs["known"] or cs["invoices"] == 0:
+                record["customer_status"] = "new"
+            else:
+                record["customer_status"] = f"returning ({cs['invoices']} jobs)"
     if parsed.get("jobber_event"):
         ev = parsed["jobber_event"]
         record["jobber_event"] = ev
