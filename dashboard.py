@@ -84,8 +84,7 @@ def active_holds():
     for r in load_reviews():
         if r.get("action") == "hold":
             holds[r["stamp"]] = r
-        elif r.get("stamp") in holds and r.get("action") in (
-                "approve", "adjusted", "escalated"):
+        elif r.get("stamp") in holds and r.get("action") in DECIDED_ACTIONS:
             del holds[r["stamp"]]           # decided later — hold is over
     today = datetime.now().date().isoformat()
     live, resurfaced = {}, {}
@@ -97,11 +96,13 @@ def active_holds():
     return live, resurfaced
 
 
+DECIDED_ACTIONS = ("approve", "adjusted", "escalated", "duplicate_same")
+
+
 def load_bids():
     """Every shadow record, oldest first, with age + review status."""
     decided = {r["stamp"] for r in load_reviews()
-               if r.get("stamp") and r.get("action") in
-               ("approve", "adjusted", "escalated")}
+               if r.get("stamp") and r.get("action") in DECIDED_ACTIONS}
     reviewed = decided
     bids = []
     for p in sorted(SHADOW.glob("*.json")):
@@ -191,7 +192,11 @@ def page(title, body):
             f"<title>{title}</title>{STYLE}</head><body>"
             f"<header>Master Butler — Bid Review"
             f"<small>{'approve pushes DRAFT quotes to Jobber' if _push_enabled() else 'shadow mode · nothing sends without you'}"
-            f"</small></header>"
+            f"</small>"
+            f"<span style='float:right;font-size:14px;font-weight:400'>"
+            f"<a href='/' style='color:#cde'>Queue</a> &nbsp; "
+            f"<a href='/drafts' style='color:#cde'>Drafts &amp; escalations"
+            f"</a></span></header>"
             f"<div class='wrap'>{body}</div></body></html>").encode()
 
 
@@ -381,6 +386,21 @@ def bid_page(stamp):
         f"${h['honored_gap']:.0f} ({h['date'][:10]})</div>"
         for h in hist) or "<div>(no honor history for this service mix)</div>"
 
+    duplicate_forms = ""
+    if b.get("duplicate_of"):
+        duplicate_forms = f"""
+  <div style='background:#fdecea;border-radius:6px;padding:8px;margin:6px 0'>
+   Possible duplicate of <a href='/bid/{esc(b["duplicate_of"])}'>
+   {esc(b["duplicate_of"])}</a> — is it the same job?
+   <form method='POST' action='/duplicate' style='display:inline'>
+    <input type='hidden' name='stamp' value='{stamp}'>
+    <input type='hidden' name='customer' value='{esc(b['from'])}'>
+    <input type='hidden' name='linked' value='{esc(b["duplicate_of"])}'>
+    <button name='verdict' value='duplicate_same' class='gray'>Same job
+    (link &amp; close)</button>
+    <button name='verdict' value='duplicate_new'>New job (keep)</button>
+   </form></div>"""
+
     reasons = "".join(
         f"<button type='button' class='reason' "
         f"onclick=\"document.getElementById('reason').value='{r}';"
@@ -417,6 +437,7 @@ def bid_page(stamp):
     <button name='action' value='adjusted' class='gray'>Adjusted (reason above)</button>
    </div>
   </form>
+  {duplicate_forms}
   <form method='POST' action='/hold' style='margin-top:6px'>
    <input type='hidden' name='stamp' value='{stamp}'>
    <input type='hidden' name='customer' value='{esc(b['from'])}'>
@@ -450,6 +471,27 @@ def bid_page(stamp):
     return page("Review bid", body)
 
 
+def drafts_page():
+    """Everything the system wrote FOR the office to copy out by hand."""
+    import templates as T
+    sections = ""
+    for title, folder, hint in (
+            ("Photo requests & replies", T.OUTBOX,
+             "Copy into Gmail if you like it — the system never sends."),
+            ("Escalations to Dallon/Tom", T.ESCALATIONS,
+             "Standardized form, same fields every time.")):
+        files = (sorted(folder.glob("*.txt"), reverse=True)
+                 if folder.exists() else [])
+        items = ""
+        for f in files[:20]:
+            items += (f"<details style='margin:6px 0'><summary>{esc(f.name)}"
+                      f"</summary><pre>{esc(f.read_text())}</pre></details>")
+        sections += (f"<div class='card'><h3 style='margin-top:0'>{title}"
+                     f"</h3><div style='color:#888;font-size:13px'>{hint}"
+                     f"</div>{items or '<div>(none yet)</div>'}</div>")
+    return page("Drafts", sections)
+
+
 # ── server ───────────────────────────────────────────────────
 
 class Handler(BaseHTTPRequestHandler):
@@ -462,6 +504,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/":
             return self._send(home_page())
+        if self.path == "/drafts":
+            return self._send(drafts_page())
         m = re.match(r"^/bid/([\w-]+)$", self.path)
         if m:
             return self._send(bid_page(m.group(1)))
@@ -504,6 +548,10 @@ class Handler(BaseHTTPRequestHandler):
                     entry["jobber_quote"] = ("no structured draft on this "
                                              "record — re-run needed")
             save_review(entry)
+        elif self.path == "/duplicate":
+            save_review({"stamp": get("stamp"), "action": get("verdict"),
+                         "customer": get("customer"),
+                         "note": f"linked to {get('linked')}"})
         elif self.path == "/hold":
             save_review({"stamp": get("stamp"), "action": "hold",
                          "customer": get("customer"),
