@@ -127,7 +127,37 @@ def process_manual(name, address, phone="", email="", services=None,
         record["pipeline_error"] = traceback.format_exc()[-500:]
 
     _save(stamp, record, eml_path)
+    _imagery_async(stamp, record, eml_path)
     return stamp, record
+
+
+def _imagery_async(stamp, record, eml_path):
+    """Manual bids deserve the same pictures email bids get. The office
+    got their ~3s quote already; fetch the aerial tile + street view in
+    a short background thread and re-save — the photos appear on the
+    bid page on its next auto-refresh. (Bounded: each fetch has its own
+    urllib timeout inside aerial.py.)"""
+    import threading
+
+    def work():
+        try:
+            import aerial
+            addr = record.get("address")
+            if not addr:
+                return
+            try:
+                aerial.fetch_tile(addr)
+            except Exception:
+                pass
+            try:
+                aerial.fetch_streetview(addr)
+            except Exception:
+                pass
+            _save(stamp, record, eml_path)   # upserts record + photos
+        except Exception:
+            pass
+
+    threading.Thread(target=work, daemon=True).start()
 
 
 def _save(stamp, record, eml_path):

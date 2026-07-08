@@ -812,15 +812,38 @@ def bid_page(stamp):
             + f"<span class='chip'>{esc(b.get('kind'))}</span></div>")
     price_card = ""
     if bid_d.get("services"):
-        lines = "".join(
-            f"<tr><td>{esc(s['name'])}</td>"
-            f"<td class='num'>${s['price']:,.0f}</td></tr>"
-            for s in bid_d["services"])
+        # LaRee: each proposed line shows what THIS property actually
+        # paid for THAT service before — review the bid service by
+        # service, and see at a glance if the price should move up.
+        hist = _history_entry(
+            b.get("address"),
+            (b.get("draft") or {}).get("customer", {}).get("name")
+            or b["from"].split("<")[0].strip()) or {}
+        try:
+            from store import _service_key
+        except Exception:
+            def _service_key(n):
+                return None
+        lines = ""
+        for s in bid_d["services"]:
+            past = hist.get(_service_key(s["name"]) or "") or []
+            recent = sorted(past, reverse=True)[:3]
+            cells = " · ".join(f"{dt[:7]} ${p:,.0f}" for dt, p in recent)
+            hint = ""
+            if recent and s["price"] < recent[0][1]:
+                hint = (" <b style='color:#b03a2e'>⬆ below last paid "
+                        f"(${recent[0][1]:,.0f})</b>")
+            lines += (
+                f"<tr><td>{esc(s['name'])}</td>"
+                f"<td class='num'>${s['price']:,.0f}</td>"
+                f"<td class='subtext'>{cells or '—'}{hint}</td></tr>")
         price_card = (
             "<div class='card'><h3>Proposed line items</h3><table>"
-            "<tr><th>Service</th><th class='num'>Price</th></tr>" + lines +
+            "<tr><th>Service</th><th class='num'>Price</th>"
+            "<th>Past at this property</th></tr>" + lines +
             f"<tr style='background:#f3f4f1'><td><b>Total estimate</b></td>"
-            f"<td class='num'><b>${d.get('total', 0):,.0f}</b></td></tr>"
+            f"<td class='num'><b>${d.get('total', 0):,.0f}</b></td>"
+            "<td></td></tr>"
             "</table></div>")
     pi = d.get("prop_info") or {}
     measure_card = ""
@@ -1165,22 +1188,29 @@ def scoreboard_page():
     return page("Scoreboard", body)
 
 
-def service_history_card(address, client_name=None):
-    """LaRee's #1: per-service pricing + dates at this property (client
-    fallback) — no invoice digging. Data from the servicehistory sweep."""
+def _history_entry(address, client_name=None):
+    """Per-service {svc: [[date, price], ...]} for this property, with a
+    client-name fallback. Data from the servicehistory sweep."""
     if clouddb.available():
         hist = clouddb.get_blob("service_history") or {}
     else:
         p = BASE / "data" / "service_history.json"
         hist = json.loads(p.read_text()) if p.exists() else {}
     if not hist:
-        return ""
+        return None
     entry = None
     if address:
         entry = (hist.get("by_property") or {}).get(_slug(address))
     if not entry and client_name:
         ckey = re.sub(r"[^a-z ]", "", client_name.lower()).strip()
         entry = (hist.get("by_client") or {}).get(ckey)
+    return entry or None
+
+
+def service_history_card(address, client_name=None):
+    """LaRee's #1: per-service pricing + dates at this property (client
+    fallback) — no invoice digging."""
+    entry = _history_entry(address, client_name)
     if not entry:
         return ""
     rows = ""
