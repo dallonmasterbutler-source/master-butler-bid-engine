@@ -1,0 +1,3 @@
+# Cloud-only dependency: lets the Render service apply schema.sql to
+# Postgres at boot. Local code stays 100% standard library.
+psycopg[binary]>=3.1
