@@ -152,10 +152,12 @@ PW_CONCRETE = {
 PW_HOUSE_WASH_RATE = 0.20       # $/sqft × stories (from calculator)
 
 # Surface buildup — the "heavy debris" exception Dallon called out.
+# heavy recalibrated 1.4→1.5 on Boden's final tech grade ($230 for 600 sqft
+# heavy moss on aggregate concrete — 1.4 was ~7% light).
 PW_BUILDUP = {
     "clean":    1.0,
     "moderate": 1.2,
-    "heavy":    1.4,   # also triggers a confirm-with-photo flag
+    "heavy":    1.5,   # also triggers a confirm-with-photo flag
 }
 
 # Surface MATERIAL — pavers/cobblestone are wand work over joints, no
@@ -419,7 +421,7 @@ def calculate_bid(prop):
             notes.append("Pavers/cobblestone: slower wand work priced in "
                          "(1.5x); joint growth NOT double-charged as buildup.")
         if heavy_applied:
-            notes.append("Pressure washing: HEAVY buildup priced in (1.4x) — "
+            notes.append("Pressure washing: HEAVY buildup priced in (1.5x) — "
                          "confirm with photo before appointment.")
         if len(areas) > 1:
             notes.append("Multiple PW surfaces: setup priced once for the "

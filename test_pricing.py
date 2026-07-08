@@ -81,8 +81,8 @@ check("No priced patio line", 1 if line(r, "patio") is None else 0, 1)
 check("Flag note present", 1 if any("NO measurement" in n for n in notes) else 0, 1)
 check("Confidence dropped", 1 if conf < 80 else 0, 1)
 
-print("\n── RULE: heavy buildup = 1.4x ──")
-check("250 sqft heavy patio", round_to_5(pw_concrete_price(250, "heavy")), 140)
+print("\n── RULE: heavy buildup = 1.5x (Boden tech-grade calibration) ──")
+check("250 sqft heavy patio", round_to_5(pw_concrete_price(250, "heavy")), 150)
 
 print("\n── RULE: roof-data sanity checks (no network needed) ──")
 from property_data import validate_roof, pitch_band
@@ -149,12 +149,14 @@ r, notes, _ = calculate_bid(house(request_date=datetime.date(2026, 6, 1),
 check("No seasonal notes in June",
       1 if not any("SEASON" in n or "SUSPENSION" in n for n in notes) else 0, 1)
 
-print("\n── ANCHOR 5: Real Boden job (entry+walkways, heavy moss, ~600sqft = $215) ──")
+print("\n── ANCHOR 5: Real Boden job (aggregate concrete, heavy moss, ~600sqft) ──")
+# Dallon charged $215; on-site tech's FINAL grade was $230 (not ~$300).
+# heavy=1.5 prices this at $229 — the tech grade is the anchor.
 r, notes, _ = calculate_bid(house(buildup="heavy",
                                   services={"patio": True, "sidewalk": True},
                                   surfaces={"patio": 200, "sidewalk": 400}))
 total = sum(s["price"] for s in r)
-check("Combined-visit pricing near Dallon's real $215", total, 215, tolerance=10)
+check("Combined-visit pricing near tech's $230", total, 230, tolerance=10)
 check("Setup-once note present",
       1 if any("setup priced once" in n for n in notes) else 0, 1)
 
@@ -201,16 +203,16 @@ r, notes, _ = calculate_bid(house(pitch="mild",
 check("Shadi paver patio ≈ $140", sum(s["price"] for s in r), 140, tolerance=10)
 check("Pavers note present",
       1 if any("Pavers" in n for n in notes) else 0, 1)
-# Boden re-derived: 600 sqft pavers — material factor (1.5) REPLACES the
-# heavy-buildup call (1.4). Tech's final grade: $230.
+# No-stack rule: heavy buildup on a paver surface charges max(1.5, 1.5),
+# never 1.5 × 1.5 — same price as heavy alone, one honest factor.
 r, notes, _ = calculate_bid(house(pitch="mild", buildup="heavy",
                                   services={"patio": True, "sidewalk": True},
                                   surfaces={"patio": 200, "sidewalk": 400},
                                   surface_materials={"patio": "pavers",
                                                      "sidewalk": "pavers"}))
-check("Boden as pavers ≈ tech's $230", sum(s["price"] for s in r), 230,
-      tolerance=10)
-check("No double-charge: heavy note suppressed when pavers factor wins",
+check("Pavers + heavy never stack (600 sqft = ~$230, not ~$345)",
+      sum(s["price"] for s in r), 230, tolerance=10)
+check("No double-charge: heavy note suppressed when pavers factor covers it",
       0 if any("HEAVY buildup priced in" in n for n in notes) else 1, 1)
 
 print("\n── RULE: tax auto-attach (flag-don't-guess) ──")
