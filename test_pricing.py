@@ -450,6 +450,13 @@ check("No number = no lead (never a fake)",
 lane, _ = classify_row({"from": "☎ Voicemail from (206) 973-8356 "
                         "<messages@copycall.com>", "kind": "phone_lead"})
 check("Phone lead rides the MAIN queue", 1 if lane == "main" else 0, 1)
+from email_parser import voicemail_provider
+check("CopyCall = notification style",
+      1 if voicemail_provider("messages@copycall.com") == "notification" else 0, 1)
+check("Google Voice = transcript style",
+      1 if voicemail_provider("vm@txt.voice.google.com") == "transcript" else 0, 1)
+check("Unknown sender = not a voicemail service",
+      1 if voicemail_provider("jane@gmail.com") is None else 0, 1)
 
 print("\n── RULE: office↔system service-name bridge (offline) ──")
 from store import _service_key

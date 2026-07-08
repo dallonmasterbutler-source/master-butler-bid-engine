@@ -109,13 +109,26 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
               "subject": parsed["subject"], "kind": parsed["kind"],
               "services": parsed["services"], "address": parsed["address"],
               "phone": parsed.get("phone")}
-    if parsed["kind"] == "phone_lead":
-        lead = parsed.get("lead") or {}
-        record["office_alert"] = (
-            f"PHONE LEAD — call back {parsed.get('phone')}"
-            + (f" ({lead['duration']} voicemail" if lead.get("duration") else " (voicemail")
-            + (f", {lead['when']})" if lead.get("when") else ")")
-            + " — customer called, expects a call not an email.")
+    if parsed.get("lead"):
+        lead = parsed["lead"]
+        record["lead"] = lead
+        style = lead.get("style")
+        who = parsed.get("phone") or "unknown caller"
+        if style == "notification":
+            record["office_alert"] = (
+                f"VOICEMAIL from {who}"
+                + (f" ({lead['duration']}" if lead.get("duration") else " (")
+                + (f", mailbox {lead['mailbox']})" if lead.get("mailbox") else ")")
+                + " — retrieve + transcribe the message into this record; "
+                "reply by EMAIL per office policy.")
+        elif style == "audio":
+            record["office_alert"] = (
+                f"VOICEMAIL AUDIO attached from {who} — transcription "
+                "pending; reply by EMAIL per office policy.")
+        elif style == "transcript" and parsed["kind"] == "phone_lead":
+            record["office_alert"] = (
+                f"VOICEMAIL TRANSCRIPT from {who} — no services detected; "
+                "read + reply by EMAIL per office policy.")
 
     if "Spam" in folder and parsed["kind"] == "new_request":
         record["office_alert"] = ("FOUND IN SPAM — real request; office "

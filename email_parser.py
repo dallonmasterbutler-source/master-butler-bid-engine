@@ -206,8 +206,34 @@ def classify(text: str, services: list) -> str:
 # STEP 6: PUT IT ALL TOGETHER — parse one .eml file
 # ─────────────────────────────────────────────────────────────
 
+# ── VOICEMAIL PROVIDERS (adjustable — one line per service) ──
+# Office policy (Dallon, Jul 7 2026): they reply by EMAIL, not phone —
+# the paper trail is legal protection. So a voicemail's job here is to
+# get itself TRANSCRIBED into the record, not to trigger a callback.
+# Kinds of costume a voicemail email wears:
+#   'notification' — no content, just "you have a message" (CopyCall)
+#   'transcript'   — the words are in the email body (Google Voice etc.)
+#   'audio'        — a sound file rides along (needs transcription)
+VOICEMAIL_PROVIDERS = {
+    "copycall.com": "notification",
+    "voice.google.com": "transcript",
+    "txt.voice.google.com": "transcript",
+    # add more like: "ringcentral.com": "audio",
+}
+
+AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".ogg", ".amr")
+
+
+def voicemail_provider(sender_email):
+    s = (sender_email or "").lower()
+    for domain, style in VOICEMAIL_PROVIDERS.items():
+        if domain in s:
+            return style
+    return None
+
+
 def parse_phone_lead(text, subject=""):
-    """Pull the callback facts out of a voicemail-notification email.
+    """Pull the caller facts out of a voicemail-notification email.
     Real CopyCall format: 'you were just left a 1:00 long message
     (number 201) in mailbox 4252221063 from 12069738356, on Tuesday...'"""
     m = re.search(r"\bfrom\s+(\d{10,11})\b", text)
@@ -251,26 +277,36 @@ def parse_eml(path) -> dict:
     fresh = newest_message_only(body)
     services = find_services(fresh)
 
-    # ── PHONE LEADS (CopyCall etc.): calls arriving dressed as email ──
-    # The sender is the SERVICE, the customer is a phone number in the
-    # body. No transcript = nothing to bid on, but a very real customer
-    # waiting for a CALL BACK. (Dallon, Jul 7 2026.)
-    if "copycall" in sender_email.lower():
-        lead = parse_phone_lead(fresh or body, msg.get("Subject", ""))
-        if lead:
-            return {
-                "file": Path(path).name,
-                "sender_name": lead["display"],
-                "sender_email": sender_email,
-                "subject": msg.get("Subject", "").strip(),
-                "newest_message": (fresh or body)[:300],
-                "address": None,
-                "phone": lead["caller"],
-                "services": [],
-                "kind": "phone_lead",
-                "lead": lead,
-                "has_attachments": False,
-            }
+    # ── PHONE LEADS: calls arriving dressed as email ──
+    # The sender is the SERVICE, the customer is inside. Style decides
+    # what we can do: parse a transcript, save audio, or point the
+    # office at the mailbox. Reply stays EMAIL (paper-trail policy).
+    style = voicemail_provider(sender_email)
+    if style:
+        lead = parse_phone_lead(fresh or body, msg.get("Subject", "")) or {}
+        lead["style"] = style
+        if style == "audio":
+            audio = [part.get_filename() for part in msg.walk()
+                     if (part.get_filename() or "").lower().endswith(AUDIO_EXTS)]
+            lead["audio_files"] = audio
+        # transcript style: the caller's words ARE the body — parse them
+        # like any customer message (services, address, everything)
+        services = find_services(fresh) if style == "transcript" else []
+        return {
+            "file": Path(path).name,
+            "sender_name": lead.get("display") or "☎ Voicemail (see message)",
+            "sender_email": sender_email,
+            "subject": msg.get("Subject", "").strip(),
+            "newest_message": (fresh or body)[:300],
+            "address": (find_address(fresh) or find_address(body)
+                        if style == "transcript" else None),
+            "phone": lead.get("caller"),
+            "services": services,
+            "kind": ("new_request" if style == "transcript" and services
+                     else "phone_lead"),
+            "lead": lead,
+            "has_attachments": False,
+        }
 
     return {
         "file": Path(path).name,
