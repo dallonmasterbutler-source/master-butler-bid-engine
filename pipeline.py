@@ -195,6 +195,13 @@ def process(eml_path):
         except Exception as e:
             office_flags.append(f"Vision failed ({e}) — photos need manual look.")
 
+    # ── PRICE PROMISES: honor what the office put in writing ──
+    try:
+        from promises import promise_notes
+        office_flags += promise_notes(parsed.get("sender_name"))
+    except Exception:
+        pass    # promises are a bonus, never a blocker
+
     # ── AERIAL CROSS-CHECK: the straight-down second opinion ──
     # Adds flags (wrong building, area disagreement) and may RAISE the
     # gutter-debris call from fresh canopy imagery. Never blocks a bid.

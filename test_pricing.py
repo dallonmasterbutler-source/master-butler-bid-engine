@@ -337,6 +337,20 @@ check("Year is NOT a price ('free in 2025, charge full next year')",
 check("Tiny numbers rejected (15% is not $15)",
       parse_next_year_price("honor 2026 pricing, 15 percent adjustment") or 0, 0)
 
+print("\n── RULE: price promises kept (fuzzy name match, offline) ──")
+from promises import promises_for
+FAKE_RECON = [{"invoice": "1", "date": "2026-05-07", "client": "Carol & Michael  Ross",
+               "next_year_price": 350.0,
+               "discounts": [{"text": "honor 2026 gutter rate next year will be 350",
+                              "next_year_price": 350.0}]},
+              {"invoice": "2", "date": "2026-01-01", "client": "Someone Else",
+               "next_year_price": None, "discounts": []}]
+check("'Carol Ross' finds 'Carol & Michael Ross' promise",
+      promises_for("Carol Ross", _records=FAKE_RECON)[0]["promised_price"], 350)
+check("Stranger finds nothing",
+      len(promises_for("Random Stranger", _records=FAKE_RECON)), 0)
+check("Empty name finds nothing", len(promises_for("", _records=FAKE_RECON)), 0)
+
 print("\n" + "=" * 50)
 print(f"RESULT: {passed} passed, {failed} failed")
 exit(1 if failed else 0)

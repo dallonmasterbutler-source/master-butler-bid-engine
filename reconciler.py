@@ -145,6 +145,7 @@ def sweep(limit=200):
                     "invoice": inv["invoiceNumber"],
                     "date": inv["issuedDate"],
                     "client": inv["client"]["name"],
+                    "services": [s["name"] for s in services],
                     "paid_total": inv["amounts"]["total"],
                     "true_total": true_total,
                     "categories": sorted({d["category"] for d in discounts}),
