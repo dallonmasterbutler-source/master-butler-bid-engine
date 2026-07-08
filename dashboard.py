@@ -240,46 +240,83 @@ def _history_hits(records, services):
 # ── html helpers (no frameworks — Martha's machine is slow) ──
 
 STYLE = """<style>
-:root{--green:#0b3d2e;--green2:#0b6e4f;--gold:#c9a227;--bg:#f4f5f2}
-body{font-family:-apple-system,Helvetica,Arial,sans-serif;margin:0;
-     background:var(--bg);color:#1a1a1a}
-header{background:linear-gradient(135deg,var(--green) 0%,#124d3a 100%);
-       color:#fff;padding:16px 24px;font-size:20px;font-weight:700;
-       border-bottom:3px solid var(--gold);letter-spacing:.2px}
-header small{font-weight:400;opacity:.75;margin-left:10px;font-size:13px}
-.wrap{max-width:1100px;margin:0 auto;padding:18px}
-.band{background:#fff4e5;border:1px solid #f0c987;border-radius:8px;
-      padding:12px 16px;margin-bottom:18px}
-.band h2{margin:0 0 8px;font-size:15px;color:#8a5a00}
-.card{background:#fff;border:1px solid #e2e4e0;border-radius:10px;
-      padding:14px 18px;margin-bottom:14px;
-      box-shadow:0 1px 3px rgba(11,61,46,.07)}
-.card h2,.card h3{color:var(--green)}
+:root{--green:#0b3d2e;--green2:#177245;--accent:#1e8449;--gold:#c9a227;
+      --bg:#f5f6f4;--ink:#20242a;--mut:#6b7280;--line:#e5e7e3}
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,
+     Arial,sans-serif;margin:0;background:var(--bg);color:var(--ink);
+     font-size:15px;line-height:1.45}
+header{background:linear-gradient(135deg,var(--green) 0%,#11543f 100%);
+       color:#fff;padding:14px 26px;font-size:19px;font-weight:700;
+       border-bottom:3px solid var(--gold);letter-spacing:.2px;
+       display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+header small{font-weight:400;opacity:.72;font-size:12.5px;margin-left:8px}
+header .nav{margin-left:auto;font-size:13.5px;font-weight:500}
+header .nav a{color:#e8d9a0;padding:4px 8px;border-radius:6px}
+header .nav a:hover{background:rgba(255,255,255,.12);text-decoration:none}
+.wrap{max-width:1160px;margin:0 auto;padding:20px 18px 40px}
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:10px;
+      padding:10px 18px;box-shadow:0 1px 2px rgba(11,61,46,.06);
+      min-width:120px}
+.stat b{display:block;font-size:22px;color:var(--green)}
+.stat span{font-size:12px;color:var(--mut);text-transform:uppercase;
+      letter-spacing:.4px}
+.band{background:#fff8ec;border:1px solid #f0d9a5;border-left:5px solid
+      #e0a428;border-radius:10px;padding:12px 16px;margin-bottom:16px}
+.band h2{margin:0 0 6px;font-size:13px;color:#8a5a00;
+      text-transform:uppercase;letter-spacing:.6px}
+.band div{padding:3px 0}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;
+      padding:16px 20px;margin-bottom:16px;
+      box-shadow:0 1px 3px rgba(11,61,46,.06)}
+.card h2{margin:0 0 10px;font-size:17px;color:var(--green)}
+.card h3{margin:0 0 8px;font-size:14px;color:var(--green);
+      text-transform:uppercase;letter-spacing:.5px}
 table{width:100%;border-collapse:collapse;font-size:14px}
-th{text-align:left;color:#666;font-weight:600;padding:6px 8px;
-   border-bottom:2px solid #eee}
-td{padding:8px;border-bottom:1px solid #f0f0f0}
-tr:hover td{background:#f8faf9}
-.age{font-weight:700}.age.warn{color:#c77700}.age.late{color:#c0392b}
-.chip{display:inline-block;background:#eef3f1;border-radius:12px;
-      padding:2px 10px;margin:2px;font-size:12px}
+th{text-align:left;color:var(--mut);font-weight:600;padding:8px;
+   border-bottom:2px solid var(--line);font-size:12px;
+   text-transform:uppercase;letter-spacing:.4px}
+td{padding:10px 8px;border-bottom:1px solid #f0f1ee;vertical-align:top}
+tr:hover td{background:#f7faf8}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.age{font-weight:700;font-variant-numeric:tabular-nums}
+.age.warn{color:#c77700}.age.late{color:#c0392b}
+.chip{display:inline-block;background:#eef3f0;border-radius:999px;
+      padding:2px 11px;margin:2px 3px 2px 0;font-size:12px;color:#3f5147}
 .flag{background:#fdecea;color:#a93226}
-.ok{color:#1e8449;font-weight:600}
-a{color:#0b6e4f;text-decoration:none}a:hover{text-decoration:underline}
-pre{background:#f7f7f7;border:1px solid #eee;border-radius:6px;
+.win{background:#e6f4ea;color:#1e6b34;font-weight:600}
+.ok{color:var(--accent);font-weight:600}
+a{color:var(--green2);text-decoration:none}a:hover{text-decoration:underline}
+pre{background:#f7f8f6;border:1px solid var(--line);border-radius:8px;
     padding:12px;font-size:12.5px;overflow-x:auto;white-space:pre-wrap}
-.notes{background:#fffbe6;border:1px solid #efe3a1;border-radius:8px;
+.notes{background:#fffdf2;border:1px solid #ece3b8;border-radius:10px;
        padding:10px 14px}
-.notes div{padding:3px 0;border-bottom:1px dashed #eee}
-button,.btn{background:#0b6e4f;color:#fff;border:0;border-radius:6px;
-       padding:8px 14px;font-size:14px;cursor:pointer;margin:3px}
-button.gray{background:#7f8c8d}button.red{background:#c0392b}
-.reason{background:#fff;color:#0b6e4f;border:1.5px solid #0b6e4f}
-.reason.sel{background:#0b6e4f;color:#fff}
-input[type=text],textarea{width:100%;padding:8px;border:1px solid #ccc;
-       border-radius:6px;font-size:14px;box-sizing:border-box}
-.grid{display:grid;grid-template-columns:2fr 1fr;gap:16px}
-@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.notes div{padding:4px 0;border-bottom:1px dashed #eee}
+.notes div:last-child{border-bottom:0}
+button,.btn{background:var(--green2);color:#fff;border:0;border-radius:8px;
+       padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer;
+       margin:3px 3px 3px 0;transition:filter .12s}
+button:hover{filter:brightness(1.08)}
+button.big{padding:12px 22px;font-size:15px}
+button.gray{background:#8a949c}button.red{background:#b03a2e}
+.reason{background:#fff;color:var(--green2);border:1.5px solid var(--green2);
+        font-weight:500;padding:7px 12px}
+.reason.sel{background:var(--green2);color:#fff}
+input[type=text],input[type=date],select,textarea{width:100%;padding:9px;
+       border:1px solid #ccd1cb;border-radius:8px;font-size:14px}
+input[type=date],select{width:auto}
+.grid{display:grid;grid-template-columns:5fr 3fr;gap:16px}
+details.card summary{cursor:pointer;font-weight:600;color:var(--mut)}
+details.card[open] summary{margin-bottom:8px}
+.headline{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.headline .total{font-size:30px;font-weight:800;color:var(--green)}
+.confbadge{border-radius:10px;padding:6px 14px;font-weight:700;
+       font-size:15px;color:#fff}
+footer{max-width:1160px;margin:8px auto 26px;padding:0 18px;
+       color:#a3aaa2;font-size:12px}
+@media(max-width:860px){.grid{grid-template-columns:1fr}
+       header{font-size:16px}.headline .total{font-size:24px}}
 </style>"""
 
 
@@ -295,17 +332,18 @@ def page(title, body, refresh=None):
             f"<meta name='viewport' content='width=device-width,initial-scale=1'>"
             f"{auto}{FAVICON}"
             f"<title>{title}</title>{STYLE}</head><body>"
-            f"<header>🎩 Master Butler — Bid Review"
-            f"<small>{'approve pushes DRAFT quotes to Jobber' if _push_enabled() else 'shadow mode · nothing sends without you'}"
+            f"<header>🎩 Master Butler <small>Bid Review — "
+            f"{'approve pushes DRAFT quotes to Jobber' if _push_enabled() else 'shadow mode · nothing sends without you'}"
             f"</small>"
-            f"<span style='float:right;font-size:14px;font-weight:400'>"
-            f"<a href='/' style='color:#e8d9a0'>Queue</a> &nbsp;·&nbsp; "
-            f"<a href='/drafts' style='color:#e8d9a0'>Drafts</a> &nbsp;·&nbsp; "
-            f"<a href='/scoreboard' style='color:#e8d9a0'>Scoreboard</a>"
-            f" &nbsp;·&nbsp; "
-            f"<a href='/brief' style='color:#e8d9a0'>Morning brief</a>"
+            f"<span class='nav'>"
+            f"<a href='/'>Queue</a> <a href='/drafts'>Drafts</a> "
+            f"<a href='/scoreboard'>Scoreboard</a> "
+            f"<a href='/brief'>Morning brief</a>"
             f"</span></header>"
-            f"<div class='wrap'>{body}</div></body></html>").encode()
+            f"<div class='wrap'>{body}</div>"
+            f"<footer>Every quote is a draft until a human sends it · the "
+            f"inbox is never marked read · every price traces to a real "
+            f"job.</footer></body></html>").encode()
 
 
 def esc(s):
@@ -352,12 +390,29 @@ def home_page():
         elif b["age_hours"] >= SLA_HOURS and b.get("kind") == "new_request":
             attention.append((b, f"waiting {b['age_hours']:.0f}h — past the "
                                  "24-hour promise"))
+    reviews_all = load_reviews()
+    today = datetime.now().date().isoformat()
+    decided_today = [r for r in reviews_all
+                     if (r.get("at") or "").startswith(today)]
+    wins = sum(1 for b in bids
+               if (b.get("jobber_event") or {}).get("event") == "quote_approved")
+    new_reqs = [b for b in queue if b.get("kind") in ("new_request",
+                                                      "phone_lead")]
+    oldest = max((b["age_hours"] for b in queue), default=0)
+    stats = (f"<div class='stats'>"
+             f"<div class='stat'><b>{len(queue)}</b><span>waiting</span></div>"
+             f"<div class='stat'><b>{len(new_reqs)}</b><span>bid requests</span></div>"
+             f"<div class='stat'><b>{oldest:.0f}h</b><span>oldest wait</span></div>"
+             f"<div class='stat'><b>{len(decided_today)}</b><span>decided today</span></div>"
+             f"<div class='stat'><b>{wins}</b><span>quote wins 🎉</span></div>"
+             f"</div>")
+
     band = ""
     if attention:
         rows = "".join(
-            f"<div>⚠ <a href='/bid/{b['stamp']}'>{esc(b['from'])}</a> — "
-            f"{esc(why)}</div>" for b, why in attention)
-        band = f"<div class='band'><h2>NEEDS ATTENTION</h2>{rows}</div>"
+            f"<div>⚠ <a href='/bid/{b['stamp']}'><b>{esc(b['from'])}</b></a>"
+            f" — {esc(why)}</div>" for b, why in attention)
+        band = f"<div class='band'><h2>Needs attention</h2>{rows}</div>"
 
     rows = ""
     for b in queue:                       # already oldest first
@@ -376,7 +431,7 @@ def home_page():
                  f"<td><a href='/bid/{b['stamp']}'>{esc(b['from'])}</a>"
                  f"{qchip}</td>"
                  f"<td>{esc(b.get('kind'))}</td><td>{services}{flags}</td>"
-                 f"<td>{conf}</td><td>{total}</td></tr>")
+                 f"<td>{conf}</td><td class='num'>{total}</td></tr>")
     if not rows:
         rows = "<tr><td colspan=6>Queue is empty — all caught up. ✅</td></tr>"
 
@@ -397,11 +452,11 @@ def home_page():
         f"{(' · ' + esc(r['reason'])) if r.get('reason') else ''}</div>"
         for r in reviews) or "<div>No reviews yet.</div>"
 
-    body = (band +
+    body = (stats + band +
         "<div class='grid'><div class='card'>"
         "<h2 style='margin-top:0'>Bid queue — oldest first</h2>"
         "<table><tr><th>Waiting</th><th>From</th><th>Kind</th>"
-        "<th>Services</th><th>Conf.</th><th>Est.</th></tr>" + rows +
+        "<th>Services</th><th>Conf.</th><th class='num'>Est.</th></tr>" + rows +
         "</table>" + aside_html + "</div>"
         "<div>" + scoreboard_card() + held_card(live_holds, bids) +
         "<div class='card'><h3 style='margin-top:0'>Recent decisions"
@@ -550,6 +605,48 @@ def bid_page(stamp):
         f"${h['honored_gap']:.0f} ({h['date'][:10]})</div>"
         for h in hist) or "<div>(no honor history for this service mix)</div>"
 
+    # ── structured draft: headline, price table, measurements ──
+    d = b.get("draft") or {}
+    bid_d = d.get("bid") or {}
+    conf = b.get("confidence")
+    conf_color = ("#1e8449" if (conf or 0) >= 75 else
+                  "#c77700" if (conf or 0) >= 50 else "#b03a2e")
+    draft_headline = ""
+    if d.get("total") is not None:
+        draft_headline = (
+            f"<div class='headline'><span class='total'>${d['total']:,.0f}"
+            "</span>"
+            + (f"<span class='confbadge' style='background:{conf_color}'>"
+               f"{conf}% confidence</span>" if conf is not None else "")
+            + f"<span class='chip'>{esc(b.get('kind'))}</span></div>")
+    price_card = ""
+    if bid_d.get("services"):
+        lines = "".join(
+            f"<tr><td>{esc(s['name'])}</td>"
+            f"<td class='num'>${s['price']:,.0f}</td></tr>"
+            for s in bid_d["services"])
+        price_card = (
+            "<div class='card'><h3>Proposed line items</h3><table>"
+            "<tr><th>Service</th><th class='num'>Price</th></tr>" + lines +
+            f"<tr><td><b>Total</b></td><td class='num'><b>"
+            f"${d.get('total', 0):,.0f}</b></td></tr></table></div>")
+    pi = d.get("prop_info") or {}
+    measure_card = ""
+    if any(pi.get(k) for k in ("sqft", "pitch", "roof_material", "stories")):
+        cells = "".join(
+            f"<div class='stat'><b style='font-size:16px'>{esc(v)}</b>"
+            f"<span>{label}</span></div>"
+            for label, v in (
+                ("house sqft", f"{pi['sqft']:,}" if pi.get("sqft") else None),
+                ("source", pi.get("sqft_source")),
+                ("stories", pi.get("stories")),
+                ("pitch", pi.get("pitch")),
+                ("roof", pi.get("roof_material")))
+            if v)
+        measure_card = ("<div class='card'><h3>Measurements it used</h3>"
+                        f"<div class='stats' style='margin:0'>{cells}"
+                        "</div></div>")
+
     duplicate_forms = ""
     if b.get("duplicate_of"):
         duplicate_forms = f"""
@@ -577,13 +674,16 @@ def bid_page(stamp):
 <div class='grid'><div>
  <div class='card'>
   <h2 style='margin-top:0'>{esc(b['from'])} {age_html(b['age_hours'])}
-  {f"<span class='chip' style='background:#e3efe9;font-size:14px'>Jobber quote #{esc(quote_numbers().get(stamp))} — verify there</span>"
+  {f"<span class='chip win' style='font-size:13px'>Jobber quote #{esc(quote_numbers().get(stamp))} — verify there</span>"
    if quote_numbers().get(stamp) else ''}</h2>
-  <div><b>Subject:</b> {esc(b.get('subject'))}</div>
-  <div><b>Address:</b> {esc(b.get('address') or '— not found')}</div>
-  <div><b>Services:</b> {', '.join(b.get('services') or []) or '—'}</div>
-  <div><b>Folder:</b> {esc(b.get('folder', 'INBOX'))}</div>
+  {draft_headline}
+  <div style='color:var(--mut);margin-top:6px'>
+   <b>Subject:</b> {esc(b.get('subject'))} &nbsp;·&nbsp;
+   <b>Address:</b> {esc(b.get('address') or '— not found')} &nbsp;·&nbsp;
+   {esc(b.get('folder', 'INBOX'))}</div>
  </div>
+ {price_card}
+ {measure_card}
  {gallery_card}
  {history_card}
  <div class='card'><h3 style='margin-top:0'>All notes — one stack</h3>
@@ -597,9 +697,9 @@ def bid_page(stamp):
    "</form>" if b.get("address") else
    "<div style='color:#888;font-size:13px;margin-top:8px'>Must Know "
    "needs an address on the request — none was parsed here.</div>"}</div>
- <div class='card'><h3 style='margin-top:0'>System draft</h3>
+ <details class='card'><summary>Raw system output (full trace)</summary>
   <pre>{esc(b.get('pipeline_output') or '(no draft — ' +
-             esc(b.get('kind')) + ')')}</pre></div>
+             esc(b.get('kind')) + ')')}</pre></details>
 </div><div>
  <div class='card'><h3 style='margin-top:0'>Decide</h3>
   <form method='POST' action='/review'>
@@ -608,8 +708,8 @@ def bid_page(stamp):
    <input type='hidden' id='reason' name='reason' value=''>
    <div style='margin-bottom:6px'>{reasons}</div>
    <input type='text' name='note' placeholder='optional: teach it in one line'>
-   <div style='margin-top:8px'>
-    <button name='action' value='approve'>Approve as-is</button>
+   <div style='margin-top:10px'>
+    <button name='action' value='approve' class='big'>✓ Approve as-is</button>
     <button name='action' value='adjusted' class='gray'>Adjusted (reason above)</button>
    </div>
   </form>
