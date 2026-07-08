@@ -63,6 +63,16 @@ def all_shadow():
     return [(s, r) for s, r in rows]
 
 
+def seen_message_ids():
+    """Every Message-ID already shadow-processed — the CLOUD ledger.
+    Derived from the records themselves, so the Mac's history counts
+    automatically (it mirrored everything up)."""
+    with _conn() as con:
+        rows = con.execute(
+            "SELECT record->>'message_id' FROM shadow_records").fetchall()
+    return {r[0] for r in rows if r[0]}
+
+
 # ── review log ───────────────────────────────────────────────
 
 def add_review(entry):

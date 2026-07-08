@@ -52,15 +52,9 @@ def push(records=None, blobs=None, photos=None, timeout=60):
 
 def _shrink_jpeg(path, max_px=900, quality=70):
     """Resize any image to a small JPEG (~100 KB) and return base64 —
-    small enough that the free database holds hundreds."""
-    import base64
-    import subprocess
-    tmp = Path("/tmp/cloudpush") / (Path(path).stem + ".jpg")
-    tmp.parent.mkdir(exist_ok=True)
-    subprocess.run(["sips", "-s", "format", "jpeg", "-Z", str(max_px),
-                    "-s", "formatOptions", str(quality), str(path),
-                    "--out", str(tmp)], check=True, capture_output=True)
-    return base64.b64encode(tmp.read_bytes()).decode()
+    small enough that the free database holds hundreds. Mac + cloud."""
+    from imgprep import prep_jpeg_b64
+    return prep_jpeg_b64(path, max_px=max_px, quality=quality)
 
 
 def _addr_slug(address):

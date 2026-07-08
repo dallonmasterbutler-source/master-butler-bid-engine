@@ -29,14 +29,10 @@ from vision import _api_key as _anthropic_key, MODEL
 
 
 def _prep_jpeg(path):
-    """Convert any tile (png/tif) to a resized JPEG and return base64 —
-    the API is told image/jpeg, so the bytes must actually BE jpeg."""
-    tmp = Path("/tmp/aerial_prep") / (Path(path).stem + ".jpg")
-    tmp.parent.mkdir(exist_ok=True)
-    subprocess.run(["sips", "-s", "format", "jpeg", "-Z", "1400",
-                    "-s", "formatOptions", "80", str(path),
-                    "--out", str(tmp)], check=True, capture_output=True)
-    return base64.standard_b64encode(tmp.read_bytes()).decode()
+    """Any tile (png/tif) → resized JPEG base64 — the API is told
+    image/jpeg, so the bytes must actually BE jpeg. Mac + cloud safe."""
+    from imgprep import prep_jpeg_b64
+    return prep_jpeg_b64(path, max_px=1400, quality=80)
 
 BASE = Path(__file__).parent
 AERIAL_DIR = BASE / "data" / "aerial"

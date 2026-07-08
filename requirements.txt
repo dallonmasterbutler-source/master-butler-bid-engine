@@ -1,3 +1,5 @@
-# Cloud-only dependency: lets the Render service apply schema.sql to
-# Postgres at boot. Local code stays 100% standard library.
+# Cloud-only dependencies (local code stays 100% standard library):
+#  psycopg — lets the Render service talk to Postgres
+#  pillow  — image resize in the cloud (the Mac uses built-in sips)
 psycopg[binary]>=3.1
+pillow>=10

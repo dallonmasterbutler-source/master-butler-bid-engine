@@ -31,6 +31,35 @@ def apply_schema():
     print("schema applied (idempotent)")
 
 
+def start_cloud_ears():
+    """THE SWITCH (dark by default): POLL_IN_CLOUD=true + Gmail creds in
+    the environment = the inbox watcher runs HERE, and Dallon's Mac is
+    retired from listening duty. Requires the always-on (paid) tier —
+    the free tier sleeps, and sleeping ears hear nothing."""
+    if os.environ.get("POLL_IN_CLOUD", "").lower() != "true":
+        print("cloud ears: OFF (POLL_IN_CLOUD not set)")
+        return
+    if not (os.environ.get("GMAIL_ADDRESS")
+            and os.environ.get("GMAIL_APP_PASSWORD")):
+        print("cloud ears: OFF (no Gmail credentials in environment)")
+        return
+    import threading
+    import time
+
+    def loop():
+        import gmail_poller
+        while True:
+            try:
+                n = gmail_poller.poll_once()
+                gmail_poller._keep_cloud_warm()
+                print(f"[cloud ears] poll complete — {n} new")
+            except Exception as e:
+                print(f"[cloud ears] poll error: {e}")
+            time.sleep(120)
+    threading.Thread(target=loop, daemon=True).start()
+    print("cloud ears: ON — watching the inbox from the cloud")
+
+
 if __name__ == "__main__":
     apply_schema()
     os.environ.setdefault("HOST", "0.0.0.0")
@@ -39,6 +68,7 @@ if __name__ == "__main__":
     from http.server import HTTPServer
     if not dashboard._password():
         raise SystemExit("REFUSING public serve without DASHBOARD_PASSWORD")
+    start_cloud_ears()
     print(f"dashboard on {dashboard.HOST}:{dashboard.PORT} (password-protected)")
     HTTPServer((dashboard.HOST, dashboard.PORT),
                dashboard.Handler).serve_forever()

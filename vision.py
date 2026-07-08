@@ -35,14 +35,10 @@ def _api_key():
 
 
 def _prep_image(path):
-    """Resize/compress with macOS sips into a temp copy; return base64."""
-    tmp = Path("/tmp/vision_prep") / Path(path).name
-    tmp.parent.mkdir(exist_ok=True)
-    subprocess.run(["sips", "-Z", str(MAX_EDGE_PX), "-s", "formatOptions", "78",
-                    str(path), "--out", str(tmp)],
-                   capture_output=True)
-    src = tmp if tmp.exists() else Path(path)
-    return base64.standard_b64encode(src.read_bytes()).decode()
+    """Resize/compress; returns base64 JPEG. Works on Mac (sips) and in
+    the cloud (Pillow) via imgprep."""
+    from imgprep import prep_jpeg_b64
+    return prep_jpeg_b64(path, max_px=MAX_EDGE_PX, quality=78)
 
 
 PROMPT = """You are the property assessor for Master Butler, a home services company

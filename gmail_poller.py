@@ -31,19 +31,34 @@ SHADOW_DIR = BASE / "data" / "shadow_bids"
 
 
 def _creds():
+    import os
     creds = {}
-    for line in (BASE / ".env").read_text().splitlines():
-        if "=" in line and not line.startswith("#"):
-            k, v = line.split("=", 1)
-            creds[k.strip()] = v.strip()
-    return (creds["GMAIL_ADDRESS"],
-            creds["GMAIL_APP_PASSWORD"].replace(" ", ""))
+    env_file = BASE / ".env"
+    if env_file.exists():
+        for line in env_file.read_text().splitlines():
+            if "=" in line and not line.startswith("#"):
+                k, v = line.split("=", 1)
+                creds[k.strip()] = v.strip()
+    addr = creds.get("GMAIL_ADDRESS") or os.environ.get("GMAIL_ADDRESS")
+    pw = (creds.get("GMAIL_APP_PASSWORD")
+          or os.environ.get("GMAIL_APP_PASSWORD", ""))
+    return addr, pw.replace(" ", "")
 
 
 def _processed():
+    """The already-seen ledger: local file, PLUS the cloud's own memory
+    when the database is reachable (so a cloud watcher never re-processes
+    anything the Mac already captured, and vice versa)."""
+    seen = set()
     if LEDGER.exists():
-        return set(LEDGER.read_text().split())
-    return set()
+        seen |= set(LEDGER.read_text().split())
+    try:
+        import clouddb
+        if clouddb.available():
+            seen |= clouddb.seen_message_ids()
+    except Exception:
+        pass
+    return seen
 
 
 def _remember(msg_id):
@@ -212,29 +227,49 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     out = SHADOW_DIR / f"{stamp}.json"
     out.write_text(json.dumps(record, indent=1))
 
-    # mirror to the cloud dashboard (queues locally if offline)
+    # mirror to the cloud: direct database writes when we ARE the cloud
+    # (poller running on Render), HTTPS courier when we're the Mac
     try:
-        from cloudpush import push_or_queue, flush_pending
-        flush_pending()
-        ok = push_or_queue(stamp, record)
-        print("     → cloud: " + ("synced" if ok else "queued (offline)"))
+        import clouddb
+        if clouddb.available():
+            clouddb.ingest_shadow(stamp, record)
+            clouddb.put_photo(stamp, "eml", 0, raw_bytes)   # raw archive
+            try:
+                from pipeline import extract_photos
+                from imgprep import prep_jpeg_bytes
+                for i, p in enumerate(extract_photos(eml_path)):
+                    clouddb.put_photo(stamp, "customer", i,
+                                      prep_jpeg_bytes(p, 900, 70))
+            except Exception:
+                pass
+            print("     → cloud: written directly")
+        else:
+            from cloudpush import push_or_queue, flush_pending
+            flush_pending()
+            ok = push_or_queue(stamp, record)
+            print("     → cloud: " + ("synced" if ok else "queued (offline)"))
     except Exception:
         pass                    # cloud mirroring never blocks shadow mode
 
 
 def _keep_cloud_warm():
-    """Each poll: ping /health (keeps the free tier awake) AND leave a
-    heartbeat blob — the dashboard shows 'ears last heard X min ago'
-    and raises an alarm if this machine goes quiet."""
+    """Each poll: leave a heartbeat (dashboard shows 'ears last heard
+    Xm' + alarm if silent) and, from the Mac, ping /health so the free
+    tier stays awake."""
+    beat = {"at": datetime.now().isoformat(timespec="seconds")}
     try:
+        import clouddb
+        if clouddb.available():                 # we ARE the cloud
+            beat["host"] = "render-cloud"
+            clouddb.put_blob("poller_heartbeat", beat)
+            return
         import urllib.request
         from cloudpush import _cfg, push
         url = _cfg("DASHBOARD_URL")
         if url:
             urllib.request.urlopen(url.rstrip("/") + "/health", timeout=20)
-            push(blobs={"poller_heartbeat": {
-                "at": datetime.now().isoformat(timespec="seconds"),
-                "host": "dallon-mac"}})
+            beat["host"] = "dallon-mac"
+            push(blobs={"poller_heartbeat": beat})
     except Exception:
         pass
 
