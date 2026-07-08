@@ -28,10 +28,16 @@ MAX_EDGE_PX = 1400                  # resize target (API limit + cost control)
 
 
 def _api_key():
-    for line in (Path(__file__).parent / ".env").read_text().splitlines():
-        if line.startswith("ANTHROPIC_API_KEY="):
-            return line.split("=", 1)[1].strip()
-    raise SystemExit("No ANTHROPIC_API_KEY in .env")
+    env = Path(__file__).parent / ".env"
+    if env.exists():
+        for line in env.read_text().splitlines():
+            if line.startswith("ANTHROPIC_API_KEY="):
+                return line.split("=", 1)[1].strip()
+    import os
+    key = os.environ.get("ANTHROPIC_API_KEY")      # cloud: env var
+    if not key:
+        raise SystemExit("No ANTHROPIC_API_KEY (.env or environment)")
+    return key
 
 
 def _prep_image(path):

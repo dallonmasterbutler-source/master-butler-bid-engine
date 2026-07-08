@@ -26,7 +26,8 @@ def _api_key():
         for line in env.read_text().splitlines():
             if line.startswith("GOOGLE_MAPS_API_KEY="):
                 return line.split("=", 1)[1].strip()
-    return None
+    import os
+    return os.environ.get("GOOGLE_MAPS_API_KEY")   # cloud: env var, no .env file
 
 
 # ─────────────────────────────────────────────────────────────
