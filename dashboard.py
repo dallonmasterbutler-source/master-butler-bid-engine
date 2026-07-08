@@ -253,6 +253,106 @@ def quote_numbers():
     return out
 
 
+CLAIM_FRESH_MIN = 15          # someone is "working on it" this long
+
+
+def _claims():
+    """{stamp: {'by','at'}} — who has a bid open right now. Stale
+    claims (> 2x fresh window) are pruned on read."""
+    if clouddb.available():
+        c = clouddb.get_blob("bid_claims") or {}
+    else:
+        p = BASE / "data" / "bid_claims.json"
+        c = json.loads(p.read_text()) if p.exists() else {}
+    now = datetime.now()
+    live = {}
+    for s, v in c.items():
+        try:
+            age = (now - datetime.fromisoformat(v["at"])).total_seconds() / 60
+            if age <= CLAIM_FRESH_MIN * 2:
+                v["mins"] = age
+                live[s] = v
+        except Exception:
+            continue
+    return live
+
+
+def _save_claims(c):
+    c = {s: {"by": v["by"], "at": v["at"]} for s, v in c.items()}
+    if clouddb.available():
+        clouddb.put_blob("bid_claims", c)
+    else:
+        (BASE / "data" / "bid_claims.json").write_text(json.dumps(c))
+
+
+def claim_bid(stamp, user):
+    """Soft lock: opening a bid marks it 'user is working on this' for
+    15 min. Returns the OTHER person's fresh claim if there is one."""
+    claims = _claims()
+    other = claims.get(stamp)
+    if other and other["by"] != user and other["mins"] <= CLAIM_FRESH_MIN:
+        return other                      # someone else is on it — warn
+    if user:
+        claims[stamp] = {"by": user,
+                         "at": datetime.now().isoformat(timespec="seconds")}
+        _save_claims(claims)
+    return None
+
+
+STATUS_STYLE = {                          # label -> (text color, bg)
+    "needs review":     ("#8a5a00", "#fdf3dd"),
+    "working":          ("#1d4ed8", "#e5edff"),
+    "on hold":          ("#6d28d9", "#f0e9fd"),
+    "with Tom & Dallon": ("#8a5a00", "#fbe9c6"),
+    "approved":         ("#1e6b34", "#e6f4ea"),
+    "quote sent":       ("#1e6b34", "#e6f4ea"),
+    "WON ✓":            ("#ffffff", "#1e8449"),
+    "archived":         ("#6b7280", "#f0f1f3"),
+}
+
+
+def status_pill(label, extra=""):
+    fg, bg = STATUS_STYLE.get(label, ("#6b7280", "#f0f1f3"))
+    return (f"<span style='display:inline-block;background:{bg};color:{fg};"
+            f"border-radius:999px;padding:3px 12px;font-size:11.5px;"
+            f"font-weight:700;white-space:nowrap'>{esc(label)}"
+            + (f" · {esc(extra)}" if extra else "") + "</span>")
+
+
+def bid_status(b, holds, flags_open, sb_status, claims):
+    """One glanceable state per bid. Priority: hold > flagged > someone
+    working > decided/office outcome > needs review."""
+    stamp = b["stamp"]
+    if stamp in holds:
+        return status_pill("on hold")
+    if stamp in flags_open:
+        return status_pill("with Tom & Dallon")
+    cl = claims.get(stamp)
+    if cl and cl["mins"] <= CLAIM_FRESH_MIN:
+        return status_pill("working", cl["by"])
+    js = (sb_status.get(stamp) or "").lower()
+    if js in ("approved", "converted"):
+        return status_pill("WON ✓")
+    if js == "awaiting_response":
+        return status_pill("quote sent")
+    if js == "archived":
+        return status_pill("archived")
+    if b.get("reviewed") or js == "draft":
+        return status_pill("approved")
+    return status_pill("needs review")
+
+
+def scoreboard_status():
+    """stamp -> Jobber quoteStatus for matched office quotes."""
+    if clouddb.available():
+        sb = clouddb.get_blob("scoreboard")
+    else:
+        p = BASE / "data" / "scoreboard.json"
+        sb = json.loads(p.read_text()) if p.exists() else None
+    return {r["stamp"]: r.get("office_status") for r in (sb or {}).get("rows", [])
+            if r.get("office_quote")}
+
+
 def quote_urls():
     """quote number -> its Jobber admin web link (jobberWebUri)."""
     urls = {}
@@ -587,6 +687,10 @@ def home_page():
             f"🔴 {esc(b['from'])}</b> — {esc(why)}</div>"
             for b, why in attention)
 
+    claims = _claims()
+    flags_open = {f.get("stamp") for f in flagged_for_review()}
+    sbs = scoreboard_status()
+
     rows = ""
     for b in queue:                       # already oldest first
         services = "".join(f"<span class='chip'>{esc(s)}</span>"
@@ -613,10 +717,45 @@ def home_page():
         rows += (f"<tr><td>{age_html(b['age_hours'])}</td>"
                  f"<td><a href='/bid/{b['stamp']}'><b>{name}</b></a>"
                  f"<div class='subtext'>{sub}</div>{badge}</td>"
+                 f"<td>{bid_status(b, live_holds, flags_open, sbs, claims)}"
+                 f"</td>"
                  f"<td>{esc(b.get('kind'))}</td><td>{services}{flags}</td>"
                  f"<td>{ring}</td><td class='num'><b>{total}</b></td></tr>")
     if not rows:
-        rows = "<tr><td colspan=6>Queue is empty — all caught up. ✅</td></tr>"
+        rows = "<tr><td colspan=7>Queue is empty — all caught up. ✅</td></tr>"
+
+    # RECENTLY DECIDED — outcomes at a glance, no clicking (Dallon Jul 8:
+    # "bid in process, confirmed, needing review — visible at a glance")
+    decided_rows = ""
+    by_stamp = {b["stamp"]: b for b in bids}
+    seen_d = set()
+    for r in reversed(load_reviews()):
+        s = r.get("stamp")
+        if not s or s in seen_d or r.get("action") not in DECIDED_ACTIONS:
+            continue
+        seen_d.add(s)
+        b = by_stamp.get(s)
+        if not b:
+            continue
+        nm = esc(b.get("from", s)).split("&lt;")[0].strip()
+        q = quotes.get(s)
+        decided_rows += (
+            f"<tr><td><a href='/bid/{s}'><b>{nm[:36]}</b></a>"
+            + (f"<div class='subtext'>{quote_chip(q, qurls)}</div>" if q else "")
+            + f"</td><td>{bid_status(b, live_holds, flags_open, sbs, claims)}"
+            f"</td><td>{esc(r.get('action'))}"
+            + (f" <span class='subtext'>by {esc(r['by'])}</span>"
+               if r.get("by") else "")
+            + f"</td><td class='subtext'>{esc((r.get('at') or '')[:10])}</td></tr>")
+        if len(seen_d) >= 8:
+            break
+    decided_html = ""
+    if decided_rows:
+        decided_html = (
+            "<div class='card'><h2 style='margin-top:0'>Recently decided"
+            "</h2><table><tr><th>Customer</th><th>Status</th>"
+            "<th>Decision</th><th>When</th></tr>"
+            + decided_rows + "</table></div>")
 
     aside_html = ""
     if aside:
@@ -647,11 +786,11 @@ def home_page():
         for r in reviews) or "<div>No reviews yet.</div>"
 
     body = (stats + band +
-        "<div class='grid'><div class='card'>"
+        "<div class='grid'><div><div class='card'>"
         "<h2 style='margin-top:0'>Bid queue — oldest first</h2>"
-        "<table><tr><th>Waiting</th><th>From</th><th>Kind</th>"
+        "<table><tr><th>Waiting</th><th>From</th><th>Status</th><th>Kind</th>"
         "<th>Services</th><th>Conf.</th><th class='num'>Est.</th></tr>" + rows +
-        "</table>" + aside_html + "</div>"
+        "</table>" + aside_html + "</div>" + decided_html + "</div>"
         "<div>" + scoreboard_card() + review_card() + ideas_card() +
         held_card(live_holds, bids) +
         "<div class='card'><h3 style='margin-top:0'>Recent decisions"
@@ -686,9 +825,14 @@ def scoreboard_card():
             f"<div class='big'>${off_t:,.0f}</div></div></div>"
             f"<div class='lbl'>Gap <b style='color:{bcol}'>{bump:+.1f}%</b>"
             f" across {len(rows)} matched quote(s)</div>"
-            "<div style='margin-top:8px;font-size:13px'>"
-            + "".join(f"<div>{esc((r.get('customer') or '?')[:24])} "
-                      f"— {r['gap_pct']:+.0f}%</div>" for r in rows[:4])
+            "<div style='margin-top:10px;font-size:13px'>"
+            + "".join(
+                f"<div style='display:flex;justify-content:space-between;"
+                f"padding:3px 0;border-bottom:1px solid rgba(255,255,255,.08)'>"
+                f"<span>{esc((r.get('customer') or '?').split('<')[0].strip())[:22]}</span>"
+                f"<b style='color:"
+                f"{'#7fd6a2' if abs(r.get('gap_pct') or 0) <= 10 else '#f0c987'}'>"
+                f"{(r.get('gap_pct') or 0):+.0f}%</b></div>" for r in rows[:4])
             + "</div>")
     else:
         inner = (f"<div style='color:#a7c0b3;font-size:13.5px'>{waiting} "
@@ -760,11 +904,23 @@ def aerial_tile_for(address):
     return tile, street
 
 
-def bid_page(stamp):
+def bid_page(stamp, user=None):
     bids = {b["stamp"]: b for b in load_bids()}
     b = bids.get(stamp)
     if not b:
         return page("Not found", "<div class='card'>No such bid.</div>")
+
+    # MULTI-PERSON GUARD: opening a bid claims it for 15 min; if someone
+    # else already has it open, say so LOUDLY before any buttons.
+    other = claim_bid(stamp, user)
+    collision = ""
+    if other:
+        collision = (
+            f"<div class='band' style='background:#e5edff;border-color:"
+            f"#b9ccf5;border-left-color:#1d4ed8'><b style='color:#1d4ed8'>"
+            f"👥 {esc(other['by'])} opened this bid "
+            f"{other['mins']:.0f} min ago</b> — check with them before "
+            f"deciding, so you don't both answer the same customer.</div>")
 
     gallery, has_imagery = "", False
     if clouddb.available():
@@ -982,6 +1138,7 @@ def bid_page(stamp):
 
     body = f"""
 <a href='/'>&larr; back to queue</a>
+{collision}
 <div class='grid'><div>
  <div class='card'>
   <h2 style='margin-top:0'>{esc(b['from'])} {age_html(b['age_hours'])}
@@ -1323,7 +1480,8 @@ def winback_page():
 
 
 def scoreboard_page():
-    """Full scoreboard table — every shadow draft vs the office."""
+    """System vs office, side by side — written for the OFFICE, not for
+    engineers: names, dollars, and a plain-English verdict."""
     if clouddb.available():
         sb = clouddb.get_blob("scoreboard")
     else:
@@ -1332,31 +1490,78 @@ def scoreboard_page():
     if not sb:
         return page("Scoreboard", "<div class='card'>No scoreboard yet — "
                     "the night run generates it.</div>")
+
+    def cname(r):
+        return esc((r.get("customer") or "?").split("<")[0].strip())[:34]
+
+    matched = [r for r in sb["rows"] if r.get("office_quote")]
+    waiting = [r for r in sb["rows"] if not r.get("office_quote")]
+    close = sum(1 for r in matched
+                if r.get("gap_pct") is not None and abs(r["gap_pct"]) <= 10)
+
+    hero = (
+        "<div class='stats'>"
+        f"<div class='stat'><b>{len(matched)}</b><span>compared</span></div>"
+        f"<div class='stat'><b>{close}</b><span>within 10%</span></div>"
+        f"<div class='stat'><b>{len(waiting)}</b>"
+        f"<span>awaiting office</span></div></div>")
+
     rows = ""
-    for r in sb["rows"]:
-        if r.get("office_quote"):
-            gap = r.get("gap_pct")
-            color = ("#1e8449" if abs(gap) <= 10 else
-                     "#c77700" if abs(gap) <= 25 else "#c0392b")
-            qlink = (f"<a href='{esc(r['jobber_url'])}' target='_blank' "
-                     f"rel='noopener'>#{r['office_quote']} ↗</a>"
-                     if r.get("jobber_url") else f"#{r['office_quote']}")
-            verdict = (f"<b style='color:{color}'>{gap:+.0f}%</b> "
-                       f"(office {qlink}, {r['office_status']})")
-            office = f"${r['office_total']:.0f}"
+    for r in matched:
+        gap = r.get("gap_pct")
+        if gap is None:
+            pill = ""
+        elif abs(gap) <= 10:
+            pill = status_pill("approved", f"{gap:+.0f}%")
+        elif abs(gap) <= 25:
+            pill = status_pill("needs review", f"{gap:+.0f}%")
         else:
-            office, verdict = "—", "<span style='color:#888'>awaiting office quote</span>"
-        rows += (f"<tr><td>{esc((r.get('customer') or '?')[:36])}</td>"
-                 f"<td>{', '.join(r.get('services') or [])}</td>"
-                 f"<td>${r['system_total']:.0f}</td><td>{office}</td>"
-                 f"<td>{verdict}</td></tr>")
-    body = (f"<div class='card'><h2 style='margin-top:0'>Shadow scoreboard"
-            f"</h2><div style='color:#888;font-size:13px'>Generated "
-            f"{esc(sb.get('generated', ''))} — green ≤10% of the office, "
-            "amber ≤25%, red beyond.</div>"
-            "<table><tr><th>Customer</th><th>Services</th><th>System</th>"
-            f"<th>Office</th><th>Verdict</th></tr>{rows}</table></div>")
-    return page("Scoreboard", body)
+            fg, bg = "#a93226", "#fdecea"
+            pill = (f"<span style='display:inline-block;background:{bg};"
+                    f"color:{fg};border-radius:999px;padding:3px 12px;"
+                    f"font-size:11.5px;font-weight:700'>{gap:+.0f}%</span>")
+        js = (r.get("office_status") or "").lower()
+        jlabel = {"approved": "WON ✓", "converted": "WON ✓",
+                  "awaiting_response": "quote sent",
+                  "draft": "approved", "archived": "archived"}.get(js)
+        qbtn = (f"<a class='btn' style='padding:5px 12px;font-size:12px;"
+                f"background:#fff;color:#177245;border:1px solid #cfe0d6' "
+                f"href='{esc(r['jobber_url'])}' target='_blank' "
+                f"rel='noopener'>Jobber #{r['office_quote']} ↗</a>"
+                if r.get("jobber_url") else f"#{r['office_quote']}")
+        svcs = "".join(f"<span class='chip'>{esc(s)}</span>"
+                       for s in (r.get("services") or [])[:4])
+        rows += (f"<tr><td><b>{cname(r)}</b>"
+                 f"<div style='margin-top:3px'>{svcs}</div></td>"
+                 f"<td>{status_pill(jlabel) if jlabel else '—'}</td>"
+                 f"<td class='num'>${r['system_total']:,.0f}</td>"
+                 f"<td class='num'><b>${r['office_total']:,.0f}</b></td>"
+                 f"<td>{pill}</td><td>{qbtn}</td></tr>")
+    matched_card = (
+        "<div class='card'><h2 style='margin-top:0'>Compared with the "
+        "office</h2><div class='subtext' style='margin-bottom:10px'>"
+        "Gap pill: green = our draft landed within 10% of what the office "
+        "actually quoted. Minus means we were under.</div>"
+        "<table><tr><th>Customer</th><th>Quote status</th>"
+        "<th class='num'>Our draft</th><th class='num'>Office</th>"
+        "<th>Gap</th><th></th></tr>" + rows + "</table></div>"
+        if rows else "")
+
+    wrows = "".join(
+        f"<tr><td><b>{cname(r)}</b></td>"
+        f"<td>{', '.join((r.get('services') or [])[:4])}</td>"
+        f"<td class='num'>${r['system_total']:,.0f}</td></tr>"
+        for r in waiting)
+    waiting_card = (
+        "<div class='card'><h2 style='margin-top:0'>Waiting for an office "
+        "quote</h2><div class='subtext' style='margin-bottom:10px'>"
+        "We drafted these; the moment the office quotes them in Jobber, "
+        "they move up automatically.</div>"
+        "<table><tr><th>Customer</th><th>Services</th>"
+        "<th class='num'>Our draft</th></tr>" + wrows + "</table></div>"
+        if wrows else "")
+
+    return page("Scoreboard", hero + matched_card + waiting_card)
 
 
 _ABBR = {"se": "southeast", "sw": "southwest", "ne": "northeast",
@@ -1546,7 +1751,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(property_page(m.group(1)))
         m = re.match(r"^/bid/([\w-]+)$", self.path)
         if m:
-            return self._send(bid_page(m.group(1)))
+            cm = re.search(r"office_user=([^;]+)",
+                           self.headers.get("Cookie") or "")
+            who = urllib.parse.unquote(cm.group(1)) if cm else None
+            return self._send(bid_page(m.group(1), user=who))
         m = re.match(r"^/photo/([\w-]+)/(\d+)$", self.path)
         if m:
             photos = bid_photos(m.group(1))
