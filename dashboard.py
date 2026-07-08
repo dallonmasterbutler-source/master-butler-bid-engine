@@ -120,15 +120,28 @@ NOISE_SENDERS = ["no-reply", "noreply", "donotreply", "marketing@",
                  "accounts.google.com", "notifications@", "newsletter"]
 
 
+_SENDERS_CACHE = {"at": 0.0, "list": None}
+
+
 def _internal_senders():
+    """Cached 60s — classify_row runs per queue row; without the cache
+    every row would be a database query (Martha's-machine rule)."""
+    import time
+    now = time.monotonic()
+    if _SENDERS_CACHE["list"] is not None and now - _SENDERS_CACHE["at"] < 60:
+        return _SENDERS_CACHE["list"]
     out = list(INTERNAL_DEFAULT)
     extra = BASE / "data" / "internal_senders.txt"
     if extra.exists():
         out += [l.strip().lower() for l in extra.read_text().splitlines()
                 if l.strip() and not l.startswith("#")]
     if clouddb.available():
-        out += [s.lower() for s in
-                (clouddb.get_blob("internal_senders") or [])]
+        try:
+            out += [s.lower() for s in
+                    (clouddb.get_blob("internal_senders") or [])]
+        except Exception:
+            pass
+    _SENDERS_CACHE.update(at=now, list=out)
     return out
 
 
@@ -627,6 +640,8 @@ def bid_page(stamp):
         f"${h['honored_gap']:.0f} ({h['date'][:10]})</div>"
         for h in hist) or "<div>(no honor history for this service mix)</div>"
 
+    my_quote = quote_numbers().get(stamp)   # computed ONCE per page
+
     # ── structured draft: headline, price table, measurements ──
     d = b.get("draft") or {}
     bid_d = d.get("bid") or {}
@@ -696,8 +711,8 @@ def bid_page(stamp):
 <div class='grid'><div>
  <div class='card'>
   <h2 style='margin-top:0'>{esc(b['from'])} {age_html(b['age_hours'])}
-  {f"<span class='chip win' style='font-size:13px'>Jobber quote #{esc(quote_numbers().get(stamp))} — verify there</span>"
-   if quote_numbers().get(stamp) else ''}</h2>
+  {f"<span class='chip win' style='font-size:13px'>Jobber quote #{esc(my_quote)} — verify there</span>"
+   if my_quote else ''}</h2>
   {draft_headline}
   <div style='color:var(--mut);margin-top:6px'>
    <b>Subject:</b> {esc(b.get('subject'))} &nbsp;·&nbsp;
