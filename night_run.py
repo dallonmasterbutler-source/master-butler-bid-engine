@@ -106,9 +106,10 @@ try:
         o.unlink()
 except Exception as e:
     print(f"   backup skipped ({e})")
+brief_text = None
 try:
     import digest
-    path, _ = digest.write()
+    path, brief_text = digest.write()
     print(f"   morning brief -> {path}")
 except Exception as e:
     print(f"   brief skipped ({e})")
@@ -127,6 +128,8 @@ try:
         f = Path("data") / fname
         if f.exists():
             blobs[key] = json.loads(f.read_text())
+    if brief_text:
+        blobs["brief"] = brief_text
     n += push(blobs=blobs)
     print(f"   {n} item(s) mirrored to the cloud")
 except Exception as e:

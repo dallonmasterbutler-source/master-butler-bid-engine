@@ -175,17 +175,21 @@ def _history_hits(records, services):
 # ── html helpers (no frameworks — Martha's machine is slow) ──
 
 STYLE = """<style>
+:root{--green:#0b3d2e;--green2:#0b6e4f;--gold:#c9a227;--bg:#f4f5f2}
 body{font-family:-apple-system,Helvetica,Arial,sans-serif;margin:0;
-     background:#f4f5f7;color:#1a1a1a}
-header{background:#0b3d2e;color:#fff;padding:14px 24px;font-size:20px;
-       font-weight:700}
-header small{font-weight:400;opacity:.75;margin-left:10px}
+     background:var(--bg);color:#1a1a1a}
+header{background:linear-gradient(135deg,var(--green) 0%,#124d3a 100%);
+       color:#fff;padding:16px 24px;font-size:20px;font-weight:700;
+       border-bottom:3px solid var(--gold);letter-spacing:.2px}
+header small{font-weight:400;opacity:.75;margin-left:10px;font-size:13px}
 .wrap{max-width:1100px;margin:0 auto;padding:18px}
 .band{background:#fff4e5;border:1px solid #f0c987;border-radius:8px;
       padding:12px 16px;margin-bottom:18px}
 .band h2{margin:0 0 8px;font-size:15px;color:#8a5a00}
-.card{background:#fff;border:1px solid #ddd;border-radius:8px;
-      padding:14px 18px;margin-bottom:14px}
+.card{background:#fff;border:1px solid #e2e4e0;border-radius:10px;
+      padding:14px 18px;margin-bottom:14px;
+      box-shadow:0 1px 3px rgba(11,61,46,.07)}
+.card h2,.card h3{color:var(--green)}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;color:#666;font-weight:600;padding:6px 8px;
    border-bottom:2px solid #eee}
@@ -214,17 +218,26 @@ input[type=text],textarea{width:100%;padding:8px;border:1px solid #ccc;
 </style>"""
 
 
-def page(title, body):
+FAVICON = ("<link rel='icon' href=\"data:image/svg+xml,<svg xmlns='http://"
+           "www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' "
+           "font-size='90'>🎩</text></svg>\">")
+
+
+def page(title, body, refresh=None):
+    auto = (f"<meta http-equiv='refresh' content='{refresh}'>"
+            if refresh else "")
     return (f"<!doctype html><html><head><meta charset='utf-8'>"
             f"<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            f"{auto}{FAVICON}"
             f"<title>{title}</title>{STYLE}</head><body>"
-            f"<header>Master Butler — Bid Review"
+            f"<header>🎩 Master Butler — Bid Review"
             f"<small>{'approve pushes DRAFT quotes to Jobber' if _push_enabled() else 'shadow mode · nothing sends without you'}"
             f"</small>"
             f"<span style='float:right;font-size:14px;font-weight:400'>"
-            f"<a href='/' style='color:#cde'>Queue</a> &nbsp; "
-            f"<a href='/drafts' style='color:#cde'>Drafts &amp; escalations"
-            f"</a></span></header>"
+            f"<a href='/' style='color:#e8d9a0'>Queue</a> &nbsp;·&nbsp; "
+            f"<a href='/drafts' style='color:#e8d9a0'>Drafts</a> &nbsp;·&nbsp; "
+            f"<a href='/brief' style='color:#e8d9a0'>Morning brief</a>"
+            f"</span></header>"
             f"<div class='wrap'>{body}</div></body></html>").encode()
 
 
@@ -306,7 +319,7 @@ def home_page():
         "<div class='card'><h3 style='margin-top:0'>Schedule glance</h3>"
         "<div style='color:#888'>Jobber calendar — future phase. Days fill "
         "toward the $850–1,100/tech target.</div></div></div></div>")
-    return page("Bid queue", body)
+    return page("Bid queue", body, refresh=120)   # live-ish, no clicking
 
 
 def scoreboard_card():
@@ -539,6 +552,22 @@ def drafts_page():
     return page("Drafts", sections)
 
 
+def brief_page():
+    """Latest morning brief — cloud blob first, local file fallback."""
+    text = None
+    if clouddb.available():
+        text = clouddb.get_blob("brief")
+    if not text:
+        briefs = sorted((BASE / "data" / "briefs").glob("brief-*.txt")) \
+            if (BASE / "data" / "briefs").exists() else []
+        text = briefs[-1].read_text() if briefs else None
+    body = (f"<div class='card'><pre style='font-size:14px'>{esc(text)}</pre>"
+            "</div>" if text else
+            "<div class='card'>No brief yet — the night run writes one "
+            "each evening.</div>")
+    return page("Morning brief", body)
+
+
 # ── server ───────────────────────────────────────────────────
 
 def _password():
@@ -588,6 +617,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(home_page())
         if self.path == "/drafts":
             return self._send(drafts_page())
+        if self.path == "/brief":
+            return self._send(brief_page())
         m = re.match(r"^/bid/([\w-]+)$", self.path)
         if m:
             return self._send(bid_page(m.group(1)))
