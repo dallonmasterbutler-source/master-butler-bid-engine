@@ -55,6 +55,14 @@ python3 test_pricing.py                # the 84-test pricing safety net
 - Aerial imagery: rural spots may use old Solar flights (the note says
   the year) or have none at all (Gold Bar). Enabling "Maps Static API"
   in Google Cloud fixes both — one click, Dallon has the account.
+  While there, also enable "Street View Static API" (curb-side photos
+  for the windows/PW all-sides view — currently 403).
+- Scoreboard (`python3 scoreboard.py`): compares shadow drafts to the
+  office's real quotes; run it every few days as quotes go out.
+- Hold button: parks a bid (standby gutters, seasonal, awaiting photos)
+  until a date, then it POPS BACK at the top — held bids answered first.
+- Possible duplicates are linked, never dropped — "same job or new job?"
+  is always the office's call.
 - Holiday lights: labor is still Tom's call; the system only drafts
   materials and forwards.
 - Auto-send is hard-locked OFF for the first 6 months. Not a setting.

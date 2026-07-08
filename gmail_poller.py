@@ -19,6 +19,7 @@ import email
 import email.policy
 import imaplib
 import json
+import re as _re
 import sys
 import time
 from datetime import datetime
@@ -110,6 +111,34 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     if "Spam" in folder and parsed["kind"] == "new_request":
         record["office_alert"] = ("FOUND IN SPAM — real request; office "
                                   "should rescue it from the spam folder")
+
+    # DUPLICATE LINKING: same person/thread/address within 30 days gets
+    # LINKED, never dropped — the office decides "same job" vs "new job".
+    try:
+        from dedup import check_duplicate
+        priors = []
+        for pj in sorted(SHADOW_DIR.glob("*.json")):
+            pr = json.loads(pj.read_text())
+            m = _re.search(r"<([^>]+)>", pr.get("from", ""))
+            priors.append({
+                "stamp": pj.stem,
+                "sender_email": m.group(1) if m else "",
+                "address": pr.get("address"),
+                "thread_id": None,
+                "received": datetime.strptime(pj.stem, "%Y%m%d-%H%M%S"),
+            })
+        m = _re.search(r"<([^>]+)>", record["from"])
+        verdict = check_duplicate(
+            {"sender_email": m.group(1) if m else "",
+             "address": record.get("address"),
+             "received": datetime.now()}, priors)
+        if verdict["verdict"] == "suspected_duplicate":
+            record["duplicate_of"] = verdict["match"]["stamp"]
+            record["office_alert"] = (record.get("office_alert", "") +
+                f" POSSIBLE DUPLICATE of {verdict['match']['stamp']} "
+                f"({verdict['reason']}) — same job or new job?").strip()
+    except Exception:
+        pass    # linking is a bonus, never a blocker
 
     print(f"  📧 {parsed['subject'][:60]}")
     print(f"     kind={parsed['kind']}  services={parsed['services']}")
