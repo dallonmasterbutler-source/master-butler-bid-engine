@@ -1309,32 +1309,24 @@ class Handler(BaseHTTPRequestHandler):
                          "customer": get("customer"),
                          "note": f"draft: {path.name}"})
         elif self.path == "/new":
-            # run the full pipeline in the background (it's ~20s); the lead
-            # appears on the queue on the next auto-refresh
-            import threading
-            svcs = form.get("svc", [])
-            kw = dict(name=get("name"), address=get("address"),
-                      phone=get("phone"), email=get("email"),
-                      services=svcs, extra=get("extra"),
-                      entered_by="office")
-            def run():
-                try:
-                    from manual import process_manual
-                    import traceback
-                    print(f"[manual] processing lead: {kw['name']}", flush=True)
-                    stamp, rec = process_manual(**kw)
-                    print(f"[manual] done {stamp}: total="
-                          f"{(rec.get('draft') or {}).get('total')} "
-                          f"err={rec.get('pipeline_error')}", flush=True)
-                except Exception:
-                    import traceback
-                    print("[manual] FAILED:\n" + traceback.format_exc(),
-                          flush=True)
-            threading.Thread(target=run, daemon=True).start()
-            self.send_response(303)
-            self.send_header("Location", "/new?msg=working")
-            self.end_headers()
-            return
+            # light pipeline (lookup + price) is ~3s — run it now and drop
+            # the office straight onto the finished bid.
+            try:
+                from manual import process_manual
+                stamp, rec = process_manual(
+                    name=get("name"), address=get("address"),
+                    phone=get("phone"), email=get("email"),
+                    services=form.get("svc", []), extra=get("extra"),
+                    entered_by="office")
+                self.send_response(303)
+                self.send_header("Location", f"/bid/{stamp}")
+                self.end_headers()
+                return
+            except Exception:
+                self.send_response(303)
+                self.send_header("Location", "/new?msg=error")
+                self.end_headers()
+                return
         elif self.path == "/idea":
             if get("text").strip():
                 add_idea(get("who"), get("text"))

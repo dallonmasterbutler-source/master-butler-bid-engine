@@ -80,19 +80,51 @@ def process_manual(name, address, phone="", email="", services=None,
                         "pipeline like an inbound email.",
     }
 
-    # full pipeline (property lookup + aerial + street + pricing)
+    # LIGHT pipeline: property lookup + pricing (fast, ~3s — no satellite
+    # Vision). A curbside quick-quote wants a fast number; the full
+    # satellite/street analysis is what inbound emails get on the Mac.
+    # (Records with no property data can be re-run deep later.)
     try:
-        from pipeline import process
-        buf = io.StringIO()
-        with redirect_stdout(buf):
-            draft = process(eml_path)
-        record["pipeline_output"] = buf.getvalue()
-        if draft:
-            record["draft"] = draft
-            if draft.get("customer", {}).get("address"):
-                record["address"] = draft["customer"]["address"]
+        from pipeline import lookup, build_property, SERVICE_TO_ENGINE
+        from bid_engine import calculate_bid
+        addr = parsed.get("address") or address
+        facts, flags, deduction = lookup(addr) if addr else ({}, [], 0)
+        prop, oflags = build_property(parsed, facts or {})
+        out_lines = [f"MANUAL LEAD — {name}", f"Address: {addr}"]
+        if not prop.get("sqft"):
+            record["office_alert"] += (" No property size found — office "
+                                       "verifies before pricing.")
+            record["pipeline_output"] = "\n".join(
+                out_lines + ["No square footage — office must supply it."])
+            record["draft"] = {"customer": {"name": name, "email": email,
+                               "phone": phone, "address": addr},
+                               "bid": {"services": [], "notes": flags + oflags,
+                                       "confidence": 0}, "prop_info": {},
+                               "total": 0}
+        else:
+            results, notes, confidence = calculate_bid(prop)
+            confidence = max(0, confidence - deduction)
+            total = sum(s["price"] for s in results)
+            record["draft"] = {
+                "customer": {"name": name, "email": email, "phone": phone,
+                             "address": addr},
+                "bid": {"services": results, "notes": notes + flags + oflags,
+                        "confidence": confidence},
+                "prop_info": {"sqft": prop.get("sqft"),
+                              "sqft_source": facts.get("sqft_source"),
+                              "pitch": prop.get("pitch"),
+                              "roof_material": prop.get("roof_material"),
+                              "stories": prop.get("stories")},
+                "total": total}
+            for s in results:
+                out_lines.append(f"  {s['name']:<34} ${s['price']}")
+            out_lines.append(f"  TOTAL ${total}  (confidence {confidence}%)")
+            out_lines += [f"  ⚠ {n}" for n in (notes + flags + oflags)]
+            record["pipeline_output"] = "\n".join(out_lines)
+        record["address"] = addr
     except Exception as e:
-        record["pipeline_error"] = str(e)
+        import traceback
+        record["pipeline_error"] = traceback.format_exc()[-500:]
 
     _save(stamp, record, eml_path)
     return stamp, record
