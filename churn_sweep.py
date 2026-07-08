@@ -36,14 +36,21 @@ def sweep(limit=100000):
     jc.DRY_RUN = False
     clients, scanned, cursor = {}, 0, None
     while scanned < limit:
-        for attempt in range(6):
-            data = jc._post(QUERY, {"first": min(25, limit - scanned),
-                                    "after": cursor}, "client history")
-            if data.get("error") and "THROTTLED" in str(data.get("body", "")).upper():
+        data = None
+        for attempt in range(8):
+            try:
+                data = jc._post(QUERY, {"first": min(25, limit - scanned),
+                                        "after": cursor}, "client history")
+            except Exception as e:           # network hiccup / timeout
+                print(f"  retry {attempt+1} after {type(e).__name__}")
+                time.sleep(10 * (attempt + 1))
+                continue
+            if data.get("error") and "THROTTLED" in str(
+                    data.get("body", "")).upper():
                 time.sleep(15 * (attempt + 1))
                 continue
             break
-        if data.get("error"):
+        if data is None or data.get("error"):
             print(f"stopping at {scanned}: {str(data)[:120]}")
             break
         block = data["invoices"]
