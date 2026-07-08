@@ -698,8 +698,17 @@ def home_page():
     qurls = quote_urls()
     pending = [b for b in bids if not b["reviewed"]
                and b["stamp"] not in live_holds]
-    queue, aside, chatter = [], [], []
+    claims = _claims()
+    flags_open = {f.get("stamp") for f in flagged_for_review()}
+    sbs = scoreboard_status()
+
+    queue, aside, chatter, office_done = [], [], [], []
     for b in pending:
+        # the OFFICE already quoted it -> nothing left to review here;
+        # it lives in "Recently decided" with its live Jobber status
+        if sbs.get(b["stamp"]) and not b.get("office_alert"):
+            office_done.append(b)
+            continue
         lane, why = classify_row(b)
         if lane == "main":
             queue.append(b)
@@ -774,9 +783,29 @@ def home_page():
             f"🔴 {esc(b['from'])}</b> — {esc(why)}</div>"
             for b, why in attention)
 
-    claims = _claims()
-    flags_open = {f.get("stamp") for f in flagged_for_review()}
-    sbs = scoreboard_status()
+    # ONE CUSTOMER = ONE ROW on the queue too: several emails from the
+    # same person collapse into their newest bid, oldest wait shown
+    # (the SLA clock never lies), earlier messages linked underneath.
+    grouped, order = {}, []
+    for b in queue:                       # oldest first
+        m = re.search(r"<([^>]+)>", b.get("from") or "")
+        key = (m.group(1).lower() if m else b.get("from") or b["stamp"])
+        if key not in grouped:
+            grouped[key] = {"newest": b, "oldest_age": b["age_hours"],
+                            "earlier": []}
+            order.append(key)
+        else:
+            grouped[key]["earlier"].append(grouped[key]["newest"])
+            grouped[key]["newest"] = b
+    queue = []
+    extra_links = {}
+    for key in order:
+        g = grouped[key]
+        b = g["newest"]
+        b["age_hours"] = max(b["age_hours"], g["oldest_age"])
+        if g["earlier"]:
+            extra_links[b["stamp"]] = g["earlier"]
+        queue.append(b)
 
     rows = ""
     for b in queue:                       # already oldest first
@@ -788,6 +817,12 @@ def home_page():
             color, text = attn_badge[b["stamp"]]
             badge = (f"<div style='color:{color};font-size:12px;"
                      f"font-weight:700;margin-top:3px'>{esc(text)}</div>")
+        if b["stamp"] in extra_links:
+            links = " · ".join(
+                f"<a href='/bid/{e['stamp']}'>{e['stamp'][4:8]}-{e['stamp'][9:13]}</a>"
+                for e in extra_links[b["stamp"]])
+            badge += (f"<div class='subtext'>+{len(extra_links[b['stamp']])} "
+                      f"earlier message(s): {links}</div>")
         total = f"${b['total_guess']}" if b.get("total_guess") else "—"
         c = b.get("confidence")
         conf = ("—" if c is None else
@@ -816,6 +851,15 @@ def home_page():
     decided_rows = ""
     by_stamp = {b["stamp"]: b for b in bids}
     seen_d = set()
+    for b in office_done:
+        seen_d.add(b["stamp"])
+        nm = esc(b.get("from", "")).split("&lt;")[0].strip()
+        q = quotes.get(b["stamp"])
+        decided_rows += (
+            f"<tr><td><a href='/bid/{b['stamp']}'><b>{nm[:36]}</b></a>"
+            + (f"<div class='subtext'>{quote_chip(q, qurls)}</div>" if q else "")
+            + f"<td>{bid_status(b, live_holds, flags_open, sbs, claims)}"
+            f"</td><td>office quoted it</td><td class='subtext'>—</td></tr>")
     for r in reversed(load_reviews()):
         s = r.get("stamp")
         if not s or s in seen_d or r.get("action") not in DECIDED_ACTIONS:
@@ -1303,24 +1347,23 @@ def bid_page(stamp, user=None):
    <div style='font-size:12px;color:#888'>Hold parks the WORK, never the
    reply — customer still gets answered with the timeline.</div>
   </form>
-  <form method='POST' action='/escalate' style='margin-top:6px'>
-   <input type='hidden' name='stamp' value='{stamp}'>
-   <input type='hidden' name='customer' value='{esc(b['from'])}'>
-   <input type='hidden' name='address' value='{esc(b.get('address'))}'>
-   <input type='text' name='question' placeholder='the ONE question for Dallon/Tom'>
-   <button class='red'>Escalate → standardized form</button>
-  </form>
-  <form method='POST' action='/mark_spam' style='margin-top:6px'>
-   <input type='hidden' name='stamp' value='{stamp}'>
-   <input type='hidden' name='sender' value='{esc(b['from'])}'>
-   <button class='gray'>🚫 Spam — never show this sender again</button>
-  </form>
   <form method='POST' action='/flag_review' style='margin-top:6px'>
    <input type='hidden' name='stamp' value='{stamp}'>
    <input type='hidden' name='customer' value='{esc(b['from'])}'>
    <input type='hidden' name='total' value='{d.get('total') or ''}'>
    <button style='background:var(--gold);color:#1c2b23'>🚩 Send to Tom
    &amp; Dallon for review</button>
+  </form>
+  <details style='margin-top:10px;border-top:1px solid var(--line);
+    padding-top:8px'>
+   <summary style='cursor:pointer;color:var(--mut);font-size:12.5px;
+    font-weight:700'>More actions (escalate · photos · spam)</summary>
+  <form method='POST' action='/escalate' style='margin-top:8px'>
+   <input type='hidden' name='stamp' value='{stamp}'>
+   <input type='hidden' name='customer' value='{esc(b['from'])}'>
+   <input type='hidden' name='address' value='{esc(b.get('address'))}'>
+   <input type='text' name='question' placeholder='the ONE question for Dallon/Tom'>
+   <button class='red'>Escalate → standardized form</button>
   </form>
   <form method='POST' action='/photo_request' style='margin-top:6px'>
    <input type='hidden' name='stamp' value='{stamp}'>
@@ -1333,6 +1376,12 @@ def bid_page(stamp, user=None):
    <input type='hidden' name='customer' value='{esc(b['from'])}'>
    <button class='gray'>Draft welcome-back reply</button>
   </form>''' if prior else ''}
+  <form method='POST' action='/mark_spam' style='margin-top:6px'>
+   <input type='hidden' name='stamp' value='{stamp}'>
+   <input type='hidden' name='sender' value='{esc(b['from'])}'>
+   <button class='gray'>🚫 Spam — never show this sender again</button>
+  </form>
+  </details>
  </div>
  <details class='card'><summary style='cursor:pointer;font-weight:700;
   color:var(--mut);font-size:12px'>Similar homes (honor history) — open if
