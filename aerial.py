@@ -281,19 +281,30 @@ def cross_check(prop, address, today_year=2026, _reading=None, _tile=None):
     for s in reading.get("surfaces", []):
         key = {"driveway": "driveway", "walkway": "sidewalk",
                "patio": "patio"}.get(s.get("type"))
-        if not key or s.get("confidence") == "low":
+        if not key:
             continue
+        conf = s.get("confidence", "low")
         mid = (s.get("sqft_low", 0) + s.get("sqft_high", 0)) / 2
         if key in ground and ground[key]:
+            if conf == "low":
+                continue            # never second-guess photos on a low read
             ratio = mid / ground[key]
             if ratio > 1.4 or ratio < 0.6:
                 notes.append(f"Aerial ({vintage}): {key} looks ~{int(mid)} "
                              f"sqft from above vs {ground[key]} from photos "
                              "— office verify before sending.")
         elif prop.get("services", {}).get(key):
-            notes.append(f"Aerial ({vintage}): {key} ~{s.get('sqft_low')}-"
-                         f"{s.get('sqft_high')} sqft from above (no ground "
-                         "measurement existed).")
+            # the service was requested and NOBODY had a measurement —
+            # an aerial measurement beats a $0 draft (fills blanks only,
+            # never overrides ground photos; office verifies). Low-
+            # confidence reads still fill, but say so LOUDLY.
+            fields.setdefault("surfaces", {})[key] = int(mid)
+            loud = (" ⚠ LOW-CONFIDENCE read — verify against a photo "
+                    "before sending" if conf == "low" else
+                    " — priced on that; office verify before sending")
+            notes.append(f"Aerial ({vintage}): {key} measured ~{int(mid)} "
+                         f"sqft FROM ABOVE (range {s.get('sqft_low')}-"
+                         f"{s.get('sqft_high')}, {conf} confidence){loud}.")
 
     # 3) TREES (Connor's question) — only from reasonably fresh imagery.
     if stale:
@@ -316,7 +327,9 @@ def cross_check(prop, address, today_year=2026, _reading=None, _tile=None):
     return fields, notes
 
 
-PITCH_ORDER = ["low", "mild", "moderate", "steep"]
+PITCH_ORDER = ["low", "mild", "moderate", "steep", "tom_only"]
+# (street photos can't SAY "tom_only" — but data claiming tom_only while
+# the roofline looks mild/moderate is exactly the overcall to catch)
 
 
 def street_check(prop, address, _reading=None):

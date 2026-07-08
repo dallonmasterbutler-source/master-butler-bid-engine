@@ -313,6 +313,15 @@ check("Area disagreement flagged (800 aerial vs 400 ground)",
       1 if any("office verify" in x for x in n) else 0, 1)
 check("Partial canopy = note only, no auto-heavy",
       0 if f.get("debris") else 1, 1)
+# aerial fills a MISSING measurement (never overrides ground photos)
+empty_prop = {"surfaces": {}, "services": {"driveway": True}}
+f2, n2 = cross_check(empty_prop, "test", _reading=GAVIN_READING,
+                     _tile="t-z20.png")
+check("Aerial fills missing surface (no more \$0 drafts)",
+      f2.get("surfaces", {}).get("driveway", 0), 800)
+check("Ground measurement never overridden",
+      1 if "surfaces" not in cross_check(prop, "test",
+          _reading=GAVIN_READING, _tile="t-z20.png")[0] else 0, 1)
 f, n = cross_check(prop, "test", _reading=GAVIN_READING,
                    _tile="t-solar-201307.png")
 check("Stale imagery = tree reads skipped",

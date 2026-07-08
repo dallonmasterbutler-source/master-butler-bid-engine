@@ -221,6 +221,8 @@ def process(eml_path):
             afields, anotes = cross_check(prop, parsed["address"])
             if afields.get("debris"):
                 prop["debris"] = afields["debris"]
+            for key, area in (afields.get("surfaces") or {}).items():
+                prop["surfaces"].setdefault(key, area)   # fill blanks only
             office_flags += anotes
             print(f"    Aerial cross-check: {len(anotes)} note(s)")
         except Exception as e:
