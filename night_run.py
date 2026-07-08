@@ -21,7 +21,7 @@ print(f"MASTER BUTLER NIGHT RUN — {datetime.now():%B %d, %Y %I:%M %p}")
 print("═" * 56)
 
 # 1 ── reconciler (recent slice, polite)
-print("\n[1/4] Reconciler — recent invoices…")
+print("\n[1/5] Reconciler — recent invoices…")
 try:
     import reconciler
     scanned, found = reconciler.sweep(limit=200)
@@ -37,7 +37,7 @@ except Exception as e:
     print(f"   skipped ({e})")
 
 # 2 ── scoreboard
-print("\n[2/4] Scoreboard — shadow drafts vs office quotes…")
+print("\n[2/5] Scoreboard — shadow drafts vs office quotes…")
 try:
     import scoreboard
     r = scoreboard.run(limit=60)
@@ -57,7 +57,7 @@ except Exception as e:
     print(f"   skipped ({e})")
 
 # 3 ── holds resurfacing
-print("\n[3/4] Holds resurfacing in the next 2 days…")
+print("\n[3/5] Holds resurfacing in the next 2 days…")
 try:
     import dashboard
     live, resurfaced = dashboard.active_holds()
