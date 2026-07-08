@@ -21,7 +21,7 @@ print(f"MASTER BUTLER NIGHT RUN — {datetime.now():%B %d, %Y %I:%M %p}")
 print("═" * 56)
 
 # 1 ── reconciler (recent slice, polite)
-print("\n[1/3] Reconciler — recent invoices…")
+print("\n[1/4] Reconciler — recent invoices…")
 try:
     import reconciler
     scanned, found = reconciler.sweep(limit=200)
@@ -37,7 +37,7 @@ except Exception as e:
     print(f"   skipped ({e})")
 
 # 2 ── scoreboard
-print("\n[2/3] Scoreboard — shadow drafts vs office quotes…")
+print("\n[2/4] Scoreboard — shadow drafts vs office quotes…")
 try:
     import scoreboard
     r = scoreboard.run(limit=60)
@@ -50,7 +50,7 @@ except Exception as e:
     print(f"   skipped ({e})")
 
 # 3 ── holds resurfacing
-print("\n[3/3] Holds resurfacing in the next 2 days…")
+print("\n[3/4] Holds resurfacing in the next 2 days…")
 try:
     import dashboard
     live, resurfaced = dashboard.active_holds()
@@ -62,6 +62,18 @@ try:
               f"(due {h.get('hold_until')})")
     if not resurfaced and not coming:
         print("   none")
+except Exception as e:
+    print(f"   skipped ({e})")
+
+# 4 ── database sync (idempotent)
+print("\n[4/4] Database sync…")
+try:
+    import store
+    r, l = store.sync()
+    counts = store.report()
+    print(f"   +{r} request(s), +{l} bid line(s) — DB now: "
+          f"{counts['requests']} requests / {counts['bids']} bids / "
+          f"{counts['audit_log']} audit entries")
 except Exception as e:
     print(f"   skipped ({e})")
 
