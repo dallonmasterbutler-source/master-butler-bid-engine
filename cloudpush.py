@@ -112,6 +112,21 @@ def push_or_queue(stamp, record):
         return False
 
 
+def pull_reviews():
+    """Download every office decision from the cloud (JSON list). The
+    learning loop on this Mac feeds on these — LaRee's reason taps in
+    the cloud become adjust_reason rows in the local store."""
+    url = _cfg("DASHBOARD_URL")
+    pw = _cfg("DASHBOARD_PASSWORD")
+    if not url or not pw:
+        return []
+    req = urllib.request.Request(
+        url.rstrip("/") + "/api/reviews",
+        headers={"Authorization": "Basic "
+                 + b64encode(f"office:{pw}".encode()).decode()})
+    return json.load(urllib.request.urlopen(req, timeout=30))
+
+
 def flush_pending():
     """Retry everything that queued while offline. Returns count sent."""
     if not PENDING.exists():

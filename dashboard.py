@@ -846,6 +846,9 @@ class Handler(BaseHTTPRequestHandler):
             data = clouddb.get_photo(m.group(1), m.group(2), int(m.group(3)))
             if data:
                 return self._send(data, ctype="image/jpeg")
+        if self.path == "/api/reviews":       # the Mac pulls decisions down
+            return self._send(json.dumps(load_reviews()).encode(),
+                              ctype="application/json")
         return self._send(b"not found", 404)
 
     def do_POST(self):

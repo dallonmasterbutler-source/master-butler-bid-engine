@@ -72,8 +72,19 @@ try:
 except Exception as e:
     print(f"   skipped ({e})")
 
-# 4 ── database sync (idempotent)
+# 4 ── database sync (idempotent) — cloud decisions come DOWN first,
+#      so the office's reason taps land in the local learning store
 print("\n[4/6] Database sync…")
+try:
+    import json
+    from pathlib import Path
+    from cloudpush import pull_reviews
+    reviews = pull_reviews()
+    if reviews:
+        Path("data/review_log.json").write_text(json.dumps(reviews, indent=1))
+        print(f"   {len(reviews)} office decision(s) pulled from the cloud")
+except Exception as e:
+    print(f"   (review pull skipped: {e})")
 try:
     import store
     r, l = store.sync()
