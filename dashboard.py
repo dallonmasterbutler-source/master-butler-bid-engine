@@ -176,6 +176,21 @@ def classify_row(rec):
             return "aside", "robot mail"
     if "Spam" in (rec.get("folder") or "") and rec.get("kind") != "new_request":
         return "aside", "spam folder, not a request"
+    # CONVERSATIONS (Dallon, Jul 8 — the Winward "Great! Thank you!😊"):
+    # a customer replying pleasantries in a scheduling thread isn't a
+    # bid. Visible in its own drawer — shown, never hidden — but off
+    # the work queue. CONSERVATIVE: any question mark, any service, or
+    # any real length keeps them on the main queue.
+    if rec.get("kind") in ("scheduling", "other") \
+            and not rec.get("services"):
+        msg = (rec.get("newest_message") or "").strip()
+        is_reply = (rec.get("subject") or "").lower().startswith("re:")
+        pleasantry = re.match(
+            r"^(great|perfect|awesome|sounds good|thank(s| you)|ok(ay)?|"
+            r"got it|see you|will do|no problem)\b", msg.lower())
+        if is_reply and "?" not in msg and (
+                (pleasantry and len(msg.split()) <= 30) or len(msg) <= 60):
+            return "chatter", "reply in an office thread — no ask"
     # Anyone else is an OUTSIDE HUMAN — they stay in front of the office
     # no matter how the classifier labeled them (replies and follow-ups
     # often come through as 'other'; hiding a customer is the one
@@ -416,7 +431,32 @@ def page(title, body, refresh=None):
                           ("/winback", "Win-back", "Win-back"),
                           ("/scoreboard", "Scoreboard", "Scoreboard"),
                           ("/brief", "Morning brief", "Morning brief")))
-            + "</span></header>"
+            + "</span>"
+            # WHO'S WORKING (Dallon, Jul 8: "we need a way to know who
+            # worked on what bid"). Cookie-based name tag: every action
+            # (approve, hold, flag, contacted) is stamped with it.
+            + """<span id='who' style='margin-left:10px;font-size:13px'></span>
+<script>
+(function(){
+  var m=document.cookie.match(/office_user=([^;]+)/);
+  var el=document.getElementById('who');
+  function set(n){document.cookie='office_user='+encodeURIComponent(n)
+    +';path=/;max-age=31536000';location.reload();}
+  if(m){var n=decodeURIComponent(m[1]);
+    el.innerHTML='👤 <b>'+n+'</b> <a href="#" style="color:#dfe7e2;'
+      +'opacity:.7">change</a>';
+    el.querySelector('a').onclick=function(e){e.preventDefault();
+      document.cookie='office_user=;path=/;max-age=0';location.reload();};
+  } else {
+    el.innerHTML='Who\\u2019s working? ';
+    ['LaRee','Jessica','Dallon','Tom'].forEach(function(n){
+      var a=document.createElement('a');a.href='#';a.textContent=n;
+      a.style.cssText='margin:0 4px;color:#c9a227;font-weight:700';
+      a.onclick=function(e){e.preventDefault();set(n);};
+      el.appendChild(a);});
+  }
+})();
+</script></header>"""
             f"<div class='wrap'>{body}</div>"
             f"<footer>Every quote is a draft until a human sends it · the "
             f"inbox is never marked read · every price traces to a real "
@@ -448,11 +488,13 @@ def home_page():
     qurls = quote_urls()
     pending = [b for b in bids if not b["reviewed"]
                and b["stamp"] not in live_holds]
-    queue, aside = [], []
+    queue, aside, chatter = [], [], []
     for b in pending:
         lane, why = classify_row(b)
         if lane == "main":
             queue.append(b)
+        elif lane == "chatter":
+            chatter.append((b, why))
         else:
             aside.append((b, why))
     attention = []
@@ -554,11 +596,22 @@ def home_page():
                       f"color:#666'>Internal &amp; other mail "
                       f"({len(aside)}) — not customer work</summary>"
                       f"{items}</details>")
+    if chatter:
+        items = "".join(
+            f"<div>💬 <a href='/bid/{b['stamp']}'>{esc(b['from'])[:44]}</a> "
+            f"<span style='color:#888'>&ldquo;{esc((b.get('newest_message') or '')[:60])}"
+            f"&rdquo;</span></div>"
+            for b, why in chatter)
+        aside_html += (f"<details class='card'><summary style='cursor:"
+                       f"pointer;color:#666'>Conversations ({len(chatter)}) "
+                       f"— customers replying in office threads, no action "
+                       f"needed</summary>{items}</details>")
 
     reviews = load_reviews()[-8:][::-1]
     rev_rows = "".join(
         f"<div>✅ {esc(r.get('action'))} — {esc(r.get('customer', r.get('stamp')))}"
-        f"{(' · ' + esc(r['reason'])) if r.get('reason') else ''}</div>"
+        f"{(' · ' + esc(r['reason'])) if r.get('reason') else ''}"
+        f"{(' <span style=color:#888>· by ' + esc(r['by']) + '</span>') if r.get('by') else ''}</div>"
         for r in reviews) or "<div>No reviews yet.</div>"
 
     body = (stats + band +
@@ -1557,6 +1610,16 @@ class Handler(BaseHTTPRequestHandler):
         form = urllib.parse.parse_qs(body.decode())
         get = lambda k: form.get(k, [""])[0]
 
+        # WHO'S WORKING: stamp every decision with the header name-tag
+        # cookie, so 'who approved this?' always has an answer.
+        cm = re.search(r"office_user=([^;]+)",
+                       self.headers.get("Cookie") or "")
+        _user = urllib.parse.unquote(cm.group(1)) if cm else None
+        def save_review(d, _sr=globals()["save_review"]):
+            if _user:
+                d.setdefault("by", _user)
+            return _sr(d)
+
         if self.path == "/review":
             entry = {"stamp": get("stamp"), "action": get("action"),
                      "customer": get("customer"),
@@ -1630,7 +1693,7 @@ class Handler(BaseHTTPRequestHandler):
                 link = f"https://{host}/bid/{get('stamp')}" if host else ""
                 ok, why = mailer.send_review_flag(
                     {"customer": get("customer"), "total": get("total")},
-                    link=link)
+                    link=link, note=f"flagged by {_user}" if _user else "")
             except Exception as e:
                 ok, why = False, f"{type(e).__name__}: {e}"
             # the outcome goes in the review log — visible on the
