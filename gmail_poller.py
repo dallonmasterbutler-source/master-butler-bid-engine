@@ -109,6 +109,20 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
               "subject": parsed["subject"], "kind": parsed["kind"],
               "services": parsed["services"], "address": parsed["address"],
               "phone": parsed.get("phone")}
+    if parsed.get("jobber_event"):
+        ev = parsed["jobber_event"]
+        record["jobber_event"] = ev
+        if ev["event"] == "quote_approved":
+            record["office_alert"] = (
+                f"🎉 QUOTE #{ev.get('quote_number')} APPROVED"
+                + (f" by {ev['client']}" if ev.get("client") else "")
+                + (f" (${ev['amount']})" if ev.get("amount") else "")
+                + " — convert it to a job in Jobber.")
+        elif ev["event"] == "changes_requested":
+            record["office_alert"] = (
+                f"Quote #{ev.get('quote_number')}: customer requested "
+                "changes — needs office attention.")
+
     if parsed.get("lead"):
         lead = parsed["lead"]
         record["lead"] = lead

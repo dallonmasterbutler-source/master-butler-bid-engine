@@ -134,6 +134,14 @@ def _internal_senders():
 
 def classify_row(rec):
     """'main' (customer work) or ('aside', reason) for the drawer."""
+    # Jobber EVENTS outrank every filter: an approval or change-request
+    # is action for the office; receipts and the rest go to the drawer.
+    ev = rec.get("jobber_event")
+    if ev:
+        if ev.get("event") in ("quote_approved", "changes_requested",
+                               "request_received"):
+            return "main", None
+        return "aside", f"jobber event: {ev.get('event')}"
     sender = (rec.get("from") or "").lower()
     for s in _internal_senders():
         if s in sender:

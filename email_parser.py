@@ -254,6 +254,33 @@ def parse_phone_lead(text, subject=""):
     }
 
 
+# ── JOBBER EVENTS: Jobber's own notification emails are EVENTS ──
+# Real format: 'Greg Fenich just approved Quote #36581 that was created
+# on 07/07/2026 for the amount of $923.54.'
+JOBBER_EVENT_KINDS = (
+    ("approved", "quote_approved"),
+    ("new request", "request_received"),
+    ("requested changes", "changes_requested"),
+    ("assessment", "assessment"),
+)
+
+
+def parse_jobber_event(subject, body):
+    text = f"{subject} {body}"
+    event = next((kind for word, kind in JOBBER_EVENT_KINDS
+                  if word in text.lower()), "other_event")
+    quote = re.search(r"[Qq]uote\s*#(\d+)", text)
+    amount = re.search(r"\$\s?([\d,]+\.?\d*)", text)
+    who = re.search(r"^\s*-*\s*(?:Quote Approved\s*-*\s*)?([A-Z][a-zA-Z]+"
+                    r"(?:\s+[A-Z][a-zA-Z]+)+)\s+just\s+approved", body)
+    return {
+        "event": event,
+        "quote_number": quote.group(1) if quote else None,
+        "amount": amount.group(1) if amount else None,
+        "client": who.group(1) if who else None,
+    }
+
+
 def parse_eml(path) -> dict:
     raw = Path(path).read_bytes()
     msg = email.message_from_bytes(raw, policy=email.policy.default)
@@ -276,6 +303,21 @@ def parse_eml(path) -> dict:
 
     fresh = newest_message_only(body)
     services = find_services(fresh)
+
+    # ── JOBBER EVENTS: 'quote approved' etc. — never noise ──
+    if "txn.getjobber.com" in sender_email.lower():
+        ev = parse_jobber_event(msg.get("Subject", ""), fresh or body)
+        return {
+            "file": Path(path).name,
+            "sender_name": "Jobber",
+            "sender_email": sender_email,
+            "subject": msg.get("Subject", "").strip(),
+            "newest_message": (fresh or body)[:300],
+            "address": None, "phone": None, "services": [],
+            "kind": "jobber_event",
+            "jobber_event": ev,
+            "has_attachments": False,
+        }
 
     # ── PHONE LEADS: calls arriving dressed as email ──
     # The sender is the SERVICE, the customer is inside. Style decides

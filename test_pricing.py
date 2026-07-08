@@ -467,6 +467,26 @@ check("Google Voice = transcript style",
 check("Unknown sender = not a voicemail service",
       1 if voicemail_provider("jane@gmail.com") is None else 0, 1)
 
+print("\n── RULE: Jobber notification emails are EVENTS ──")
+from email_parser import parse_jobber_event
+REAL_APPROVAL = ("----------------- Quote Approved ----------------- "
+                 "Greg Fenich just approved Quote #36581 that was created "
+                 "on 07/07/2026 for the amount of $923.54.")
+ev = parse_jobber_event("Quote #36581 is approved!", REAL_APPROVAL)
+check("Approval event parsed", 1 if ev["event"] == "quote_approved" else 0, 1)
+check("Quote number extracted", int(ev["quote_number"] or 0), 36581)
+check("Client name extracted", 1 if ev["client"] == "Greg Fenich" else 0, 1)
+lane, _ = classify_row({"from": "The Jobber Team <noreply@txn.getjobber.com>",
+                        "kind": "jobber_event",
+                        "jobber_event": {"event": "quote_approved"}})
+check("Approval rides MAIN (outranks the noreply filter)",
+      1 if lane == "main" else 0, 1)
+lane, _ = classify_row({"from": "The Jobber Team <noreply@txn.getjobber.com>",
+                        "kind": "jobber_event",
+                        "jobber_event": {"event": "other_event"}})
+check("Routine Jobber receipts stay in the drawer",
+      1 if lane == "aside" else 0, 1)
+
 print("\n── RULE: office↔system service-name bridge (offline) ──")
 from store import _service_key
 check("'Gutter Cleaning - Composition' bridges to gutter",
