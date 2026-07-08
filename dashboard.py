@@ -1320,9 +1320,16 @@ class Handler(BaseHTTPRequestHandler):
             def run():
                 try:
                     from manual import process_manual
-                    process_manual(**kw)
+                    import traceback
+                    print(f"[manual] processing lead: {kw['name']}", flush=True)
+                    stamp, rec = process_manual(**kw)
+                    print(f"[manual] done {stamp}: total="
+                          f"{(rec.get('draft') or {}).get('total')} "
+                          f"err={rec.get('pipeline_error')}", flush=True)
                 except Exception:
-                    pass
+                    import traceback
+                    print("[manual] FAILED:\n" + traceback.format_exc(),
+                          flush=True)
             threading.Thread(target=run, daemon=True).start()
             self.send_response(303)
             self.send_header("Location", "/new?msg=working")
