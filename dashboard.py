@@ -1501,10 +1501,14 @@ class Handler(BaseHTTPRequestHandler):
                 ok, why = mailer.send_review_flag(
                     {"customer": get("customer"), "total": get("total")},
                     link=link)
-                if not ok:
-                    print(f"flag email not sent: {why}")
             except Exception as e:
-                print(f"flag email failed: {e}")
+                ok, why = False, f"{type(e).__name__}: {e}"
+            # the outcome goes in the review log — visible on the
+            # dashboard and via /api/reviews, not just buried in stdout
+            save_review({"stamp": get("stamp"), "action": "flag_email",
+                         "customer": get("customer"),
+                         "note": "emailed Tom & Dallon" if ok
+                                 else f"EMAIL FAILED: {why}"[:200]})
         elif self.path == "/review_seen":
             save_review({"stamp": get("stamp"), "action": "review_seen",
                          "customer": get("customer")})
