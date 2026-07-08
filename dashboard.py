@@ -940,6 +940,7 @@ def bid_page(stamp):
   <form method='POST' action='/flag_review' style='margin-top:6px'>
    <input type='hidden' name='stamp' value='{stamp}'>
    <input type='hidden' name='customer' value='{esc(b['from'])}'>
+   <input type='hidden' name='total' value='{d.get('total') or ''}'>
    <button style='background:var(--gold);color:#1c2b23'>🚩 Send to Tom
    &amp; Dallon for review</button>
   </form>
@@ -1463,6 +1464,17 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/flag_review":
             save_review({"stamp": get("stamp"), "action": "flag_review",
                          "customer": get("customer")})
+            try:
+                import mailer
+                host = self.headers.get("Host") or ""
+                link = f"https://{host}/bid/{get('stamp')}" if host else ""
+                ok, why = mailer.send_review_flag(
+                    {"customer": get("customer"), "total": get("total")},
+                    link=link)
+                if not ok:
+                    print(f"flag email not sent: {why}")
+            except Exception as e:
+                print(f"flag email failed: {e}")
         elif self.path == "/review_seen":
             save_review({"stamp": get("stamp"), "action": "review_seen",
                          "customer": get("customer")})
