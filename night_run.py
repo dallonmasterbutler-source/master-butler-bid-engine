@@ -66,7 +66,7 @@ except Exception as e:
     print(f"   skipped ({e})")
 
 # 4 ── database sync (idempotent)
-print("\n[4/4] Database sync…")
+print("\n[4/5] Database sync…")
 try:
     import store
     r, l = store.sync()
@@ -76,5 +76,34 @@ try:
           f"{counts['audit_log']} audit entries")
 except Exception as e:
     print(f"   skipped ({e})")
+
+# 5 ── backup + morning brief
+print("\n[5/5] Backup + morning brief…")
+try:
+    import zipfile
+    from pathlib import Path
+    data = Path("data")
+    bdir = data / "backups"
+    bdir.mkdir(exist_ok=True)
+    zpath = bdir / f"backup-{datetime.now():%Y%m%d}.zip"
+    with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in data.rglob("*"):
+            if (f.is_file() and "backups" not in f.parts
+                    and "aerial" not in f.parts     # re-fetchable
+                    and "photos" not in f.parts):   # re-minable (3 GB!)
+                z.write(f, f.relative_to(data))
+    print(f"   backup -> {zpath} ({zpath.stat().st_size // 1024} KB)")
+    # keep the last 14 nightly backups
+    olds = sorted(bdir.glob("backup-*.zip"))[:-14]
+    for o in olds:
+        o.unlink()
+except Exception as e:
+    print(f"   backup skipped ({e})")
+try:
+    import digest
+    path, _ = digest.write()
+    print(f"   morning brief -> {path}")
+except Exception as e:
+    print(f"   brief skipped ({e})")
 
 print("\nDone. Dashboard reads all of this automatically.")
