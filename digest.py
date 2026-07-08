@@ -21,6 +21,13 @@ def build():
     lines = [f"MASTER BUTLER — MORNING BRIEF · {datetime.now():%A, %B %d, %Y}",
              "=" * 56, ""]
 
+    pin = BASE / "data" / "brief_pin.txt"
+    if pin.exists() and pin.read_text().strip():
+        lines.append(pin.read_text().rstrip())
+        lines.append("")
+        lines.append("=" * 56)
+        lines.append("")
+
     bids = db.load_bids()
     live_holds, resurfaced = db.active_holds()
     queue = [b for b in bids if not b["reviewed"]
