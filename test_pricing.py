@@ -378,6 +378,16 @@ check("Year is NOT a price ('free in 2025, charge full next year')",
 check("Tiny numbers rejected (15% is not $15)",
       parse_next_year_price("honor 2026 pricing, 15 percent adjustment") or 0, 0)
 
+print("\n── RULE: lights materials math (labor stays Tom's) ──")
+from lights import materials_estimate, C7_PER_FT, LABOR_MINIMUM
+est = materials_estimate(50, 60, 180, 220)
+check("Front 50ft materials = $72.50", est["front_materials"][0], 72.5)
+check("Perimeter 220ft materials = $319", est["perimeter_materials"][1], 319)
+check("C7 rate locked at $1.45/ft", C7_PER_FT, 1.45)
+check("Labor floor stays Tom's $385", LABOR_MINIMUM, 385)
+check("Labor is never a number here",
+      1 if "Tom" in est["labor"] else 0, 1)
+
 print("\n── RULE: price promises kept (fuzzy name match, offline) ──")
 from promises import promises_for
 FAKE_RECON = [{"invoice": "1", "date": "2026-05-07", "client": "Carol & Michael  Ross",

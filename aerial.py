@@ -56,6 +56,10 @@ JSON, no prose, no markdown fences. Exactly this shape:
     "relative_size": "smaller|similar|larger",
     "position": "one line: where relative to the main house"}
  ],
+ "roofline": {"front_ft_low": N, "front_ft_high": N,
+   "full_perimeter_ft_low": N, "full_perimeter_ft_high": N,
+   "detail": "one line: how the eave lines run (for holiday lights)",
+   "confidence": "high|medium|low"},
  "canopy_over_roof": {"level": "none|partial|heavy",
    "detail": "one line: which trees, which part of the roof",
    "confidence": "high|medium|low"},

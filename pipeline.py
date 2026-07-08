@@ -195,6 +195,16 @@ def process(eml_path):
         except Exception as e:
             office_flags.append(f"Vision failed ({e}) — photos need manual look.")
 
+    # ── HOLIDAY LIGHTS PRE-MEASURE: Tom's escalation arrives with the
+    #    roofline + materials math already done (labor stays Tom's) ──
+    if prop.get("services", {}).get("holiday_lights") and parsed.get("address"):
+        try:
+            from lights import estimate_for
+            _, lights_note = estimate_for(parsed["address"])
+            office_flags.append(lights_note)
+        except Exception:
+            pass
+
     # ── PRICE PROMISES: honor what the office put in writing ──
     try:
         from promises import promise_notes
