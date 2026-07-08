@@ -172,6 +172,10 @@ def process(eml_path):
                                      extra_context=parsed["newest_message"][:300])
             vfields, vnotes = vision_to_prop_fields(v)
             prop["buildup"] = vfields.get("buildup", prop.get("buildup", "clean"))
+            if vfields.get("surface_materials"):        # pavers pricing
+                prop["surface_materials"] = vfields["surface_materials"]
+            if vfields.get("debris"):                   # trees → gutter debris
+                prop["debris"] = vfields["debris"]
             if vfields.get("surfaces"):
                 prop["surfaces"].update(vfields["surfaces"])
                 # photos measured a surface → make sure it gets priced
@@ -190,6 +194,20 @@ def process(eml_path):
                   f"surfaces={vfields.get('surfaces', {})} (${cost:.2f})")
         except Exception as e:
             office_flags.append(f"Vision failed ({e}) — photos need manual look.")
+
+    # ── AERIAL CROSS-CHECK: the straight-down second opinion ──
+    # Adds flags (wrong building, area disagreement) and may RAISE the
+    # gutter-debris call from fresh canopy imagery. Never blocks a bid.
+    if parsed.get("address"):
+        try:
+            from aerial import cross_check
+            afields, anotes = cross_check(prop, parsed["address"])
+            if afields.get("debris"):
+                prop["debris"] = afields["debris"]
+            office_flags += anotes
+            print(f"    Aerial cross-check: {len(anotes)} note(s)")
+        except Exception as e:
+            office_flags.append(f"Aerial cross-check unavailable ({e}).")
 
     # House sqft is only required by services that PRICE on it.
     # A pressure-washing-only job prices on photo-measured surface areas.

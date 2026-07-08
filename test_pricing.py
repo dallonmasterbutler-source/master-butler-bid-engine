@@ -216,15 +216,25 @@ check("No double-charge: heavy note suppressed when pavers factor covers it",
       0 if any("HEAVY buildup priced in" in n for n in notes) else 1, 1)
 
 print("\n── RULE: trees → debris (Connor's question — proximity only) ──")
-# "30 trees really close" = heavy debris charge
+# canopy ON the roof = heavy debris charge
 crowded = {"trees": {"visible": True, "canopy_over_roof": "heavy",
                      "mature_trees_within_20ft": "4_plus",
                      "detail": "conifers overhanging roofline",
                      "confidence": "high"}}
 f, n = vision_to_prop_fields(crowded)
-check("Dense canopy at house = heavy debris", 1 if f.get("debris") == "heavy" else 0, 1)
+check("Canopy over roof = heavy debris", 1 if f.get("debris") == "heavy" else 0, 1)
 check("Office confirm note attached",
       1 if any("confirm from photo" in x for x in n) else 0, 1)
+# Dallon's own home: 4+ conifers NEAR but none over roof = NO auto-charge
+dallons = {"trees": {"visible": True, "canopy_over_roof": "none",
+                     "mature_trees_within_20ft": "4_plus",
+                     "detail": "conifers ring the yard",
+                     "confidence": "high"}}
+f, n = vision_to_prop_fields(dallons)
+check("Trees near but not over roof = NO auto-heavy (Dallon's home truth)",
+      0 if f.get("debris") else 1, 1)
+check("Office-may-bump note instead",
+      1 if any("heavy droppers" in x for x in n) else 0, 1)
 # "some tree coverage, not that close" = normal, NO upcharge
 scenic = {"trees": {"visible": True, "canopy_over_roof": "none",
                     "mature_trees_within_20ft": "0",
@@ -266,6 +276,46 @@ check("Office's 'Terrce' spelling still matches",
       1 if rate and rate["name"] == "Mountlake Terrce 3113" else 0, 1)
 rate, note = match_tax_rate("Portland", None, rates=TAX_FIXTURE)
 check("Unknown city = NOT set + flag", 1 if rate is None and note else 0, 1)
+
+print("\n── RULE: aerial cross-check (flag-don't-guess, offline) ──")
+from aerial import cross_check, _imagery_year
+from pathlib import Path as _P
+check("Solar tile year parsed",
+      _imagery_year(_P("x-solar-201307.png")) or 0, 2013)
+check("Static tile = current (no year)",
+      0 if _imagery_year(_P("x-z20.png")) is None else 1, 0)
+GAVIN_READING = {
+    "main_roof": {"visible": True, "footprint_sqft_low": 2400,
+                  "footprint_sqft_high": 2900, "confidence": "medium"},
+    "other_buildings": [{"kind": "outbuilding", "relative_size": "smaller",
+                         "position": "north of house"}],
+    "canopy_over_roof": {"level": "partial", "detail": "one maple corner",
+                         "confidence": "medium"},
+    "mature_trees_within_20ft": {"count_band": "1-3", "types": "deciduous",
+                                 "confidence": "medium"},
+    "surfaces": [{"type": "driveway", "sqft_low": 700, "sqft_high": 900,
+                  "confidence": "medium"}],
+}
+prop = {"surfaces": {"driveway": 400}, "services": {"driveway": True}}
+f, n = cross_check(prop, "test", _reading=GAVIN_READING,
+                   _tile="t-solar-202407.png")
+check("Outbuilding = wrong-building flag",
+      1 if any("other structures" in x for x in n) else 0, 1)
+check("Area disagreement flagged (800 aerial vs 400 ground)",
+      1 if any("office verify" in x for x in n) else 0, 1)
+check("Partial canopy = note only, no auto-heavy",
+      0 if f.get("debris") else 1, 1)
+f, n = cross_check(prop, "test", _reading=GAVIN_READING,
+                   _tile="t-solar-201307.png")
+check("Stale imagery = tree reads skipped",
+      1 if any("too old to trust" in x for x in n) else 0, 1)
+heavy_reading = dict(GAVIN_READING,
+                     canopy_over_roof={"level": "heavy", "detail": "cedars",
+                                       "confidence": "high"})
+f, n = cross_check(prop, "test", _reading=heavy_reading,
+                   _tile="t-z20.png")
+check("Fresh heavy canopy = debris raised",
+      1 if f.get("debris") == "heavy" else 0, 1)
 
 print("\n── RULE: reconciler discount taxonomy ──")
 from reconciler import classify_discount

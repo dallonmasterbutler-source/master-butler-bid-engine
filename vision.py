@@ -212,18 +212,24 @@ def vision_to_prop_fields(v):
     # trees within ~20 ft. Distant tree lines are scenery. And a photo can
     # only ever RAISE the debris call, never lower it (one photo can't
     # prove there are no trees around back).
+    # Calibrated on Dallon's own home (4+ conifers within 20 ft, actual
+    # debris: MODERATE): nearby trees alone never auto-charge — only
+    # canopy ACTUALLY OVER THE ROOF does. Everything else is a note the
+    # office confirms (a few heavy-dropping maples can out-drop a wall of
+    # firs — count is a hint, not a rule).
     t = v.get("trees", {})
     if t.get("visible") and t.get("confidence") in ("high", "medium"):
         canopy = t.get("canopy_over_roof")
         near = t.get("mature_trees_within_20ft")
-        if canopy == "heavy" or near == "4_plus":
+        if canopy == "heavy":
             fields["debris"] = "heavy"
-            notes.append(f"Trees: heavy-debris charge applied — "
-                         f"{t.get('detail', 'dense canopy at the house')}. "
+            notes.append(f"Trees: heavy-debris charge applied — canopy over "
+                         f"roof ({t.get('detail', '')}). "
                          "Office: confirm from photo/aerial.")
-        elif canopy == "partial" or near == "1-3":
-            notes.append(f"Trees near house ({t.get('detail', '')}) — "
-                         "normal debris assumed, no upcharge.")
+        elif canopy == "partial" or near in ("1-3", "4_plus"):
+            notes.append(f"Trees near house, none over roof "
+                         f"({t.get('detail', '')}) — normal debris assumed; "
+                         "office may bump if these are heavy droppers.")
         else:
             notes.append("Trees visible but distant — scenery, not debris.")
 
