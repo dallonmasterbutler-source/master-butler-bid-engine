@@ -273,6 +273,79 @@ def build_custom_fields(prop_info):
     return fields
 
 
+# ─────────────────────────────────────────────────────────────
+# TAX RATES — auto-attach the office's own city rate to every quote
+# (2 of 3 office questionnaires flagged missing tax as a real recurring
+#  miss). The office maintains ~51 rates in Jobber named by city, e.g.
+#  "Monroe 3112 (9.4%)". We match the quote address's CITY against that
+#  list. FLAG-DON'T-GUESS: only attach when the match is unambiguous;
+#  cities with several valid rates (RTA/non-RTA, city vs county) get an
+#  internal note listing the candidates for the office to pick.
+# ─────────────────────────────────────────────────────────────
+
+TAX_RATES_QUERY = """
+query { taxRates(first: 100) { nodes { id name label tax default } } }
+"""
+TAX_CACHE = Path(__file__).parent / "data" / "tax_rates.json"
+
+# Known Jobber-side spellings that differ from the mailing address.
+TAX_CITY_ALIASES = {
+    "mountlake terrace": "mountlake terrce",   # office's spelling in Jobber
+}
+
+# ZIP splits we can resolve safely (city spans two counties).
+ZIP_TAX_HINTS = {
+    "98011": "Bothell King Co",
+    "98012": "Bothell Sno Co",
+    "98021": "Bothell Sno Co",
+}
+
+
+def fetch_tax_rates(refresh=False):
+    """Return the account's tax-rate list, cached locally so quote
+    creation doesn't spend an API call every time."""
+    if not refresh and TAX_CACHE.exists():
+        return json.loads(TAX_CACHE.read_text())
+    data = _post(TAX_RATES_QUERY, {}, "list tax rates")
+    if data.get("dry_run") or data.get("error"):
+        return json.loads(TAX_CACHE.read_text()) if TAX_CACHE.exists() else []
+    rates = data.get("taxRates", {}).get("nodes", [])
+    TAX_CACHE.parent.mkdir(exist_ok=True)
+    TAX_CACHE.write_text(json.dumps(rates, indent=1))
+    return rates
+
+
+def match_tax_rate(city, postal=None, rates=None):
+    """Match a city (+ ZIP for county splits) to ONE office tax rate.
+
+    Returns (rate_dict, note_string). Exactly one of the two is None:
+      * unambiguous match  -> (rate, None)
+      * zero or several    -> (None, "⚠ TAX not set — ...") for the office
+    """
+    if rates is None:
+        rates = fetch_tax_rates()
+    city_key = (city or "").strip().lower()
+    if not city_key:
+        return None, "⚠ TAX not set — no city on the address."
+    city_key = TAX_CITY_ALIASES.get(city_key, city_key)
+
+    hint = ZIP_TAX_HINTS.get((postal or "").strip()[:5])
+    if hint:
+        for r in rates:
+            if r["name"].lower().startswith(hint.lower()):
+                return r, None
+
+    matches = [r for r in rates if r["name"].lower().startswith(city_key)]
+    if len(matches) == 1:
+        return matches[0], None
+    if not matches:
+        return None, (f"⚠ TAX not set — no rate found for '{city}'. "
+                      "Office: pick the correct rate.")
+    labels = "; ".join(m["label"] for m in matches)
+    return None, (f"⚠ TAX not set — '{city}' has multiple rates, "
+                  f"office picks one: {labels}")
+
+
 # ── Create a DRAFT quote from our bid line items ──
 # Live schema: quoteCreate takes `attributes` (QuoteCreateAttributes).
 # We deliberately DO NOT set `transitionQuoteTo` — leaving it unset is
@@ -286,8 +359,11 @@ mutation CreateQuote($attributes: QuoteCreateAttributes!) {
 }
 """
 
-def create_draft_quote(client_id, property_id, bid, prop_info=None):
+def create_draft_quote(client_id, property_id, bid, prop_info=None,
+                       address=None):
     """bid = the dict from calculate_bid: has line items + office notes.
+    address = the service address string; used to auto-attach the
+    office's city tax rate (unambiguous matches only).
 
     We attach our office notes and confidence as the quote message so
     the reviewer sees exactly why the engine priced it this way.
@@ -308,6 +384,16 @@ def create_draft_quote(client_id, property_id, bid, prop_info=None):
     note_lines += [f"⚠ {n}" for n in bid["notes"]
                    if not n.startswith("CUSTOMER:")]
 
+    tax_rate_id = None
+    if address:
+        addr = split_address(address)
+        rate, tax_note = match_tax_rate(addr["city"], addr["postalCode"])
+        if rate:
+            tax_rate_id = rate["id"]
+            note_lines.append(f"Tax auto-attached: {rate['label']}")
+        else:
+            note_lines.append(tax_note)
+
     variables = {"attributes": {
         "clientId": client_id,
         "propertyId": property_id,
@@ -322,6 +408,8 @@ def create_draft_quote(client_id, property_id, bid, prop_info=None):
         "customFields": build_custom_fields(prop_info),
         # NOTE: no transitionQuoteTo, no send/deliver anywhere. Draft only.
     }}
+    if tax_rate_id:
+        variables["attributes"]["taxRateId"] = tax_rate_id
     return _post(CREATE_QUOTE, variables, "create DRAFT quote")
 
 
@@ -336,7 +424,8 @@ def push_approved_bid(customer, bid, prop_info=None):
     client_id = find_or_create_client(
         customer.get("name"), customer.get("email"), customer.get("phone"))
     property_id = create_property(client_id, customer.get("address", ""))
-    return create_draft_quote(client_id, property_id, bid, prop_info)
+    return create_draft_quote(client_id, property_id, bid, prop_info,
+                              address=customer.get("address"))
 
 
 # ─────────────────────────────────────────────────────────────

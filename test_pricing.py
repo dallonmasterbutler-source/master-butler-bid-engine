@@ -191,6 +191,47 @@ check("Mild shake = Exp Tech Dry Day", 1 if g == "Experienced Technician, Dry Da
 g, r = safety_options("moderate", "standard", "3")
 check("3-story = Must be updated (office assigns)", 1 if g == MUST_UPDATE else 0, 1)
 
+print("\n── RULE: tax auto-attach (flag-don't-guess) ──")
+from jobber_client import match_tax_rate
+# offline fixture mirroring the office's real Jobber rate names
+TAX_FIXTURE = [{"id": i, "name": n, "label": n, "tax": 0, "default": False}
+               for i, n in enumerate([
+                   "Monroe 3112", "Everett 3105", "Gold Bar 3106",
+                   "Bellevue 1704", "Bellevue Non-RTA 4004",
+                   "Bothell King Co 1706", "Bothell Sno Co 3120",
+                   "Snohomish 4231", "Snohomish City 3115",
+                   "Snohomish Co. 3100", "Mountlake Terrce 3113"])]
+rate, note = match_tax_rate("Monroe", "98272", rates=TAX_FIXTURE)
+check("Monroe = one rate, auto-attached",
+      1 if rate and rate["name"] == "Monroe 3112" else 0, 1)
+rate, note = match_tax_rate("Bothell", "98012", rates=TAX_FIXTURE)
+check("Bothell 98012 resolved by ZIP to Sno Co",
+      1 if rate and rate["name"] == "Bothell Sno Co 3120" else 0, 1)
+rate, note = match_tax_rate("Snohomish", "98290", rates=TAX_FIXTURE)
+check("Snohomish ambiguous = NOT set, office picks",
+      1 if rate is None and note and "multiple rates" in note else 0, 1)
+rate, note = match_tax_rate("Bellevue", "98004", rates=TAX_FIXTURE)
+check("Bellevue RTA/non-RTA = NOT set, office picks",
+      1 if rate is None and note and "multiple rates" in note else 0, 1)
+rate, note = match_tax_rate("Mountlake Terrace", None, rates=TAX_FIXTURE)
+check("Office's 'Terrce' spelling still matches",
+      1 if rate and rate["name"] == "Mountlake Terrce 3113" else 0, 1)
+rate, note = match_tax_rate("Portland", None, rates=TAX_FIXTURE)
+check("Unknown city = NOT set + flag", 1 if rate is None and note else 0, 1)
+
+print("\n── RULE: reconciler discount taxonomy ──")
+from reconciler import classify_discount
+check("'honor 2026 pricing' = honor",
+      1 if classify_discount("Discount honor 2026 pricing, 2027 will be $325") == "honor" else 0, 1)
+check("'not performed' = service_not_performed",
+      1 if classify_discount("Moss treatment not performed - roof too wet") == "service_not_performed" else 0, 1)
+check("'15%' promo = promo",
+      1 if classify_discount("February or March Discount 15% two services") == "promo" else 0, 1)
+check("Unrecognized = other_discount",
+      1 if classify_discount("Discount to offset tax not being added") == "other_discount" else 0, 1)
+check("honor wins even if % present",
+      1 if classify_discount("honor 2026 pricing 10% adjustment") == "honor" else 0, 1)
+
 print("\n" + "=" * 50)
 print(f"RESULT: {passed} passed, {failed} failed")
 exit(1 if failed else 0)
