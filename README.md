@@ -36,6 +36,10 @@ Python standard library only — nothing to install.
 | `promises.py` | "price for 20XX will be $X" — kept automatically |
 | `lights.py` | holiday lights materials pre-measure (labor = Tom) |
 | `store.py` | SQLite twin of schema.sql until Render exists |
+| `clouddb.py` | Postgres layer (cloud); falls back to files on the Mac |
+| `cloudpush.py` | Mac→cloud courier (records, photos, blobs; offline queue) |
+| `imgprep.py` | image resize — sips on Mac, Pillow in cloud |
+| `render_start.py` | cloud boot: schema, dashboard, optional cloud ears |
 | `night_run.py` | evening pass: reconcile, score, resurface, sync, back up, brief |
 | `test_pricing.py` | the safety net — run before trusting anything |
 
@@ -45,8 +49,10 @@ See **docs/OFFICE_PILOT.md**. Short version:
 `python3 gmail_poller.py --watch` to keep shadow mode live.
 
 ## Deployment
-`render.yaml` is prepared but **not deployed** — see the conditions in
-that file (password, secrets, schema) before going public.
+**LIVE:** https://masterbutler-dashboard.onrender.com (password-protected;
+Postgres-backed; auto-deploys from this repo's main branch). The inbox
+watcher still runs on Dallon's Mac; its cloud twin is built and dark
+(`POLL_IN_CLOUD` — see render_start.py).
 
 Secrets live in `.env` (never committed). Customer data lives in
 `data/` (never committed; backed up nightly by night_run).
