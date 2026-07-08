@@ -30,7 +30,7 @@ QUOTES_QUERY = """
 query Recent($first: Int!, $after: String) {
   quotes(first: $first, after: $after, sort: {key: CREATED_AT, direction: DESCENDING}) {
     pageInfo { hasNextPage endCursor }
-    nodes { quoteNumber quoteStatus createdAt
+    nodes { quoteNumber quoteStatus createdAt jobberWebUri
             client { name emails { address } }
             property { address { street city } }
             amounts { total }
@@ -140,6 +140,7 @@ def run(limit=60):
             row.update({
                 "office_quote": q["quoteNumber"], "office_total": office,
                 "office_status": q["quoteStatus"], "matched_by": how,
+                "jobber_url": q.get("jobberWebUri"),
                 "gap": round(s["draft"]["total"] - office, 2),
                 "gap_pct": (round(100 * (s["draft"]["total"] - office) / office, 1)
                             if office else None),

@@ -226,6 +226,35 @@ def quote_numbers():
     return out
 
 
+def quote_urls():
+    """quote number -> its Jobber admin web link (jobberWebUri)."""
+    urls = {}
+    if clouddb.available():
+        sb = clouddb.get_blob("scoreboard")
+    else:
+        p = BASE / "data" / "scoreboard.json"
+        sb = json.loads(p.read_text()) if p.exists() else None
+    for r in (sb or {}).get("rows", []):
+        if r.get("office_quote") and r.get("jobber_url"):
+            urls[r["office_quote"]] = r["jobber_url"]
+    for stamp, rec in _shadow_source():
+        if rec.get("jobber_quote") and rec.get("jobber_url"):
+            urls[rec["jobber_quote"]] = rec["jobber_url"]
+    return urls
+
+
+def quote_chip(qnum, urls, extra_class="", label=None):
+    """A Jobber quote chip that links to the quote in Jobber when we
+    have its URL (opens in a new tab)."""
+    text = label or f"Jobber #{esc(qnum)}"
+    url = urls.get(qnum)
+    if url:
+        return (f"<a href='{esc(url)}' target='_blank' rel='noopener' "
+                f"class='chip win {extra_class}' style='text-decoration:none'>"
+                f"{text} ↗</a>")
+    return f"<span class='chip win {extra_class}'>{text}</span>"
+
+
 def similar_history(services):
     """Reconciler history for the same kind of work — 'what did we charge
     similar homes' (brief requirement, powered by the 5,000-invoice sweep)."""
@@ -402,6 +431,7 @@ def home_page():
     bids = load_bids()
     live_holds, resurfaced = active_holds()
     quotes = quote_numbers()
+    qurls = quote_urls()
     pending = [b for b in bids if not b["reviewed"]
                and b["stamp"] not in live_holds]
     queue, aside = [], []
@@ -482,7 +512,7 @@ def home_page():
                 f"<b style='color:{'#1e8449' if c >= 75 else '#c77700' if c >= 50 else '#c0392b'}'>{c}%</b>")
         q = quotes.get(b["stamp"])
         name = esc(b["from"]).split("&lt;")[0].strip() or esc(b["from"])
-        sub = (f"Jobber #{esc(q)}" if q else
+        sub = (quote_chip(q, qurls) if q else
                esc(b["from"]).split("&lt;")[-1].rstrip("&gt;")[:34])
         ring = ("—" if c is None else
                 f"<span class='ring' style='border-color:"
@@ -753,7 +783,8 @@ def bid_page(stamp):
 <div class='grid'><div>
  <div class='card'>
   <h2 style='margin-top:0'>{esc(b['from'])} {age_html(b['age_hours'])}
-  {f"<span class='chip win' style='font-size:13px'>Jobber quote #{esc(my_quote)} — verify there</span>"
+  {quote_chip(my_quote, quote_urls(),
+              label=f"Open quote #{esc(my_quote)} in Jobber")
    if my_quote else ''}</h2>
   {draft_headline}
   <div style='color:var(--mut);margin-top:6px'>
@@ -974,8 +1005,11 @@ def scoreboard_page():
             gap = r.get("gap_pct")
             color = ("#1e8449" if abs(gap) <= 10 else
                      "#c77700" if abs(gap) <= 25 else "#c0392b")
+            qlink = (f"<a href='{esc(r['jobber_url'])}' target='_blank' "
+                     f"rel='noopener'>#{r['office_quote']} ↗</a>"
+                     if r.get("jobber_url") else f"#{r['office_quote']}")
             verdict = (f"<b style='color:{color}'>{gap:+.0f}%</b> "
-                       f"(office #{r['office_quote']}, {r['office_status']})")
+                       f"(office {qlink}, {r['office_status']})")
             office = f"${r['office_total']:.0f}"
         else:
             office, verdict = "—", "<span style='color:#888'>awaiting office quote</span>"
