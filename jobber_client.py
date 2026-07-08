@@ -44,39 +44,96 @@ JOBBER_TOKEN_URL = "https://api.getjobber.com/api/oauth/token"
 JOBBER_GRAPHQL_VERSION = "2023-11-15"          # verified against live schema Jul 2026
 CLIENT_ID = _env("JOBBER_CLIENT_ID")
 CLIENT_SECRET = _env("JOBBER_CLIENT_SECRET")
-ACCESS_TOKEN = _env("JOBBER_ACCESS_TOKEN")     # short-lived (~60 min)
-REFRESH_TOKEN = _env("JOBBER_REFRESH_TOKEN")   # long-lived; used to mint new access tokens
 
 
-def refresh_access_token():
-    """Jobber access tokens die after ~an hour. This trades our long-lived
-    refresh token for a fresh access token and saves it back to .env,
-    so the system never needs a human to re-do the Allow handshake."""
-    global ACCESS_TOKEN, REFRESH_TOKEN
+# ── SHARED TOKEN STORE ───────────────────────────────────────
+# Jobber ROTATES refresh tokens on every use, so two machines with
+# separate copies eventually kill each other's. One home: the cloud
+# blob 'jobber_tokens'. Whoever refreshes, saves there; whoever gets a
+# stale-token error, RELOADS from there before giving up.
+
+def _blob_tokens():
+    try:
+        import clouddb
+        if clouddb.available():
+            return clouddb.get_blob("jobber_tokens") or {}
+        import urllib.request as _ur
+        from base64 import b64encode
+        url, pw = _env("DASHBOARD_URL"), _env("DASHBOARD_PASSWORD")
+        if url and pw:
+            req = _ur.Request(url.rstrip("/") + "/api/blob/jobber_tokens",
+                              headers={"Authorization": "Basic " + b64encode(
+                                  f"office:{pw}".encode()).decode()})
+            return json.load(_ur.urlopen(req, timeout=20)) or {}
+    except Exception:
+        pass
+    return {}
+
+
+def _save_tokens(access, refresh):
+    from datetime import datetime
+    val = {"access": access, "refresh": refresh,
+           "at": datetime.now().isoformat(timespec="seconds")}
+    try:
+        import clouddb
+        if clouddb.available():
+            clouddb.put_blob("jobber_tokens", val)
+        else:
+            from cloudpush import push
+            push(blobs={"jobber_tokens": val})
+    except Exception:
+        pass
+    env_path = Path(__file__).parent / ".env"
+    if env_path.exists():                      # Mac keeps a local copy too
+        lines, out = env_path.read_text().splitlines(), []
+        for line in lines:
+            if line.startswith("JOBBER_ACCESS_TOKEN="):
+                out.append(f"JOBBER_ACCESS_TOKEN={access}")
+            elif line.startswith("JOBBER_REFRESH_TOKEN="):
+                out.append(f"JOBBER_REFRESH_TOKEN={refresh}")
+            else:
+                out.append(line)
+        env_path.write_text("\n".join(out) + "\n")
+
+
+_bt = _blob_tokens()
+ACCESS_TOKEN = _bt.get("access") or _env("JOBBER_ACCESS_TOKEN")
+REFRESH_TOKEN = _bt.get("refresh") or _env("JOBBER_REFRESH_TOKEN")
+
+
+def _mint(refresh_token):
     body = urllib.parse.urlencode({
         "grant_type": "refresh_token",
-        "refresh_token": REFRESH_TOKEN,
+        "refresh_token": refresh_token,
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
     }).encode()
     req = urllib.request.Request(JOBBER_TOKEN_URL, data=body,
         headers={"Content-Type": "application/x-www-form-urlencoded"})
-    tokens = json.load(urllib.request.urlopen(req, timeout=30))
-    ACCESS_TOKEN = tokens["access_token"]
-    # Jobber rotates refresh tokens: save BOTH back to .env
-    new_refresh = tokens.get("refresh_token", REFRESH_TOKEN)
-    REFRESH_TOKEN = new_refresh
-    env_path = Path(__file__).parent / ".env"
-    lines = env_path.read_text().splitlines()
-    out = []
-    for line in lines:
-        if line.startswith("JOBBER_ACCESS_TOKEN="):
-            out.append(f"JOBBER_ACCESS_TOKEN={ACCESS_TOKEN}")
-        elif line.startswith("JOBBER_REFRESH_TOKEN="):
-            out.append(f"JOBBER_REFRESH_TOKEN={new_refresh}")
+    return json.load(urllib.request.urlopen(req, timeout=30))
+
+
+def refresh_access_token():
+    """Fresh access token, rotation-safe: reload the shared store first
+    (the other machine may have already rotated), then mint, then save
+    the new pair back to the store."""
+    global ACCESS_TOKEN, REFRESH_TOKEN
+    stored = _blob_tokens()
+    if stored.get("access") and stored["access"] != ACCESS_TOKEN:
+        ACCESS_TOKEN = stored["access"]        # someone beat us to it
+        REFRESH_TOKEN = stored.get("refresh") or REFRESH_TOKEN
+        return ACCESS_TOKEN
+    try:
+        tokens = _mint(REFRESH_TOKEN)
+    except urllib.error.HTTPError:
+        stored = _blob_tokens()                # our refresh was stale —
+        if stored.get("refresh"):              # take the store's and retry
+            tokens = _mint(stored["refresh"])
         else:
-            out.append(line)
-    env_path.write_text("\n".join(out) + "\n")
+            raise
+    ACCESS_TOKEN = tokens["access_token"]
+    REFRESH_TOKEN = tokens.get("refresh_token", REFRESH_TOKEN)
+    _save_tokens(ACCESS_TOKEN, REFRESH_TOKEN)
     return ACCESS_TOKEN
 
 # Default to the safe settings. Flip these only once live testing is verified.

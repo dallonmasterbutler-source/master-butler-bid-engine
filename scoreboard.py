@@ -61,6 +61,13 @@ def load_shadows():
                 rec["draft"] = {"total": float(m.group(1))}
                 out.append(rec); seen.add(stamp)
 
+    try:
+        import clouddb                     # when we ARE the cloud
+        if clouddb.available():
+            for stamp, rec in clouddb.all_shadow():
+                add(rec, stamp)
+    except Exception:
+        pass
     try:                                   # cloud first (the full truth)
         import urllib.request
         from base64 import b64encode

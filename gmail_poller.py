@@ -162,9 +162,13 @@ def poll_once():
             except Exception:
                 pass
             try:
-                from cloudpush import push
                 sb = json.loads((BASE / "data" / "scoreboard.json").read_text())
-                push(blobs={"scoreboard": sb})
+                import clouddb
+                if clouddb.available():
+                    clouddb.put_blob("scoreboard", sb)
+                else:
+                    from cloudpush import push
+                    push(blobs={"scoreboard": sb})
             except Exception:
                 pass
         except Exception as e:

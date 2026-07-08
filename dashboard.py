@@ -2189,7 +2189,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(json.dumps(load_reviews()).encode(),
                               ctype="application/json")
         m = re.match(r"^/api/blob/(mail_outbox|pricing_overrides|"
-                     r"canned_replies|msg_read)$", self.path)
+                     r"canned_replies|msg_read|jobber_tokens)$", self.path)
         if m:                     # blobs the Mac mirrors down
             val = (clouddb.get_blob(m.group(1))
                    if clouddb.available() else None)
