@@ -411,6 +411,27 @@ v = check_duplicate(spouse, [realty_1])
 check("Different contact, same house = still linked (spouse case)",
       1 if v["verdict"] == "suspected_duplicate" else 0, 1)
 
+print("\n── RULE: queue hygiene (Dallon/Tom/robots -> drawer, never dropped) ──")
+from dashboard import classify_row
+lane, why = classify_row({"from": "Dallon Anderson <dallon.masterbutler@gmail.com>",
+                          "kind": "question"})
+check("Dallon's questions leave the queue", 1 if lane == "aside" else 0, 1)
+lane, why = classify_row({"from": "inc Master Butler <customercare@masterbutlerinc.com>",
+                          "kind": "new_request"})
+check("Company-address mail leaves the queue", 1 if lane == "aside" else 0, 1)
+lane, why = classify_row({"from": "The Jobber Team <marketing@getjobber.com>",
+                          "kind": "scheduling"})
+check("Robot mail leaves the queue", 1 if lane == "aside" else 0, 1)
+lane, why = classify_row({"from": "Shadi Mosleh <shadimoslehy@gmail.com>",
+                          "kind": "new_request"})
+check("Customer request stays in the queue", 1 if lane == "main" else 0, 1)
+lane, why = classify_row({"from": "Jane Doe <jane@x.com>", "kind": "question"})
+check("Customer QUESTION stays (office answers those)",
+      1 if lane == "main" else 0, 1)
+lane, why = classify_row({"from": "Spammer <win@lottery.biz>", "kind": "other",
+                          "folder": "[Gmail]/Spam"})
+check("Spam junk goes to the drawer", 1 if lane == "aside" else 0, 1)
+
 print("\n── RULE: office↔system service-name bridge (offline) ──")
 from store import _service_key
 check("'Gutter Cleaning - Composition' bridges to gutter",

@@ -110,6 +110,40 @@ def active_holds():
 
 DECIDED_ACTIONS = ("approve", "adjusted", "escalated", "duplicate_same")
 
+# ── QUEUE HYGIENE (Dallon's rule, Jul 7) ─────────────────────
+# The office queue is for CUSTOMERS. Mail from Dallon/Tom/the company
+# itself, and robot mail, goes to a collapsed drawer instead — shown,
+# never dropped. Add more internal senders in data/internal_senders.txt
+# (one email or domain per line).
+INTERNAL_DEFAULT = ["masterbutlerinc.com", "dallon.masterbutler@gmail.com"]
+NOISE_SENDERS = ["no-reply", "noreply", "donotreply", "marketing@",
+                 "accounts.google.com", "notifications@", "newsletter"]
+
+
+def _internal_senders():
+    extra = BASE / "data" / "internal_senders.txt"
+    out = list(INTERNAL_DEFAULT)
+    if extra.exists():
+        out += [l.strip().lower() for l in extra.read_text().splitlines()
+                if l.strip() and not l.startswith("#")]
+    return out
+
+
+def classify_row(rec):
+    """'main' (customer work) or ('aside', reason) for the drawer."""
+    sender = (rec.get("from") or "").lower()
+    for s in _internal_senders():
+        if s in sender:
+            return "aside", "internal (Dallon/Tom/company)"
+    for s in NOISE_SENDERS:
+        if s in sender:
+            return "aside", "robot mail"
+    if "Spam" in (rec.get("folder") or "") and rec.get("kind") != "new_request":
+        return "aside", "spam folder, not a request"
+    if rec.get("kind") in ("new_request", "question", "scheduling"):
+        return "main", None
+    return "aside", f"kind: {rec.get('kind')}"
+
 
 def _shadow_source():
     """(stamp, record) pairs — database when available, files otherwise."""
@@ -143,6 +177,24 @@ def load_bids():
             rec["confidence"] = int(mc.group(1)) if mc else None
         bids.append(rec)
     return bids
+
+
+def quote_numbers():
+    """stamp -> Jobber quote # — from the scoreboard's office matches and
+    from any approve-push results. The office's 'verify in Jobber' link."""
+    out = {}
+    if clouddb.available():
+        sb = clouddb.get_blob("scoreboard")
+    else:
+        p = BASE / "data" / "scoreboard.json"
+        sb = json.loads(p.read_text()) if p.exists() else None
+    for r in (sb or {}).get("rows", []):
+        if r.get("office_quote"):
+            out[r["stamp"]] = r["office_quote"]
+    for r in load_reviews():
+        if r.get("jobber_quote") and r.get("stamp"):
+            out[r["stamp"]] = r["jobber_quote"]
+    return out
 
 
 def similar_history(services):
@@ -264,8 +316,16 @@ def age_html(h):
 def home_page():
     bids = load_bids()
     live_holds, resurfaced = active_holds()
-    queue = [b for b in bids if not b["reviewed"]
-             and b["stamp"] not in live_holds]
+    quotes = quote_numbers()
+    pending = [b for b in bids if not b["reviewed"]
+               and b["stamp"] not in live_holds]
+    queue, aside = [], []
+    for b in pending:
+        lane, why = classify_row(b)
+        if lane == "main":
+            queue.append(b)
+        else:
+            aside.append((b, why))
     attention = []
     for b in queue:
         if b["stamp"] in resurfaced:
@@ -296,12 +356,27 @@ def home_page():
         c = b.get("confidence")
         conf = ("—" if c is None else
                 f"<b style='color:{'#1e8449' if c >= 75 else '#c77700' if c >= 50 else '#c0392b'}'>{c}%</b>")
+        q = quotes.get(b["stamp"])
+        qchip = (f"<span class='chip' style='background:#e3efe9'>Jobber "
+                 f"#{esc(q)}</span>" if q else "")
         rows += (f"<tr><td>{age_html(b['age_hours'])}</td>"
-                 f"<td><a href='/bid/{b['stamp']}'>{esc(b['from'])}</a></td>"
+                 f"<td><a href='/bid/{b['stamp']}'>{esc(b['from'])}</a>"
+                 f"{qchip}</td>"
                  f"<td>{esc(b.get('kind'))}</td><td>{services}{flags}</td>"
                  f"<td>{conf}</td><td>{total}</td></tr>")
     if not rows:
         rows = "<tr><td colspan=6>Queue is empty — all caught up. ✅</td></tr>"
+
+    aside_html = ""
+    if aside:
+        items = "".join(
+            f"<div>· <a href='/bid/{b['stamp']}'>{esc(b['from'])[:44]}</a> "
+            f"<span style='color:#888'>({esc(why)})</span></div>"
+            for b, why in aside)
+        aside_html = (f"<details class='card'><summary style='cursor:pointer;"
+                      f"color:#666'>Internal &amp; other mail "
+                      f"({len(aside)}) — not customer work</summary>"
+                      f"{items}</details>")
 
     reviews = load_reviews()[-8:][::-1]
     rev_rows = "".join(
@@ -314,7 +389,7 @@ def home_page():
         "<h2 style='margin-top:0'>Bid queue — oldest first</h2>"
         "<table><tr><th>Waiting</th><th>From</th><th>Kind</th>"
         "<th>Services</th><th>Conf.</th><th>Est.</th></tr>" + rows +
-        "</table></div>"
+        "</table>" + aside_html + "</div>"
         "<div>" + scoreboard_card() + held_card(live_holds, bids) +
         "<div class='card'><h3 style='margin-top:0'>Recent decisions"
         "</h3>" + rev_rows + "</div>"
@@ -488,7 +563,9 @@ def bid_page(stamp):
 <a href='/'>&larr; back to queue</a>
 <div class='grid'><div>
  <div class='card'>
-  <h2 style='margin-top:0'>{esc(b['from'])} {age_html(b['age_hours'])}</h2>
+  <h2 style='margin-top:0'>{esc(b['from'])} {age_html(b['age_hours'])}
+  {f"<span class='chip' style='background:#e3efe9;font-size:14px'>Jobber quote #{esc(quote_numbers().get(stamp))} — verify there</span>"
+   if quote_numbers().get(stamp) else ''}</h2>
   <div><b>Subject:</b> {esc(b.get('subject'))}</div>
   <div><b>Address:</b> {esc(b.get('address') or '— not found')}</div>
   <div><b>Services:</b> {', '.join(b.get('services') or []) or '—'}</div>
