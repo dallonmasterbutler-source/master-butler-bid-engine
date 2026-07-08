@@ -885,6 +885,9 @@ def bid_page(stamp):
   <div style='font-style:italic;color:#3a4046;font-size:15px'>&ldquo;{esc(b.get('newest_message'))}&rdquo;</div>
   </div>""" if b.get('newest_message') else ''}
  {gallery_card}
+ {service_history_card(b.get('address'),
+                       (b.get('draft') or {}).get('customer', {}).get('name')
+                       or esc(b['from']).split('&lt;')[0].strip())}
  {history_card}
  <div class='card'><h3 style='margin-top:0'>All notes — one stack</h3>
   <div class='notes'>{notes_html}</div>
@@ -1161,6 +1164,36 @@ def scoreboard_page():
     return page("Scoreboard", body)
 
 
+def service_history_card(address, client_name=None):
+    """LaRee's #1: per-service pricing + dates at this property (client
+    fallback) — no invoice digging. Data from the servicehistory sweep."""
+    if clouddb.available():
+        hist = clouddb.get_blob("service_history") or {}
+    else:
+        p = BASE / "data" / "service_history.json"
+        hist = json.loads(p.read_text()) if p.exists() else {}
+    if not hist:
+        return ""
+    entry = None
+    if address:
+        entry = (hist.get("by_property") or {}).get(_slug(address))
+    if not entry and client_name:
+        ckey = re.sub(r"[^a-z ]", "", client_name.lower()).strip()
+        entry = (hist.get("by_client") or {}).get(ckey)
+    if not entry:
+        return ""
+    rows = ""
+    for svc in sorted(entry):
+        visits = sorted(entry[svc], reverse=True)[:6]
+        cells = " · ".join(f"{d} <b>${p:,.0f}</b>" for d, p in visits)
+        more = f" <span class='subtext'>(+{len(entry[svc])-6} older)</span>" \
+            if len(entry[svc]) > 6 else ""
+        rows += (f"<tr><td style='white-space:nowrap'><b>{esc(svc)}</b></td>"
+                 f"<td>{cells}{more}</td></tr>")
+    return (f"<div class='card'><h3>Service history — every visit, "
+            f"every price</h3><table>{rows}</table></div>")
+
+
 def property_page(slug):
     """Everything we know about ONE ADDRESS — requests across owners,
     Must Know, imagery. LaRee's property-first rule as a page."""
@@ -1196,6 +1229,7 @@ def property_page(slug):
          placeholder='Must Know for this property'>
   <button class='gray' style='margin-top:4px'>Save Must Know</button>
  </form></div>
+{service_history_card(address)}
 {f"<div class='card'><h3>Imagery</h3>{gallery}</div>" if gallery else ''}
 <div class='card'><h3>Every request at this address (any owner)</h3>
  <table><tr><th>Date</th><th>From</th><th>Kind</th><th>Services</th>
