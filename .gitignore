@@ -4,3 +4,4 @@ __pycache__/
 .env
 *.json.secret
 client_secret*.json
+.env.backup
