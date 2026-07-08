@@ -114,21 +114,31 @@ def poll_once():
             seen.add(msg_id)
 
     M.logout()
+    _keep_cloud_warm()          # heartbeat on EVERY poll, however invoked
 
     # QUOTE SYNC (Dallon's rule: dashboard mirrors Jobber, read-only,
-    # no quote creation) — every check-in refreshes which office quotes
-    # match our records, so the dashboard always has the Jobber link.
+    # no quote creation) — refresh which office quotes match our
+    # records. Throttled to hourly: the 10-minute ears loop shouldn't
+    # hammer Jobber's API all day.
+    marker = BASE / "data" / "last_quote_sync.txt"
     try:
-        import scoreboard
-        scoreboard.run(limit=40)
+        last = datetime.fromisoformat(marker.read_text().strip())
+        fresh = (datetime.now() - last).total_seconds() < 3600
+    except Exception:
+        fresh = False
+    if not fresh:
         try:
-            from cloudpush import push
-            sb = json.loads((BASE / "data" / "scoreboard.json").read_text())
-            push(blobs={"scoreboard": sb})
-        except Exception:
-            pass
-    except Exception as e:
-        print(f"  (quote sync skipped: {e})")
+            import scoreboard
+            scoreboard.run(limit=40)
+            marker.write_text(datetime.now().isoformat(timespec="seconds"))
+            try:
+                from cloudpush import push
+                sb = json.loads((BASE / "data" / "scoreboard.json").read_text())
+                push(blobs={"scoreboard": sb})
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"  (quote sync skipped: {e})")
     return new_count
 
 
@@ -305,7 +315,8 @@ def _keep_cloud_warm():
     """Each poll: leave a heartbeat (dashboard shows 'ears last heard
     Xm' + alarm if silent) and, from the Mac, ping /health so the free
     tier stays awake."""
-    beat = {"at": datetime.now().isoformat(timespec="seconds")}
+    from datetime import timezone
+    beat = {"at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     try:
         import clouddb
         if clouddb.available():                 # we ARE the cloud

@@ -484,8 +484,11 @@ def home_page():
         hb = clouddb.get_blob("poller_heartbeat") or {}
         if hb.get("at"):
             try:
+                from datetime import timezone
                 last = datetime.fromisoformat(hb["at"])
-                mins = (datetime.now() - last).total_seconds() / 60
+                if last.tzinfo is None:      # legacy naive beat: assume UTC
+                    last = last.replace(tzinfo=timezone.utc)
+                mins = (datetime.now(timezone.utc) - last).total_seconds() / 60
                 if mins > 15:
                     attention.insert(0, ({"stamp": "", "from": "SYSTEM"},
                         f"the inbox watcher has been silent {mins:.0f} min "
