@@ -157,6 +157,22 @@ def process(eml_path):
     print(f"    Property: {facts['sqft'] or '???'} sqft, "
           f"{facts['stories']}-story, pitch {facts['pitch']}{roof}")
 
+    # KNOWN CUSTOMER, NO ADDRESS: repeat customers rarely repeat their
+    # address — Jobber knows it. Read-only lookup by exact email.
+    if not parsed.get("address") and parsed.get("sender_email"):
+        try:
+            from jobber_client import find_client_address
+            known = find_client_address(parsed["sender_email"])
+            if known:
+                parsed["address"] = known
+                print(f"    Address from Jobber client record: {known}")
+                facts, data_flags2, deduction = lookup(known)
+                data_flags = data_flags2 + [
+                    "Address pulled from their Jobber client record — "
+                    "confirm it's for the SAME property."]
+        except Exception:
+            pass
+
     prop, office_flags = build_property(parsed, facts)
     office_flags = data_flags + office_flags
 

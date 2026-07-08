@@ -140,6 +140,46 @@ def find_client(email):
     return None
 
 
+# ── Look up a known client's property address (read-only) ──
+# Repeat customers rarely repeat their address — but Jobber knows it.
+FIND_CLIENT_PROPERTY = """
+query FindProp($term: String!) {
+  clients(searchTerm: $term, first: 5) {
+    nodes { id emails { address }
+            properties { address { street city province postalCode } } }
+  }
+}
+"""
+
+
+def find_client_address(email_addr):
+    """Exact-email client match -> their property address string, or None.
+    READ-ONLY: runs live even in dry-run mode (dry-run guards writes)."""
+    global DRY_RUN
+    if not email_addr:
+        return None
+    was = DRY_RUN
+    DRY_RUN = False
+    try:
+        data = _post(FIND_CLIENT_PROPERTY, {"term": email_addr},
+                     "find client property")
+    finally:
+        DRY_RUN = was
+    if data.get("dry_run") or data.get("error"):
+        return None
+    for node in data.get("clients", {}).get("nodes", []):
+        addrs = [e["address"].lower() for e in node.get("emails", [])]
+        if email_addr.lower() not in addrs:
+            continue
+        for p in node.get("properties", []):
+            a = p.get("address") or {}
+            if a.get("street"):
+                return (f"{a['street']}, {a.get('city', '')}, "
+                        f"{a.get('province', '')} {a.get('postalCode', '')}"
+                        ).strip(", ")
+    return None
+
+
 # ── Create a client ──  (input fields verified against live schema)
 CREATE_CLIENT = """
 mutation CreateClient($input: ClientCreateInput!) {

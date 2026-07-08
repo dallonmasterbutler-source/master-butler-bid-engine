@@ -85,7 +85,17 @@ def fetch_recent_quotes(limit=60):
 
 
 def match(shadow, quotes):
-    """Find the office quote for this shadow draft, or None."""
+    """Find the office quote for this shadow draft, or None.
+
+    Only quotes CREATED AFTER the request arrived count — an old quote
+    for the same customer is property history, not the office's answer
+    (learned from Nithya Kannan: tonight's PW request nearly graded
+    against an archived gutter quote from weeks earlier)."""
+    stamp = shadow.get("stamp", "")
+    if len(stamp) >= 8 and stamp[:8].isdigit():
+        req_day = f"{stamp[:4]}-{stamp[4:6]}-{stamp[6:8]}"
+        quotes = [q for q in quotes
+                  if (q.get("createdAt") or "9999")[:10] >= req_day]
     # prefer the PARSED customer (form submissions arrive 'from Squarespace' —
     # the real person is in the parsed body, not the envelope)
     cust = (shadow.get("draft") or {}).get("customer") or {}

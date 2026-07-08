@@ -306,6 +306,30 @@ def cross_check(prop, address, today_year=2026, _reading=None, _tile=None):
                          f"sqft FROM ABOVE (range {s.get('sqft_low')}-"
                          f"{s.get('sqft_high')}, {conf} confidence){loud}.")
 
+    # 2b) GENERIC "pressure washing" with NO surface named: don't guess
+    #     which surfaces the customer meant — hand the office a PRICED
+    #     MENU of what's visible from above instead.
+    pw_keys = ("driveway", "patio", "sidewalk")
+    if not any(prop.get("services", {}).get(k) for k in pw_keys):
+        menu = []
+        for s in reading.get("surfaces", []):
+            key = {"driveway": "driveway", "walkway": "sidewalk",
+                   "patio": "patio"}.get(s.get("type"))
+            if not key:
+                continue
+            mid = int((s.get("sqft_low", 0) + s.get("sqft_high", 0)) / 2)
+            if mid <= 0:
+                continue
+            from bid_engine import pw_concrete_price, round_to_5
+            menu.append(f"{key} ~{mid} sqft ≈ "
+                        f"${round_to_5(pw_concrete_price(mid))}")
+        if menu:
+            notes.append(f"Aerial PW menu ({vintage}) — customer didn't "
+                         "specify surfaces; pick with them: "
+                         + "; ".join(menu)
+                         + ". (Individual prices; combining in one visit "
+                         "shares the setup and comes out lower.)")
+
     # 3) TREES (Connor's question) — only from reasonably fresh imagery.
     if stale:
         notes.append(f"Aerial imagery is from {year} — tree/canopy reads "
