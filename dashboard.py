@@ -116,6 +116,11 @@ def load_bids():
         out = rec.get("pipeline_output", "")
         m = re.findall(r"\$\s?([\d,]+)(?:\.\d+)?", out)
         rec["total_guess"] = m[-1] if m else None
+        rec["confidence"] = ((rec.get("draft") or {}).get("bid") or {}) \
+            .get("confidence")
+        if rec["confidence"] is None:
+            mc = re.search(r"confidence (\d+)%", out)
+            rec["confidence"] = int(mc.group(1)) if mc else None
         bids.append(rec)
     return bids
 
@@ -240,12 +245,15 @@ def home_page():
         flags = ("<span class='chip flag'>spam</span>"
                  if b.get("office_alert") else "")
         total = f"${b['total_guess']}" if b.get("total_guess") else "—"
+        c = b.get("confidence")
+        conf = ("—" if c is None else
+                f"<b style='color:{'#1e8449' if c >= 75 else '#c77700' if c >= 50 else '#c0392b'}'>{c}%</b>")
         rows += (f"<tr><td>{age_html(b['age_hours'])}</td>"
                  f"<td><a href='/bid/{b['stamp']}'>{esc(b['from'])}</a></td>"
                  f"<td>{esc(b.get('kind'))}</td><td>{services}{flags}</td>"
-                 f"<td>{total}</td></tr>")
+                 f"<td>{conf}</td><td>{total}</td></tr>")
     if not rows:
-        rows = "<tr><td colspan=5>Queue is empty — all caught up. ✅</td></tr>"
+        rows = "<tr><td colspan=6>Queue is empty — all caught up. ✅</td></tr>"
 
     reviews = load_reviews()[-8:][::-1]
     rev_rows = "".join(
@@ -257,7 +265,8 @@ def home_page():
         "<div class='grid'><div class='card'>"
         "<h2 style='margin-top:0'>Bid queue — oldest first</h2>"
         "<table><tr><th>Waiting</th><th>From</th><th>Kind</th>"
-        "<th>Services</th><th>Est.</th></tr>" + rows + "</table></div>"
+        "<th>Services</th><th>Conf.</th><th>Est.</th></tr>" + rows +
+        "</table></div>"
         "<div>" + scoreboard_card() + held_card(live_holds, bids) +
         "<div class='card'><h3 style='margin-top:0'>Recent decisions"
         "</h3>" + rev_rows + "</div>"
@@ -307,11 +316,51 @@ def held_card(live_holds, bids):
             "(auto-resurface)</h3>" + inner + "</div>")
 
 
+def bid_photos(stamp):
+    """Customer photos from the saved .eml (extracted on demand)."""
+    eml = SHADOW / f"{stamp}.eml"
+    if not eml.exists():
+        return []
+    try:
+        from pipeline import extract_photos
+        return extract_photos(eml)
+    except Exception:
+        return []
+
+
+def aerial_tile_for(address):
+    """Already-fetched aerial tile for this address, if any."""
+    if not address or not AERIAL.exists():
+        return None
+    slug = re.sub(r"[^a-z0-9]+", "-", address.lower()).strip("-")[:40]
+    for p in AERIAL.glob("*.png"):
+        if p.name.startswith(slug[:24]):
+            return p.name
+    return None
+
+
 def bid_page(stamp):
     bids = {b["stamp"]: b for b in load_bids()}
     b = bids.get(stamp)
     if not b:
         return page("Not found", "<div class='card'>No such bid.</div>")
+
+    photos = bid_photos(stamp)
+    gallery = "".join(
+        f"<a href='/photo/{stamp}/{i}' target='_blank'>"
+        f"<img src='/photo/{stamp}/{i}' style='height:110px;margin:4px;"
+        f"border-radius:6px'></a>" for i in range(len(photos)))
+    tile = aerial_tile_for(b.get("address"))
+    if tile:
+        gallery += (f"<a href='/aerial/{tile}' target='_blank'>"
+                    f"<img src='/aerial/{tile}' style='height:110px;margin:4px;"
+                    f"border-radius:6px;border:2px solid #0b6e4f'"
+                    f" title='aerial view'></a>")
+    gallery_card = (f"<div class='card'><h3 style='margin-top:0'>Photos it "
+                    f"used {'(green border = aerial)' if tile else ''}</h3>"
+                    f"{gallery or '<div style=color:#888>No photos on this '
+                    'request — the photo-request button drafts the ask.</div>'}"
+                    "</div>")
 
     notes = re.findall(r"⚠ ?(.+)", b.get("pipeline_output", ""))
     if b.get("office_alert"):
@@ -342,6 +391,7 @@ def bid_page(stamp):
   <div><b>Services:</b> {', '.join(b.get('services') or []) or '—'}</div>
   <div><b>Folder:</b> {esc(b.get('folder', 'INBOX'))}</div>
  </div>
+ {gallery_card}
  <div class='card'><h3 style='margin-top:0'>All notes — one stack</h3>
   <div class='notes'>{notes_html}</div></div>
  <div class='card'><h3 style='margin-top:0'>System draft</h3>
@@ -408,6 +458,17 @@ class Handler(BaseHTTPRequestHandler):
         m = re.match(r"^/bid/([\w-]+)$", self.path)
         if m:
             return self._send(bid_page(m.group(1)))
+        m = re.match(r"^/photo/([\w-]+)/(\d+)$", self.path)
+        if m:
+            photos = bid_photos(m.group(1))
+            i = int(m.group(2))
+            if 0 <= i < len(photos):
+                return self._send(photos[i].read_bytes(),
+                                  ctype="image/jpeg")
+        m = re.match(r"^/aerial/([\w.-]+)$", self.path)
+        if m and (AERIAL / m.group(1)).exists():
+            return self._send((AERIAL / m.group(1)).read_bytes(),
+                              ctype="image/png")
         return self._send(b"not found", 404)
 
     def do_POST(self):
