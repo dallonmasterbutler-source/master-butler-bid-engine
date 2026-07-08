@@ -200,6 +200,15 @@ ROOF_LANE_REVIEW_OVER = 500
 #   (gutters+blow-off+moss). Flagged, not auto-bumped — office bundles
 #   or holds for a fuller day.
 DRY_SEASON_ROOF_FLOOR = 400
+# · TWO-PRICE (Tom, Jul 8): a high roof-lane price the customer balks at
+#   also gets a DRY-DAY price offered in exchange for flexible timing.
+#   Tom's logic: "a 2-hour job is worth $500; 3-4 of those a day is well
+#   worth it" (~$250/hr). That back-solves to ~27% off the standard
+#   roof lane — which lands his Bellevue example ($690 std → ~$500 dry).
+#   The STANDARD price stays the true price (learning ground truth); the
+#   dry-day price is a scheduling concession, never a rate cut, floored
+#   so it's always worth the roll-out.
+DRY_DAY_DISCOUNT = 0.27
 
 # ── SCHEDULING BY DOLLARS (Dallon's rule, July 2026) ──
 # The schedule blocks time by job dollars (price is a time proxy: ~$400 job
@@ -537,6 +546,26 @@ def calculate_bid(prop):
         notes.append(f"REVIEW (Tom): gutters/blow-off total ${lane_total:.0f} "
                      f"is over ${ROOF_LANE_REVIEW_OVER} — Tom may do it for "
                      "less on a dry day. Confirm before sending.")
+
+    # TWO-PRICE: offer a dry-day price on a meaningful roof lane. The
+    # standard price is the true price; the dry-day price is the
+    # flexible-scheduling concession (~27% off, floored at the roll-out
+    # minimum, never above standard). Surfaced as a note the office can
+    # offer the customer — "$X standard, or $Y if you'll take a dry day."
+    if lane_total > DRY_SEASON_ROOF_FLOOR:
+        dry = max(DRY_SEASON_ROOF_FLOOR,
+                  round_to_5(lane_total * (1 - DRY_DAY_DISCOUNT)))
+        if dry < lane_total:
+            notes.append(
+                f"CUSTOMER: We can do the roof/gutter work for ${dry:.0f} if "
+                "you're flexible on timing — we schedule it for a dry day "
+                "when it's fastest for our crew. Otherwise it's "
+                f"${lane_total:.0f} on your preferred date.")
+            notes.append(
+                f"DRY-DAY OPTION: roof lane ${dry:.0f} (vs ${lane_total:.0f} "
+                "standard). Standard is the TRUE price for records; the "
+                "dry-day price is a flexible-timing concession, not a rate "
+                "cut — becomes a weather-pending hold if the customer takes it.")
     # The $400 dry-season floor is about TOM'S roll-outs — he does
     # high-risk roofs only now (tom_only pitch). Scoped there so it
     # doesn't nag every small summer gutter job a regular tech handles.

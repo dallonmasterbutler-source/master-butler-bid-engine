@@ -499,6 +499,27 @@ r, notes, _ = calculate_bid(house(sqft=1000, pitch="mild", debris="minimal",
 check("Normal summer gutter job NOT dry-flagged (Tom-tier only)",
       0 if any("won't roll out" in n for n in notes) else 1, 1)
 
+print("\n── RULE: two-price dry-day option (Tom's $500-for-2hrs logic) ──")
+# Bellevue-shape roof lane: gutters+blow-off ≈ $690 → dry-day ≈ $500
+r, notes, _ = calculate_bid(house(sqft=5500, pitch="steep",
+                                  services={"gutters": True, "roof": True}))
+lane = sum(s["price"] for s in r if "Gutter" in s["name"] or "Blow" in s["name"])
+dry_note = next((n for n in notes if "DRY-DAY OPTION" in n), "")
+import re as _re2
+m = _re2.search(r"roof lane \$(\d+)", dry_note)
+dry = int(m.group(1)) if m else 0
+check("Dry-day price is ~27% below standard",
+      1 if dry and abs(dry - lane*0.73) <= 20 else 0, 1)
+check("Customer-facing dry-day offer present",
+      1 if any(n.startswith("CUSTOMER:") and "flexible" in n for n in notes) else 0, 1)
+check("Standard price kept as true price (both shown)",
+      1 if any("TRUE price for records" in n for n in notes) else 0, 1)
+# a small roof lane (near the floor) gets NO dry-day option
+r, notes, _ = calculate_bid(house(sqft=1200, pitch="mild", debris="minimal",
+                                  services={"gutters": True}))
+check("Small roof job = no dry-day option (not worth splitting)",
+      0 if any("DRY-DAY OPTION" in n for n in notes) else 1, 1)
+
 print("\n── RULE: Jobber notification emails are EVENTS ──")
 from email_parser import parse_jobber_event
 REAL_APPROVAL = ("----------------- Quote Approved ----------------- "
