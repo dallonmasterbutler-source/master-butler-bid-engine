@@ -1374,6 +1374,18 @@ class Handler(BaseHTTPRequestHandler):
                 if clouddb.available() else []     # cloud can't send itself
             return self._send(json.dumps(box).encode(),
                               ctype="application/json")
+        if self.path == "/api/records":   # slim record list for the Mac's
+            slim = []                     # quote-sync (scoreboard) matching
+            for stamp, r in _shadow_source():
+                slim.append({"stamp": stamp, "from": r.get("from"),
+                             "address": r.get("address"),
+                             "kind": r.get("kind"),
+                             "services": r.get("services"),
+                             "draft": {"total": (r.get("draft") or {})
+                                       .get("total")},
+                             "pipeline_output": ""})
+            return self._send(json.dumps(slim).encode(),
+                              ctype="application/json")
         return self._send(b"not found", 404)
 
     def do_POST(self):

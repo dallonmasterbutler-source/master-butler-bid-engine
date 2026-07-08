@@ -45,18 +45,38 @@ def _norm_words(s):
 
 
 def load_shadows():
-    """Shadow records that actually produced a priced draft."""
-    out = []
-    for p in sorted(SHADOW.glob("*.json")):
-        rec = json.loads(p.read_text())
-        rec["stamp"] = p.stem
+    """Shadow records that actually produced a priced draft — local files
+    PLUS the cloud's records (manual entries never touch this Mac)."""
+    out, seen = [], set()
+
+    def add(rec, stamp):
+        if not stamp or stamp in seen:
+            return
+        rec["stamp"] = stamp
         if rec.get("draft") and rec["draft"].get("total"):
-            out.append(rec)
+            out.append(rec); seen.add(stamp)
         elif rec.get("pipeline_output") and "TOTAL" in rec.get("pipeline_output", ""):
             m = re.search(r"TOTAL\s+\$(\d+)", rec["pipeline_output"])
             if m:
                 rec["draft"] = {"total": float(m.group(1))}
-                out.append(rec)
+                out.append(rec); seen.add(stamp)
+
+    try:                                   # cloud first (the full truth)
+        import urllib.request
+        from base64 import b64encode
+        from cloudpush import _cfg
+        url, pw = _cfg("DASHBOARD_URL"), _cfg("DASHBOARD_PASSWORD")
+        if url and pw:
+            req = urllib.request.Request(
+                url.rstrip("/") + "/api/records",
+                headers={"Authorization": "Basic "
+                         + b64encode(f"office:{pw}".encode()).decode()})
+            for rec in json.load(urllib.request.urlopen(req, timeout=60)):
+                add(rec, rec.get("stamp"))
+    except Exception:
+        pass
+    for p in sorted(SHADOW.glob("*.json")):
+        add(json.loads(p.read_text()), p.stem)
     return out
 
 

@@ -114,6 +114,21 @@ def poll_once():
             seen.add(msg_id)
 
     M.logout()
+
+    # QUOTE SYNC (Dallon's rule: dashboard mirrors Jobber, read-only,
+    # no quote creation) — every check-in refreshes which office quotes
+    # match our records, so the dashboard always has the Jobber link.
+    try:
+        import scoreboard
+        scoreboard.run(limit=40)
+        try:
+            from cloudpush import push
+            sb = json.loads((BASE / "data" / "scoreboard.json").read_text())
+            push(blobs={"scoreboard": sb})
+        except Exception:
+            pass
+    except Exception as e:
+        print(f"  (quote sync skipped: {e})")
     return new_count
 
 
