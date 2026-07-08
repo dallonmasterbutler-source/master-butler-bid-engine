@@ -1274,6 +1274,27 @@ def scoreboard_page():
     return page("Scoreboard", body)
 
 
+_ABBR = {"se": "southeast", "sw": "southwest", "ne": "northeast",
+         "nw": "northwest", "n": "north", "s": "south", "e": "east",
+         "w": "west", "pl": "place", "st": "street", "ave": "avenue",
+         "av": "avenue", "rd": "road", "dr": "drive", "ln": "lane",
+         "ct": "court", "cir": "circle", "blvd": "boulevard",
+         "hwy": "highway", "pkwy": "parkway", "ter": "terrace"}
+
+
+def _canon_addr(s):
+    """Jobber writes 'Southeast 7th Place'; forms write 'SE 7th Pl'.
+    Same house — expand abbreviations, drop state/zip, one canon form."""
+    toks = re.sub(r"[^a-z0-9]+", " ", (s or "").lower()).split()
+    out = []
+    for t in toks:
+        if t in ("wa", "washington", "usa") or (t.isdigit() and len(t) == 5
+                                                and out):
+            continue
+        out.append(_ABBR.get(t, t))
+    return "-".join(out)[:80]
+
+
 def _history_entry(address, client_name=None):
     """Per-service {svc: [[date, price], ...]} for this property, with a
     client-name fallback. Data from the servicehistory sweep."""
@@ -1286,7 +1307,11 @@ def _history_entry(address, client_name=None):
         return None
     entry = None
     if address:
-        entry = (hist.get("by_property") or {}).get(_slug(address))
+        want = _canon_addr(address)
+        for k, v in (hist.get("by_property") or {}).items():
+            if _canon_addr(k) == want:
+                entry = v
+                break
     if not entry and client_name:
         ckey = re.sub(r"[^a-z ]", "", client_name.lower()).strip()
         entry = (hist.get("by_client") or {}).get(ckey)
