@@ -67,6 +67,37 @@ customercare@masterbutlerinc.com
     return path
 
 
+def draft_repeat_welcome(customer_name, last_service="", promise_note=""):
+    """Martha's contextual reply: returning customers get 'thanks for
+    reaching back out', plus any price promise we owe them, surfaced
+    up front. Draft only — never sent."""
+    OUTBOX.mkdir(parents=True, exist_ok=True)
+    first = (customer_name or "there").split()[0]
+    middle = ""
+    if last_service:
+        middle += f"\nGreat to have you back — we last helped with {last_service}.\n"
+    if promise_note:
+        middle += f"\nGood news we didn't forget: {promise_note}\n"
+    body = f"""Subject: Welcome back to Master Butler!
+
+Hi {first},
+
+Thanks for reaching back out!
+{middle}
+We're putting your quote together now and will have it over to you
+shortly.
+
+At your service,
+
+Master Butler Inc.
+customercare@masterbutlerinc.com
+"""
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    path = OUTBOX / f"repeat-welcome-{stamp}.txt"
+    path.write_text(body)
+    return path
+
+
 def draft_escalation(bid_ref, customer, address, question, to="dallon",
                      services=None, system_total=None, confidence=None,
                      notes=None):
