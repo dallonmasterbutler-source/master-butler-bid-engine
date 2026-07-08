@@ -43,6 +43,13 @@ try:
     r = scoreboard.run(limit=60)
     matched = [x for x in r["rows"] if x.get("office_quote")]
     print(f"   {r['shadow_drafts']} shadow drafts · {len(matched)} matched")
+    if matched:
+        try:
+            import store
+            n = store.record_office_quotes(r)
+            print(f"   {n} final price(s) recorded into the learning DB")
+        except Exception as e:
+            print(f"   (learning-record update skipped: {e})")
     for row in matched:
         print(f"     {row['customer'][:34]:<34} sys ${row['system_total']:.0f}"
               f" / office ${row['office_total']:.0f} ({row['gap_pct']:+.0f}%)")

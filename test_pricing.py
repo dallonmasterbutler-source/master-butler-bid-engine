@@ -378,6 +378,17 @@ check("Year is NOT a price ('free in 2025, charge full next year')",
 check("Tiny numbers rejected (15% is not $15)",
       parse_next_year_price("honor 2026 pricing, 15 percent adjustment") or 0, 0)
 
+print("\n── RULE: office↔system service-name bridge (offline) ──")
+from store import _service_key
+check("'Gutter Cleaning - Composition' bridges to gutter",
+      1 if _service_key("Gutter Cleaning - Composition") == "gutter" else 0, 1)
+check("'Roof Blow Off - Composition' bridges to roof blow",
+      1 if _service_key("Roof Blow Off - Composition") == "roof blow" else 0, 1)
+check("'Moss Treatment Product' bridges to moss",
+      1 if _service_key("Moss Treatment Product") == "moss" else 0, 1)
+check("Unknown line = no bridge (never mismatched)",
+      1 if _service_key("Mystery Fee") is None else 0, 1)
+
 print("\n── RULE: lights materials math (labor stays Tom's) ──")
 from lights import materials_estimate, C7_PER_FT, LABOR_MINIMUM
 est = materials_estimate(50, 60, 180, 220)

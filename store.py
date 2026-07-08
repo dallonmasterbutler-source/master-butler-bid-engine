@@ -228,6 +228,60 @@ def sync():
     return added_req, added_lines
 
 
+SERVICE_WORDS = {          # fuzzy bridge: our line names ↔ office catalog names
+    "gutter": "gutter", "blow": "roof blow", "roof blow": "roof blow",
+    "moss": "moss", "window": "window", "driveway": "driveway",
+    "patio": "patio", "sidewalk": "sidewalk", "house wash": "house wash",
+}
+
+
+def _service_key(name):
+    n = (name or "").lower()
+    for w, key in SERVICE_WORDS.items():
+        if w in n:
+            return key
+    return None
+
+
+def record_office_quotes(scoreboard_report):
+    """Write the office's real prices into bid_lines.final_price by
+    matching scoreboard rows (system vs office) line-by-line. This is
+    the learning record: system_price and final_price side by side."""
+    con = connect()
+    updated = 0
+    for row in scoreboard_report.get("rows", []):
+        if not row.get("office_quote"):
+            continue
+        bid = con.execute(
+            "SELECT b.id FROM bids b JOIN requests q ON b.request_id=q.id "
+            "WHERE q.stamp=?", (row["stamp"],)).fetchone()
+        if not bid:
+            continue
+        con.execute("UPDATE bids SET jobber_quote_id=? WHERE id=?",
+                    (str(row["office_quote"]), bid[0]))
+        office_by_key = {}
+        for li in row.get("office_lines", []):
+            k = _service_key(li["name"])
+            if k:
+                office_by_key[k] = office_by_key.get(k, 0) + (li["price"] or 0)
+        for line_id, service in con.execute(
+                "SELECT id, service FROM bid_lines WHERE bid_id=? "
+                "AND final_price IS NULL", (bid[0],)).fetchall():
+            k = _service_key(service)
+            if k and k in office_by_key:
+                con.execute("UPDATE bid_lines SET final_price=? WHERE id=?",
+                            (office_by_key[k], line_id))
+                updated += 1
+        con.execute("INSERT INTO audit_log (bid_id,actor,action,detail) "
+                    "VALUES (?,?,?,?)",
+                    (bid[0], "scoreboard", "office_quote_matched",
+                     json.dumps({"quote": row["office_quote"],
+                                 "office_total": row.get("office_total")})))
+    con.commit()
+    con.close()
+    return updated
+
+
 def report():
     con = connect()
     out = {}
