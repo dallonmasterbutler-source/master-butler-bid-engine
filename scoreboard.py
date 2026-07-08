@@ -169,6 +169,8 @@ def run(limit=60):
             row.update({
                 "office_quote": q["quoteNumber"], "office_total": office,
                 "office_status": q["quoteStatus"], "matched_by": how,
+                "salesperson": ((q.get("salesperson") or {}).get("name")
+                                or {}).get("full"),
                 "jobber_url": q.get("jobberWebUri"),
                 "gap": round(s["draft"]["total"] - office, 2),
                 "gap_pct": (round(100 * (s["draft"]["total"] - office) / office, 1)

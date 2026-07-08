@@ -1456,7 +1456,7 @@ def _winback_save(d):
         (BASE / "data" / "winback_done.json").write_text(json.dumps(d))
 
 
-def messages_page(sel=None):
+def messages_page(sel=None, draft=""):
     """LIVE conversation center: every customer message in and out,
     cleaned up, newest thread first — reply without opening Gmail."""
     import msglog
@@ -1523,19 +1523,47 @@ def messages_page(sel=None):
   <div style='max-height:520px;overflow-y:auto;padding:6px 2px'>
    {thread_html or "<div class='subtext'>No messages yet.</div>"}
   </div>
-  <form method='POST' action='/msg_send' style='margin-top:12px;
-        border-top:1px solid var(--line);padding-top:14px'>
+  <div style='margin-top:12px;border-top:1px solid var(--line);
+       padding-top:12px'>
+   <div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px'>
+    <form method='POST' action='/msg_draft' style='display:inline'>
+     <input type='hidden' name='to' value='{esc(sel)}'>
+     <button class='gray' style='border-color:var(--gold);
+             color:#8a5a00'>✨ Draft a reply for me</button>
+    </form>
+    <button type='button' class='gray qr'>Thanks — you're on the schedule</button>
+    <button type='button' class='gray qr'>Can you send photos?</button>
+    <button type='button' class='gray qr'>Quote is on its way</button>
+   </div>
+  </div>
+  <form method='POST' action='/msg_send'>
    <input type='hidden' name='to' value='{esc(sel)}'>
    <input type='hidden' name='subject' value='{esc(reply_subject)}'>
-   <textarea name='body' rows='3' placeholder='Reply as customercare@ —
-sends real email to {esc(tname)} when you hit Send'></textarea>
+   <textarea id='replybox' name='body' rows='4' placeholder='Reply as customercare@ —
+sends real email to {esc(tname)} when you hit Send'>{esc(draft)}</textarea>
    <div style='display:flex;justify-content:space-between;
                align-items:center;margin-top:8px'>
     <span class='subtext'>Sends from customercare@masterbutlerinc.com,
     signed with your name tag.</span>
     <button class='big'>Send reply</button>
    </div>
-  </form></div></div>"""
+  </form></div></div>
+<script>
+var CANNED = {{
+ "Thanks — you're on the schedule":
+  "Thank you! You're on our schedule — we'll send a reminder before your service date. Reply here with any questions.",
+ "Can you send photos?":
+  "Thanks for reaching out! Could you reply with a few photos of the areas you'd like serviced? That helps us get you an accurate quote fast.",
+ "Quote is on its way":
+  "Thanks for your request! We're putting your quote together now and you'll receive it shortly. Let us know if anything changes."
+}};
+document.querySelectorAll('.qr').forEach(function(b){{
+  b.onclick=function(){{
+    document.getElementById('replybox').value=CANNED[b.textContent]||b.textContent;
+    document.getElementById('replybox').focus();
+  }};
+}});
+</script>"""
     return page("Messages", body)
 
 
@@ -1652,9 +1680,11 @@ def scoreboard_page():
                 if r.get("jobber_url") else f"#{r['office_quote']}")
         svcs = "".join(f"<span class='chip'>{esc(s)}</span>"
                        for s in (r.get("services") or [])[:4])
+        sp = (f"<div class='subtext'>by {esc(r['salesperson'])}</div>"
+              if r.get("salesperson") else "")
         rows += (f"<tr><td><b>{cname(r)}</b>"
                  f"<div style='margin-top:3px'>{svcs}</div></td>"
-                 f"<td>{status_pill(jlabel) if jlabel else '—'}</td>"
+                 f"<td>{status_pill(jlabel) if jlabel else '—'}{sp}</td>"
                  f"<td class='num'>${r['system_total']:,.0f}</td>"
                  f"<td class='num'><b>${r['office_total']:,.0f}</b></td>"
                  f"<td>{pill}</td><td>{qbtn}</td></tr>")
@@ -1737,14 +1767,24 @@ def service_history_card(address, client_name=None):
         return ""
     rows = ""
     for svc in sorted(entry):
-        visits = sorted(entry[svc], reverse=True)[:6]
-        cells = " · ".join(f"{d} <b>${p:,.0f}</b>" for d, p in visits)
-        more = f" <span class='subtext'>(+{len(entry[svc])-6} older)</span>" \
-            if len(entry[svc]) > 6 else ""
-        rows += (f"<tr><td style='white-space:nowrap'><b>{esc(svc)}</b></td>"
-                 f"<td>{cells}{more}</td></tr>")
-    return (f"<div class='card'><h3>Service history — every visit, "
-            f"every price</h3><table>{rows}</table></div>")
+        visits = sorted(entry[svc], reverse=True)
+        last_d, last_p = visits[0]
+        older = "".join(
+            f"<span class='chip' style='font-variant-numeric:tabular-nums'>"
+            f"{d[:7]} · ${pr:,.0f}</span>" for d, pr in visits[1:5])
+        more = (f"<span class='subtext'> +{len(visits)-5} earlier</span>"
+                if len(visits) > 5 else "")
+        rows += (
+            f"<div style='display:flex;align-items:center;gap:14px;"
+            f"padding:10px 2px;border-bottom:1px solid var(--line)'>"
+            f"<div style='min-width:120px'><b style='color:var(--green);"
+            f"text-transform:capitalize'>{esc(svc)}</b></div>"
+            f"<div style='min-width:120px'><b style='font-size:17px;"
+            f"font-variant-numeric:tabular-nums'>${last_p:,.0f}</b>"
+            f"<div class='subtext'>{last_d[:7]} (latest)</div></div>"
+            f"<div>{older}{more}</div></div>")
+    return (f"<div class='card'><h3>Service history at this property"
+            f"</h3>{rows}</div>")
 
 
 def property_page(slug):
@@ -2078,6 +2118,64 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/review_seen":
             save_review({"stamp": get("stamp"), "action": "review_seen",
                          "customer": get("customer")})
+        elif self.path == "/msg_draft":
+            # AI-drafted reply: Claude reads the thread and writes a
+            # SUGGESTION into the box. A human still edits and sends.
+            to = get("to")
+            draft = ""
+            try:
+                import msglog
+                thread = next((ms for a, n, ms in msglog.threads()
+                               if a == to), [])
+                convo = "\n".join(
+                    f"{'CUSTOMER' if m['dir'] == 'in' else 'US'}: "
+                    f"{msglog.clean_body(m.get('body') or '')[:400]}"
+                    for m in thread[-6:])
+                stamp = next((m.get("stamp") for m in reversed(thread)
+                              if m.get("stamp")), None)
+                ctx = ""
+                if stamp:
+                    rec = dict(_shadow_source()).get(stamp) or {}
+                    d = rec.get("draft") or {}
+                    if d.get("total"):
+                        ctx = (f"Our draft quote for them totals "
+                               f"${d['total']}. ")
+                    if rec.get("dns_match"):
+                        ctx += ("WARNING: customer is marked DO NOT "
+                                "SERVICE — draft a polite decline. ")
+                prompt = (
+                    "You write short, warm customer-service replies for "
+                    "Master Butler, a home exterior cleaning company in "
+                    "Monroe WA (gutters, roofs, windows, pressure washing). "
+                    "Style: friendly, plain, 2-4 sentences, no emojis, no "
+                    "promises about exact dates or prices not given below, "
+                    "never mention internal systems. "
+                    f"{ctx}Conversation so far:\n{convo}\n\n"
+                    "Write ONLY the reply body (no subject, no signature).")
+                import os as _os
+                import urllib.request as _ur
+                key = None
+                envp = BASE / ".env"
+                if envp.exists():
+                    for ln in envp.read_text().splitlines():
+                        if ln.startswith("ANTHROPIC_API_KEY="):
+                            key = ln.split("=", 1)[1].strip()
+                key = key or _os.environ.get("ANTHROPIC_API_KEY")
+                req = _ur.Request(
+                    "https://api.anthropic.com/v1/messages",
+                    data=json.dumps({
+                        "model": "claude-haiku-4-5-20251001",
+                        "max_tokens": 300,
+                        "messages": [{"role": "user", "content": prompt}],
+                    }).encode(),
+                    headers={"x-api-key": key,
+                             "anthropic-version": "2023-06-01",
+                             "content-type": "application/json"})
+                r = json.load(_ur.urlopen(req, timeout=30))
+                draft = r["content"][0]["text"].strip()
+            except Exception as e:
+                draft = f"(draft failed: {e} — just type your reply)"
+            return self._send(messages_page(to, draft=draft))
         elif self.path == "/msg_send":
             # OFFICE-DRIVEN reply: a named human hits Send; nothing
             # automated ever posts here.
