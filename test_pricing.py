@@ -215,6 +215,30 @@ check("Pavers + heavy never stack (600 sqft = ~$230, not ~$345)",
 check("No double-charge: heavy note suppressed when pavers factor covers it",
       0 if any("HEAVY buildup priced in" in n for n in notes) else 1, 1)
 
+print("\n── RULE: trees → debris (Connor's question — proximity only) ──")
+# "30 trees really close" = heavy debris charge
+crowded = {"trees": {"visible": True, "canopy_over_roof": "heavy",
+                     "mature_trees_within_20ft": "4_plus",
+                     "detail": "conifers overhanging roofline",
+                     "confidence": "high"}}
+f, n = vision_to_prop_fields(crowded)
+check("Dense canopy at house = heavy debris", 1 if f.get("debris") == "heavy" else 0, 1)
+check("Office confirm note attached",
+      1 if any("confirm from photo" in x for x in n) else 0, 1)
+# "some tree coverage, not that close" = normal, NO upcharge
+scenic = {"trees": {"visible": True, "canopy_over_roof": "none",
+                    "mature_trees_within_20ft": "0",
+                    "detail": "tree line at back fence",
+                    "confidence": "high"}}
+f, n = vision_to_prop_fields(scenic)
+check("Distant tree line = NO debris change", 0 if f.get("debris") else 1, 1)
+# low confidence = touch nothing
+unsure = {"trees": {"visible": True, "canopy_over_roof": "heavy",
+                    "mature_trees_within_20ft": "unknown",
+                    "confidence": "low"}}
+f, n = vision_to_prop_fields(unsure)
+check("Low-confidence tree read changes nothing", 0 if f.get("debris") else 1, 1)
+
 print("\n── RULE: tax auto-attach (flag-don't-guess) ──")
 from jobber_client import match_tax_rate
 # offline fixture mirroring the office's real Jobber rate names

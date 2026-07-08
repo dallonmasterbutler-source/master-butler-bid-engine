@@ -67,6 +67,12 @@ trailing commas, no comments. Exactly this shape:
  "stories": {"value": "1|2|3|unknown", "confidence": "..."},
  "windows": {"visible_count": N, "french_panes": true/false/null,
              "skylights": true/false/null, "confidence": "..."},
+ "trees": {"visible": true/false,
+           "canopy_over_roof": "none|partial|heavy|unknown",
+           "mature_trees_within_20ft": "0|1-3|4_plus|unknown",
+           "types": "conifer|deciduous|mixed|unknown",
+           "detail": "one line: where the trees are relative to the house",
+           "confidence": "high|medium|low"},
  "move_items": {"needed": true/false, "items": ["grill", "planters", ...]},
  "hazards": ["power lines near roof", "AC unit beside path", ...],
  "not_determinable": ["roof pitch", "back of house", ...],
@@ -91,6 +97,12 @@ Measurement rules (from real calibration jobs):
 - If one continuous area contains MULTIPLE materials (e.g. a concrete
   apron meeting an asphalt drive), report EACH material as its own
   surfaces entry with its own sqft — never blend them into one.
+- TREES: report FACTS, not a debris verdict. What matters for gutters is
+  ONLY proximity: canopy actually overhanging the roof, and mature trees
+  within ~20 ft of the house. A tree line at the property edge, a hedge,
+  or distant evergreens are SCENERY — report them as canopy_over_roof
+  "none". Do not infer debris amounts; the pricing rules decide that.
+  Conifers (needles) vs deciduous (leaves) is worth noting when clear.
 - Only report what you can see. Missing things go in not_determinable."""
 
 
@@ -194,6 +206,26 @@ def vision_to_prop_fields(v):
     b = v.get("buildup", {})
     if b.get("level"):
         fields["buildup"] = b["level"]
+
+    # TREES → gutter debris (Connor's question, Dallon's rule, July 2026):
+    # only PROXIMITY escalates — canopy on the roof or a crowd of mature
+    # trees within ~20 ft. Distant tree lines are scenery. And a photo can
+    # only ever RAISE the debris call, never lower it (one photo can't
+    # prove there are no trees around back).
+    t = v.get("trees", {})
+    if t.get("visible") and t.get("confidence") in ("high", "medium"):
+        canopy = t.get("canopy_over_roof")
+        near = t.get("mature_trees_within_20ft")
+        if canopy == "heavy" or near == "4_plus":
+            fields["debris"] = "heavy"
+            notes.append(f"Trees: heavy-debris charge applied — "
+                         f"{t.get('detail', 'dense canopy at the house')}. "
+                         "Office: confirm from photo/aerial.")
+        elif canopy == "partial" or near == "1-3":
+            notes.append(f"Trees near house ({t.get('detail', '')}) — "
+                         "normal debris assumed, no upcharge.")
+        else:
+            notes.append("Trees visible but distant — scenery, not debris.")
 
     r = v.get("roof", {})
     if r.get("visible") and r.get("material") not in (None, "unknown"):
