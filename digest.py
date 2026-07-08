@@ -101,9 +101,11 @@ def build():
         pass
 
     lines += ["", "STANDING FLAGS FOR DALLON:",
-              "  · Tom: $250 gutter min (provisional in engine) + Workspace",
-              "  · Martha: roof-blow-off-solo policy",
-              "  · Techs: grades on quotes #36582-87",
+              "  · Jobber portal: add Users-read scope (salesperson labels)",
+              "  · Jobber: archive test quotes #36577/78, #36582-87, #36593",
+              "  · CopyCall ticket (FOR-JESSICA on Desktop) = free voicemail audio",
+              "  · Martha: roof-blow-off-solo policy · Techs: grades #36582-87",
+              "  · Messages send stays OFF (REPLIES_ENABLED) until you rule",
               "  · PUSH_ON_APPROVE stays OFF until you flip it", ""]
     return "\n".join(lines)
 

@@ -296,8 +296,11 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
 
     from email_parser import parse_eml
     parsed = parse_eml(eml_path)
+    disp = (parsed.get("sender_name")
+            or (parsed.get("sender_email") or "?").split("@")[0]
+            .replace(".", " ").replace("_", " ").title())
     record = {"message_id": msg_id, "received": stamp, "folder": folder,
-              "from": f"{parsed['sender_name']} <{parsed['sender_email']}>",
+              "from": f"{disp} <{parsed['sender_email']}>",
               "subject": parsed["subject"], "kind": parsed["kind"],
               "services": parsed["services"], "address": parsed["address"],
               "phone": parsed.get("phone"),

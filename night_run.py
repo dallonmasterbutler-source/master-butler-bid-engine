@@ -152,6 +152,14 @@ try:
     import digest
     path, brief_text = digest.write()
     print(f"   morning brief -> {path}")
+    try:
+        import mailer
+        ok, why = mailer.send_internal(
+            f"☀️ Master Butler morning brief — {datetime.now():%b %d}",
+            brief_text, to=[mailer.DALLON])
+        print(f"   brief emailed to Dallon: {why}")
+    except Exception as e:
+        print(f"   (brief email skipped: {e})")
 except Exception as e:
     print(f"   brief skipped ({e})")
 

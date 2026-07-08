@@ -836,7 +836,9 @@ def home_page():
                 f"{'#1e8449' if c >= 75 else '#c77700' if c >= 50 else '#b03a2e'};"
                 f"color:{'#1e8449' if c >= 75 else '#c77700' if c >= 50 else '#b03a2e'}'>"
                 f"{c}%</span>")
-        rows += (f"<tr><td>{age_html(b['age_hours'])}</td>"
+        rows += (f"<tr data-q='{esc((b.get('from') or '').lower())} "
+                 f"{esc((b.get('address') or '').lower())}'>"
+                 f"<td>{age_html(b['age_hours'])}</td>"
                  f"<td><a href='/bid/{b['stamp']}'><b>{name}</b></a>"
                  f"<div class='subtext'>{sub}</div>{badge}</td>"
                  f"<td>{bid_status(b, live_holds, flags_open, sbs, claims)}"
@@ -919,6 +921,10 @@ def home_page():
     body = (stats + band +
         "<div class='grid'><div><div class='card'>"
         "<h2 style='margin-top:0'>Bid queue — oldest first</h2>"
+        "<input type='text' placeholder='find a customer…' "
+        "style='max-width:280px;margin-bottom:10px' oninput=\"var v=this.value"
+        ".toLowerCase();document.querySelectorAll('table tr[data-q]').forEach("
+        "function(t){t.style.display=t.dataset.q.indexOf(v)>=0?'':'none';});\">"
         "<table><tr><th>Waiting</th><th>From</th><th>Status</th><th>Kind</th>"
         "<th>Services</th><th>Conf.</th><th class='num'>Est.</th></tr>" + rows +
         "</table>" + aside_html + "</div>" + decided_html + "</div>"
@@ -929,7 +935,20 @@ def home_page():
         "<div class='card'><h3 style='margin-top:0'>Schedule glance</h3>"
         "<div style='color:#888'>Jobber calendar — future phase. Days fill "
         "toward the $850–1,100/tech target.</div></div></div></div>")
-    return page("Bid queue", body, refresh=45)    # near-live, no clicking
+    body += """
+<script>
+(function(){
+  var last = null;
+  function bump(){
+    fetch('/api/pulse').then(function(r){return r.json();}).then(function(d){
+      if (last === null) { last = d.t; return; }
+      if (d.t !== last) location.reload();
+    }).catch(function(){});
+  }
+  setInterval(bump, 30000); bump();
+})();
+</script>"""
+    return page("Bid queue", body)        # reloads only when data changes
 
 
 def scoreboard_card():
@@ -1278,6 +1297,7 @@ def bid_page(stamp, user=None):
 
     body = f"""
 <a href='/'>&larr; back to queue</a>
+{(f" · <a href='/messages?t={urllib.parse.quote(cust_email)}'>💬 view conversation</a>") if cust_email else ""}
 {collision}
 <div class='grid'><div>
  <div class='card'>
@@ -1815,6 +1835,11 @@ def settings_page(msg=""):
  every price)</span></td></tr>
  {drows}</table>
  <button class='big' style='margin-top:10px'>Save pricing changes</button>
+ </form>
+ <form method='POST' action='/settings_reset' style='margin-top:8px'
+  onsubmit="return confirm('Clear ALL pricing overrides and go back to '
+   + 'the calibrated defaults?')">
+  <button class='gray'>↩ Reset everything to defaults</button>
  </form></div>"""
 
     # ---- quick responses editor ----
@@ -2309,6 +2334,17 @@ class Handler(BaseHTTPRequestHandler):
                     "select ref, kind, idx from photos").fetchall()]
             return self._send(json.dumps(dump).encode(),
                               ctype="application/json")
+        if self.path == "/api/pulse":
+            # cheap change token: the queue page reloads ONLY when this
+            # changes, so reading/scrolling is never interrupted
+            try:
+                stamps = [s for s, _ in _shadow_source()]
+                token = f"{len(stamps)}:{max(stamps) if stamps else ''}:" \
+                        f"{len(load_reviews())}"
+            except Exception:
+                token = "err"
+            return self._send(json.dumps({"t": token}).encode(),
+                              ctype="application/json")
         if self.path == "/api/records":   # slim record list for the Mac's
             slim = []                     # quote-sync (scoreboard) matching
             for stamp, r in _shadow_source():
@@ -2617,6 +2653,23 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Location", "/settings?msg=" + urllib.parse.quote(
                 f"Saved {len(changes)} pricing change(s)." if changes
                 else "No changes."))
+            self.end_headers()
+            return
+        elif self.path == "/settings_reset":
+            if _user:
+                import bid_engine as be
+                had = dict(be._pricing_overrides())
+                _blob_save("pricing_overrides", {})
+                be._OV_CACHE["at"] = 0
+                if had:
+                    save_review({"stamp": "", "action": "settings_change",
+                                 "customer": "PRICING",
+                                 "note": f"RESET to defaults (cleared "
+                                         f"{len(had)} override(s))"})
+            self.send_response(303)
+            self.send_header("Location", "/settings?msg=" +
+                             urllib.parse.quote("All pricing back to "
+                                                "calibrated defaults."))
             self.end_headers()
             return
         elif self.path == "/qr_save":
