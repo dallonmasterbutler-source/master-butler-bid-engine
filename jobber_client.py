@@ -493,6 +493,62 @@ def create_draft_quote(client_id, property_id, bid, prop_info=None,
     return _post(CREATE_QUOTE, variables, "create DRAFT quote")
 
 
+# ── COMBINE: add services to a customer's existing OPEN quote ──
+# (Tom's request: open quotes wanting more services get combined,
+#  not duplicated.)
+OPEN_QUOTES = """
+query Recent($first: Int!) {
+  quotes(first: $first, sort: {key: CREATED_AT, direction: DESCENDING}) {
+    nodes { id quoteNumber quoteStatus jobberWebUri
+            amounts { total }
+            client { emails { address } } }
+  }
+}
+"""
+
+OPEN_STATUSES = ("draft", "awaiting_response", "changes_requested")
+
+
+def find_open_quote(email_addr, scan=40):
+    """Newest OPEN (unconverted) quote for this exact client email."""
+    if not email_addr:
+        return None
+    global DRY_RUN
+    was, DRY_RUN = DRY_RUN, False          # read-only; dry-run guards writes
+    try:
+        data = _post(OPEN_QUOTES, {"first": scan}, "find open quote")
+    finally:
+        DRY_RUN = was
+    if data.get("error"):
+        return None
+    for q in data.get("quotes", {}).get("nodes", []):
+        if q.get("quoteStatus") not in OPEN_STATUSES:
+            continue
+        addrs = [e["address"].lower() for e in (q.get("client") or {})
+                 .get("emails", [])]
+        if email_addr.lower() in addrs:
+            return q
+    return None
+
+
+ADD_LINES = """
+mutation($quoteId: EncodedId!, $items: [QuoteCreateLineItemAttributes!]!) {
+  quoteCreateLineItems(quoteId: $quoteId, lineItems: $items) {
+    quote { quoteNumber amounts { total } }
+    userErrors { message } } }
+"""
+
+
+def add_lines_to_quote(quote_node_id, services):
+    """Append this bid's line items to an existing quote (stays a draft
+    of whatever status it had; nothing sends)."""
+    items = [{"name": s["name"], "quantity": 1,
+              "unitPrice": float(s["price"]),
+              "saveToProductsAndServices": False} for s in services]
+    return _post(ADD_LINES, {"quoteId": quote_node_id, "items": items},
+                 "combine into open quote")
+
+
 # ─────────────────────────────────────────────────────────────
 # THE ONE FUNCTION THE PIPELINE CALLS
 # ─────────────────────────────────────────────────────────────

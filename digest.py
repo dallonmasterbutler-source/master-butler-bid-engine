@@ -81,6 +81,16 @@ def build():
             lines.append(f"  ({len(taught)} came with a teaching reason/note)")
 
     try:
+        flagged = db.flagged_for_review()
+        if flagged:
+            lines.append("")
+            lines.append(f"🚩 SENT TO TOM & DALLON ({len(flagged)} waiting):")
+            for f in flagged[:6]:
+                lines.append(f"  · {f.get('customer', f.get('stamp'))}")
+    except Exception:
+        pass
+
+    try:
         ideas = [x for x in db.load_ideas() if x.get("status") == "open"]
         if ideas:
             lines.append("")

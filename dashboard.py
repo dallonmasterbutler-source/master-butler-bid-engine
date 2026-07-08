@@ -108,7 +108,19 @@ def active_holds():
     return live, resurfaced
 
 
-DECIDED_ACTIONS = ("approve", "adjusted", "escalated", "duplicate_same")
+DECIDED_ACTIONS = ("approve", "adjusted", "escalated", "duplicate_same",
+                   "combined")
+
+
+def flagged_for_review():
+    """Bids LaRee sent to Tom & Dallon, minus ones they've marked seen."""
+    flagged, seen = {}, set()
+    for r in load_reviews():
+        if r.get("action") == "flag_review":
+            flagged[r["stamp"]] = r
+        elif r.get("action") == "review_seen":
+            seen.add(r.get("stamp"))
+    return [v for k, v in flagged.items() if k not in seen]
 
 # ── QUEUE HYGIENE (Dallon's rule, Jul 7) ─────────────────────
 # The office queue is for CUSTOMERS. Mail from Dallon/Tom/the company
@@ -551,7 +563,7 @@ def home_page():
         "<table><tr><th>Waiting</th><th>From</th><th>Kind</th>"
         "<th>Services</th><th>Conf.</th><th class='num'>Est.</th></tr>" + rows +
         "</table>" + aside_html + "</div>"
-        "<div>" + scoreboard_card() + ideas_card() +
+        "<div>" + scoreboard_card() + review_card() + ideas_card() +
         held_card(live_holds, bids) +
         "<div class='card'><h3 style='margin-top:0'>Recent decisions"
         "</h3>" + rev_rows + "</div>"
@@ -598,6 +610,23 @@ def scoreboard_card():
             "<div style='margin-top:8px'><a href='/scoreboard' "
             "style='color:#e8d9a0;font-size:13px'>Full scoreboard →</a>"
             "</div></div>")
+
+
+def review_card():
+    """LaRee's one-click channel: bids flagged for Tom & Dallon."""
+    flagged = flagged_for_review()
+    if not flagged:
+        return ""
+    rows = "".join(
+        f"<div>🚩 <a href='/bid/{esc(f['stamp'])}'>{esc(f.get('customer'))[:34]}"
+        f"</a><form method='POST' action='/review_seen' style='display:inline'>"
+        f"<input type='hidden' name='stamp' value='{esc(f['stamp'])}'>"
+        f"<button class='gray' style='padding:2px 8px;font-size:11px;"
+        f"margin-left:6px'>seen</button></form></div>"
+        for f in flagged)
+    return (f"<div class='card' style='border-left:4px solid var(--gold)'>"
+            f"<h3 style='margin-top:0'>🚩 For Tom &amp; Dallon "
+            f"<span class='chip win'>{len(flagged)}</span></h3>{rows}</div>")
 
 
 def held_card(live_holds, bids):
@@ -711,6 +740,59 @@ def bid_page(stamp):
 
     my_quote = quote_numbers().get(stamp)   # computed ONCE per page
 
+    # TWO-PRICE panel (Tom's wet/dry): parse the DRY-DAY OPTION note
+    all_notes_text = " ".join((b.get("draft") or {}).get("bid", {})
+                              .get("notes", []) or []) \
+        + " " + (b.get("pipeline_output") or "")
+    two_price = ""
+    m2 = re.search(r"DRY-DAY OPTION: roof lane \$(\d+)[^$]*\$(\d+)",
+                   all_notes_text)
+    if m2:
+        dry, std = m2.group(1), m2.group(2)
+        two_price = f"""<div class='card' style='border-left:4px solid
+  var(--green2)'><h3>Two prices — customer's choice</h3>
+  <div style='display:flex;gap:26px'>
+   <div><div class='lbl' style='color:var(--mut);font-size:11px;
+     text-transform:uppercase'>Their date (standard)</div>
+    <div style='font-size:24px;font-weight:800'>${std}</div></div>
+   <div><div class='lbl' style='color:var(--mut);font-size:11px;
+     text-transform:uppercase'>Our dry day (flexible)</div>
+    <div style='font-size:24px;font-weight:800;color:var(--green2)'>
+     ${dry}</div></div></div>
+  <div class='subtext' style='margin-top:6px'>Standard is the true price
+   for records. The dry-day price trades savings for scheduling
+   flexibility — if they take it, hold it weather-pending.</div></div>"""
+
+    # COMBINE: does this customer already have an OPEN quote in Jobber?
+    combine_card = ""
+    cust_email = ((b.get("draft") or {}).get("customer") or {}).get("email")
+    bid_lines = ((b.get("draft") or {}).get("bid") or {}).get("services")
+    if cust_email and bid_lines and not b.get("reviewed"):
+        try:
+            from jobber_client import find_open_quote
+            oq = find_open_quote(cust_email)
+        except Exception:
+            oq = None
+        if oq and oq.get("quoteNumber") != my_quote:
+            act = (f"""<form method='POST' action='/combine'
+    style='display:inline'>
+    <input type='hidden' name='stamp' value='{stamp}'>
+    <input type='hidden' name='quote_id' value='{esc(oq['id'])}'>
+    <input type='hidden' name='quote_number' value='{esc(oq['quoteNumber'])}'>
+    <input type='hidden' name='customer' value='{esc(b['from'])}'>
+    <button>Combine into #{esc(oq['quoteNumber'])}</button></form>"""
+                   if _push_enabled() else
+                   "<span class='subtext'>(combining activates when "
+                   "Jobber-push is switched on)</span>")
+            combine_card = (
+                f"<div class='card' style='border-left:4px solid #c77700'>"
+                f"<h3>Customer has an OPEN quote</h3>"
+                f"<div>Quote <a href='{esc(oq.get('jobberWebUri') or '#')}' "
+                f"target='_blank'>#{esc(oq['quoteNumber'])} ↗</a> "
+                f"(${oq['amounts']['total']}, {esc(oq['quoteStatus'])}) — "
+                f"these {len(bid_lines)} new line(s) can be ADDED to it "
+                f"instead of making a second quote. {act}</div></div>")
+
     # ── structured draft: headline, price table, measurements ──
     d = b.get("draft") or {}
     bid_d = d.get("bid") or {}
@@ -794,6 +876,8 @@ def bid_page(stamp):
                     if b.get('address') else '— not found'} &nbsp;·&nbsp;
    {esc(b.get('folder', 'INBOX'))}</div>
  </div>
+ {two_price}
+ {combine_card}
  {price_card}
  {measure_card}
  {f"""<div class='card' style='border-left:4px solid var(--gold);
@@ -849,6 +933,12 @@ def bid_page(stamp):
    <input type='hidden' name='address' value='{esc(b.get('address'))}'>
    <input type='text' name='question' placeholder='the ONE question for Dallon/Tom'>
    <button class='red'>Escalate → standardized form</button>
+  </form>
+  <form method='POST' action='/flag_review' style='margin-top:6px'>
+   <input type='hidden' name='stamp' value='{stamp}'>
+   <input type='hidden' name='customer' value='{esc(b['from'])}'>
+   <button style='background:var(--gold);color:#1c2b23'>🚩 Send to Tom
+   &amp; Dallon for review</button>
   </form>
   <form method='POST' action='/photo_request' style='margin-top:6px'>
    <input type='hidden' name='stamp' value='{stamp}'>
@@ -1336,6 +1426,27 @@ class Handler(BaseHTTPRequestHandler):
             if 0 <= i < len(ideas):
                 ideas[i]["status"] = "done"
                 save_ideas(ideas)
+        elif self.path == "/flag_review":
+            save_review({"stamp": get("stamp"), "action": "flag_review",
+                         "customer": get("customer")})
+        elif self.path == "/review_seen":
+            save_review({"stamp": get("stamp"), "action": "review_seen",
+                         "customer": get("customer")})
+        elif self.path == "/combine":
+            if _push_enabled():
+                rec_src = dict(_shadow_source()).get(get("stamp")) or {}
+                lines = ((rec_src.get("draft") or {}).get("bid") or {}) \
+                    .get("services") or []
+                if lines:
+                    import jobber_client as jc
+                    jc.DRY_RUN = False
+                    res = jc.add_lines_to_quote(get("quote_id"), lines)
+                    q = (res.get("quoteCreateLineItems") or {}).get("quote") or {}
+                    save_review({"stamp": get("stamp"), "action": "combined",
+                                 "customer": get("customer"),
+                                 "jobber_quote": get("quote_number"),
+                                 "note": f"added {len(lines)} line(s); new "
+                                         f"total ${q.get('amounts', {}).get('total')}"})
         elif self.path == "/must_know":
             set_must_know(get("address"), get("text").strip())
         elif self.path == "/duplicate":
