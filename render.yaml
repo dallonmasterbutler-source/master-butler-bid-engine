@@ -1,0 +1,36 @@
+# MASTER BUTLER — Render deployment blueprint (PREPARED, NOT YET DEPLOYED)
+#
+# Deploying this puts the office dashboard on the internet so LaRee,
+# Martha, and Jessica can open it from their own machines.
+#
+# DO NOT DEPLOY until (with Dallon at the keyboard):
+#   1. DASHBOARD_PASSWORD is set below (the app refuses to start
+#      publicly without it — enforced in code)
+#   2. Secrets (.env values) are entered in the Render dashboard as
+#      environment variables — the .env file itself is never uploaded
+#   3. The Postgres schema (schema.sql) is applied to the Render database
+#
+# Estimated cost after free tier: web ~$7/mo + Postgres ~$7/mo.
+
+services:
+  - type: web
+    name: masterbutler-dashboard
+    runtime: python
+    plan: starter
+    buildCommand: "echo 'stdlib only - nothing to build'"
+    startCommand: "HOST=0.0.0.0 python3 dashboard.py"
+    envVars:
+      - key: DASHBOARD_PASSWORD
+        sync: false          # entered by hand in Render, never in git
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: JOBBER_CLIENT_ID
+        sync: false
+      - key: JOBBER_CLIENT_SECRET
+        sync: false
+
+databases:
+  - name: masterbutler-db
+    plan: basic-256mb        # free tier expires ~end Sept 2026

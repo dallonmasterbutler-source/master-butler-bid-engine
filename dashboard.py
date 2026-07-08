@@ -35,7 +35,10 @@ REVIEW_LOG = BASE / "data" / "review_log.json"
 RECON = BASE / "data" / "discount_reconciliation.json"
 AERIAL = BASE / "data" / "aerial"
 
-PORT = 8765
+import os
+
+PORT = int(os.environ.get("PORT", 8765))     # Render sets PORT
+HOST = os.environ.get("HOST", "127.0.0.1")   # local-only by default
 SLA_HOURS = 24
 
 # ── THE SWITCH ────────────────────────────────────────────────
@@ -494,7 +497,40 @@ def drafts_page():
 
 # ── server ───────────────────────────────────────────────────
 
+def _password():
+    """DASHBOARD_PASSWORD in .env or environment. Unset = local-only
+    mode, no login (the default today). REQUIRED before this ever runs
+    on the internet — deploy docs enforce it."""
+    env = BASE / ".env"
+    if env.exists():
+        for line in env.read_text().splitlines():
+            if line.startswith("DASHBOARD_PASSWORD="):
+                return line.split("=", 1)[1].strip()
+    return os.environ.get("DASHBOARD_PASSWORD", "")
+
+
 class Handler(BaseHTTPRequestHandler):
+    def _authed(self):
+        pw = _password()
+        if not pw:
+            return HOST in ("127.0.0.1", "localhost")   # no pw = local only
+        import base64
+        hdr = self.headers.get("Authorization", "")
+        if hdr.startswith("Basic "):
+            try:
+                got = base64.b64decode(hdr[6:]).decode()
+                return got.split(":", 1)[-1] == pw
+            except Exception:
+                return False
+        return False
+
+    def _require_auth(self):
+        self.send_response(401)
+        self.send_header("WWW-Authenticate",
+                         'Basic realm="Master Butler office"')
+        self.end_headers()
+        self.wfile.write(b"login required")
+
     def _send(self, content, code=200, ctype="text/html; charset=utf-8"):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
@@ -502,6 +538,8 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(content)
 
     def do_GET(self):
+        if not self._authed():
+            return self._require_auth()
         if self.path == "/":
             return self._send(home_page())
         if self.path == "/drafts":
@@ -524,6 +562,8 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(b"not found", 404)
 
     def do_POST(self):
+        if not self._authed():
+            return self._require_auth()
         length = int(self.headers.get("Content-Length", 0))
         form = urllib.parse.parse_qs(self.rfile.read(length).decode())
         get = lambda k: form.get(k, [""])[0]
@@ -583,7 +623,11 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"Master Butler dashboard → http://localhost:{PORT}")
-    print("(local prototype — reads data/shadow_bids, writes review log "
-          "and draft templates. Nothing sends.)")
-    HTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    if HOST not in ("127.0.0.1", "localhost") and not _password():
+        raise SystemExit("REFUSING to serve beyond localhost without "
+                         "DASHBOARD_PASSWORD set. Add it to .env first.")
+    print(f"Master Butler dashboard → http://{HOST}:{PORT}"
+          + ("  (password-protected)" if _password() else "  (local only)"))
+    print("(reads data/shadow_bids, writes review log and draft templates. "
+          "Nothing sends.)")
+    HTTPServer((HOST, PORT), Handler).serve_forever()
