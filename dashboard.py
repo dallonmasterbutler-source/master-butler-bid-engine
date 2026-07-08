@@ -1204,6 +1204,7 @@ def bid_page(stamp, user=None):
   <div style='font-style:italic;color:#3a4046;font-size:15px'>&ldquo;{esc(b.get('newest_message'))}&rdquo;</div>
   </div>""" if b.get('newest_message') else ''}
  {gallery_card}
+ {pricing_explainer_card(pi)}
  {service_history_card(b.get('address'),
                        (b.get('draft') or {}).get('customer', {}).get('name')
                        or esc(b['from']).split('&lt;')[0].strip())}
@@ -1275,8 +1276,9 @@ def bid_page(stamp, user=None):
    <button class='gray'>Draft welcome-back reply</button>
   </form>''' if prior else ''}
  </div>
- <div class='card'><h3 style='margin-top:0'>Similar homes (honor history)</h3>
-  {hist_html}</div>
+ <details class='card'><summary style='cursor:pointer;font-weight:700;
+  color:var(--mut);font-size:12px'>Similar homes (honor history) — open if
+  you want comps</summary>{hist_html}</details>
 </div></div>"""
     return page("Review bid", body)
 
@@ -1461,6 +1463,22 @@ def _winback_save(d):
         (BASE / "data" / "winback_done.json").write_text(json.dumps(d))
 
 
+def _msg_read():
+    """{addr: iso of last message the office has SEEN}. Opening a
+    thread marks it read; 'Mark unread' hands it to the next person."""
+    if clouddb.available():
+        return clouddb.get_blob("msg_read") or {}
+    p = BASE / "data" / "msg_read.json"
+    return json.loads(p.read_text()) if p.exists() else {}
+
+
+def _msg_read_save(d):
+    if clouddb.available():
+        clouddb.put_blob("msg_read", d)
+    else:
+        (BASE / "data" / "msg_read.json").write_text(json.dumps(d))
+
+
 def messages_page(sel=None, draft=""):
     """LIVE conversation center: every customer message in and out,
     cleaned up, newest thread first — reply without opening Gmail."""
@@ -1469,14 +1487,28 @@ def messages_page(sel=None, draft=""):
     if not ts:
         return page("Messages", "<div class='card'>No conversations "
                     "logged yet — they build up as mail flows.</div>")
+    read_marks = _msg_read()
+    unread, older = [], []
+    for addr, name, msgs in ts:
+        if msgs[-1]["at"] > read_marks.get(addr, ""):
+            unread.append((addr, name, msgs))
+        else:
+            older.append((addr, name, msgs))
     if sel is None:
-        sel = ts[0][0]
-    items = ""
-    for addr, name, msgs in ts[:40]:
-        last = msgs[-1]
-        active = addr == sel
-        arrow = "←" if last["dir"] == "in" else "→"
-        items += (
+        sel = (unread or ts)[0][0]
+    # opening a thread marks it read (records the newest message time)
+    cur = next((t for t in ts if t[0] == sel), None)
+    if cur:
+        read_marks[sel] = cur[2][-1]["at"]
+        _msg_read_save(read_marks)
+
+    def render_items(group):
+        items = ""
+        for addr, name, msgs in group[:40]:
+            last = msgs[-1]
+            active = addr == sel
+            arrow = "←" if last["dir"] == "in" else "→"
+            items += (
             f"<a href='/messages?t={urllib.parse.quote(addr)}' "
             f"style='display:block;padding:11px 14px;border-radius:12px;"
             f"margin-bottom:4px;text-decoration:none;"
@@ -1488,6 +1520,15 @@ def messages_page(sel=None, draft=""):
             f"white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"
             f"{arrow} {esc((last.get('body') or last.get('subject') or '')[:44])}"
             f"</div></a>")
+        return items
+
+    items = render_items(unread) or "<div class='subtext' style='padding:8px 14px'>All caught up ✅</div>"
+    older_html = ""
+    if older:
+        older_html = (f"<details style='margin-top:10px'><summary "
+                      f"style='cursor:pointer;color:var(--mut);font-size:12px;"
+                      f"font-weight:700;padding:0 14px'>Older conversations "
+                      f"({len(older)})</summary>{render_items(older)}</details>")
     thread_html = ""
     tname, tmsgs = sel, []
     for addr, name, msgs in ts:
@@ -1527,10 +1568,17 @@ def messages_page(sel=None, draft=""):
 <div style='display:grid;grid-template-columns:290px 1fr;gap:16px;
             align-items:start'>
  <div class='card' style='padding:12px'>
-  <h3 style='padding:0 6px'>Conversations</h3>{items}</div>
+  <h3 style='padding:0 6px'>Needs attention</h3>{items}{older_html}</div>
  <div class='card'>
-  <h2 style='margin-top:0'>{esc(tname)}
-   <span class='subtext' style='font-weight:400'>{esc(sel)}</span></h2>
+  <h2 style='margin-top:0;display:flex;align-items:center;gap:10px'>
+   {esc(tname)}
+   <span class='subtext' style='font-weight:400'>{esc(sel)}</span>
+   <form method='POST' action='/msg_unread' style='margin-left:auto'>
+    <input type='hidden' name='addr' value='{esc(sel)}'>
+    <button class='gray' style='padding:5px 12px;font-size:12px'
+     title='Hand this conversation to the next person'>
+     ↩ Mark unread</button>
+   </form></h2>
   <div style='max-height:520px;overflow-y:auto;padding:6px 2px'>
    {thread_html or "<div class='subtext'>No messages yet.</div>"}
   </div>
@@ -1776,6 +1824,44 @@ def _history_entry(address, client_name=None):
     return entry or None
 
 
+def pricing_explainer_card(pi):
+    """The office asked: HOW did the system get this number? Show the
+    knobs that were in effect — plainly, no engine-speak."""
+    if not pi or not pi.get("sqft"):
+        return ""
+    import bid_engine as be
+    chips = []
+    src_txt = pi.get("sqft_source") or "records/roof estimate"
+    chips.append(("House size", f"{pi['sqft']:,} sqft", src_txt))
+    s = str(pi.get("stories") or "2")
+    if s in be.STORIES:
+        chips.append(("Stories", f"{s}-story",
+                      f"×{be.STORIES[s]} on roof & window work"))
+    pitch = pi.get("pitch") or "moderate"
+    if pitch in be.PITCH:
+        chips.append(("Roof pitch", pitch.replace("_", " "),
+                      f"×{be.PITCH[pitch]} on roof-lane prices"))
+    debris = pi.get("debris") or "moderate"
+    if debris in be.DEBRIS:
+        chips.append(("Debris", debris, f"×{be.DEBRIS[debris]}"))
+    if pi.get("roof_material"):
+        chips.append(("Roof", pi["roof_material"], "material on record"))
+    cells = "".join(
+        f"<div style='background:var(--soft);border:1px solid var(--line);"
+        f"border-radius:12px;padding:10px 14px;min-width:120px'>"
+        f"<div style='font-size:10px;color:var(--mut);text-transform:"
+        f"uppercase;letter-spacing:.8px;font-weight:700'>{esc(k)}</div>"
+        f"<b style='font-size:15px;color:var(--green)'>{esc(v)}</b>"
+        f"<div class='subtext'>{esc(why)}</div></div>"
+        for k, v, why in chips)
+    return (f"<div class='card'><h3>How the price was built</h3>"
+            f"<div style='display:flex;gap:10px;flex-wrap:wrap'>{cells}"
+            f"</div><div class='subtext' style='margin-top:8px'>"
+            f"Every line = base rate × house size × these multipliers, "
+            f"then service minimums. Full detail lives in the notes "
+            f"below.</div></div>")
+
+
 def service_history_card(address, client_name=None):
     """LaRee's #1: per-service pricing + dates at this property (client
     fallback) — no invoice digging."""
@@ -1788,7 +1874,7 @@ def service_history_card(address, client_name=None):
         last_d, last_p = visits[0]
         older = "".join(
             f"<span class='chip' style='font-variant-numeric:tabular-nums'>"
-            f"{d[:7]} · ${pr:,.0f}</span>" for d, pr in visits[1:5])
+            f"{d[:7]} · <b>${pr:,.0f}</b></span>" for d, pr in visits[1:5])
         more = (f"<span class='subtext'> +{len(visits)-5} earlier</span>"
                 if len(visits) > 5 else "")
         rows += (
@@ -2230,6 +2316,16 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 draft = f"(draft failed: {e} — just type your reply)"
             return self._send(messages_page(to, draft=draft))
+        elif self.path == "/msg_unread":
+            # HANDOFF: someone started this thread but has to leave —
+            # flip it back to unread so the next person picks it up.
+            d = _msg_read()
+            d.pop(get("addr"), None)
+            _msg_read_save(d)
+            self.send_response(303)
+            self.send_header("Location", "/messages")
+            self.end_headers()
+            return
         elif self.path == "/msg_send":
             # OFFICE-DRIVEN reply: a named human hits Send; nothing
             # automated ever posts here.
