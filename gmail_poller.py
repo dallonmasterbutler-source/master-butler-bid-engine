@@ -120,6 +120,25 @@ def poll_once():
     except Exception as e:
         print(f"  (sent sweep skipped: {e})")
     M.logout()
+    # pull the office's Settings edits down so THIS machine prices and
+    # drafts with the same numbers the cloud uses
+    try:
+        import urllib.request
+        from base64 import b64encode
+        from cloudpush import _cfg
+        url, pw = _cfg("DASHBOARD_URL"), _cfg("DASHBOARD_PASSWORD")
+        if url and pw:
+            for key in ("pricing_overrides", "canned_replies"):
+                req = urllib.request.Request(
+                    url.rstrip("/") + f"/api/blob/{key}",
+                    headers={"Authorization": "Basic "
+                             + b64encode(f"office:{pw}".encode()).decode()})
+                val = json.load(urllib.request.urlopen(req, timeout=30))
+                if val is not None:
+                    (BASE / "data" / f"{key}.json").write_text(
+                        json.dumps(val))
+    except Exception:
+        pass
     _keep_cloud_warm()          # heartbeat on EVERY poll, however invoked
 
     # QUOTE SYNC (Dallon's rule: dashboard mirrors Jobber, read-only,

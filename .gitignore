@@ -5,3 +5,4 @@ __pycache__/
 *.json.secret
 client_secret*.json
 .env.backup
+data/pricing_overrides.json

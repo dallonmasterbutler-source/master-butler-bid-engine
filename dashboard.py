@@ -575,6 +575,7 @@ def page(title, body, refresh=None):
              ("/drafts", "📝", "Drafts", "Drafts"),
              ("/winback", "📞", "Win-back", "Win-back"),
              ("/scoreboard", "📊", "Scoreboard", "Scoreboard"),
+             ("/settings", "⚙️", "Settings", "Settings"),
              ("/brief", "☀️", "Morning brief", "Morning brief"))
     nav = "".join(
         f"<a href='{href}' class='{'active' if title == t else ''}'>"
@@ -1591,7 +1592,7 @@ def messages_page(sel=None, draft=""):
              color:#8a5a00'>✨ Draft a reply for me</button>
     </form>
     <select id='canned' style='max-width:340px'>
-     <option value=''>LaRee's quick responses…</option>
+     <option value=''>Quick responses…</option>
     </select>
    </div>
   </div>
@@ -1630,6 +1631,114 @@ sel.onchange = function(){{
 }};
 </script>"""
     return page("Messages", body)
+
+
+def _blob_rw(key, default):
+    if clouddb.available():
+        return clouddb.get_blob(key) or default
+    f = BASE / "data" / f"{key}.json"
+    return json.loads(f.read_text()) if f.exists() else default
+
+
+def _blob_save(key, val):
+    if clouddb.available():
+        clouddb.put_blob(key, val)
+    else:
+        (BASE / "data" / f"{key}.json").write_text(json.dumps(val))
+        try:
+            from cloudpush import push
+            push(blobs={key: val})
+        except Exception:
+            pass
+
+
+def settings_page(msg=""):
+    """The office's own control room (Dallon: 'they work on this daily,
+    I don't') — quick responses and pricing knobs, no code, no Dallon."""
+    import bid_engine as be
+    defaults = be.factory_defaults()
+    ov = be._pricing_overrides()
+
+    banner = (f"<div class='band'>{esc(msg)}</div>" if msg else "")
+
+    # ---- pricing table ----
+    def row(key, label, default):
+        cur = ov.get(key, "")
+        return (f"<tr><td><b>{esc(label)}</b>"
+                f"<div class='subtext'>{esc(key)}</div></td>"
+                f"<td class='num'>{default}</td>"
+                f"<td><input type='text' name='ov_{esc(key)}' "
+                f"value='{esc(cur)}' placeholder='default' "
+                f"style='width:110px;text-align:right'></td></tr>")
+
+    scalar_labels = {
+        "JOB_MINIMUM": "Job minimum ($)",
+        "GUTTER_CLEANING_MINIMUM": "Gutter cleaning minimum ($)",
+        "WINDOWS_MINIMUM": "Windows-only minimum ($)",
+        "WINDOWS_MINIMUM_BUNDLED": "Windows minimum when bundled ($)",
+        "DRY_SEASON_ROOF_FLOOR": "Dry-season roof floor ($)",
+        "DRY_DAY_DISCOUNT": "Dry-day discount (0.27 = 27%)",
+        "DRYER_VENT_ADDON": "Dryer vent — with other work ($)",
+        "DRYER_VENT_ALONE": "Dryer vent — alone ($)",
+        "WET_DAY_GUTTER_MULT": "Wet-day gutter multiplier",
+        "PW_HOUSE_WASH_RATE": "House wash rate ($/sqft)",
+    }
+    rows = "".join(row(k, scalar_labels.get(k, k), defaults[k])
+                   for k in be.EDITABLE_SCALARS)
+    drows = ""
+    for dname in be.EDITABLE_DICTS:
+        for sub, dval in defaults[dname].items():
+            drows += row(f"{dname}.{sub}",
+                         f"{dname.replace('_', ' ').title()} — {sub}", dval)
+    pricing_card = f"""
+<div class='card'><h2 style='margin-top:0'>Pricing knobs</h2>
+ <div class='subtext' style='margin-bottom:10px'>Type a number to
+ override the default; clear the box to go back to default. Changes
+ apply to the NEXT bid priced — nothing already on the queue moves.
+ Every change is logged with your name.</div>
+ <form method='POST' action='/settings_save'>
+ <table><tr><th>Setting</th><th class='num'>Default</th><th>Override</th></tr>
+ {rows}
+ <tr><td colspan=3 style='background:var(--soft)'><b>Rates &amp;
+ multipliers</b> <span class='subtext'>(advanced — small changes move
+ every price)</span></td></tr>
+ {drows}</table>
+ <button class='big' style='margin-top:10px'>Save pricing changes</button>
+ </form></div>"""
+
+    # ---- quick responses editor ----
+    canned = _blob_rw("canned_replies", {})
+    qr = ""
+    for name, text in canned.items():
+        qr += f"""
+<details style='border-bottom:1px solid var(--line);padding:8px 0'>
+ <summary style='cursor:pointer;font-weight:700;color:var(--green)'>
+  {esc(name)}</summary>
+ <form method='POST' action='/qr_save' style='margin-top:8px'>
+  <input type='hidden' name='name' value='{esc(name)}'>
+  <textarea name='text' rows='5'>{esc(text)}</textarea>
+  <div style='margin-top:6px'>
+   <button>Save</button>
+   <button name='delete' value='1' class='red'
+    onclick="return confirm('Delete this response?')">Delete</button>
+  </div></form></details>"""
+    qr_card = f"""
+<div class='card'><h2 style='margin-top:0'>Quick responses</h2>
+ <div class='subtext' style='margin-bottom:6px'>These are the tap-to-fill
+ replies on the Messages page. Edit freely — changes are live for
+ everyone immediately.</div>
+ {qr}
+ <details style='padding:10px 0'>
+  <summary style='cursor:pointer;font-weight:700'>➕ Add a new response
+  </summary>
+  <form method='POST' action='/qr_save' style='margin-top:8px'>
+   <input type='text' name='name' placeholder='Name (e.g. Holiday hours)'>
+   <textarea name='text' rows='4' placeholder='The reply text…'
+    style='margin-top:6px'></textarea>
+   <button style='margin-top:6px'>Add response</button>
+  </form></details></div>"""
+
+    return page("Settings", banner + qr_card + pricing_card)
 
 
 def winback_page():
@@ -2004,6 +2113,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(drafts_page())
         if self.path == "/winback":
             return self._send(winback_page())
+        if self.path.startswith("/settings"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            return self._send(settings_page((q.get("msg") or [""])[0]))
         if self.path.startswith("/messages"):
             q = urllib.parse.urlparse(self.path).query
             sel = urllib.parse.parse_qs(q).get("t", [None])[0]
@@ -2043,10 +2155,12 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/reviews":       # the Mac pulls decisions down
             return self._send(json.dumps(load_reviews()).encode(),
                               ctype="application/json")
-        if self.path == "/api/blob/mail_outbox":  # the Mac relays mail the
-            box = (clouddb.get_blob("mail_outbox") or []) \
-                if clouddb.available() else []     # cloud can't send itself
-            return self._send(json.dumps(box).encode(),
+        m = re.match(r"^/api/blob/(mail_outbox|pricing_overrides|"
+                     r"canned_replies|msg_read)$", self.path)
+        if m:                     # blobs the Mac mirrors down
+            val = (clouddb.get_blob(m.group(1))
+                   if clouddb.available() else None)
+            return self._send(json.dumps(val).encode(),
                               ctype="application/json")
         if self.path == "/api/records":   # slim record list for the Mac's
             slim = []                     # quote-sync (scoreboard) matching
@@ -2316,6 +2430,74 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 draft = f"(draft failed: {e} — just type your reply)"
             return self._send(messages_page(to, draft=draft))
+        elif self.path == "/settings_save":
+            if not _user:
+                self.send_response(303)
+                self.send_header("Location", "/settings?msg=" +
+                                 urllib.parse.quote("Pick your name in the "
+                                                    "top bar first — changes "
+                                                    "must be signed."))
+                self.end_headers()
+                return
+            import bid_engine as be
+            ov_old = dict(be._pricing_overrides())
+            ov_new = {}
+            for k, vals in form.items():
+                if not k.startswith("ov_"):
+                    continue
+                val = vals[0].strip()
+                if val:
+                    try:
+                        float(val)
+                        ov_new[k[3:]] = val
+                    except ValueError:
+                        pass
+            _blob_save("pricing_overrides", ov_new)
+            be._OV_CACHE["at"] = 0            # take effect immediately
+            changes = []
+            for k in set(ov_old) | set(ov_new):
+                if ov_old.get(k) != ov_new.get(k):
+                    changes.append(f"{k}: {ov_old.get(k, 'default')} → "
+                                   f"{ov_new.get(k, 'default')}")
+            if changes:
+                save_review({"stamp": "", "action": "settings_change",
+                             "customer": "PRICING",
+                             "note": "; ".join(changes)[:300]})
+            self.send_response(303)
+            self.send_header("Location", "/settings?msg=" + urllib.parse.quote(
+                f"Saved {len(changes)} pricing change(s)." if changes
+                else "No changes."))
+            self.end_headers()
+            return
+        elif self.path == "/qr_save":
+            if not _user:
+                self.send_response(303)
+                self.send_header("Location", "/settings?msg=" +
+                                 urllib.parse.quote("Pick your name in the "
+                                                    "top bar first."))
+                self.end_headers()
+                return
+            canned = _blob_rw("canned_replies", {})
+            name = get("name").strip()
+            if name:
+                if get("delete"):
+                    canned.pop(name, None)
+                    act = f"deleted quick response '{name}'"
+                elif get("text").strip():
+                    canned[name] = get("text").strip()
+                    act = f"edited quick response '{name}'"
+                else:
+                    act = None
+                if act:
+                    _blob_save("canned_replies", canned)
+                    save_review({"stamp": "", "action": "settings_change",
+                                 "customer": "QUICK RESPONSES",
+                                 "note": act})
+            self.send_response(303)
+            self.send_header("Location", "/settings?msg=" +
+                             urllib.parse.quote("Saved."))
+            self.end_headers()
+            return
         elif self.path == "/msg_unread":
             # HANDOFF: someone started this thread but has to leave —
             # flip it back to unread so the next person picks it up.

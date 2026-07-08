@@ -315,7 +315,82 @@ def round_to_5(amount):
 # and it hands back the prices for each service.
 # ─────────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────────────────────────
+# OFFICE-EDITABLE OVERRIDES (Dallon, Jul 8: "prices, discounts,
+# multipliers... available to them. They work on this daily. I don't.")
+# Defaults live in this file; the office's changes live in the
+# 'pricing_overrides' blob (edited on the dashboard Settings page).
+# Keys: scalar names ("WINDOWS_MINIMUM") or dotted dict entries
+# ("RATES.gutter_cleaning"). Reset-then-apply each call, so removing
+# an override cleanly restores the default.
+# ─────────────────────────────────────────────────────────────
+import copy as _copy
+import time as _time
+
+EDITABLE_SCALARS = ("JOB_MINIMUM", "GUTTER_CLEANING_MINIMUM",
+                    "WINDOWS_MINIMUM", "WINDOWS_MINIMUM_BUNDLED",
+                    "DRY_SEASON_ROOF_FLOOR", "DRY_DAY_DISCOUNT",
+                    "DRYER_VENT_ADDON", "DRYER_VENT_ALONE",
+                    "WET_DAY_GUTTER_MULT", "PW_HOUSE_WASH_RATE")
+EDITABLE_DICTS = ("RATES", "STORIES", "PITCH", "DEBRIS", "PW_BUILDUP",
+                  "PW_MATERIAL", "PRICE_FLOORS")
+
+_DEFAULTS = None
+_OV_CACHE = {"at": 0.0, "data": {}}
+
+
+def _pricing_overrides():
+    if _time.time() - _OV_CACHE["at"] < 60:
+        return _OV_CACHE["data"]
+    ov = {}
+    try:
+        import clouddb
+        if clouddb.available():
+            ov = clouddb.get_blob("pricing_overrides") or {}
+        else:
+            import json as _json
+            from pathlib import Path as _P
+            f = _P(__file__).parent / "data" / "pricing_overrides.json"
+            if f.exists():
+                ov = _json.loads(f.read_text())
+    except Exception:
+        ov = {}
+    _OV_CACHE.update(at=_time.time(), data=ov)
+    return ov
+
+
+def apply_overrides():
+    global _DEFAULTS
+    g = globals()
+    if _DEFAULTS is None:
+        _DEFAULTS = {k: g[k] for k in EDITABLE_SCALARS}
+        _DEFAULTS.update({k: _copy.deepcopy(g[k]) for k in EDITABLE_DICTS})
+    # reset to factory, then lay the office's numbers on top
+    for k in EDITABLE_SCALARS:
+        g[k] = _DEFAULTS[k]
+    for k in EDITABLE_DICTS:
+        g[k].clear()
+        g[k].update(_DEFAULTS[k])
+    for key, val in _pricing_overrides().items():
+        try:
+            val = float(val)
+        except (TypeError, ValueError):
+            continue
+        if key in EDITABLE_SCALARS:
+            g[key] = val
+        elif "." in key:
+            root, sub = key.split(".", 1)
+            if root in EDITABLE_DICTS and sub in g[root]:
+                g[root][sub] = val
+
+
+def factory_defaults():
+    apply_overrides()          # ensures _DEFAULTS is snapshotted
+    return _DEFAULTS
+
+
 def calculate_bid(prop):
+    apply_overrides()          # office Settings take effect instantly
     sqft = prop["sqft"]
 
     # Dry season (Tom's roof weather): June-July-August. Roof-lane rules
