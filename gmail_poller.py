@@ -186,10 +186,24 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
         pass                    # cloud mirroring never blocks shadow mode
 
 
+def _keep_cloud_warm():
+    """Ping the cloud dashboard's /health each poll — Render's free tier
+    naps after 15 idle minutes; this keeps the office's page fast."""
+    try:
+        import urllib.request
+        from cloudpush import _cfg
+        url = _cfg("DASHBOARD_URL")
+        if url:
+            urllib.request.urlopen(url.rstrip("/") + "/health", timeout=20)
+    except Exception:
+        pass
+
+
 if __name__ == "__main__":
     watch = "--watch" in sys.argv
     while True:
         n = poll_once()
+        _keep_cloud_warm()
         print(f"[{datetime.now():%H:%M}] poll complete — {n} new message(s)")
         if not watch:
             break

@@ -236,6 +236,8 @@ def page(title, body, refresh=None):
             f"<span style='float:right;font-size:14px;font-weight:400'>"
             f"<a href='/' style='color:#e8d9a0'>Queue</a> &nbsp;·&nbsp; "
             f"<a href='/drafts' style='color:#e8d9a0'>Drafts</a> &nbsp;·&nbsp; "
+            f"<a href='/scoreboard' style='color:#e8d9a0'>Scoreboard</a>"
+            f" &nbsp;·&nbsp; "
             f"<a href='/brief' style='color:#e8d9a0'>Morning brief</a>"
             f"</span></header>"
             f"<div class='wrap'>{body}</div></body></html>").encode()
@@ -548,6 +550,11 @@ def bid_page(stamp):
    <input type='hidden' name='services' value='{','.join(b.get('services') or [])}'>
    <button class='gray'>Draft photo-request email</button>
   </form>
+  {f'''<form method='POST' action='/repeat_welcome' style='margin-top:6px'>
+   <input type='hidden' name='stamp' value='{stamp}'>
+   <input type='hidden' name='customer' value='{esc(b['from'])}'>
+   <button class='gray'>Draft welcome-back reply</button>
+  </form>''' if prior else ''}
  </div>
  <div class='card'><h3 style='margin-top:0'>Similar homes (honor history)</h3>
   {hist_html}</div>
@@ -624,6 +631,40 @@ def property_history(address, current_stamp):
     return hits
 
 
+def scoreboard_page():
+    """Full scoreboard table — every shadow draft vs the office."""
+    if clouddb.available():
+        sb = clouddb.get_blob("scoreboard")
+    else:
+        p = BASE / "data" / "scoreboard.json"
+        sb = json.loads(p.read_text()) if p.exists() else None
+    if not sb:
+        return page("Scoreboard", "<div class='card'>No scoreboard yet — "
+                    "the night run generates it.</div>")
+    rows = ""
+    for r in sb["rows"]:
+        if r.get("office_quote"):
+            gap = r.get("gap_pct")
+            color = ("#1e8449" if abs(gap) <= 10 else
+                     "#c77700" if abs(gap) <= 25 else "#c0392b")
+            verdict = (f"<b style='color:{color}'>{gap:+.0f}%</b> "
+                       f"(office #{r['office_quote']}, {r['office_status']})")
+            office = f"${r['office_total']:.0f}"
+        else:
+            office, verdict = "—", "<span style='color:#888'>awaiting office quote</span>"
+        rows += (f"<tr><td>{esc((r.get('customer') or '?')[:36])}</td>"
+                 f"<td>{', '.join(r.get('services') or [])}</td>"
+                 f"<td>${r['system_total']:.0f}</td><td>{office}</td>"
+                 f"<td>{verdict}</td></tr>")
+    body = (f"<div class='card'><h2 style='margin-top:0'>Shadow scoreboard"
+            f"</h2><div style='color:#888;font-size:13px'>Generated "
+            f"{esc(sb.get('generated', ''))} — green ≤10% of the office, "
+            "amber ≤25%, red beyond.</div>"
+            "<table><tr><th>Customer</th><th>Services</th><th>System</th>"
+            f"<th>Office</th><th>Verdict</th></tr>{rows}</table></div>")
+    return page("Scoreboard", body)
+
+
 def brief_page():
     """Latest morning brief — cloud blob first, local file fallback."""
     text = None
@@ -683,10 +724,14 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(content)
 
     def do_GET(self):
+        if self.path == "/health":          # no auth, no data — lets the
+            return self._send(b"ok")        # poller keep the service warm
         if not self._authed():
             return self._require_auth()
         if self.path == "/":
             return self._send(home_page())
+        if self.path == "/scoreboard":
+            return self._send(scoreboard_page())
         if self.path == "/drafts":
             return self._send(drafts_page())
         if self.path == "/brief":
@@ -765,6 +810,22 @@ class Handler(BaseHTTPRequestHandler):
                     entry["jobber_quote"] = ("no structured draft on this "
                                              "record — re-run needed")
             save_review(entry)
+        elif self.path == "/repeat_welcome":
+            name = get("customer").split("<")[0].strip()
+            promise = ""
+            try:
+                from promises import promises_for
+                hits = promises_for(name)
+                if hits:
+                    promise = (f"we have your ${hits[0]['promised_price']:.0f} "
+                               "price on file from last time, and we're "
+                               "honoring it")
+            except Exception:
+                pass
+            path = templates.draft_repeat_welcome(name, promise_note=promise)
+            save_review({"stamp": get("stamp"), "action": "welcome_drafted",
+                         "customer": get("customer"),
+                         "note": f"draft: {path.name}"})
         elif self.path == "/must_know":
             set_must_know(get("address"), get("text").strip())
         elif self.path == "/duplicate":
