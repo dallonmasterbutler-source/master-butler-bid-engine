@@ -1,0 +1,78 @@
+MASTER BUTLER — GOOGLE WORKSPACE WEEKEND CUTOVER CHECKLIST
+============================================================
+Goal: customercare@masterbutlerinc.com moves from plain Gmail to
+Google Workspace. Same address, ALL mail migrated, office notices
+nothing on Monday. You click; I verify each step from my side.
+Budget: Business Starter, $8.40/user/mo (1 user to start).
+
+BEFORE THE WEEKEND (15 min, any evening)
+----------------------------------------
+[ ] 1. Confirm who controls the masterbutlerinc.com domain
+       (who's the registrar — GoDaddy? Squarespace? Wherever the
+       website DNS lives). You'll need that login Saturday.
+[ ] 2. Confirm the current customercare@ Gmail password is known
+       (not just saved in a browser somewhere).
+[ ] 3. Tell LaRee/Jessica: "email may lag ~an hour Saturday night,
+       nothing is lost." (It queues and delivers after cutover.)
+
+SATURDAY MORNING — SIGNUP (you click, ~30 min)
+-----------------------------------------------
+[ ] 4. Go to workspace.google.com → Get Started.
+       · Business name: Master Butler
+       · Users: just you for now
+       · "Do you have a domain?" → YES → masterbutlerinc.com
+       · First user: customercare@masterbutlerinc.com
+       IMPORTANT: this creates a NEW Workspace account with the same
+       ADDRESS — the old Gmail's mail doesn't move yet. That's step 7.
+[ ] 5. Verify the domain: Google gives you a TXT record; paste it
+       into DNS at the registrar (step 1 login). I can walk you
+       through the exact screen when we're there.
+[ ] 6. DO NOT flip MX records yet. (MX = where new mail is
+       delivered. We flip it AFTER the old mail is copied.)
+
+SATURDAY — MIGRATE THE OLD MAIL (mostly waiting)
+-------------------------------------------------
+[ ] 7. In the new Workspace Admin console:
+       Admin → Data migration → Gmail → source: the OLD
+       customercare@ Gmail → authorize with the old password →
+       Start migration (ALL mail + labels).
+       76k emails will take hours. It runs by itself — go live
+       your life; check progress in the evening.
+
+SATURDAY EVENING — THE FLIP (10 min + propagation)
+---------------------------------------------------
+[ ] 8. When migration shows complete (or nearly — it keeps syncing):
+       flip MX records at the registrar to Google's Workspace MX
+       (Admin console shows the exact records; usually just
+       smtp.google.com priority 1 these days).
+[ ] 9. New mail now lands in the Workspace inbox. Old mail is there
+       from step 7. Same address. Office signs in same way Monday.
+
+MY SIDE (I do these, you watch)
+--------------------------------
+[ ] 10. Generate a NEW app password in the Workspace account
+        (Security → 2-Step Verification first, then App passwords).
+[ ] 11. Swap GMAIL_APP_PASSWORD in .env AND in Render env.
+[ ] 12. Verify: poller reconnects over IMAP, sees the migrated
+        archive, Message-ID ledger confirms zero missed messages
+        across the cutover window.
+[ ] 13. Verify outbound: 🚩 flag email sends from the new account.
+[ ] 14. Within a week (not urgent): switch our system from app-
+        password IMAP to the proper Gmail API (Workspace unlocks
+        this) — that also gives the CLOUD a real send path, so flag
+        emails go out instantly instead of relaying through the Mac.
+
+SUNDAY — SAFETY CHECKS
+-----------------------
+[ ] 15. Send a test email from your phone to customercare@ — arrives
+        in Workspace inbox?
+[ ] 16. Reply to it — customer receives from the same address?
+[ ] 17. Jobber notifications still arriving? (They just follow MX.)
+[ ] 18. Old Gmail account: leave it alone for 30 days as a fallback,
+        then decide whether to close it.
+
+ROLLBACK (if anything feels wrong)
+-----------------------------------
+Flip MX records back to the old values (screenshot them BEFORE
+changing — I'll remind you). Mail returns to the old Gmail within
+the hour. Nothing is ever deleted by this process.
