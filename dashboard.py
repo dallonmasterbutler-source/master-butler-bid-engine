@@ -1550,7 +1550,8 @@ def messages_page(sel=None, draft=""):
   <form method='POST' action='/msg_send'>
    <input type='hidden' name='to' value='{esc(sel)}'>
    <input type='hidden' name='subject' value='{esc(reply_subject)}'>
-   <textarea id='replybox' name='body' rows='4' placeholder='Reply as customercare@ —
+   <textarea id='replybox' name='body' rows='5' style='min-height:110px'
+    placeholder='Reply as customercare@ —
 sends real email to {esc(tname)} when you hit Send'>{esc(draft)}</textarea>
    <div style='display:flex;justify-content:space-between;
                align-items:center;margin-top:8px'>
@@ -1566,11 +1567,18 @@ Object.keys(CANNED).forEach(function(k){{
   var o = document.createElement('option'); o.value = k; o.textContent = k;
   sel.appendChild(o);
 }});
+function grow(box){{
+  box.style.height = 'auto';
+  box.style.height = Math.min(box.scrollHeight + 6, 560) + 'px';
+}}
+var _rb = document.getElementById('replybox');
+_rb.addEventListener('input', function(){{ grow(_rb); }});
+if (_rb.value) grow(_rb);
 sel.onchange = function(){{
   if (!sel.value) return;
-  var box = document.getElementById('replybox');
-  box.value = CANNED[sel.value];
-  box.focus();
+  _rb.value = CANNED[sel.value];
+  grow(_rb);
+  _rb.focus();
 }};
 </script>"""
     return page("Messages", body)
