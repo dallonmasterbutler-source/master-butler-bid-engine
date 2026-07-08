@@ -31,7 +31,7 @@ query Recent($first: Int!, $after: String) {
     pageInfo { hasNextPage endCursor }
     nodes { issuedDate
             client { name }
-            property { address { street city } }
+            properties(first: 1) { nodes { address { street city } } }
             lineItems(first: 25) { nodes { name totalPrice } } }
   }
 }
@@ -73,7 +73,8 @@ def sweep(limit=100000):
         for inv in block["nodes"]:
             scanned += 1
             date = (inv.get("issuedDate") or "")[:10]
-            addr = (inv.get("property") or {}).get("address") or {}
+            props = ((inv.get("properties") or {}).get("nodes") or [{}])
+            addr = (props[0] if props else {}).get("address") or {}
             slug = _slug(addr.get("street"), addr.get("city"))
             ckey = _name_key((inv.get("client") or {}).get("name"))
             for li in (inv.get("lineItems") or {}).get("nodes", []):
