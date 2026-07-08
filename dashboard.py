@@ -73,9 +73,36 @@ def save_review(entry):
     REVIEW_LOG.write_text(json.dumps(reviews, indent=1))
 
 
+HOLD_REASONS = ["standby_gutters", "seasonal_pw_windows",
+                "awaiting_photos", "awaiting_customer", "other"]
+
+
+def active_holds():
+    """stamp -> latest hold entry, for bids still on hold. A hold whose
+    resurface date has arrived STOPS hiding the bid (it pops back)."""
+    holds = {}
+    for r in load_reviews():
+        if r.get("action") == "hold":
+            holds[r["stamp"]] = r
+        elif r.get("stamp") in holds and r.get("action") in (
+                "approve", "adjusted", "escalated"):
+            del holds[r["stamp"]]           # decided later — hold is over
+    today = datetime.now().date().isoformat()
+    live, resurfaced = {}, {}
+    for stamp, h in holds.items():
+        if (h.get("hold_until") or "9999") <= today:
+            resurfaced[stamp] = h
+        else:
+            live[stamp] = h
+    return live, resurfaced
+
+
 def load_bids():
     """Every shadow record, oldest first, with age + review status."""
-    reviewed = {r["stamp"] for r in load_reviews() if r.get("stamp")}
+    decided = {r["stamp"] for r in load_reviews()
+               if r.get("stamp") and r.get("action") in
+               ("approve", "adjusted", "escalated")}
+    reviewed = decided
     bids = []
     for p in sorted(SHADOW.glob("*.json")):
         rec = json.loads(p.read_text())
@@ -183,10 +210,16 @@ def age_html(h):
 
 def home_page():
     bids = load_bids()
-    queue = [b for b in bids if not b["reviewed"]]
+    live_holds, resurfaced = active_holds()
+    queue = [b for b in bids if not b["reviewed"]
+             and b["stamp"] not in live_holds]
     attention = []
     for b in queue:
-        if b.get("office_alert"):
+        if b["stamp"] in resurfaced:
+            h = resurfaced[b["stamp"]]
+            attention.append((b, f"BACK FROM HOLD ({h.get('hold_reason')}) — "
+                                 "held bids are answered FIRST"))
+        elif b.get("office_alert"):
             attention.append((b, b["office_alert"]))
         elif b.get("pipeline_error"):
             attention.append((b, f"pipeline error: {b['pipeline_error']}"))
@@ -225,12 +258,53 @@ def home_page():
         "<h2 style='margin-top:0'>Bid queue — oldest first</h2>"
         "<table><tr><th>Waiting</th><th>From</th><th>Kind</th>"
         "<th>Services</th><th>Est.</th></tr>" + rows + "</table></div>"
-        "<div><div class='card'><h3 style='margin-top:0'>Recent decisions"
+        "<div>" + scoreboard_card() + held_card(live_holds, bids) +
+        "<div class='card'><h3 style='margin-top:0'>Recent decisions"
         "</h3>" + rev_rows + "</div>"
         "<div class='card'><h3 style='margin-top:0'>Schedule glance</h3>"
         "<div style='color:#888'>Jobber calendar — future phase. Days fill "
         "toward the $850–1,100/tech target.</div></div></div></div>")
     return page("Bid queue", body)
+
+
+def scoreboard_card():
+    """System vs office — the running report card."""
+    sb_path = BASE / "data" / "scoreboard.json"
+    if not sb_path.exists():
+        return ""
+    sb = json.loads(sb_path.read_text())
+    rows = [r for r in sb["rows"] if r.get("office_quote")]
+    waiting = sum(1 for r in sb["rows"] if not r.get("office_quote"))
+    inner = ""
+    for r in rows[:6]:
+        gap = r.get("gap_pct")
+        color = ("#1e8449" if gap is not None and abs(gap) <= 10
+                 else "#c77700" if gap is not None and abs(gap) <= 25
+                 else "#c0392b")
+        inner += (f"<div>{esc((r.get('customer') or '?')[:26])} — "
+                  f"sys ${r['system_total']:.0f} / office "
+                  f"${r['office_total']:.0f} "
+                  f"<b style='color:{color}'>{gap:+.0f}%</b></div>")
+    if not inner:
+        inner = (f"<div style='color:#888'>{waiting} shadow draft(s) waiting "
+                 "for the office to quote them — comparisons appear here "
+                 "automatically.</div>")
+    return ("<div class='card'><h3 style='margin-top:0'>Shadow scoreboard"
+            f"</h3>{inner}</div>")
+
+
+def held_card(live_holds, bids):
+    if not live_holds:
+        return ""
+    by_stamp = {b["stamp"]: b for b in bids}
+    inner = "".join(
+        f"<div>⏸ <a href='/bid/{s}'>{esc(by_stamp.get(s, {}).get('from', s))}"
+        f"</a> — {esc(h.get('hold_reason'))} until {esc(h.get('hold_until'))}"
+        "</div>"
+        for s, h in sorted(live_holds.items(),
+                           key=lambda kv: kv[1].get("hold_until") or ""))
+    return ("<div class='card'><h3 style='margin-top:0'>On hold "
+            "(auto-resurface)</h3>" + inner + "</div>")
 
 
 def bid_page(stamp):
@@ -285,6 +359,19 @@ def bid_page(stamp):
     <button name='action' value='approve'>Approve as-is</button>
     <button name='action' value='adjusted' class='gray'>Adjusted (reason above)</button>
    </div>
+  </form>
+  <form method='POST' action='/hold' style='margin-top:6px'>
+   <input type='hidden' name='stamp' value='{stamp}'>
+   <input type='hidden' name='customer' value='{esc(b['from'])}'>
+   <select name='hold_reason' style='padding:7px;border-radius:6px'>
+    {''.join(f"<option value='{r}'>{r.replace('_', ' ')}</option>"
+             for r in HOLD_REASONS)}
+   </select>
+   until <input type='date' name='hold_until'
+                style='padding:6px;border-radius:6px'>
+   <button class='gray'>Hold (auto-resurfaces)</button>
+   <div style='font-size:12px;color:#888'>Hold parks the WORK, never the
+   reply — customer still gets answered with the timeline.</div>
   </form>
   <form method='POST' action='/escalate' style='margin-top:6px'>
    <input type='hidden' name='stamp' value='{stamp}'>
@@ -348,6 +435,11 @@ class Handler(BaseHTTPRequestHandler):
                     entry["jobber_quote"] = ("no structured draft on this "
                                              "record — re-run needed")
             save_review(entry)
+        elif self.path == "/hold":
+            save_review({"stamp": get("stamp"), "action": "hold",
+                         "customer": get("customer"),
+                         "hold_reason": get("hold_reason"),
+                         "hold_until": get("hold_until") or None})
         elif self.path == "/escalate":
             path = templates.draft_escalation(
                 bid_ref=get("stamp"), customer=get("customer"),
