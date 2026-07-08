@@ -340,9 +340,10 @@ check("Matching stories = no flag",
       0 if any("OFFICE VERIFY" in x for x in n) else 1, 1)
 check("Gridded windows = note only, NEVER auto-premium (Dallon's home)",
       0 if f.get("french_pane") else 1, 1)
-# 2-band gap = the overcall flag fires
+# 2-band gap = the overcall flag fires (data says steep, curb sees mild)
+MILD_CURB = dict(CURB, pitch_looks={"value": "mild", "confidence": "high"})
 f, n = street_check({"stories": "2", "pitch": "steep",
-                     "roof_material": "standard"}, "", _reading=CURB)
+                     "roof_material": "standard"}, "", _reading=MILD_CURB)
 check("Steep-vs-mild-looking = OVERCALL flag",
       1 if any("OVERCALL" in x for x in n) else 0, 1)
 # stories disagreement = flag, never silent fix
