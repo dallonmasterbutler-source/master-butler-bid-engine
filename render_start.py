@@ -55,7 +55,7 @@ def start_cloud_ears():
                 print(f"[cloud ears] poll complete — {n} new")
             except Exception as e:
                 print(f"[cloud ears] poll error: {e}")
-            time.sleep(120)
+            time.sleep(75)
     threading.Thread(target=loop, daemon=True).start()
     print("cloud ears: ON — watching the inbox from the cloud")
 

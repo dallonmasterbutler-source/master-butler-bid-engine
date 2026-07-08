@@ -833,7 +833,7 @@ def home_page():
         "<div class='card'><h3 style='margin-top:0'>Schedule glance</h3>"
         "<div style='color:#888'>Jobber calendar — future phase. Days fill "
         "toward the $850–1,100/tech target.</div></div></div></div>")
-    return page("Bid queue", body, refresh=120)   # live-ish, no clicking
+    return page("Bid queue", body, refresh=45)    # near-live, no clicking
 
 
 def scoreboard_card():
@@ -1630,7 +1630,7 @@ sel.onchange = function(){{
   _rb.focus();
 }};
 </script>"""
-    return page("Messages", body)
+    return page("Messages", body, refresh=60)
 
 
 def _blob_rw(key, default):
