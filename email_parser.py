@@ -304,6 +304,22 @@ def parse_eml(path) -> dict:
     fresh = newest_message_only(body)
     services = find_services(fresh)
 
+    # ── FORM RELAYS: the envelope says 'Squarespace', the CUSTOMER is
+    # in the body ("Name: Tamara Jett / Email Address: tammy@...").
+    # Use the real person everywhere — display, Jobber matching, dedup.
+    if ("form-submission" in sender_email.lower()
+            or "squarespace" in sender_email.lower()
+            or "form submission" in (msg.get("Subject") or "").lower()):
+        nm = re.search(r"Name:\s*\n?\s*([^\n]{2,60})", body)
+        em = re.search(r"Email(?: Address)?:\s*\n?\s*([\w.+-]+@[\w.-]+)",
+                       body)
+        if em:
+            sender_email = em.group(1).strip()
+        if nm:
+            cand = nm.group(1).strip()
+            if cand and "@" not in cand:
+                sender_name = cand
+
     # ── JOBBER EVENTS: 'quote approved' etc. — never noise ──
     if "txn.getjobber.com" in sender_email.lower():
         ev = parse_jobber_event(msg.get("Subject", ""), fresh or body)

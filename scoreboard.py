@@ -142,6 +142,15 @@ def match(shadow, quotes):
         addr_hit = street and addr_words and len(street & addr_words) >= 2
         if name_hit and (addr_hit or not addr_words):
             return q, "name+address" if addr_hit else "name"
+    # ADDRESS-ONLY: form relays bury the real name ('from Squarespace'),
+    # but a house number + street match is unambiguous on its own.
+    shadow_num = next((w for w in addr_words if w.isdigit()), None)
+    if shadow_num:
+        for q in quotes:
+            street = _norm_words((q.get("property") or {}).get("address", {})
+                                 .get("street", ""))
+            if shadow_num in street and len(street & addr_words) >= 3:
+                return q, "address"
     return None, None
 
 
