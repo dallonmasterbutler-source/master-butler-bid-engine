@@ -191,6 +191,28 @@ check("Mild shake = Exp Tech Dry Day", 1 if g == "Experienced Technician, Dry Da
 g, r = safety_options("moderate", "standard", "3")
 check("3-story = Must be updated (office assigns)", 1 if g == MUST_UPDATE else 0, 1)
 
+print("\n── ANCHOR 7: pavers/cobblestone factor (Shadi patio + Boden recheck) ──")
+# Shadi Mosleh (Bothell, July 2026): small paver patio, Dallon's hour-check
+# said ~$140 for ~1h of wand work. ~235 sqft pavers, no buildup stacking.
+r, notes, _ = calculate_bid(house(pitch="mild",
+                                  services={"patio": True},
+                                  surfaces={"patio": 235},
+                                  surface_materials={"patio": "pavers"}))
+check("Shadi paver patio ≈ $140", sum(s["price"] for s in r), 140, tolerance=10)
+check("Pavers note present",
+      1 if any("Pavers" in n for n in notes) else 0, 1)
+# Boden re-derived: 600 sqft pavers — material factor (1.5) REPLACES the
+# heavy-buildup call (1.4). Tech's final grade: $230.
+r, notes, _ = calculate_bid(house(pitch="mild", buildup="heavy",
+                                  services={"patio": True, "sidewalk": True},
+                                  surfaces={"patio": 200, "sidewalk": 400},
+                                  surface_materials={"patio": "pavers",
+                                                     "sidewalk": "pavers"}))
+check("Boden as pavers ≈ tech's $230", sum(s["price"] for s in r), 230,
+      tolerance=10)
+check("No double-charge: heavy note suppressed when pavers factor wins",
+      0 if any("HEAVY buildup priced in" in n for n in notes) else 1, 1)
+
 print("\n── RULE: tax auto-attach (flag-don't-guess) ──")
 from jobber_client import match_tax_rate
 # offline fixture mirroring the office's real Jobber rate names

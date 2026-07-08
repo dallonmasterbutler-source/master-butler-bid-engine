@@ -176,6 +176,11 @@ def vision_to_prop_fields(v):
                          "total; customer may opt out of that portion.")
         mid = int((s["sqft_low"] + s["sqft_high"]) / 2)
         surfaces[key] = surfaces.get(key, 0) + mid
+        # PAVERS/COBBLESTONE (Shadi + Boden calibration, July 2026):
+        # wand work over joints, no surface cleaner — engine prices the
+        # material factor INSTEAD of buildup, never both.
+        if s.get("material") in ("pavers", "stone"):
+            fields.setdefault("surface_materials", {})[key] = "pavers"
         if s.get("continues_beyond_frame"):
             notes.append(f"{s['type'].title()} continues beyond photo frame — "
                          f"area may exceed {s['sqft_high']} sqft; consider "

@@ -158,6 +158,18 @@ PW_BUILDUP = {
     "heavy":    1.4,   # also triggers a confirm-with-photo flag
 }
 
+# Surface MATERIAL — pavers/cobblestone are wand work over joints, no
+# surface cleaner: slower everywhere (Shadi patio + Boden calibration,
+# July 2026 — Dallon's hour-check: ~1h of paver patio ≈ $140).
+# RULE: material and buildup do NOT stack — growth in paver joints is
+# just what pavers look like; the material factor already covers the
+# slow work. We charge whichever factor is LARGER, never both.
+PW_MATERIAL = {
+    "concrete": 1.0,
+    "asphalt":  1.0,    # priced same as concrete (opt-out policy elsewhere)
+    "pavers":   1.5,    # includes cobblestone / brick
+}
+
 # Target hourly rates (price ÷ rate = estimated job hours, feeds pathing)
 TARGET_HOURLY = {
     "gutters": 125, "gutters_specialty": 150, "roof": 150,
@@ -235,17 +247,19 @@ def seasonal_notes(when, services):
 # This little function does that rounding for us.
 # ─────────────────────────────────────────────────────────────
 
-def pw_concrete_price(sqft, buildup="clean"):
-    """Price a flat concrete surface (patio/driveway/sidewalk) from its area.
+def pw_concrete_price(sqft, buildup="clean", material="concrete"):
+    """Price a flat surface (patio/driveway/sidewalk) from its area.
 
     First 250 sqft at the higher rate (setup baked in), the rest cheaper,
-    never below the minimum. Buildup multiplies at the end.
+    never below the minimum. Buildup OR material multiplies at the end —
+    whichever is larger, never both (pavers already price in the slow work).
     Fits: Connie 250→$100, Jobber tiers 100→$60, 400→$120, 900→$190.
     """
     first = min(sqft, PW_CONCRETE["first_block_sqft"]) * PW_CONCRETE["first_block_rate"]
     rest = max(0, sqft - PW_CONCRETE["first_block_sqft"]) * PW_CONCRETE["remainder_rate"]
     raw = max(PW_CONCRETE["minimum"], first + rest)
-    return raw * PW_BUILDUP[buildup]
+    factor = max(PW_BUILDUP[buildup], PW_MATERIAL.get(material, 1.0))
+    return raw * factor
 
 
 def round_to_5(amount):
@@ -382,12 +396,29 @@ def calculate_bid(prop):
                 if prop.get("services", {}).get(k)}
     areas = {k: a for k, a in measured.items() if a}
     if areas:
-        combined_price = pw_concrete_price(sum(areas.values()), buildup)
+        # combined BASE price on total area (setup priced once), split
+        # proportionally, THEN each surface applies its own factor —
+        # max(buildup, material), never stacked.
+        materials = prop.get("surface_materials", {})
+        base_combined = pw_concrete_price(sum(areas.values()))
         total_area = sum(areas.values())
+        pavers_used = heavy_applied = False
         for key, area in areas.items():
-            share = round_to_5(combined_price * area / total_area)
-            add(f"{surface_names[key]} (~{area} sqft)", share, "pressure")
-        if buildup == "heavy":
+            mat = materials.get(key, "concrete")
+            mat_mult = PW_MATERIAL.get(mat, 1.0)
+            factor = max(PW_BUILDUP[buildup], mat_mult)
+            if mat == "pavers" and mat_mult >= PW_BUILDUP[buildup]:
+                pavers_used = True
+            if buildup == "heavy" and PW_BUILDUP[buildup] > mat_mult:
+                heavy_applied = True
+            share = round_to_5(base_combined * area / total_area * factor)
+            label = f"{surface_names[key]} (~{area} sqft"
+            label += ", pavers)" if mat == "pavers" else ")"
+            add(label, share, "pressure")
+        if pavers_used:
+            notes.append("Pavers/cobblestone: slower wand work priced in "
+                         "(1.5x); joint growth NOT double-charged as buildup.")
+        if heavy_applied:
             notes.append("Pressure washing: HEAVY buildup priced in (1.4x) — "
                          "confirm with photo before appointment.")
         if len(areas) > 1:
