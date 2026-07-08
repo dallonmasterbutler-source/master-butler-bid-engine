@@ -46,6 +46,11 @@ SLA_HOURS = 24
 # ON  (PUSH_ON_APPROVE=true in .env): Approve ALSO creates a DRAFT
 # quote in Jobber — still a draft, still human-sent, but real.
 # Ships OFF. Dallon flips it when shadow mode has earned trust.
+# Customer-reply kill switch: Dallon flips this to True when the
+# office is ready to send from the Messages page.
+REPLIES_ENABLED = False
+
+
 def _push_enabled():
     env = BASE / ".env"
     if env.exists():
@@ -1507,6 +1512,12 @@ def messages_page(sel=None, draft=""):
                f"style='font-size:11px;color:{'#177245' if inbound else '#c9a227'}'>"
                f"open the bid →</a></div>" if m.get("stamp") else "")
             + "</div></div>")
+    if clouddb.available():
+        _canned = clouddb.get_blob("canned_replies") or {}
+    else:
+        cp = BASE / "data" / "canned_replies.json"
+        _canned = json.loads(cp.read_text()) if cp.exists() else {}
+    canned_json = json.dumps(_canned).replace("</", "<\\/")
     last_subject = next((m.get("subject") for m in reversed(tmsgs)
                          if m.get("subject")), "")
     reply_subject = (last_subject if last_subject.lower().startswith("re:")
@@ -1531,9 +1542,9 @@ def messages_page(sel=None, draft=""):
      <button class='gray' style='border-color:var(--gold);
              color:#8a5a00'>✨ Draft a reply for me</button>
     </form>
-    <button type='button' class='gray qr'>Thanks — you're on the schedule</button>
-    <button type='button' class='gray qr'>Can you send photos?</button>
-    <button type='button' class='gray qr'>Quote is on its way</button>
+    <select id='canned' style='max-width:340px'>
+     <option value=''>LaRee's quick responses…</option>
+    </select>
    </div>
   </div>
   <form method='POST' action='/msg_send'>
@@ -1545,24 +1556,22 @@ sends real email to {esc(tname)} when you hit Send'>{esc(draft)}</textarea>
                align-items:center;margin-top:8px'>
     <span class='subtext'>Sends from customercare@masterbutlerinc.com,
     signed with your name tag.</span>
-    <button class='big'>Send reply</button>
+    <button class='big' type='button' onclick="alert('Sending is switched OFF while we test — copy the text into Gmail for now. Dallon flips this on when ready.')">Send reply</button>
    </div>
   </form></div></div>
 <script>
-var CANNED = {{
- "Thanks — you're on the schedule":
-  "Thank you! You're on our schedule — we'll send a reminder before your service date. Reply here with any questions.",
- "Can you send photos?":
-  "Thanks for reaching out! Could you reply with a few photos of the areas you'd like serviced? That helps us get you an accurate quote fast.",
- "Quote is on its way":
-  "Thanks for your request! We're putting your quote together now and you'll receive it shortly. Let us know if anything changes."
-}};
-document.querySelectorAll('.qr').forEach(function(b){{
-  b.onclick=function(){{
-    document.getElementById('replybox').value=CANNED[b.textContent]||b.textContent;
-    document.getElementById('replybox').focus();
-  }};
+var CANNED = {canned_json};
+var sel = document.getElementById('canned');
+Object.keys(CANNED).forEach(function(k){{
+  var o = document.createElement('option'); o.value = k; o.textContent = k;
+  sel.appendChild(o);
 }});
+sel.onchange = function(){{
+  if (!sel.value) return;
+  var box = document.getElementById('replybox');
+  box.value = CANNED[sel.value];
+  box.focus();
+}};
 </script>"""
     return page("Messages", body)
 
@@ -2183,6 +2192,11 @@ class Handler(BaseHTTPRequestHandler):
             import msglog
             to, subj = get("to"), get("subject") or "Master Butler"
             text = get("body").strip()
+            if not REPLIES_ENABLED:
+                save_review({"stamp": "", "action": "reply_blocked",
+                             "customer": to,
+                             "note": "sending disabled (REPLIES_ENABLED off)"})
+                text = ""
             if text:
                 ok, why = mailer.send_reply(to, subj, text, _user)
                 if ok:

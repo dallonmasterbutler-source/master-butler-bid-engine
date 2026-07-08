@@ -178,9 +178,16 @@ def _sweep_sent(M, seen):
             h = msg.get_body(preferencelist=("html",))
             if h is not None:
                 body = _re.sub(r"<[^>]+>", " ", h.get_content())
+        sent_at = None
+        try:
+            from email.utils import parsedate_to_datetime
+            if msg.get("Date"):
+                sent_at = parsedate_to_datetime(msg["Date"]) \
+                    .isoformat(timespec="seconds")
+        except Exception:
+            pass
         msglog.record("out", to_addr, subject=msg.get("Subject", ""),
-                      body=body,
-                      at=None)
+                      body=body, at=sent_at)
         _remember(mid)
         seen.add(mid)
 
@@ -284,15 +291,26 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
         record["office_alert"] = ("FOUND IN SPAM — real request; office "
                                   "should rescue it from the spam folder")
 
-    # LIVE MESSAGES: every human inbound lands in the conversation log
+    # LIVE MESSAGES: every human inbound lands in the conversation log,
+    # timestamped by the email's OWN Date header (not when we polled it).
     try:
         import msglog
         if parsed.get("sender_email") and parsed["kind"] != "jobber_event":
+            sent_at = None
+            try:
+                import email as _em
+                from email.utils import parsedate_to_datetime
+                hdr = _em.message_from_bytes(raw_bytes).get("Date")
+                if hdr:
+                    sent_at = parsedate_to_datetime(hdr) \
+                        .isoformat(timespec="seconds")
+            except Exception:
+                pass
             msglog.record("in", parsed["sender_email"],
                           name=parsed.get("sender_name") or "",
                           subject=parsed.get("subject") or record["subject"],
                           body=parsed.get("newest_message") or "",
-                          stamp=stamp)
+                          stamp=stamp, at=sent_at)
     except Exception:
         pass
 
