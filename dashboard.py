@@ -1829,20 +1829,31 @@ def scoreboard_page():
         f"<div class='stat'><b>{len(waiting)}</b>"
         f"<span>awaiting office</span></div></div>")
 
+    auto = None
+    if clouddb.available():
+        auto = clouddb.get_blob("auto_reviews") or {}
+    else:
+        ap = BASE / "data" / "auto_reviews.json"
+        auto = json.loads(ap.read_text()) if ap.exists() else {}
     rows = ""
     for r in matched:
         gap = r.get("gap_pct")
-        if gap is None:
+        ar = auto.get(r.get("stamp"))
+        if ar:
+            pill = (f"<span style='display:inline-block;background:#eaf5ec;"
+                    f"color:#1e6b34;border-radius:999px;padding:3px 12px;"
+                    f"font-size:11.5px;font-weight:700' "
+                    f"title=\"{esc(ar['summary'])}\">📖 auto-reviewed"
+                    + (f" · {gap:+.0f}%" if gap is not None else "")
+                    + "</span>"
+                    f"<div class='subtext' style='max-width:260px;"
+                    f"margin-top:3px'>{esc(ar['summary'][:110])}</div>")
+        elif gap is None:
             pill = ""
         elif abs(gap) <= 10:
             pill = status_pill("approved", f"{gap:+.0f}%")
-        elif abs(gap) <= 25:
-            pill = status_pill("needs review", f"{gap:+.0f}%")
         else:
-            fg, bg = "#a93226", "#fdecea"
-            pill = (f"<span style='display:inline-block;background:{bg};"
-                    f"color:{fg};border-radius:999px;padding:3px 12px;"
-                    f"font-size:11.5px;font-weight:700'>{gap:+.0f}%</span>")
+            pill = status_pill("needs review", f"{gap:+.0f}%")
         js = (r.get("office_status") or "").lower()
         jlabel = {"approved": "WON ✓", "converted": "WON ✓",
                   "awaiting_response": "quote sent",
@@ -2165,12 +2176,15 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/records":   # slim record list for the Mac's
             slim = []                     # quote-sync (scoreboard) matching
             for stamp, r in _shadow_source():
+                d = r.get("draft") or {}
                 slim.append({"stamp": stamp, "from": r.get("from"),
                              "address": r.get("address"),
                              "kind": r.get("kind"),
                              "services": r.get("services"),
-                             "draft": {"total": (r.get("draft") or {})
-                                       .get("total")},
+                             "draft": {"total": d.get("total"),
+                                       "bid": {"services":
+                                               (d.get("bid") or {})
+                                               .get("services") or []}},
                              "pipeline_output": ""})
             return self._send(json.dumps(slim).encode(),
                               ctype="application/json")

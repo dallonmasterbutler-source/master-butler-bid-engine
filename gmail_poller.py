@@ -157,6 +157,11 @@ def poll_once():
             scoreboard.run(limit=40)
             marker.write_text(datetime.now().isoformat(timespec="seconds"))
             try:
+                import autoreview
+                autoreview.run(verbose=False)   # matches review themselves
+            except Exception:
+                pass
+            try:
                 from cloudpush import push
                 sb = json.loads((BASE / "data" / "scoreboard.json").read_text())
                 push(blobs={"scoreboard": sb})
