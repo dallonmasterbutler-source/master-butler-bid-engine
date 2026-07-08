@@ -220,6 +220,9 @@ def quote_numbers():
     for r in load_reviews():
         if r.get("jobber_quote") and r.get("stamp"):
             out[r["stamp"]] = r["jobber_quote"]
+    for stamp, rec in _shadow_source():     # a record can carry its own #
+        if rec.get("jobber_quote"):
+            out[stamp] = rec["jobber_quote"]
     return out
 
 
