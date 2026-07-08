@@ -421,7 +421,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',
      sans-serif;margin:0;background:var(--bg);color:var(--ink);
      font-size:14.5px;line-height:1.5}
 h1,h2,h3,.total,.stat b{font-family:'Hanken Grotesk','Inter',sans-serif}
-header{background:#fff;color:var(--green);padding:0 26px;height:60px;
+header{background:#fff;color:var(--green);padding:0 26px;min-height:60px;
        font-size:19px;font-weight:800;letter-spacing:-.2px;
        border-bottom:1px solid var(--line);
        box-shadow:0 1px 2px rgba(16,24,40,.04);
