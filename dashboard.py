@@ -685,10 +685,13 @@ def bid_page(stamp):
     draft_headline = ""
     if d.get("total") is not None:
         draft_headline = (
-            f"<div class='headline'><span class='total'>${d['total']:,.0f}"
-            "</span>"
-            + (f"<span class='confbadge' style='background:{conf_color}'>"
-               f"{conf}% confidence</span>" if conf is not None else "")
+            "<div class='headline'><div>"
+            "<div style='font-size:11px;color:var(--mut);text-transform:"
+            "uppercase;letter-spacing:.7px;font-weight:600'>Total quote</div>"
+            f"<span class='total'>${d['total']:,.0f}</span></div>"
+            + (f"<span class='ring' style='width:48px;height:48px;"
+               f"border-color:{conf_color};color:{conf_color};"
+               f"font-size:13px'>{conf}%</span>" if conf is not None else "")
             + f"<span class='chip'>{esc(b.get('kind'))}</span></div>")
     price_card = ""
     if bid_d.get("services"):
@@ -699,8 +702,9 @@ def bid_page(stamp):
         price_card = (
             "<div class='card'><h3>Proposed line items</h3><table>"
             "<tr><th>Service</th><th class='num'>Price</th></tr>" + lines +
-            f"<tr><td><b>Total</b></td><td class='num'><b>"
-            f"${d.get('total', 0):,.0f}</b></td></tr></table></div>")
+            f"<tr style='background:#f3f4f1'><td><b>Total estimate</b></td>"
+            f"<td class='num'><b>${d.get('total', 0):,.0f}</b></td></tr>"
+            "</table></div>")
     pi = d.get("prop_info") or {}
     measure_card = ""
     if any(pi.get(k) for k in ("sqft", "pitch", "roof_material", "stories")):
@@ -756,8 +760,9 @@ def bid_page(stamp):
  </div>
  {price_card}
  {measure_card}
- {f"""<div class='card'><h3>What the customer said</h3>
-  <div style='font-style:italic;color:#3a4046'>&ldquo;{esc(b.get('newest_message'))}&rdquo;</div>
+ {f"""<div class='card' style='border-left:4px solid var(--gold);
+   background:#fbfaf5'><h3>What the customer said</h3>
+  <div style='font-style:italic;color:#3a4046;font-size:15px'>&ldquo;{esc(b.get('newest_message'))}&rdquo;</div>
   </div>""" if b.get('newest_message') else ''}
  {gallery_card}
  {history_card}
