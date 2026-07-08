@@ -2210,8 +2210,12 @@ class Handler(BaseHTTPRequestHandler):
             with cdb._conn() as conn:
                 for (k, v) in conn.execute(
                         "select key, value from kv_blobs").fetchall():
-                    dump["blobs"][k] = v if not isinstance(v, str) \
-                        else json.loads(v)
+                    if isinstance(v, str):
+                        try:
+                            v = json.loads(v)
+                        except ValueError:
+                            pass              # plain-text blob (the brief)
+                    dump["blobs"][k] = v
                 dump["photo_index"] = [list(r) for r in conn.execute(
                     "select ref, kind, idx from photos").fetchall()]
             return self._send(json.dumps(dump).encode(),
