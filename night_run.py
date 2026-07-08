@@ -117,6 +117,13 @@ try:
         o.unlink()
 except Exception as e:
     print(f"   backup skipped ({e})")
+try:
+    import mailer
+    n = mailer.drain_outbox()
+    if n:
+        print(f"   relayed {n} queued internal email(s)")
+except Exception as e:
+    print(f"   outbox skipped ({e})")
 brief_text = None
 try:
     import digest

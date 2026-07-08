@@ -75,6 +75,15 @@ FOLDERS = ["INBOX", "[Gmail]/Spam"]
 
 def poll_once():
     """One pass: fetch unseen-by-US messages, shadow-process each."""
+    # relay any cloud-queued internal mail while we're here (the cloud
+    # host blocks SMTP; the Mac doesn't)
+    try:
+        import mailer
+        n = mailer.drain_outbox()
+        if n:
+            print(f"  relayed {n} queued internal email(s)")
+    except Exception:
+        pass
     addr, pw = _creds()
     M = imaplib.IMAP4_SSL("imap.gmail.com")
     M.login(addr, pw)

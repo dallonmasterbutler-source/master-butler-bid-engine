@@ -1505,10 +1505,14 @@ class Handler(BaseHTTPRequestHandler):
                 ok, why = False, f"{type(e).__name__}: {e}"
             # the outcome goes in the review log — visible on the
             # dashboard and via /api/reviews, not just buried in stdout
+            if ok:
+                note = "emailed Tom & Dallon"
+            elif "queued" in why:
+                note = "email queued — the Mac relays it on its next check-in"
+            else:
+                note = f"EMAIL FAILED: {why}"[:200]
             save_review({"stamp": get("stamp"), "action": "flag_email",
-                         "customer": get("customer"),
-                         "note": "emailed Tom & Dallon" if ok
-                                 else f"EMAIL FAILED: {why}"[:200]})
+                         "customer": get("customer"), "note": note})
         elif self.path == "/review_seen":
             save_review({"stamp": get("stamp"), "action": "review_seen",
                          "customer": get("customer")})

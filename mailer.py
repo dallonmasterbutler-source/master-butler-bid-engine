@@ -36,6 +36,27 @@ def _creds():
     return addr, pw.replace(" ", "")
 
 
+def _smtp_send(msg, addr, pw):
+    """Try SSL:465 then STARTTLS:587 (some hosts block one, not both)."""
+    last = None
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as s:
+            s.login(addr, pw)
+            s.send_message(msg)
+        return True, "sent (465)"
+    except Exception as e:
+        last = e
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as s:
+            s.starttls()
+            s.login(addr, pw)
+            s.send_message(msg)
+        return True, "sent (587)"
+    except Exception as e:
+        last = e
+    return False, f"{type(last).__name__}: {last}"
+
+
 def send_internal(subject, body, to=(TOM, DALLON)):
     to = [t for t in to if t in ALLOWED]
     if not to:
@@ -48,13 +69,61 @@ def send_internal(subject, body, to=(TOM, DALLON)):
     msg["To"] = ", ".join(to)
     msg["Subject"] = subject
     msg.set_content(body)
+    ok, why = _smtp_send(msg, addr, pw)
+    if ok:
+        return ok, why
+    # SMTP blocked here (Render free tier blocks mail ports): queue the
+    # message in the cloud DB; the Mac relays it next time it checks in.
+    queued = _queue_outbox(subject, body, to)
+    return False, (f"queued for Mac relay ({why})" if queued
+                   else f"send failed, queue failed ({why})")
+
+
+def _queue_outbox(subject, body, to):
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as s:
-            s.login(addr, pw)
-            s.send_message(msg)
-        return True, "sent"
-    except Exception as e:
-        return False, f"{type(e).__name__}: {e}"
+        import clouddb
+        if not clouddb.available():
+            return False
+        from datetime import datetime
+        box = clouddb.get_blob("mail_outbox") or []
+        box.append({"at": datetime.now().isoformat(timespec="seconds"),
+                    "subject": subject, "body": body, "to": list(to)})
+        clouddb.put_blob("mail_outbox", box[-50:])   # bounded
+        return True
+    except Exception:
+        return False
+
+
+def drain_outbox():
+    """Run wherever SMTP works (the Mac): send every queued message.
+    Called by night_run and the poller; safe to run any time."""
+    try:
+        import clouddb
+        if not clouddb.available():
+            return 0
+        box = clouddb.get_blob("mail_outbox") or []
+        if not box:
+            return 0
+        addr, pw = _creds()
+        remaining, sent = [], 0
+        for m in box:
+            to = [t for t in m.get("to", []) if t in ALLOWED]
+            if not to:
+                continue
+            msg = EmailMessage()
+            msg["From"] = f"Master Butler Bidding <{addr}>"
+            msg["To"] = ", ".join(to)
+            msg["Subject"] = m["subject"]
+            msg.set_content(m["body"] + f"\n\n(queued {m['at']}, relayed later)")
+            ok, _ = _smtp_send(msg, addr, pw)
+            if ok:
+                sent += 1
+            else:
+                remaining.append(m)
+        clouddb.put_blob("mail_outbox", remaining)
+        return sent
+    except Exception:
+        return 0
 
 
 def send_review_flag(bid, note="", link=""):
