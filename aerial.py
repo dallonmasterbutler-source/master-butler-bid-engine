@@ -131,12 +131,40 @@ def fetch_tile(address, zoom=20):
     return png
 
 
-def analyze_aerial(tile_path, extra_context=""):
-    """One aerial image → strict JSON (same hardened loop as vision.py)."""
+STREET_PROMPT = """Analyze this STREET-LEVEL photo of a residential property
+(the house nearest the camera / center of frame). Return ONLY a JSON
+object — first character "{", last "}", strictly valid, no prose:
+
+{
+ "stories": {"value": "1|1.5|2|3|unknown", "confidence": "high|medium|low"},
+ "pitch_looks": {"value": "low|mild|moderate|steep|unknown",
+   "detail": "one line: what the rooflines show",
+   "confidence": "high|medium|low"},
+ "roof_material": {"value": "composition|shake|metal|tile|unknown",
+   "confidence": "high|medium|low"},
+ "french_panes": true/false/null,
+ "garage_bays": N,
+ "visible_window_count": N,
+ "hazards": ["power lines at roofline", ...],
+ "detail": "one line describing the home"
+}
+
+Rules:
+- Judge pitch by the gable/roofline angles you can SEE: low ≈ under 4/12,
+  mild ≈ 4-6/12, moderate ≈ 7-8/12, steep ≈ 9/12 and up. If trees or the
+  angle hide the roof, say "unknown" — never guess.
+- french_panes = windows divided into small panes (grids). null if unclear.
+- Only report what is clearly visible."""
+
+
+def analyze_aerial(tile_path, extra_context="", prompt=None):
+    """One image → strict JSON (same hardened loop as vision.py).
+    Default prompt is the straight-down AERIAL one; pass STREET_PROMPT
+    for curb photos."""
     content = [{"type": "image",
                 "source": {"type": "base64", "media_type": "image/jpeg",
                            "data": _prep_jpeg(tile_path)}}]
-    text = AERIAL_PROMPT
+    text = prompt or AERIAL_PROMPT
     if extra_context:
         text += f"\n\nContext: {extra_context}"
     content.append({"type": "text", "text": text})
@@ -281,6 +309,79 @@ def cross_check(prop, address, today_year=2026, _reading=None, _tile=None):
                 notes.append(f"Aerial ({vintage}): trees near house, canopy "
                              f"{canopy.get('level', '?')} — normal debris "
                              "assumed; office may bump for heavy droppers.")
+    return fields, notes
+
+
+PITCH_ORDER = ["low", "mild", "moderate", "steep"]
+
+
+def street_check(prop, address, _reading=None):
+    """Curb-photo second opinion on stories / pitch / roof material.
+
+    CONSERVATIVE MERGE (these inputs move price AND safety):
+      * stories: adopt only if the property had none/default; a
+        DISAGREEMENT with existing data is flagged, never auto-fixed.
+      * pitch: never changed automatically in either direction — a
+        big disagreement becomes an office flag (pitch overcall is the
+        #1 known input error; the flag is the fix).
+      * roof material: adopted only when it makes the bid MORE cautious
+        (standard → shake/metal), because that's the expensive-to-miss
+        direction. Never downgrades.
+      * french panes: note for the window pricer.
+    Returns (fields, notes). (_reading = test injection.)
+    """
+    fields, notes = {}, []
+    if _reading is None:
+        curb = fetch_streetview(address)
+        if curb is None:
+            return fields, notes
+        _reading, _ = analyze_aerial(curb, prompt=STREET_PROMPT)
+    r = _reading
+
+    st = r.get("stories", {})
+    if st.get("confidence") == "high" and st.get("value") not in (None, "unknown"):
+        seen = st["value"].replace("1.5", "2")     # 1.5-story prices as 2
+        if not prop.get("stories") or prop.get("stories_defaulted"):
+            fields["stories"] = seen
+            notes.append(f"Street view: {st['value']}-story home "
+                         "(filled a blank, not overriding records).")
+        elif prop["stories"] != seen:
+            notes.append(f"Street view sees {st['value']} stories but "
+                         f"records say {prop['stories']} — OFFICE VERIFY "
+                         "(stories change price and tech assignment).")
+
+    p = r.get("pitch_looks", {})
+    have = prop.get("pitch")
+    if (p.get("confidence") in ("high", "medium")
+            and p.get("value") in PITCH_ORDER and have in PITCH_ORDER):
+        gap = PITCH_ORDER.index(have) - PITCH_ORDER.index(p["value"])
+        if gap >= 2:
+            notes.append(f"Street view: roofline looks {p['value']} but "
+                         f"data says {have} — possible pitch OVERCALL, "
+                         "office verify before pricing the premium.")
+        elif gap <= -2:
+            notes.append(f"Street view: roofline looks {p['value']} but "
+                         f"data says {have} — possible UNDERCALL, verify "
+                         "for tech safety.")
+
+    rm = r.get("roof_material", {})
+    if (rm.get("confidence") == "high"
+            and rm.get("value") in ("shake", "metal", "tile")
+            and prop.get("roof_material") in (None, "standard")):
+        mapped = {"shake": "shake", "metal": "metal_full",
+                  "tile": "standard"}[rm["value"]]
+        if mapped != "standard":
+            fields["roof_material"] = mapped
+            notes.append(f"Street view: {rm['value']} roof — specialty "
+                         "pricing applied (verify on site).")
+
+    # NOTE ONLY — decorative grids look identical to true divided panes
+    # from the curb (Dallon's own home: gridded windows, standard window
+    # price was correct). The premium is an office call, never automatic.
+    if r.get("french_panes") is True:
+        notes.append("Street view: windows appear gridded — IF true divided "
+                     "french panes (not decorative grids), apply the pane "
+                     "premium. Office judges from photos.")
     return fields, notes
 
 

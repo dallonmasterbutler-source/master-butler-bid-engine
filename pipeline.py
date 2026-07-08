@@ -216,10 +216,17 @@ def process(eml_path):
         except Exception as e:
             office_flags.append(f"Aerial cross-check unavailable ({e}).")
         try:
-            from aerial import fetch_streetview
+            from aerial import fetch_streetview, street_check
             if fetch_streetview(parsed["address"]) is None:
                 office_flags.append("No Street View at this address "
                                     "(rural road) — curb photo unavailable.")
+            else:
+                sfields, snotes = street_check(prop, parsed["address"])
+                for k, v in sfields.items():
+                    prop[k] = v
+                office_flags += snotes
+                if snotes:
+                    print(f"    Street-view check: {len(snotes)} note(s)")
         except Exception:
             pass                    # curb photo is a bonus, never a blocker
 

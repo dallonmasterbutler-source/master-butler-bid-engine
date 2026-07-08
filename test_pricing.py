@@ -325,6 +325,38 @@ f, n = cross_check(prop, "test", _reading=heavy_reading,
 check("Fresh heavy canopy = debris raised",
       1 if f.get("debris") == "heavy" else 0, 1)
 
+print("\n── RULE: street-view second opinion (conservative merge, offline) ──")
+from aerial import street_check
+CURB = {"stories": {"value": "2", "confidence": "high"},
+        "pitch_looks": {"value": "moderate", "confidence": "medium"},
+        "roof_material": {"value": "composition", "confidence": "medium"},
+        "french_panes": True}
+# Dallon's home truth: 2 stories / mild — 1 pitch band apart = stay QUIET
+f, n = street_check({"stories": "2", "pitch": "mild",
+                     "roof_material": "standard"}, "", _reading=CURB)
+check("1-band pitch gap = no false alarm",
+      0 if any("OVERCALL" in x or "UNDERCALL" in x for x in n) else 1, 1)
+check("Matching stories = no flag",
+      0 if any("OFFICE VERIFY" in x for x in n) else 1, 1)
+check("Gridded windows = note only, NEVER auto-premium (Dallon's home)",
+      0 if f.get("french_pane") else 1, 1)
+# 2-band gap = the overcall flag fires
+f, n = street_check({"stories": "2", "pitch": "steep",
+                     "roof_material": "standard"}, "", _reading=CURB)
+check("Steep-vs-mild-looking = OVERCALL flag",
+      1 if any("OVERCALL" in x for x in n) else 0, 1)
+# stories disagreement = flag, never silent fix
+f, n = street_check({"stories": "3", "pitch": "moderate",
+                     "roof_material": "standard"}, "", _reading=CURB)
+check("Stories disagreement = flagged, not changed",
+      1 if any("OFFICE VERIFY" in x for x in n) and not f.get("stories") else 0, 1)
+# shake seen on a 'standard' record = adopt the CAUTIOUS direction
+shake = dict(CURB, roof_material={"value": "shake", "confidence": "high"})
+f, n = street_check({"stories": "2", "pitch": "mild",
+                     "roof_material": "standard"}, "", _reading=shake)
+check("Shake spotted = specialty pricing adopted",
+      1 if f.get("roof_material") == "shake" else 0, 1)
+
 print("\n── RULE: reconciler discount taxonomy ──")
 from reconciler import classify_discount
 check("'honor 2026 pricing' = honor",
