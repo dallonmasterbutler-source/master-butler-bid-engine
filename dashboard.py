@@ -143,11 +143,11 @@ def classify_row(rec):
             return "aside", "robot mail"
     if "Spam" in (rec.get("folder") or "") and rec.get("kind") != "new_request":
         return "aside", "spam folder, not a request"
-    if rec.get("kind") == "phone_lead":
-        return "main", None          # a caller is a customer — front of house
-    if rec.get("kind") in ("new_request", "question", "scheduling"):
-        return "main", None
-    return "aside", f"kind: {rec.get('kind')}"
+    # Anyone else is an OUTSIDE HUMAN — they stay in front of the office
+    # no matter how the classifier labeled them (replies and follow-ups
+    # often come through as 'other'; hiding a customer is the one
+    # unforgivable failure).
+    return "main", None
 
 
 def _shadow_source():

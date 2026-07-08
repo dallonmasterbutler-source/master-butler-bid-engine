@@ -431,6 +431,10 @@ check("Customer QUESTION stays (office answers those)",
 lane, why = classify_row({"from": "Spammer <win@lottery.biz>", "kind": "other",
                           "folder": "[Gmail]/Spam"})
 check("Spam junk goes to the drawer", 1 if lane == "aside" else 0, 1)
+lane, why = classify_row({"from": "Kimila B <kimila@yahoo.com>",
+                          "kind": "other", "folder": "INBOX"})
+check("Outside human with kind 'other' STAYS in queue (never hide a customer)",
+      1 if lane == "main" else 0, 1)
 
 print("\n── RULE: phone leads (CopyCall voicemails = call back, not email) ──")
 from email_parser import parse_phone_lead
