@@ -312,97 +312,120 @@ def _history_hits(records, services):
 # ── html helpers (no frameworks — Martha's machine is slow) ──
 
 STYLE = """<style>
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 :root{--green:#0b3d2e;--green2:#177245;--accent:#1e8449;--gold:#c9a227;
-      --bg:#f5f6f4;--ink:#20242a;--mut:#6b7280;--line:#e5e7e3}
+      --bg:#f8f9fa;--ink:#171b21;--mut:#6b7280;--line:#f0f1f3;
+      --card:#ffffff;--soft:#fafbfb}
 *{box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,
-     Arial,sans-serif;margin:0;background:var(--bg);color:var(--ink);
-     font-size:15px;line-height:1.45}
-header{background:linear-gradient(135deg,var(--green) 0%,#11543f 100%);
-       color:#fff;padding:14px 26px;font-size:19px;font-weight:700;
-       border-bottom:3px solid var(--gold);letter-spacing:.2px;
-       display:flex;align-items:center;flex-wrap:wrap;gap:8px}
-header small{font-weight:400;opacity:.72;font-size:12.5px;margin-left:8px}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',
+     sans-serif;margin:0;background:var(--bg);color:var(--ink);
+     font-size:14.5px;line-height:1.5}
+h1,h2,h3,.total,.stat b{font-family:'Hanken Grotesk','Inter',sans-serif}
+header{background:#fff;color:var(--green);padding:0 26px;height:60px;
+       font-size:19px;font-weight:800;letter-spacing:-.2px;
+       border-bottom:1px solid var(--line);
+       box-shadow:0 1px 2px rgba(16,24,40,.04);
+       display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+       position:sticky;top:0;z-index:50;
+       font-family:'Hanken Grotesk',sans-serif}
+header small{font-weight:500;color:var(--mut);font-size:12px;margin-left:8px}
 header .nav{margin-left:auto;font-size:13.5px;font-weight:600}
-header .nav a{color:#dfe7e2;padding:7px 14px;border-radius:999px}
-header .nav a:hover{background:rgba(255,255,255,.12);text-decoration:none}
-header .nav a.active{background:var(--gold);color:#1c2b23}
-.wrap{max-width:1160px;margin:0 auto;padding:20px 18px 40px}
-.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-.stat{background:#fff;border:1px solid var(--line);border-radius:12px;
-      padding:12px 18px;box-shadow:0 1px 2px rgba(11,61,46,.06);
-      min-width:128px;display:flex;flex-direction:column-reverse}
-.stat b{display:block;font-size:24px;color:var(--green);
+header .nav a{color:var(--mut);padding:19px 12px 17px;display:inline-block}
+header .nav a:hover{color:var(--green);text-decoration:none}
+header .nav a.active{color:var(--gold);font-weight:800;
+       border-bottom:2px solid var(--gold)}
+header #who{color:var(--mut)}
+header #who b{color:var(--green)}
+.wrap{max-width:1200px;margin:0 auto;padding:24px 20px 48px}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;
+      padding:10px 16px;box-shadow:0 1px 2px rgba(16,24,40,.04);
+      min-width:118px;display:flex;flex-direction:column-reverse}
+.stat b{display:block;font-size:22px;color:var(--green);font-weight:800;
       font-variant-numeric:tabular-nums;line-height:1.2}
-.stat span{font-size:11px;color:var(--mut);text-transform:uppercase;
-      letter-spacing:.7px;font-weight:600;margin-bottom:2px}
+.stat span{font-size:10px;color:var(--mut);text-transform:uppercase;
+      letter-spacing:.8px;font-weight:700;margin-bottom:2px}
 .ring{display:inline-flex;align-items:center;justify-content:center;
       width:40px;height:40px;border-radius:50%;border:3px solid;
       font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;
       background:#fff}
+.card{background:var(--card);border:1px solid var(--line);
+      border-radius:16px;padding:20px 24px;margin-bottom:16px;
+      box-shadow:0 1px 3px rgba(16,24,40,.05)}
+.card h2{margin:0 0 12px;font-size:19px;color:var(--green);
+      font-weight:800;letter-spacing:-.3px}
+.card h3{margin:0 0 10px;font-size:11px;color:var(--green);font-weight:800;
+      text-transform:uppercase;letter-spacing:1.2px}
 .card.dark{background:linear-gradient(150deg,var(--green),#0e4a37);
       color:#eef4f0;border:0}
 .card.dark h3{color:var(--gold)}
 .card.dark .big{font-size:26px;font-weight:800;color:#fff;
       font-variant-numeric:tabular-nums}
-.card.dark .lbl{font-size:11px;text-transform:uppercase;
-      letter-spacing:.6px;color:#a7c0b3}
+.card.dark .lbl{font-size:10px;text-transform:uppercase;
+      letter-spacing:.8px;color:#a7c0b3}
 .subtext{font-size:12px;color:var(--mut)}
-.band{background:#fff8ec;border:1px solid #f0d9a5;border-left:5px solid
-      #e0a428;border-radius:10px;padding:12px 16px;margin-bottom:16px}
-.band h2{margin:0 0 6px;font-size:13px;color:#8a5a00;
-      text-transform:uppercase;letter-spacing:.6px}
+.band{background:#fffaf0;border:1px solid #f3e3bd;border-left:4px solid
+      var(--gold);border-radius:12px;padding:12px 18px;margin-bottom:14px}
+.band h2{margin:0 0 6px;font-size:11px;color:#8a5a00;font-weight:800;
+      text-transform:uppercase;letter-spacing:1px}
 .band div{padding:3px 0}
-.card{background:#fff;border:1px solid var(--line);border-radius:12px;
-      padding:16px 20px;margin-bottom:16px;
-      box-shadow:0 1px 3px rgba(11,61,46,.06)}
-.card h2{margin:0 0 10px;font-size:17px;color:var(--green)}
-.card h3{margin:0 0 8px;font-size:14px;color:var(--green);
-      text-transform:uppercase;letter-spacing:.5px}
 table{width:100%;border-collapse:collapse;font-size:14px}
-th{text-align:left;color:var(--mut);font-weight:600;padding:8px;
-   border-bottom:2px solid var(--line);font-size:12px;
-   text-transform:uppercase;letter-spacing:.4px}
-td{padding:10px 8px;border-bottom:1px solid #f0f1ee;vertical-align:top}
-tr:hover td{background:#f7faf8}
+th{text-align:left;color:#9aa1ab;font-weight:700;padding:10px 8px;
+   border-bottom:1px solid var(--line);font-size:10px;
+   text-transform:uppercase;letter-spacing:1px}
+td{padding:13px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:hover td{background:var(--soft)}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td b{color:var(--green)}
 .age{font-weight:700;font-variant-numeric:tabular-nums}
 .age.warn{color:#c77700}.age.late{color:#c0392b}
-.chip{display:inline-block;background:#eef3f0;border-radius:999px;
-      padding:2px 11px;margin:2px 3px 2px 0;font-size:12px;color:#3f5147}
+.chip{display:inline-block;background:#f2f5f3;border-radius:999px;
+      padding:3px 12px;margin:2px 3px 2px 0;font-size:12px;color:#3f5147;
+      font-weight:500}
 .flag{background:#fdecea;color:#a93226}
 .win{background:#e6f4ea;color:#1e6b34;font-weight:600}
 .ok{color:var(--accent);font-weight:600}
 a{color:var(--green2);text-decoration:none}a:hover{text-decoration:underline}
-pre{background:#f7f8f6;border:1px solid var(--line);border-radius:8px;
-    padding:12px;font-size:12.5px;overflow-x:auto;white-space:pre-wrap}
-.notes{background:#fffdf2;border:1px solid #ece3b8;border-radius:10px;
-       padding:10px 14px}
+pre{background:var(--soft);border:1px solid var(--line);border-radius:12px;
+    padding:14px;font-size:12.5px;overflow-x:auto;white-space:pre-wrap}
+.notes{background:#fffdf5;border:1px solid #efe6c8;border-radius:12px;
+       padding:12px 16px}
 .notes div{padding:4px 0;border-bottom:1px dashed #eee}
 .notes div:last-child{border-bottom:0}
-button,.btn{background:var(--green2);color:#fff;border:0;border-radius:8px;
-       padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer;
-       margin:3px 3px 3px 0;transition:filter .12s}
-button:hover{filter:brightness(1.08)}
-button.big{padding:12px 22px;font-size:15px}
-button.gray{background:#8a949c}button.red{background:#b03a2e}
+button,.btn{background:var(--green);color:#fff;border:0;border-radius:10px;
+       padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;
+       margin:3px 3px 3px 0;transition:transform .1s,filter .12s;
+       font-family:'Inter',sans-serif}
+button:hover{filter:brightness(1.12)}
+button:active{transform:scale(.96)}
+button.big{padding:12px 24px;font-size:15px;background:var(--gold);
+       color:var(--green)}
+button.gray{background:#fff;color:#4b5563;border:1px solid #e2e5e9;
+       font-weight:600}
+button.red{background:#b03a2e}
 .reason{background:#fff;color:var(--green2);border:1.5px solid var(--green2);
         font-weight:500;padding:7px 12px}
 .reason.sel{background:var(--green2);color:#fff}
-input[type=text],input[type=date],select,textarea{width:100%;padding:9px;
-       border:1px solid #ccd1cb;border-radius:8px;font-size:14px}
+input[type=text],input[type=date],select,textarea{width:100%;padding:10px 12px;
+       border:1px solid #e2e5e9;border-radius:10px;font-size:14px;
+       font-family:'Inter',sans-serif;background:#fff}
+input[type=text]:focus,textarea:focus{outline:2px solid var(--gold);
+       border-color:transparent}
 input[type=date],select{width:auto}
-.grid{display:grid;grid-template-columns:5fr 3fr;gap:16px}
-details.card summary{cursor:pointer;font-weight:600;color:var(--mut)}
+.grid{display:grid;grid-template-columns:5fr 3fr;gap:16px;align-items:start}
+details.card summary{cursor:pointer;font-weight:600;color:var(--mut);
+       font-size:13px}
 details.card[open] summary{margin-bottom:8px}
 .headline{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.headline .total{font-size:30px;font-weight:800;color:var(--green)}
+.headline .total{font-size:34px;font-weight:800;color:var(--green);
+       letter-spacing:-1px}
 .confbadge{border-radius:10px;padding:6px 14px;font-weight:700;
        font-size:15px;color:#fff}
-footer{max-width:1160px;margin:8px auto 26px;padding:0 18px;
+footer{max-width:1200px;margin:8px auto 28px;padding:0 20px;
        color:#a3aaa2;font-size:12px}
 @media(max-width:860px){.grid{grid-template-columns:1fr}
-       header{font-size:16px}.headline .total{font-size:24px}}
+       header{font-size:16px;height:auto;padding:10px 16px;position:static}
+       .headline .total{font-size:26px}}
 </style>"""
 
 
@@ -557,7 +580,16 @@ def home_page():
              f"</a> — {esc(why)}</div>") if b.get("stamp") else
             f"<div>🔴 <b>{esc(b['from'])}</b> — {esc(why)}</div>"
             for b, why in attention)
-        band = f"<div class='band'><h2>Needs attention</h2>{rows}</div>"
+        if len(attention) <= 2:
+            band = f"<div class='band'><h2>Needs attention</h2>{rows}</div>"
+        else:
+            # crowded mornings: one slim line, expand on click — the
+            # QUEUE is the page, not the alarm pile (Dallon, Jul 8)
+            band = (f"<details class='band'><summary style='cursor:pointer;"
+                    f"font-weight:800;color:#8a5a00;font-size:13px'>"
+                    f"⚠ Needs attention — {len(attention)} item(s) "
+                    f"<span style='font-weight:500;color:#a08040'>"
+                    f"(click to open)</span></summary>{rows}</details>")
 
     rows = ""
     for b in queue:                       # already oldest first
