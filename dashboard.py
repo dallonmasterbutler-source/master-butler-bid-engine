@@ -399,19 +399,41 @@ def home_page():
     new_reqs = [b for b in queue if b.get("kind") in ("new_request",
                                                       "phone_lead")]
     oldest = max((b["age_hours"] for b in queue), default=0)
+
+    # the ears: is the Mac-side poller alive?
+    ears = ""
+    if clouddb.available():
+        hb = clouddb.get_blob("poller_heartbeat") or {}
+        if hb.get("at"):
+            try:
+                last = datetime.fromisoformat(hb["at"])
+                mins = (datetime.now() - last).total_seconds() / 60
+                if mins > 15:
+                    attention.insert(0, ({"stamp": "", "from": "SYSTEM"},
+                        f"the inbox watcher has been silent {mins:.0f} min "
+                        "— new emails are NOT being captured (is Dallon's "
+                        "Mac asleep?)"))
+                ears = (f"<div class='stat'><b style='color:"
+                        f"{'#1e8449' if mins <= 15 else '#b03a2e'}'>"
+                        f"{mins:.0f}m</b><span>ears last heard</span></div>")
+            except ValueError:
+                pass
+
     stats = (f"<div class='stats'>"
              f"<div class='stat'><b>{len(queue)}</b><span>waiting</span></div>"
              f"<div class='stat'><b>{len(new_reqs)}</b><span>bid requests</span></div>"
              f"<div class='stat'><b>{oldest:.0f}h</b><span>oldest wait</span></div>"
              f"<div class='stat'><b>{len(decided_today)}</b><span>decided today</span></div>"
              f"<div class='stat'><b>{wins}</b><span>quote wins 🎉</span></div>"
-             f"</div>")
+             f"{ears}</div>")
 
     band = ""
     if attention:
         rows = "".join(
-            f"<div>⚠ <a href='/bid/{b['stamp']}'><b>{esc(b['from'])}</b></a>"
-            f" — {esc(why)}</div>" for b, why in attention)
+            (f"<div>⚠ <a href='/bid/{b['stamp']}'><b>{esc(b['from'])}</b>"
+             f"</a> — {esc(why)}</div>") if b.get("stamp") else
+            f"<div>🔴 <b>{esc(b['from'])}</b> — {esc(why)}</div>"
+            for b, why in attention)
         band = f"<div class='band'><h2>Needs attention</h2>{rows}</div>"
 
     rows = ""
@@ -679,11 +701,15 @@ def bid_page(stamp):
   {draft_headline}
   <div style='color:var(--mut);margin-top:6px'>
    <b>Subject:</b> {esc(b.get('subject'))} &nbsp;·&nbsp;
-   <b>Address:</b> {esc(b.get('address') or '— not found')} &nbsp;·&nbsp;
+   <b>Address:</b> {f"<a href='/property/{_slug(b.get('address'))}'>{esc(b.get('address'))}</a>"
+                    if b.get('address') else '— not found'} &nbsp;·&nbsp;
    {esc(b.get('folder', 'INBOX'))}</div>
  </div>
  {price_card}
  {measure_card}
+ {f"""<div class='card'><h3>What the customer said</h3>
+  <div style='font-style:italic;color:#3a4046'>&ldquo;{esc(b.get('newest_message'))}&rdquo;</div>
+  </div>""" if b.get('newest_message') else ''}
  {gallery_card}
  {history_card}
  <div class='card'><h3 style='margin-top:0'>All notes — one stack</h3>
@@ -855,6 +881,48 @@ def scoreboard_page():
     return page("Scoreboard", body)
 
 
+def property_page(slug):
+    """Everything we know about ONE ADDRESS — requests across owners,
+    Must Know, imagery. LaRee's property-first rule as a page."""
+    matches = [(s, r) for s, r in _shadow_source()
+               if _slug(r.get("address")) == slug]
+    if not matches:
+        return page("Property", "<div class='card'>No records for this "
+                    "property yet.</div>")
+    address = matches[-1][1].get("address")
+    mk = get_must_know(address)
+    quotes = quote_numbers()
+    rows = "".join(
+        f"<tr><td>{s[:4]}-{s[4:6]}-{s[6:8]}</td>"
+        f"<td><a href='/bid/{s}'>{esc(r.get('from'))[:40]}</a></td>"
+        f"<td>{esc(r.get('kind'))}</td>"
+        f"<td>{', '.join(r.get('services') or []) or '—'}</td>"
+        f"<td>{('Jobber #' + esc(quotes[s])) if s in quotes else '—'}</td>"
+        f"</tr>" for s, r in reversed(matches))
+    gallery = ""
+    if clouddb.available():
+        for ref, kind, idx in clouddb.photos_index([slug]):
+            gallery += (f"<a href='/img/{ref}/{kind}/{idx}' target='_blank'>"
+                        f"<img src='/img/{ref}/{kind}/{idx}' "
+                        "style='height:130px;margin:4px;border-radius:8px'>"
+                        "</a>")
+    body = f"""
+<div class='card'><h2 style='margin-top:0'>🏠 {esc(address)}</h2>
+ {f"<div class='notes'><b>📌 MUST KNOW:</b> {esc(mk)}</div>" if mk else ''}
+ <form method='POST' action='/must_know' style='margin-top:8px'>
+  <input type='hidden' name='address' value='{esc(address)}'>
+  <input type='hidden' name='stamp' value=''>
+  <input type='text' name='text' value='{esc(mk)}'
+         placeholder='Must Know for this property'>
+  <button class='gray' style='margin-top:4px'>Save Must Know</button>
+ </form></div>
+{f"<div class='card'><h3>Imagery</h3>{gallery}</div>" if gallery else ''}
+<div class='card'><h3>Every request at this address (any owner)</h3>
+ <table><tr><th>Date</th><th>From</th><th>Kind</th><th>Services</th>
+ <th>Quote</th></tr>{rows}</table></div>"""
+    return page("Property", body)
+
+
 def brief_page():
     """Latest morning brief — cloud blob first, local file fallback."""
     text = None
@@ -926,6 +994,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(drafts_page())
         if self.path == "/brief":
             return self._send(brief_page())
+        m = re.match(r"^/property/([\w-]+)$", self.path)
+        if m:
+            return self._send(property_page(m.group(1)))
         m = re.match(r"^/bid/([\w-]+)$", self.path)
         if m:
             return self._send(bid_page(m.group(1)))
@@ -952,10 +1023,34 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(b"not found", 404)
 
     def do_POST(self):
-        if not self._authed():
-            return self._require_auth()
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length)
+
+        # ── Jobber webhook (real-time events; verified by HMAC, not
+        #    password — Jobber signs each delivery with the app secret).
+        #    DARK until Dallon enables webhooks in the Jobber dev portal.
+        if self.path == "/webhooks/jobber":
+            import hashlib, hmac as _hmac, base64 as _b64, os as _os
+            secret = _os.environ.get("JOBBER_CLIENT_SECRET", "")
+            sig = self.headers.get("X-Jobber-Hmac-SHA256", "")
+            want = _b64.b64encode(_hmac.new(secret.encode(), body,
+                                            hashlib.sha256).digest()).decode()
+            if not (secret and sig and _hmac.compare_digest(sig, want)):
+                return self._send(b"bad signature", 401)
+            try:
+                ev = json.loads(body.decode())
+                topic = (ev.get("data", {}).get("webHookEvent", {})
+                         .get("topic", "unknown"))
+                log = clouddb.get_blob("jobber_webhooks") or []
+                log.append({"at": datetime.now().isoformat(timespec="seconds"),
+                            "topic": topic, "raw": ev})
+                clouddb.put_blob("jobber_webhooks", log[-200:])
+            except Exception:
+                pass
+            return self._send(b"ok")
+
+        if not self._authed():
+            return self._require_auth()
 
         # ── JSON ingest API (the poller on Dallon's Mac pushes here) ──
         if self.path == "/api/ingest":

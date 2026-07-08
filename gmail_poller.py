@@ -108,7 +108,8 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
               "from": f"{parsed['sender_name']} <{parsed['sender_email']}>",
               "subject": parsed["subject"], "kind": parsed["kind"],
               "services": parsed["services"], "address": parsed["address"],
-              "phone": parsed.get("phone")}
+              "phone": parsed.get("phone"),
+              "newest_message": parsed.get("newest_message")}
     if parsed.get("jobber_event"):
         ev = parsed["jobber_event"]
         record["jobber_event"] = ev
@@ -222,14 +223,18 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
 
 
 def _keep_cloud_warm():
-    """Ping the cloud dashboard's /health each poll — Render's free tier
-    naps after 15 idle minutes; this keeps the office's page fast."""
+    """Each poll: ping /health (keeps the free tier awake) AND leave a
+    heartbeat blob — the dashboard shows 'ears last heard X min ago'
+    and raises an alarm if this machine goes quiet."""
     try:
         import urllib.request
-        from cloudpush import _cfg
+        from cloudpush import _cfg, push
         url = _cfg("DASHBOARD_URL")
         if url:
             urllib.request.urlopen(url.rstrip("/") + "/health", timeout=20)
+            push(blobs={"poller_heartbeat": {
+                "at": datetime.now().isoformat(timespec="seconds"),
+                "host": "dallon-mac"}})
     except Exception:
         pass
 
