@@ -1623,6 +1623,11 @@ function grow(box){{
 var _rb = document.getElementById('replybox');
 _rb.addEventListener('input', function(){{ grow(_rb); }});
 if (_rb.value) grow(_rb);
+// refresh for new messages every 60s — but NEVER while someone
+// is mid-reply (a reload would eat their typing)
+setInterval(function(){{
+  if (!document.getElementById('replybox').value.trim()) location.reload();
+}}, 60000);
 sel.onchange = function(){{
   if (!sel.value) return;
   _rb.value = CANNED[sel.value];
@@ -1630,7 +1635,7 @@ sel.onchange = function(){{
   _rb.focus();
 }};
 </script>"""
-    return page("Messages", body, refresh=60)
+    return page("Messages", body)
 
 
 def _blob_rw(key, default):
