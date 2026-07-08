@@ -51,37 +51,48 @@ def _remember(msg_id):
         f.write(msg_id + "\n")
 
 
+# Real bid requests land in spam sometimes (seen in the Takeout mining) —
+# sweep it too, same readonly guarantee. Spam-found requests get flagged
+# so the office knows to fish the original out.
+FOLDERS = ["INBOX", "[Gmail]/Spam"]
+
+
 def poll_once():
     """One pass: fetch unseen-by-US messages, shadow-process each."""
     addr, pw = _creds()
     M = imaplib.IMAP4_SSL("imap.gmail.com")
     M.login(addr, pw)
-    M.select("INBOX", readonly=True)          # the safety guarantee
-
-    typ, data = M.search(None, "ALL")
-    ids = data[0].split() if data and data[0] else []
     seen = _processed()
     new_count = 0
 
-    for num in ids:
-        # stable Message-ID header (num changes; Message-ID doesn't)
-        typ, hdr = M.fetch(num, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
-        raw_hdr = hdr[0][1].decode(errors="replace")
-        msg_id = raw_hdr.split(":", 1)[-1].strip() or f"no-id-{num.decode()}"
-        if msg_id in seen:
+    for folder in FOLDERS:
+        typ, _ = M.select(f'"{folder}"', readonly=True)  # the safety guarantee
+        if typ != "OK":
+            print(f"  (cannot open {folder} — skipped)")
             continue
+        typ, data = M.search(None, "ALL")
+        ids = data[0].split() if data and data[0] else []
 
-        typ, full = M.fetch(num, "(BODY.PEEK[])")   # whole message, untouched
-        raw = full[0][1]
-        new_count += 1
-        shadow_process(raw, msg_id)
-        _remember(msg_id)
+        for num in ids:
+            # stable Message-ID header (num changes; Message-ID doesn't)
+            typ, hdr = M.fetch(num, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
+            raw_hdr = hdr[0][1].decode(errors="replace")
+            msg_id = raw_hdr.split(":", 1)[-1].strip() or f"no-id-{num.decode()}"
+            if msg_id in seen:
+                continue
+
+            typ, full = M.fetch(num, "(BODY.PEEK[])")   # untouched
+            raw = full[0][1]
+            new_count += 1
+            shadow_process(raw, msg_id, folder=folder)
+            _remember(msg_id)
+            seen.add(msg_id)
 
     M.logout()
     return new_count
 
 
-def shadow_process(raw_bytes, msg_id):
+def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     """Run one raw email through the pipeline; save the shadow draft."""
     SHADOW_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -92,10 +103,13 @@ def shadow_process(raw_bytes, msg_id):
 
     from email_parser import parse_eml
     parsed = parse_eml(eml_path)
-    record = {"message_id": msg_id, "received": stamp,
+    record = {"message_id": msg_id, "received": stamp, "folder": folder,
               "from": f"{parsed['sender_name']} <{parsed['sender_email']}>",
               "subject": parsed["subject"], "kind": parsed["kind"],
               "services": parsed["services"], "address": parsed["address"]}
+    if "Spam" in folder and parsed["kind"] == "new_request":
+        record["office_alert"] = ("FOUND IN SPAM — real request; office "
+                                  "should rescue it from the spam folder")
 
     print(f"  📧 {parsed['subject'][:60]}")
     print(f"     kind={parsed['kind']}  services={parsed['services']}")
