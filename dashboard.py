@@ -1369,6 +1369,11 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/reviews":       # the Mac pulls decisions down
             return self._send(json.dumps(load_reviews()).encode(),
                               ctype="application/json")
+        if self.path == "/api/blob/mail_outbox":  # the Mac relays mail the
+            box = (clouddb.get_blob("mail_outbox") or []) \
+                if clouddb.available() else []     # cloud can't send itself
+            return self._send(json.dumps(box).encode(),
+                              ctype="application/json")
         return self._send(b"not found", 404)
 
     def do_POST(self):

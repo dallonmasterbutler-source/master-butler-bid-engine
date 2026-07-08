@@ -94,15 +94,41 @@ def _queue_outbox(subject, body, to):
         return False
 
 
+def _outbox_read():
+    """Direct DB when possible (cloud); otherwise over HTTPS through the
+    dashboard — the Mac is stdlib-only, no Postgres driver."""
+    import clouddb
+    if clouddb.available():
+        return clouddb.get_blob("mail_outbox") or [], "db"
+    import json
+    import urllib.request
+    from base64 import b64encode
+    from cloudpush import _cfg
+    url, pw = _cfg("DASHBOARD_URL"), _cfg("DASHBOARD_PASSWORD")
+    if not (url and pw):
+        return [], None
+    req = urllib.request.Request(
+        url.rstrip("/") + "/api/blob/mail_outbox",
+        headers={"Authorization": "Basic "
+                 + b64encode(f"office:{pw}".encode()).decode()})
+    return json.load(urllib.request.urlopen(req, timeout=60)), "http"
+
+
+def _outbox_write(remaining, channel):
+    import clouddb
+    if channel == "db" and clouddb.available():
+        clouddb.put_blob("mail_outbox", remaining)
+    elif channel == "http":
+        from cloudpush import push
+        push(blobs={"mail_outbox": remaining})
+
+
 def drain_outbox():
     """Run wherever SMTP works (the Mac): send every queued message.
     Called by night_run and the poller; safe to run any time."""
     try:
-        import clouddb
-        if not clouddb.available():
-            return 0
-        box = clouddb.get_blob("mail_outbox") or []
-        if not box:
+        box, channel = _outbox_read()
+        if not box or channel is None:
             return 0
         addr, pw = _creds()
         remaining, sent = [], 0
@@ -120,7 +146,8 @@ def drain_outbox():
                 sent += 1
             else:
                 remaining.append(m)
-        clouddb.put_blob("mail_outbox", remaining)
+        if sent or remaining != box:
+            _outbox_write(remaining, channel)
         return sent
     except Exception:
         return 0
