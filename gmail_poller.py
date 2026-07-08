@@ -176,6 +176,15 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     out = SHADOW_DIR / f"{stamp}.json"
     out.write_text(json.dumps(record, indent=1))
 
+    # mirror to the cloud dashboard (queues locally if offline)
+    try:
+        from cloudpush import push_or_queue, flush_pending
+        flush_pending()
+        ok = push_or_queue(stamp, record)
+        print("     → cloud: " + ("synced" if ok else "queued (offline)"))
+    except Exception:
+        pass                    # cloud mirroring never blocks shadow mode
+
 
 if __name__ == "__main__":
     watch = "--watch" in sys.argv

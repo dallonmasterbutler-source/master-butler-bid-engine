@@ -21,7 +21,7 @@ print(f"MASTER BUTLER NIGHT RUN — {datetime.now():%B %d, %Y %I:%M %p}")
 print("═" * 56)
 
 # 1 ── reconciler (recent slice, polite)
-print("\n[1/5] Reconciler — recent invoices…")
+print("\n[1/6] Reconciler — recent invoices…")
 try:
     import reconciler
     scanned, found = reconciler.sweep(limit=200)
@@ -37,7 +37,7 @@ except Exception as e:
     print(f"   skipped ({e})")
 
 # 2 ── scoreboard
-print("\n[2/5] Scoreboard — shadow drafts vs office quotes…")
+print("\n[2/6] Scoreboard — shadow drafts vs office quotes…")
 try:
     import scoreboard
     r = scoreboard.run(limit=60)
@@ -57,7 +57,7 @@ except Exception as e:
     print(f"   skipped ({e})")
 
 # 3 ── holds resurfacing
-print("\n[3/5] Holds resurfacing in the next 2 days…")
+print("\n[3/6] Holds resurfacing in the next 2 days…")
 try:
     import dashboard
     live, resurfaced = dashboard.active_holds()
@@ -73,7 +73,7 @@ except Exception as e:
     print(f"   skipped ({e})")
 
 # 4 ── database sync (idempotent)
-print("\n[4/5] Database sync…")
+print("\n[4/6] Database sync…")
 try:
     import store
     r, l = store.sync()
@@ -85,7 +85,7 @@ except Exception as e:
     print(f"   skipped ({e})")
 
 # 5 ── backup + morning brief
-print("\n[5/5] Backup + morning brief…")
+print("\n[5/6] Backup + morning brief…")
 try:
     import zipfile
     from pathlib import Path
@@ -112,5 +112,24 @@ try:
     print(f"   morning brief -> {path}")
 except Exception as e:
     print(f"   brief skipped ({e})")
+
+# 6 ── mirror display data to the cloud dashboard
+print("\n[6/6] Cloud mirror…")
+try:
+    import json
+    from pathlib import Path
+    from cloudpush import push, flush_pending
+    n = flush_pending()
+    blobs = {}
+    for key, fname in (("scoreboard", "scoreboard.json"),
+                       ("discount_reconciliation",
+                        "discount_reconciliation.json")):
+        f = Path("data") / fname
+        if f.exists():
+            blobs[key] = json.loads(f.read_text())
+    n += push(blobs=blobs)
+    print(f"   {n} item(s) mirrored to the cloud")
+except Exception as e:
+    print(f"   cloud mirror skipped ({e})")
 
 print("\nDone. Dashboard reads all of this automatically.")

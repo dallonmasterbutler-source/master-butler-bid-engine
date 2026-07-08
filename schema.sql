@@ -142,6 +142,34 @@ CREATE TABLE IF NOT EXISTS audit_log (
     at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ── SHADOW RECORDS (the dashboard's working set, cloud edition) ──
+-- One row per shadow-processed email: the full record JSON exactly as
+-- the poller built it. The dashboard reads these the way it used to
+-- read data/shadow_bids/*.json — same shape, shared shelf.
+CREATE TABLE IF NOT EXISTS shadow_records (
+    stamp       TEXT PRIMARY KEY,      -- poller timestamp id
+    record      JSONB NOT NULL,
+    ingested_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── REVIEW LOG (office decisions, cloud edition) ─────────────
+-- Append-only, one row per decision (approve/adjusted/hold/escalated/
+-- duplicate verdicts). Mirrors data/review_log.json semantics.
+CREATE TABLE IF NOT EXISTS review_log (
+    id     SERIAL PRIMARY KEY,
+    entry  JSONB NOT NULL,
+    at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── KV BLOBS (scoreboard, reconciliation history, briefs) ────
+-- Small named JSON documents the dashboard displays; pushed up by
+-- night_run on Dallon's Mac.
+CREATE TABLE IF NOT EXISTS kv_blobs (
+    key        TEXT PRIMARY KEY,
+    value      JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ── PROMOTIONS (date-ranged, office-editable discounts) ──────
 CREATE TABLE IF NOT EXISTS promotions (
     id            SERIAL PRIMARY KEY,

@@ -63,15 +63,24 @@ REASONS = ["specialty_windows", "heavy_tree_coverage", "difficult_roof",
 
 # ── data access ──────────────────────────────────────────────
 
+import clouddb
+
+
 def load_reviews():
+    if clouddb.available():
+        return clouddb.all_reviews()
     if REVIEW_LOG.exists():
         return json.loads(REVIEW_LOG.read_text())
     return []
 
 
 def save_review(entry):
-    reviews = load_reviews()
     entry["at"] = datetime.now().isoformat(timespec="seconds")
+    if clouddb.available():
+        clouddb.add_review(entry)
+        return
+    reviews = (json.loads(REVIEW_LOG.read_text())
+               if REVIEW_LOG.exists() else [])
     reviews.append(entry)
     REVIEW_LOG.write_text(json.dumps(reviews, indent=1))
 
@@ -102,18 +111,25 @@ def active_holds():
 DECIDED_ACTIONS = ("approve", "adjusted", "escalated", "duplicate_same")
 
 
+def _shadow_source():
+    """(stamp, record) pairs — database when available, files otherwise."""
+    if clouddb.available():
+        return clouddb.all_shadow()
+    return [(p.stem, json.loads(p.read_text()))
+            for p in sorted(SHADOW.glob("*.json"))]
+
+
 def load_bids():
     """Every shadow record, oldest first, with age + review status."""
     decided = {r["stamp"] for r in load_reviews()
                if r.get("stamp") and r.get("action") in DECIDED_ACTIONS}
     reviewed = decided
     bids = []
-    for p in sorted(SHADOW.glob("*.json")):
-        rec = json.loads(p.read_text())
-        rec["stamp"] = p.stem
-        rec["reviewed"] = p.stem in reviewed
+    for stamp, rec in _shadow_source():
+        rec["stamp"] = stamp
+        rec["reviewed"] = stamp in reviewed
         try:
-            t = datetime.strptime(p.stem, "%Y%m%d-%H%M%S")
+            t = datetime.strptime(stamp, "%Y%m%d-%H%M%S")
             rec["age_hours"] = (datetime.now() - t).total_seconds() / 3600
         except ValueError:
             rec["age_hours"] = 0
@@ -132,13 +148,22 @@ def load_bids():
 def similar_history(services):
     """Reconciler history for the same kind of work — 'what did we charge
     similar homes' (brief requirement, powered by the 5,000-invoice sweep)."""
-    if not RECON.exists() or not services:
+    if not services:
         return []
+    if clouddb.available():
+        records = clouddb.get_blob("discount_reconciliation") or []
+        return _history_hits(records, services)
+    if not RECON.exists():
+        return []
+    return _history_hits(json.loads(RECON.read_text()), services)
+
+
+def _history_hits(records, services):
     words = set()
     for s in services:
         words.update(s.replace("_", " ").split())
     hits = []
-    for f in json.loads(RECON.read_text()):
+    for f in records:
         if "honor" not in f.get("categories", []):
             continue
         text = " ".join(d["text"].lower() for d in f["discounts"])
@@ -286,10 +311,13 @@ def home_page():
 
 def scoreboard_card():
     """System vs office — the running report card."""
-    sb_path = BASE / "data" / "scoreboard.json"
-    if not sb_path.exists():
+    if clouddb.available():
+        sb = clouddb.get_blob("scoreboard")
+    else:
+        sb_path = BASE / "data" / "scoreboard.json"
+        sb = json.loads(sb_path.read_text()) if sb_path.exists() else None
+    if not sb:
         return ""
-    sb = json.loads(sb_path.read_text())
     rows = [r for r in sb["rows"] if r.get("office_quote")]
     waiting = sum(1 for r in sb["rows"] if not r.get("office_quote"))
     inner = ""
@@ -565,7 +593,27 @@ class Handler(BaseHTTPRequestHandler):
         if not self._authed():
             return self._require_auth()
         length = int(self.headers.get("Content-Length", 0))
-        form = urllib.parse.parse_qs(self.rfile.read(length).decode())
+        body = self.rfile.read(length)
+
+        # ── JSON ingest API (the poller on Dallon's Mac pushes here) ──
+        if self.path == "/api/ingest":
+            try:
+                payload = json.loads(body.decode())
+                n = 0
+                for item in payload.get("records", []):
+                    clouddb.ingest_shadow(item["stamp"], item["record"])
+                    n += 1
+                for k, v in (payload.get("blobs") or {}).items():
+                    clouddb.put_blob(k, v)
+                    n += 1
+                return self._send(json.dumps({"ok": True, "count": n}).encode(),
+                                  ctype="application/json")
+            except Exception as e:
+                return self._send(json.dumps({"ok": False,
+                                              "error": str(e)[:200]}).encode(),
+                                  code=500, ctype="application/json")
+
+        form = urllib.parse.parse_qs(body.decode())
         get = lambda k: form.get(k, [""])[0]
 
         if self.path == "/review":
