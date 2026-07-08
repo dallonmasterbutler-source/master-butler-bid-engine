@@ -87,39 +87,44 @@ def poll_once():
     addr, pw = _creds()
     M = imaplib.IMAP4_SSL("imap.gmail.com")
     M.login(addr, pw)
-    seen = _processed()
-    new_count = 0
-
-    for folder in FOLDERS:
-        typ, _ = M.select(f'"{folder}"', readonly=True)  # the safety guarantee
-        if typ != "OK":
-            print(f"  (cannot open {folder} — skipped)")
-            continue
-        typ, data = M.search(None, "ALL")
-        ids = data[0].split() if data and data[0] else []
-
-        for num in ids:
-            # stable Message-ID header (num changes; Message-ID doesn't)
-            typ, hdr = M.fetch(num, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
-            raw_hdr = hdr[0][1].decode(errors="replace")
-            msg_id = raw_hdr.split(":", 1)[-1].strip() or f"no-id-{num.decode()}"
-            if msg_id in seen:
-                continue
-
-            typ, full = M.fetch(num, "(BODY.PEEK[])")   # untouched
-            raw = full[0][1]
-            new_count += 1
-            shadow_process(raw, msg_id, folder=folder)
-            _remember(msg_id)
-            seen.add(msg_id)
-
-    # LIVE MESSAGES: also sweep the Sent folder, so replies the office
-    # sends from Gmail still show up in the dashboard conversation.
     try:
-        _sweep_sent(M, seen)
-    except Exception as e:
-        print(f"  (sent sweep skipped: {e})")
-    M.logout()
+        seen = _processed()
+        new_count = 0
+
+        for folder in FOLDERS:
+            typ, _ = M.select(f'"{folder}"', readonly=True)  # the safety guarantee
+            if typ != "OK":
+                print(f"  (cannot open {folder} — skipped)")
+                continue
+            typ, data = M.search(None, "ALL")
+            ids = data[0].split() if data and data[0] else []
+
+            for num in ids:
+                # stable Message-ID header (num changes; Message-ID doesn't)
+                typ, hdr = M.fetch(num, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
+                raw_hdr = hdr[0][1].decode(errors="replace")
+                msg_id = raw_hdr.split(":", 1)[-1].strip() or f"no-id-{num.decode()}"
+                if msg_id in seen:
+                    continue
+
+                typ, full = M.fetch(num, "(BODY.PEEK[])")   # untouched
+                raw = full[0][1]
+                new_count += 1
+                shadow_process(raw, msg_id, folder=folder)
+                _remember(msg_id)
+                seen.add(msg_id)
+
+        # LIVE MESSAGES: also sweep the Sent folder, so replies the office
+        # sends from Gmail still show up in the dashboard conversation.
+        try:
+            _sweep_sent(M, seen)
+        except Exception as e:
+            print(f"  (sent sweep skipped: {e})")
+    finally:
+        try:
+            M.logout()      # NEVER leak an IMAP connection —
+        except Exception:   # Gmail caps simultaneous logins
+            pass
     # pull the office's Settings edits down so THIS machine prices and
     # drafts with the same numbers the cloud uses
     try:

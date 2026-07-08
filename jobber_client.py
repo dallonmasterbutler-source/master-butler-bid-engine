@@ -148,7 +148,14 @@ TEST_MODE = _env("JOBBER_TEST_MODE", "true").lower() != "false"
 def _post(query, variables, label, _retried=False):
     """Send one GraphQL request — or, in dry-run, just show it.
     If the access token has expired (401), auto-refresh once and retry."""
+    global ACCESS_TOKEN, REFRESH_TOKEN
     payload = {"query": query, "variables": variables}
+    if not ACCESS_TOKEN:                 # self-heal: the store may have
+        bt = _blob_tokens()              # tokens we missed at import
+        if bt.get("access"):
+            ACCESS_TOKEN = bt["access"]
+            REFRESH_TOKEN = bt.get("refresh") or REFRESH_TOKEN
+            print("  (jobber tokens loaded from shared store)")
     if DRY_RUN or not ACCESS_TOKEN:
         print(f"\n[DRY RUN] Would send to Jobber → {label}")
         print(json.dumps(variables, indent=2))
