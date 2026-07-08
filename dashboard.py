@@ -264,17 +264,31 @@ header{background:linear-gradient(135deg,var(--green) 0%,#11543f 100%);
        border-bottom:3px solid var(--gold);letter-spacing:.2px;
        display:flex;align-items:center;flex-wrap:wrap;gap:8px}
 header small{font-weight:400;opacity:.72;font-size:12.5px;margin-left:8px}
-header .nav{margin-left:auto;font-size:13.5px;font-weight:500}
-header .nav a{color:#e8d9a0;padding:4px 8px;border-radius:6px}
+header .nav{margin-left:auto;font-size:13.5px;font-weight:600}
+header .nav a{color:#dfe7e2;padding:7px 14px;border-radius:999px}
 header .nav a:hover{background:rgba(255,255,255,.12);text-decoration:none}
+header .nav a.active{background:var(--gold);color:#1c2b23}
 .wrap{max-width:1160px;margin:0 auto;padding:20px 18px 40px}
 .stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-.stat{background:#fff;border:1px solid var(--line);border-radius:10px;
-      padding:10px 18px;box-shadow:0 1px 2px rgba(11,61,46,.06);
-      min-width:120px}
-.stat b{display:block;font-size:22px;color:var(--green)}
-.stat span{font-size:12px;color:var(--mut);text-transform:uppercase;
-      letter-spacing:.4px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:12px;
+      padding:12px 18px;box-shadow:0 1px 2px rgba(11,61,46,.06);
+      min-width:128px;display:flex;flex-direction:column-reverse}
+.stat b{display:block;font-size:24px;color:var(--green);
+      font-variant-numeric:tabular-nums;line-height:1.2}
+.stat span{font-size:11px;color:var(--mut);text-transform:uppercase;
+      letter-spacing:.7px;font-weight:600;margin-bottom:2px}
+.ring{display:inline-flex;align-items:center;justify-content:center;
+      width:40px;height:40px;border-radius:50%;border:3px solid;
+      font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;
+      background:#fff}
+.card.dark{background:linear-gradient(150deg,var(--green),#0e4a37);
+      color:#eef4f0;border:0}
+.card.dark h3{color:var(--gold)}
+.card.dark .big{font-size:26px;font-weight:800;color:#fff;
+      font-variant-numeric:tabular-nums}
+.card.dark .lbl{font-size:11px;text-transform:uppercase;
+      letter-spacing:.6px;color:#a7c0b3}
+.subtext{font-size:12px;color:var(--mut)}
 .band{background:#fff8ec;border:1px solid #f0d9a5;border-left:5px solid
       #e0a428;border-radius:10px;padding:12px 16px;margin-bottom:16px}
 .band h2{margin:0 0 6px;font-size:13px;color:#8a5a00;
@@ -348,11 +362,15 @@ def page(title, body, refresh=None):
             f"<header>🎩 Master Butler <small>Bid Review — "
             f"{'approve pushes DRAFT quotes to Jobber' if _push_enabled() else 'shadow mode · nothing sends without you'}"
             f"</small>"
-            f"<span class='nav'>"
-            f"<a href='/'>Queue</a> <a href='/drafts'>Drafts</a> "
-            f"<a href='/scoreboard'>Scoreboard</a> "
-            f"<a href='/brief'>Morning brief</a>"
-            f"</span></header>"
+            + "<span class='nav'>"
+            + "".join(f"<a href='{href}' class="
+                      f"'{'active' if title == t else ''}'>{label}</a> "
+                      for href, label, t in (
+                          ("/", "Queue", "Bid queue"),
+                          ("/drafts", "Drafts", "Drafts"),
+                          ("/scoreboard", "Scoreboard", "Scoreboard"),
+                          ("/brief", "Morning brief", "Morning brief")))
+            + "</span></header>"
             f"<div class='wrap'>{body}</div>"
             f"<footer>Every quote is a draft until a human sends it · the "
             f"inbox is never marked read · every price traces to a real "
@@ -460,13 +478,19 @@ def home_page():
         conf = ("—" if c is None else
                 f"<b style='color:{'#1e8449' if c >= 75 else '#c77700' if c >= 50 else '#c0392b'}'>{c}%</b>")
         q = quotes.get(b["stamp"])
-        qchip = (f"<span class='chip' style='background:#e3efe9'>Jobber "
-                 f"#{esc(q)}</span>" if q else "")
+        name = esc(b["from"]).split("&lt;")[0].strip() or esc(b["from"])
+        sub = (f"Jobber #{esc(q)}" if q else
+               esc(b["from"]).split("&lt;")[-1].rstrip("&gt;")[:34])
+        ring = ("—" if c is None else
+                f"<span class='ring' style='border-color:"
+                f"{'#1e8449' if c >= 75 else '#c77700' if c >= 50 else '#b03a2e'};"
+                f"color:{'#1e8449' if c >= 75 else '#c77700' if c >= 50 else '#b03a2e'}'>"
+                f"{c}%</span>")
         rows += (f"<tr><td>{age_html(b['age_hours'])}</td>"
-                 f"<td><a href='/bid/{b['stamp']}'>{esc(b['from'])}</a>"
-                 f"{qchip}</td>"
+                 f"<td><a href='/bid/{b['stamp']}'><b>{name}</b></a>"
+                 f"<div class='subtext'>{sub}</div></td>"
                  f"<td>{esc(b.get('kind'))}</td><td>{services}{flags}</td>"
-                 f"<td>{conf}</td><td class='num'>{total}</td></tr>")
+                 f"<td>{ring}</td><td class='num'><b>{total}</b></td></tr>")
     if not rows:
         rows = "<tr><td colspan=6>Queue is empty — all caught up. ✅</td></tr>"
 
@@ -513,22 +537,32 @@ def scoreboard_card():
         return ""
     rows = [r for r in sb["rows"] if r.get("office_quote")]
     waiting = sum(1 for r in sb["rows"] if not r.get("office_quote"))
-    inner = ""
-    for r in rows[:6]:
-        gap = r.get("gap_pct")
-        color = ("#1e8449" if gap is not None and abs(gap) <= 10
-                 else "#c77700" if gap is not None and abs(gap) <= 25
-                 else "#c0392b")
-        inner += (f"<div>{esc((r.get('customer') or '?')[:26])} — "
-                  f"sys ${r['system_total']:.0f} / office "
-                  f"${r['office_total']:.0f} "
-                  f"<b style='color:{color}'>{gap:+.0f}%</b></div>")
-    if not inner:
-        inner = (f"<div style='color:#888'>{waiting} shadow draft(s) waiting "
-                 "for the office to quote them — comparisons appear here "
-                 "automatically.</div>")
-    return ("<div class='card'><h3 style='margin-top:0'>Shadow scoreboard"
-            f"</h3>{inner}</div>")
+    if rows:
+        sys_t = sum(r["system_total"] for r in rows)
+        off_t = sum(r["office_total"] for r in rows)
+        bump = (100 * (off_t - sys_t) / sys_t) if sys_t else 0
+        bcol = "#7fd6a2" if abs(bump) <= 10 else "#f0c987"
+        inner = (
+            "<div style='display:flex;gap:22px;margin:6px 0 10px'>"
+            f"<div><div class='lbl'>System est.</div>"
+            f"<div class='big'>${sys_t:,.0f}</div></div>"
+            f"<div><div class='lbl'>Office final</div>"
+            f"<div class='big'>${off_t:,.0f}</div></div></div>"
+            f"<div class='lbl'>Gap <b style='color:{bcol}'>{bump:+.1f}%</b>"
+            f" across {len(rows)} matched quote(s)</div>"
+            "<div style='margin-top:8px;font-size:13px'>"
+            + "".join(f"<div>{esc((r.get('customer') or '?')[:24])} "
+                      f"— {r['gap_pct']:+.0f}%</div>" for r in rows[:4])
+            + "</div>")
+    else:
+        inner = (f"<div style='color:#a7c0b3;font-size:13.5px'>{waiting} "
+                 "shadow draft(s) waiting for the office to quote them — "
+                 "the report card fills itself in.</div>")
+    return (f"<div class='card dark'><h3 style='margin-top:0'>Shadow "
+            f"scoreboard</h3>{inner}"
+            "<div style='margin-top:8px'><a href='/scoreboard' "
+            "style='color:#e8d9a0;font-size:13px'>Full scoreboard →</a>"
+            "</div></div>")
 
 
 def held_card(live_holds, bids):
