@@ -36,6 +36,52 @@ def _creds():
     return addr, pw.replace(" ", "")
 
 
+def _oauth_env():
+    creds = {}
+    env_file = BASE / ".env"
+    if env_file.exists():
+        for line in env_file.read_text().splitlines():
+            if "=" in line and not line.startswith("#"):
+                k, v = line.split("=", 1)
+                creds[k.strip()] = v.strip()
+    out = {}
+    for k in ("GMAIL_OAUTH_CLIENT_ID", "GMAIL_OAUTH_CLIENT_SECRET",
+              "GMAIL_OAUTH_REFRESH_TOKEN"):
+        out[k] = creds.get(k) or os.environ.get(k)
+    return out if all(out.values()) else None
+
+
+def _api_send(msg):
+    """Gmail API send (HTTPS 443 — works from the cloud, where SMTP
+    ports are blocked). Send-only OAuth scope; reading stays on IMAP."""
+    import base64
+    import json
+    import urllib.parse
+    import urllib.request
+    o = _oauth_env()
+    if not o:
+        return False, "no oauth credentials"
+    try:
+        body = urllib.parse.urlencode({
+            "client_id": o["GMAIL_OAUTH_CLIENT_ID"],
+            "client_secret": o["GMAIL_OAUTH_CLIENT_SECRET"],
+            "refresh_token": o["GMAIL_OAUTH_REFRESH_TOKEN"],
+            "grant_type": "refresh_token"}).encode()
+        tok = json.load(urllib.request.urlopen(
+            "https://oauth2.googleapis.com/token", body, timeout=20))
+        access = tok["access_token"]
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        req = urllib.request.Request(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+            data=json.dumps({"raw": raw}).encode(),
+            headers={"Authorization": f"Bearer {access}",
+                     "Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=30)
+        return True, "sent (gmail api)"
+    except Exception as e:
+        return False, f"{type(e).__name__}: {e}"
+
+
 def _smtp_send(msg, addr, pw):
     """Try SSL:465 then STARTTLS:587 (some hosts block one, not both)."""
     last = None
@@ -69,7 +115,9 @@ def send_internal(subject, body, to=(TOM, DALLON)):
     msg["To"] = ", ".join(to)
     msg["Subject"] = subject
     msg.set_content(body)
-    ok, why = _smtp_send(msg, addr, pw)
+    ok, why = _api_send(msg)          # works everywhere, cloud included
+    if not ok:
+        ok, why = _smtp_send(msg, addr, pw)
     if ok:
         return ok, why
     # SMTP blocked here (Render free tier blocks mail ports): queue the
@@ -141,7 +189,9 @@ def drain_outbox():
             msg["To"] = ", ".join(to)
             msg["Subject"] = m["subject"]
             msg.set_content(m["body"] + f"\n\n(queued {m['at']}, relayed later)")
-            ok, _ = _smtp_send(msg, addr, pw)
+            ok, _ = _api_send(msg)
+            if not ok:
+                ok, _ = _smtp_send(msg, addr, pw)
             if ok:
                 sent += 1
             else:
