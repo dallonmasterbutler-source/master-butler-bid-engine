@@ -39,6 +39,20 @@ HONOR_RE = re.compile(r"honou?r", re.IGNORECASE)
 NEXT_PRICE_RE = re.compile(
     r"(?:20\d\d|next\s+year).{0,40}?\$?\s*(\d{2,5})", re.IGNORECASE)
 
+
+def parse_next_year_price(text):
+    """Extract the 'price for 20XX will be $X' promise, skipping junk:
+    years masquerading as prices ($2026) and tiny numbers that are really
+    percentages or year fragments. Real promises are $40+."""
+    for m in NEXT_PRICE_RE.finditer(text):
+        val = float(m.group(1))
+        if 2000 <= val <= 2099:      # that's a year, not a price
+            continue
+        if val < 40:                 # % or fragment, not a service price
+            continue
+        return val
+    return None
+
 # Discount taxonomy — every discount line gets sorted into ONE bucket so the
 # learning loop only trains on the right kind:
 #   honor                 = underquote the office honored (LEARNING GOLD)
@@ -99,12 +113,11 @@ def parse_invoice(inv):
                        or li["name"].strip().lower() == "discount"
                        or HONOR_RE.search(text))
         if is_discount:
-            m = NEXT_PRICE_RE.search(text)
             discounts.append({
                 "category": classify_discount(text),
                 "text": text,                      # full length, on purpose
                 "amount": abs(price),
-                "next_year_price": float(m.group(1)) if m else None,
+                "next_year_price": parse_next_year_price(text),
             })
         else:
             services.append({"name": li["name"], "price": price})

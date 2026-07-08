@@ -255,6 +255,13 @@ check("Unrecognized = other_discount",
       1 if classify_discount("Discount to offset tax not being added") == "other_discount" else 0, 1)
 check("honor wins even if % present",
       1 if classify_discount("honor 2026 pricing 10% adjustment") == "honor" else 0, 1)
+from reconciler import parse_next_year_price
+check("Promise parsed ('next year will be 350')",
+      parse_next_year_price("honor 2026 gutter rate next year will be 350") or 0, 350)
+check("Year is NOT a price ('free in 2025, charge full next year')",
+      parse_next_year_price("Pavers done for free in 2025. Charge full next year.") or 0, 0)
+check("Tiny numbers rejected (15% is not $15)",
+      parse_next_year_price("honor 2026 pricing, 15 percent adjustment") or 0, 0)
 
 print("\n" + "=" * 50)
 print(f"RESULT: {passed} passed, {failed} failed")
