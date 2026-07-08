@@ -399,6 +399,7 @@ def page(title, body, refresh=None):
                       f"'{'active' if title == t else ''}'>{label}</a> "
                       for href, label, t in (
                           ("/", "Queue", "Bid queue"),
+                          ("/new", "+ New lead", "New lead"),
                           ("/drafts", "Drafts", "Drafts"),
                           ("/scoreboard", "Scoreboard", "Scoreboard"),
                           ("/brief", "Morning brief", "Morning brief")))
@@ -867,6 +868,50 @@ def bid_page(stamp):
     return page("Review bid", body)
 
 
+MANUAL_SERVICES = [
+    ("gutters", "Gutter cleaning"), ("roof", "Roof blow-off"),
+    ("moss", "Moss treatment"), ("windows", "Windows (exterior)"),
+    ("windows_inout", "Windows (in & out)"), ("driveway", "PW driveway"),
+    ("patio", "PW patio"), ("sidewalk", "PW walkway"),
+    ("house_wash", "House wash"), ("dryer_vent", "Dryer vent"),
+]
+
+
+def new_lead_page(msg=""):
+    """The office types a lead (e.g. a tech's curbside contact); it runs
+    through the full pipeline just like an inbound email."""
+    checks = "".join(
+        f"<label style='display:inline-block;min-width:180px;margin:4px 0'>"
+        f"<input type='checkbox' name='svc' value='{k}'> {esc(v)}</label>"
+        for k, v in MANUAL_SERVICES)
+    banner = (f"<div class='band'><h2>Working on it</h2><div>{esc(msg)}</div>"
+              "</div>" if msg else "")
+    body = f"""{banner}
+<div class='card' style='max-width:640px'>
+ <h2 style='margin-top:0'>New lead — enter it like an email came in</h2>
+ <div class='subtext' style='margin-bottom:12px'>For a tech's curbside
+  contact or a phone lead. The system looks up the property from the
+  satellite, prices it, and drops a draft on the queue — same as an email.</div>
+ <form method='POST' action='/new'>
+  <div style='margin-bottom:8px'><b>Customer name</b>
+   <input type='text' name='name' required></div>
+  <div style='margin-bottom:8px'><b>Property address</b>
+   <input type='text' name='address' required
+          placeholder='street, city, WA zip'></div>
+  <div style='display:flex;gap:10px;margin-bottom:8px'>
+   <div style='flex:1'><b>Phone</b><input type='text' name='phone'></div>
+   <div style='flex:1'><b>Email (optional)</b><input type='text' name='email'></div>
+  </div>
+  <div style='margin:10px 0'><b>Services requested</b><br>{checks}</div>
+  <div style='margin-bottom:8px'><b>Notes (optional)</b>
+   <input type='text' name='extra'
+          placeholder='e.g. heavy moss on north side, gate code 1234'></div>
+  <button class='big'>Create draft from this lead</button>
+ </form>
+</div>"""
+    return page("New lead", body)
+
+
 def drafts_page():
     """Everything the system wrote FOR the office to copy out by hand."""
     import templates as T
@@ -1139,6 +1184,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(drafts_page())
         if self.path == "/brief":
             return self._send(brief_page())
+        if self.path.startswith("/new"):
+            m = "Lead submitted — it's running through the pipeline and will "\
+                "appear on the queue in a moment." if "msg=" in self.path else ""
+            return self._send(new_lead_page(m))
         m = re.match(r"^/property/([\w-]+)$", self.path)
         if m:
             return self._send(property_page(m.group(1)))
@@ -1259,6 +1308,26 @@ class Handler(BaseHTTPRequestHandler):
             save_review({"stamp": get("stamp"), "action": "welcome_drafted",
                          "customer": get("customer"),
                          "note": f"draft: {path.name}"})
+        elif self.path == "/new":
+            # run the full pipeline in the background (it's ~20s); the lead
+            # appears on the queue on the next auto-refresh
+            import threading
+            svcs = form.get("svc", [])
+            kw = dict(name=get("name"), address=get("address"),
+                      phone=get("phone"), email=get("email"),
+                      services=svcs, extra=get("extra"),
+                      entered_by="office")
+            def run():
+                try:
+                    from manual import process_manual
+                    process_manual(**kw)
+                except Exception:
+                    pass
+            threading.Thread(target=run, daemon=True).start()
+            self.send_response(303)
+            self.send_header("Location", "/new?msg=working")
+            self.end_headers()
+            return
         elif self.path == "/idea":
             if get("text").strip():
                 add_idea(get("who"), get("text"))
