@@ -78,6 +78,37 @@ def all_reviews():
     return [r[0] for r in rows]
 
 
+# ── photos (customer pics + aerial/street tiles) ─────────────
+
+def put_photo(ref, kind, idx, jpeg_bytes):
+    with _conn() as con:
+        con.execute(
+            "INSERT INTO photos (ref, kind, idx, jpeg) VALUES (%s,%s,%s,%s) "
+            "ON CONFLICT (ref, kind, idx) DO UPDATE SET jpeg = EXCLUDED.jpeg",
+            (ref, kind, idx, jpeg_bytes))
+        con.commit()
+
+
+def photos_index(refs):
+    """[(ref, kind, idx), ...] for any of the given refs — cheap listing
+    (no image bytes) so pages render fast."""
+    if not refs:
+        return []
+    with _conn() as con:
+        rows = con.execute(
+            "SELECT ref, kind, idx FROM photos WHERE ref = ANY(%s) "
+            "ORDER BY kind, idx", (list(refs),)).fetchall()
+    return rows
+
+
+def get_photo(ref, kind, idx):
+    with _conn() as con:
+        row = con.execute(
+            "SELECT jpeg FROM photos WHERE ref=%s AND kind=%s AND idx=%s",
+            (ref, kind, idx)).fetchone()
+    return bytes(row[0]) if row else None
+
+
 # ── kv blobs (scoreboard, honor history, brief) ──────────────
 
 def put_blob(key, value):

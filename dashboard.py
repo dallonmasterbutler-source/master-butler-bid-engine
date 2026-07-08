@@ -386,21 +386,37 @@ def bid_page(stamp):
     if not b:
         return page("Not found", "<div class='card'>No such bid.</div>")
 
-    photos = bid_photos(stamp)
-    gallery = "".join(
-        f"<a href='/photo/{stamp}/{i}' target='_blank'>"
-        f"<img src='/photo/{stamp}/{i}' style='height:110px;margin:4px;"
-        f"border-radius:6px'></a>" for i in range(len(photos)))
-    tile, street = aerial_tile_for(b.get("address"))
-    for extra, color, label in ((tile, "#0b6e4f", "aerial view"),
-                                (street, "#1a5276", "street view")):
-        if extra:
-            gallery += (f"<a href='/aerial/{extra}' target='_blank'>"
-                        f"<img src='/aerial/{extra}' style='height:110px;"
-                        f"margin:4px;border-radius:6px;border:2px solid "
-                        f"{color}' title='{label}'></a>")
+    gallery, has_imagery = "", False
+    if clouddb.available():
+        slug = re.sub(r"[^a-z0-9]+", "-",
+                      (b.get("address") or "").lower()).strip("-")[:60]
+        colors = {"customer": "transparent", "aerial": "#0b6e4f",
+                  "street": "#1a5276"}
+        for ref, kind, idx in clouddb.photos_index([stamp, slug] if slug
+                                                   else [stamp]):
+            has_imagery = has_imagery or kind in ("aerial", "street")
+            gallery += (f"<a href='/img/{ref}/{kind}/{idx}' target='_blank'>"
+                        f"<img src='/img/{ref}/{kind}/{idx}' "
+                        f"style='height:110px;margin:4px;border-radius:6px;"
+                        f"border:2px solid {colors.get(kind)}' "
+                        f"title='{kind}'></a>")
+    else:
+        photos = bid_photos(stamp)
+        gallery = "".join(
+            f"<a href='/photo/{stamp}/{i}' target='_blank'>"
+            f"<img src='/photo/{stamp}/{i}' style='height:110px;margin:4px;"
+            f"border-radius:6px'></a>" for i in range(len(photos)))
+        tile, street = aerial_tile_for(b.get("address"))
+        for extra, color, label in ((tile, "#0b6e4f", "aerial view"),
+                                    (street, "#1a5276", "street view")):
+            if extra:
+                has_imagery = True
+                gallery += (f"<a href='/aerial/{extra}' target='_blank'>"
+                            f"<img src='/aerial/{extra}' style='height:110px;"
+                            f"margin:4px;border-radius:6px;border:2px solid "
+                            f"{color}' title='{label}'></a>")
     gallery_card = (f"<div class='card'><h3 style='margin-top:0'>Photos it "
-                    f"used {'(green = aerial, blue = street)' if tile or street else ''}</h3>"
+                    f"used {'(green = aerial, blue = street)' if has_imagery else ''}</h3>"
                     f"{gallery or '<div style=color:#888>No photos on this '
                     'request — the photo-request button drafts the ask.</div>'}"
                     "</div>")
@@ -587,6 +603,11 @@ class Handler(BaseHTTPRequestHandler):
             f = AERIAL / m.group(1)
             ctype = "image/jpeg" if f.suffix == ".jpg" else "image/png"
             return self._send(f.read_bytes(), ctype=ctype)
+        m = re.match(r"^/img/([\w.-]+)/(\w+)/(\d+)$", self.path)
+        if m and clouddb.available():
+            data = clouddb.get_photo(m.group(1), m.group(2), int(m.group(3)))
+            if data:
+                return self._send(data, ctype="image/jpeg")
         return self._send(b"not found", 404)
 
     def do_POST(self):
@@ -605,6 +626,11 @@ class Handler(BaseHTTPRequestHandler):
                     n += 1
                 for k, v in (payload.get("blobs") or {}).items():
                     clouddb.put_blob(k, v)
+                    n += 1
+                import base64 as _b64
+                for ph in payload.get("photos", []):
+                    clouddb.put_photo(ph["ref"], ph["kind"], ph["idx"],
+                                      _b64.b64decode(ph["b64"]))
                     n += 1
                 return self._send(json.dumps({"ok": True, "count": n}).encode(),
                                   ctype="application/json")

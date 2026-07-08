@@ -161,6 +161,19 @@ CREATE TABLE IF NOT EXISTS review_log (
     at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ── PHOTOS (customer pics + aerial/street tiles, cloud edition) ──
+-- ref = shadow stamp (customer photos) or address slug (imagery).
+-- Images are resized JPEGs (~100 KB) so the free-tier database
+-- holds hundreds comfortably.
+CREATE TABLE IF NOT EXISTS photos (
+    ref   TEXT NOT NULL,
+    kind  TEXT NOT NULL,           -- 'customer' / 'aerial' / 'street'
+    idx   INT  NOT NULL DEFAULT 0,
+    jpeg  BYTEA NOT NULL,
+    added TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (ref, kind, idx)
+);
+
 -- ── KV BLOBS (scoreboard, reconciliation history, briefs) ────
 -- Small named JSON documents the dashboard displays; pushed up by
 -- night_run on Dallon's Mac.

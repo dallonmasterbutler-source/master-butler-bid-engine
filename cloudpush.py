@@ -26,16 +26,18 @@ def _cfg(name):
     return ""
 
 
-def push(records=None, blobs=None, timeout=25):
-    """One POST to the cloud. records = [(stamp, record_dict)].
-    Raises on failure — callers decide whether to queue."""
+def push(records=None, blobs=None, photos=None, timeout=60):
+    """One POST to the cloud. records = [(stamp, record_dict)];
+    photos = [{"ref","kind","idx","b64"}]. Raises on failure —
+    callers decide whether to queue."""
     url = _cfg("DASHBOARD_URL")
     pw = _cfg("DASHBOARD_PASSWORD")
     if not url or not pw:
         raise RuntimeError("DASHBOARD_URL / DASHBOARD_PASSWORD not in .env")
     payload = {"records": [{"stamp": s, "record": r}
                            for s, r in (records or [])],
-               "blobs": blobs or {}}
+               "blobs": blobs or {},
+               "photos": photos or []}
     req = urllib.request.Request(
         url.rstrip("/") + "/api/ingest",
         data=json.dumps(payload).encode(),
@@ -48,10 +50,61 @@ def push(records=None, blobs=None, timeout=25):
     return resp.get("count", 0)
 
 
+def _shrink_jpeg(path, max_px=900, quality=70):
+    """Resize any image to a small JPEG (~100 KB) and return base64 —
+    small enough that the free database holds hundreds."""
+    import base64
+    import subprocess
+    tmp = Path("/tmp/cloudpush") / (Path(path).stem + ".jpg")
+    tmp.parent.mkdir(exist_ok=True)
+    subprocess.run(["sips", "-s", "format", "jpeg", "-Z", str(max_px),
+                    "-s", "formatOptions", str(quality), str(path),
+                    "--out", str(tmp)], check=True, capture_output=True)
+    return base64.b64encode(tmp.read_bytes()).decode()
+
+
+def _addr_slug(address):
+    import re
+    return re.sub(r"[^a-z0-9]+", "-", (address or "").lower()).strip("-")[:60]
+
+
+def gather_photos(stamp, record):
+    """Everything visual for one bid: customer photos from the saved
+    .eml plus any cached aerial/street tiles for the address."""
+    photos = []
+    eml = BASE / "data" / "shadow_bids" / f"{stamp}.eml"
+    if eml.exists():
+        try:
+            from pipeline import extract_photos
+            for i, p in enumerate(extract_photos(eml)):
+                photos.append({"ref": stamp, "kind": "customer", "idx": i,
+                               "b64": _shrink_jpeg(p)})
+        except Exception:
+            pass
+    slug = _addr_slug(record.get("address"))
+    if slug:
+        aerial_dir = BASE / "data" / "aerial"
+        if aerial_dir.exists():
+            for p in aerial_dir.iterdir():
+                if not p.name.startswith(slug[:24]):
+                    continue
+                try:
+                    if p.suffix == ".png":
+                        photos.append({"ref": slug, "kind": "aerial",
+                                       "idx": 0, "b64": _shrink_jpeg(p)})
+                    elif p.name.endswith("-street.jpg"):
+                        photos.append({"ref": slug, "kind": "street",
+                                       "idx": 0, "b64": _shrink_jpeg(p)})
+                except Exception:
+                    continue
+    return photos
+
+
 def push_or_queue(stamp, record):
-    """Best-effort single-record push; queue locally on any failure."""
+    """Best-effort single-record push (with its photos); queue locally
+    on any failure."""
     try:
-        push(records=[(stamp, record)])
+        push(records=[(stamp, record)], photos=gather_photos(stamp, record))
         return True
     except Exception:
         PENDING.mkdir(parents=True, exist_ok=True)
@@ -66,7 +119,8 @@ def flush_pending():
     sent = 0
     for p in sorted(PENDING.glob("*.json")):
         try:
-            push(records=[(p.stem, json.loads(p.read_text()))])
+            rec = json.loads(p.read_text())
+            push(records=[(p.stem, rec)], photos=gather_photos(p.stem, rec))
             p.unlink()
             sent += 1
         except Exception:
