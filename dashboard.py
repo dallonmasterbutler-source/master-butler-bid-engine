@@ -520,19 +520,25 @@ def home_page():
             chatter.append((b, why))
         else:
             aside.append((b, why))
+    # No separate "needs attention" pile (Dallon, Jul 8: "all it is is a
+    # short preview of what's below") — the QUEUE is the attention list.
+    # Urgent facts become badges ON the row; holds float to the top; the
+    # banner is reserved for SYSTEM alarms that aren't rows at all.
     attention = []
+    attn_badge = {}
     for b in queue:
         if b["stamp"] in resurfaced:
             h = resurfaced[b["stamp"]]
-            attention.append((b, f"BACK FROM HOLD ({h.get('hold_reason')}) — "
-                                 "held bids are answered FIRST"))
+            attn_badge[b["stamp"]] = (
+                "#b03a2e", f"⏰ back from hold — {h.get('hold_reason', '')}")
         elif b.get("office_alert"):
-            attention.append((b, b["office_alert"]))
+            attn_badge[b["stamp"]] = ("#8a5a00",
+                                      "⚠ " + b["office_alert"][:90])
         elif b.get("pipeline_error"):
-            attention.append((b, f"pipeline error: {b['pipeline_error']}"))
-        elif b["age_hours"] >= SLA_HOURS and b.get("kind") == "new_request":
-            attention.append((b, f"waiting {b['age_hours']:.0f}h — past the "
-                                 "24-hour promise"))
+            attn_badge[b["stamp"]] = ("#b03a2e", "🔴 pipeline error — open "
+                                                 "the bid for details")
+        # past-SLA needs no badge: the WAITING column already burns red
+    queue.sort(key=lambda b: (b["stamp"] not in resurfaced))
     reviews_all = load_reviews()
     today = datetime.now().date().isoformat()
     decided_today = [r for r in reviews_all
@@ -574,29 +580,23 @@ def home_page():
              f"{ears}</div>")
 
     band = ""
-    if attention:
-        rows = "".join(
-            (f"<div>⚠ <a href='/bid/{b['stamp']}'><b>{esc(b['from'])}</b>"
-             f"</a> — {esc(why)}</div>") if b.get("stamp") else
-            f"<div>🔴 <b>{esc(b['from'])}</b> — {esc(why)}</div>"
+    if attention:                      # SYSTEM alarms only (ears silent)
+        band = "".join(
+            f"<div class='band' style='background:#fdecea;border-color:"
+            f"#e8b4ae;border-left-color:#b03a2e'><b style='color:#b03a2e'>"
+            f"🔴 {esc(b['from'])}</b> — {esc(why)}</div>"
             for b, why in attention)
-        if len(attention) <= 2:
-            band = f"<div class='band'><h2>Needs attention</h2>{rows}</div>"
-        else:
-            # crowded mornings: one slim line, expand on click — the
-            # QUEUE is the page, not the alarm pile (Dallon, Jul 8)
-            band = (f"<details class='band'><summary style='cursor:pointer;"
-                    f"font-weight:800;color:#8a5a00;font-size:13px'>"
-                    f"⚠ Needs attention — {len(attention)} item(s) "
-                    f"<span style='font-weight:500;color:#a08040'>"
-                    f"(click to open)</span></summary>{rows}</details>")
 
     rows = ""
     for b in queue:                       # already oldest first
         services = "".join(f"<span class='chip'>{esc(s)}</span>"
                            for s in (b.get("services") or [])) or "—"
-        flags = ("<span class='chip flag'>spam</span>"
-                 if b.get("office_alert") else "")
+        flags = ""
+        badge = ""
+        if b["stamp"] in attn_badge:
+            color, text = attn_badge[b["stamp"]]
+            badge = (f"<div style='color:{color};font-size:12px;"
+                     f"font-weight:700;margin-top:3px'>{esc(text)}</div>")
         total = f"${b['total_guess']}" if b.get("total_guess") else "—"
         c = b.get("confidence")
         conf = ("—" if c is None else
@@ -612,7 +612,7 @@ def home_page():
                 f"{c}%</span>")
         rows += (f"<tr><td>{age_html(b['age_hours'])}</td>"
                  f"<td><a href='/bid/{b['stamp']}'><b>{name}</b></a>"
-                 f"<div class='subtext'>{sub}</div></td>"
+                 f"<div class='subtext'>{sub}</div>{badge}</td>"
                  f"<td>{esc(b.get('kind'))}</td><td>{services}{flags}</td>"
                  f"<td>{ring}</td><td class='num'><b>{total}</b></td></tr>")
     if not rows:
