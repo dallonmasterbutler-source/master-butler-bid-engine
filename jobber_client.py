@@ -180,6 +180,53 @@ def find_client_address(email_addr):
     return None
 
 
+# ── Software caller-ID (read-only) ──
+# A voicemail arrives with just a number; Jobber usually knows the face.
+FIND_CLIENT_BY_PHONE = """
+query FindByPhone($term: String!) {
+  clients(searchTerm: $term, first: 3) {
+    nodes { name
+            invoices(first: 1) { totalCount }
+            quotes(first: 1) { totalCount }
+            properties { address { street city } } }
+  }
+}
+"""
+
+
+def caller_id(phone):
+    """Digits in -> {'name','invoices','quotes','address'} or None.
+    READ-ONLY: runs live even in dry-run mode (dry-run guards writes)."""
+    global DRY_RUN
+    digits = "".join(ch for ch in (phone or "") if ch.isdigit())[-10:]
+    if len(digits) != 10:
+        return None
+    pretty = f"({digits[:3]}) {digits[3:6]}-{digits[6:]}"
+    was = DRY_RUN
+    DRY_RUN = False
+    try:
+        for term in (pretty, digits):
+            data = _post(FIND_CLIENT_BY_PHONE, {"term": term}, "caller id")
+            if data.get("dry_run") or data.get("error"):
+                return None
+            nodes = data.get("clients", {}).get("nodes", [])
+            if nodes:
+                n = nodes[0]
+                addr = ""
+                for p in n.get("properties", []):
+                    a = p.get("address") or {}
+                    if a.get("street"):
+                        addr = f"{a['street']}, {a.get('city', '')}".strip(", ")
+                        break
+                return {"name": n["name"],
+                        "invoices": n["invoices"]["totalCount"],
+                        "quotes": n["quotes"]["totalCount"],
+                        "address": addr}
+    finally:
+        DRY_RUN = was
+    return None
+
+
 # ── Create a client ──  (input fields verified against live schema)
 CREATE_CLIENT = """
 mutation CreateClient($input: ClientCreateInput!) {

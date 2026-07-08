@@ -144,6 +144,19 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
         record["lead"] = lead
         style = lead.get("style")
         who = parsed.get("phone") or "unknown caller"
+        # SOFTWARE CALLER-ID: Jobber usually knows this number already.
+        try:
+            import jobber_client as jc
+            cid = jc.caller_id(parsed.get("phone"))
+        except Exception:
+            cid = None
+        if cid:
+            record["caller_id"] = cid
+            who = (f"{cid['name']} ({who}) — EXISTING CLIENT, "
+                   f"{cid['invoices']} past job(s)"
+                   + (f", {cid['address']}" if cid.get("address") else ""))
+        elif parsed.get("phone"):
+            who = f"{who} — not in Jobber, likely NEW lead"
         if style == "notification":
             record["office_alert"] = (
                 f"VOICEMAIL from {who}"
