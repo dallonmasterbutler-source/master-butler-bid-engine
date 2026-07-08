@@ -38,6 +38,19 @@ AERIAL = BASE / "data" / "aerial"
 PORT = 8765
 SLA_HOURS = 24
 
+# ── THE SWITCH ────────────────────────────────────────────────
+# OFF: Approve only records the decision (pure shadow mode).
+# ON  (PUSH_ON_APPROVE=true in .env): Approve ALSO creates a DRAFT
+# quote in Jobber — still a draft, still human-sent, but real.
+# Ships OFF. Dallon flips it when shadow mode has earned trust.
+def _push_enabled():
+    env = BASE / ".env"
+    if env.exists():
+        for line in env.read_text().splitlines():
+            if line.startswith("PUSH_ON_APPROVE="):
+                return line.split("=", 1)[1].strip().lower() == "true"
+    return False
+
 # THE OFFICE'S OWN WORDS (questionnaire Q9) — same list as schema.sql
 REASONS = ["specialty_windows", "heavy_tree_coverage", "difficult_roof",
            "rate_pricing_update", "new_info_photos",
@@ -145,7 +158,8 @@ def page(title, body):
             f"<meta name='viewport' content='width=device-width,initial-scale=1'>"
             f"<title>{title}</title>{STYLE}</head><body>"
             f"<header>Master Butler — Bid Review"
-            f"<small>shadow mode · nothing sends without you</small></header>"
+            f"<small>{'approve pushes DRAFT quotes to Jobber' if _push_enabled() else 'shadow mode · nothing sends without you'}"
+            f"</small></header>"
             f"<div class='wrap'>{body}</div></body></html>").encode()
 
 
@@ -315,10 +329,25 @@ class Handler(BaseHTTPRequestHandler):
         get = lambda k: form.get(k, [""])[0]
 
         if self.path == "/review":
-            save_review({"stamp": get("stamp"), "action": get("action"),
-                         "customer": get("customer"),
-                         "reason": get("reason") or None,
-                         "note": get("note") or None})
+            entry = {"stamp": get("stamp"), "action": get("action"),
+                     "customer": get("customer"),
+                     "reason": get("reason") or None,
+                     "note": get("note") or None}
+            if get("action") == "approve" and _push_enabled():
+                rec_path = SHADOW / f"{get('stamp')}.json"
+                rec = (json.loads(rec_path.read_text())
+                       if rec_path.exists() else {})
+                d = rec.get("draft")
+                if d:
+                    import jobber_client as jc
+                    res = jc.push_approved_bid(d["customer"], d["bid"],
+                                               d.get("prop_info"))
+                    q = (res.get("quoteCreate", {}) or {}).get("quote", {})
+                    entry["jobber_quote"] = q.get("quoteNumber") or str(res)[:120]
+                else:
+                    entry["jobber_quote"] = ("no structured draft on this "
+                                             "record — re-run needed")
+            save_review(entry)
         elif self.path == "/escalate":
             path = templates.draft_escalation(
                 bid_ref=get("stamp"), customer=get("customer"),

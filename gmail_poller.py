@@ -122,8 +122,10 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
             from pipeline import process
             buf = io.StringIO()
             with redirect_stdout(buf):
-                process(eml_path)
+                draft = process(eml_path)
             record["pipeline_output"] = buf.getvalue()
+            if draft:                       # structured copy for the dashboard
+                record["draft"] = draft
             print("     → shadow draft generated")
         except Exception as e:
             record["pipeline_error"] = str(e)

@@ -242,6 +242,22 @@ def process(eml_path):
         print(f"      ⚠ {n}")
     print("    → status: PENDING OFFICE REVIEW (never auto-sends)")
 
+    # structured result, so callers (dashboard approve) don't re-parse text
+    return {
+        "customer": {"name": parsed.get("sender_name"),
+                     "email": parsed.get("sender_email"),
+                     "phone": parsed.get("phone"),
+                     "address": parsed.get("address")},
+        "bid": {"services": results, "notes": notes + office_flags,
+                "confidence": confidence},
+        "prop_info": {"sqft": prop.get("sqft"),
+                      "sqft_source": prop.get("sqft_source"),
+                      "pitch": prop.get("pitch"),
+                      "roof_material": prop.get("roof_material"),
+                      "stories": prop.get("stories")},
+        "total": total,
+    }
+
 
 if __name__ == "__main__":
     base = Path(__file__).parent
