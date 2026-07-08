@@ -44,18 +44,16 @@ def check(label, actual, expected, tolerance=0):
     else: failed += 1
 
 
-print("── ANCHOR 1: The original comp test house ──")
-# Calculator truth was $545 (gutter line $235). Office practice floors
-# gutter cleaning at $250 → $560 under the CURRENT provisional minimum.
-# If Tom approves dropping the min, this reverts to 545.
+print("── ANCHOR 1: The original comp test house = $545 ──")
+# Gutter line $235 is above Tom's $175 floor, so no bump → $545 holds.
 r, notes1, _ = calculate_bid(house(services={"gutters": True, "roof": True,
                                              "moss": True, "windows": True}))
-check("Comp house total (w/ $250 gutter min)", sum(s["price"] for s in r), 560)
-check("Gutter-min note explains the bump",
-      1 if any("service minimum" in n for n in notes1) else 0, 1)
-from bid_engine import GUTTER_CLEANING_MINIMUM
-check("Gutter min is the office's current $250 (pending Tom)",
-      GUTTER_CLEANING_MINIMUM, 250)
+# Calculator truth was $545; Tom's $200 window minimum (Jul 8) lifts the
+# small exterior-window line, so the comp house now totals $575.
+check("Comp house total (w/ Tom's $200 window min)", sum(s["price"] for s in r), 575)
+from bid_engine import GUTTER_CLEANING_MINIMUM, WINDOWS_MINIMUM
+check("Gutter min is Tom's $175 (Jul 8)", GUTTER_CLEANING_MINIMUM, 175)
+check("Windows min is Tom's $200 (Jul 8)", WINDOWS_MINIMUM, 200)
 
 print("\n── ANCHOR 2: Real shake job (Sammamish, charged $350) ──")
 r, _, _ = calculate_bid(house(sqft=2200, stories="1", pitch="moderate",
@@ -153,8 +151,8 @@ check("Light-season gutter push note",
 check("Winter window suspension note",
       1 if any("WINTER SUSPENSION" in n for n in notes) else 0, 1)
 r, notes, _ = calculate_bid(house(request_date=datetime.date(2026, 6, 1),
-                                  services={"gutters": True, "windows": True}))
-check("No seasonal notes in June",
+                                  services={"windows": True}))
+check("No seasonal suspension notes in June",
       1 if not any("SEASON" in n or "SUSPENSION" in n for n in notes) else 0, 1)
 
 print("\n── ANCHOR 5: Real Boden job (aggregate concrete, heavy moss, ~600sqft) ──")
@@ -466,6 +464,40 @@ check("Google Voice = transcript style",
       1 if voicemail_provider("vm@txt.voice.google.com") == "transcript" else 0, 1)
 check("Unknown sender = not a voicemail service",
       1 if voicemail_provider("jane@gmail.com") is None else 0, 1)
+
+print("\n── RULE: Tom's Jul 8 rulings (minimums + roof-lane flags) ──")
+import datetime as _dt
+# small gutter job floors at $175 (was $250) — win the easy work
+r, notes, _ = calculate_bid(house(sqft=900, pitch="mild", debris="minimal",
+                                  services={"gutters": True}))
+g = line(r, "Gutter")
+check("Tiny gutter job floors at $175", g["price"], 175)
+# tiny window job floors at $200
+r, notes, _ = calculate_bid(house(sqft=700, services={"windows": True}))
+check("Tiny window job floors at $200", line(r, "Window")["price"], 200)
+# gutters+blow-off over $500 = Tom review flag
+r, notes, _ = calculate_bid(house(sqft=5500, pitch="steep",
+                                  services={"gutters": True, "roof": True}))
+check("Big gutters+blow-off = Tom review flag",
+      1 if any("REVIEW (Tom)" in n for n in notes) else 0, 1)
+# dry-season TOM-TIER (tom_only pitch) roof-lane under $400 = flag (July)
+r, notes, _ = calculate_bid(house(sqft=900, pitch="tom_only", debris="minimal",
+                                  request_date=_dt.date(2026, 7, 1),
+                                  services={"gutters": True}))
+check("Dry-season sub-$400 TOM-tier roof visit flagged",
+      1 if any("DRY SEASON" in n and "roll out" in n for n in notes) else 0, 1)
+# same Tom-tier job in NOVEMBER = no dry-season flag
+r, notes, _ = calculate_bid(house(sqft=900, pitch="tom_only", debris="minimal",
+                                  request_date=_dt.date(2026, 11, 1),
+                                  services={"gutters": True}))
+check("Off-season Tom-tier roof visit NOT dry-flagged",
+      0 if any("won't roll out" in n for n in notes) else 1, 1)
+# a normal small gutter job in summer is NOT nagged (only Tom-tier is)
+r, notes, _ = calculate_bid(house(sqft=1000, pitch="mild", debris="minimal",
+                                  request_date=_dt.date(2026, 7, 1),
+                                  services={"gutters": True}))
+check("Normal summer gutter job NOT dry-flagged (Tom-tier only)",
+      0 if any("won't roll out" in n for n in notes) else 1, 1)
 
 print("\n── RULE: Jobber notification emails are EVENTS ──")
 from email_parser import parse_jobber_event

@@ -187,7 +187,19 @@ WET_DAY_GUTTER_MULT = 1.3  # gutters cost more on wet days (wet debris)
 # No visit goes out below this, period (Dallon's floor — drive time,
 # setup, and insurance make anything smaller a money-loser).
 JOB_MINIMUM = 150
-GUTTER_CLEANING_MINIMUM = 250   # office's current floor — PENDING TOM RULING
+GUTTER_CLEANING_MINIMUM = 175   # Tom ruled Jul 8 (was $250) — lower easy
+                                # gutter jobs to WIN more of them
+WINDOWS_MINIMUM = 200           # Tom ruled Jul 8 — raise window work
+
+# ── TOM'S DRY-SEASON ROOF-LANE RULES (Jul 8 call) ──
+# The roof lane = gutters + roof blow-off + moss treatment.
+# · Gutters-only OR gutters+blow-off over this = flag for Tom review
+#   (on a dry day he may do it cheaper — e.g. Bellevue $690 → $500 dry).
+ROOF_LANE_REVIEW_OVER = 500
+# · In dry season Tom won't roll out for a roof-lane visit under this
+#   (gutters+blow-off+moss). Flagged, not auto-bumped — office bundles
+#   or holds for a fuller day.
+DRY_SEASON_ROOF_FLOOR = 400
 
 # ── SCHEDULING BY DOLLARS (Dallon's rule, July 2026) ──
 # The schedule blocks time by job dollars (price is a time proxy: ~$400 job
@@ -292,6 +304,12 @@ def round_to_5(amount):
 def calculate_bid(prop):
     sqft = prop["sqft"]
 
+    # Dry season (Tom's roof weather): June-July-August. Roof-lane rules
+    # below only bite in dry season. Uses the request date if given.
+    import datetime as _dt
+    _when = prop.get("request_date") or _dt.date.today()
+    is_dry_season = _when.month in (6, 7, 8)
+
     # Look up each multiplier from the tables above
     stories_mult = STORIES[prop["stories"]]
     pitch_mult = PITCH[prop["pitch"]]
@@ -381,12 +399,20 @@ def calculate_bid(prop):
     # Uses window_mult (not base), then french pane on top.
     if prop["services"].get("windows"):
         price = round_to_5(sqft * RATES["windows_exterior"] * window_mult * french_mult)
+        if price < WINDOWS_MINIMUM:      # Tom's $200 window floor (Jul 8)
+            price = WINDOWS_MINIMUM
+            notes.append(f"Windows raised to the ${WINDOWS_MINIMUM} minimum "
+                         "(Tom, Jul 2026).")
         add("Window Cleaning (Exterior Only)", price, "windows")
 
     # ── WINDOWS (IN & OUT) ──
     # Same window scaling, but a higher rate because the tech cleans inside too.
     if prop["services"].get("windows_inout"):
         price = round_to_5(sqft * RATES["windows_in_out"] * window_mult * french_mult)
+        if price < WINDOWS_MINIMUM:
+            price = WINDOWS_MINIMUM
+            notes.append(f"Windows raised to the ${WINDOWS_MINIMUM} minimum "
+                         "(Tom, Jul 2026).")
         add("Windows In & Out", price, "windows")
 
     # ── PRESSURE WASHING (sqft-based; measured area required) ──
@@ -497,6 +523,30 @@ def calculate_bid(prop):
                         "low": bump, "high": bump, "hours": 0})
         notes.append(f"Job under ${JOB_MINIMUM} minimum — added "
                      f"${bump} adjustment to reach the visit minimum.")
+
+    # ── TOM'S ROOF-LANE RULES (Jul 8 call) ──
+    # Roof lane = gutters + roof blow-off + moss. Two guardrails:
+    roof_lane = {"Gutter Cleaning", "Roof Blow Off Cleaning", "Roof Blow Off",
+                 "Roof Blow Off for Gutter Guards", "Moss Treatment"}
+    lane_lines = [s for s in results if s["name"] in roof_lane]
+    lane_total = sum(s["price"] for s in lane_lines)
+    lane_services = {s["name"] for s in lane_lines}
+    only_gutter_lane = lane_services and lane_services <= {
+        "Gutter Cleaning", "Roof Blow Off", "Roof Blow Off Cleaning"}
+    if only_gutter_lane and lane_total > ROOF_LANE_REVIEW_OVER:
+        notes.append(f"REVIEW (Tom): gutters/blow-off total ${lane_total:.0f} "
+                     f"is over ${ROOF_LANE_REVIEW_OVER} — Tom may do it for "
+                     "less on a dry day. Confirm before sending.")
+    # The $400 dry-season floor is about TOM'S roll-outs — he does
+    # high-risk roofs only now (tom_only pitch). Scoped there so it
+    # doesn't nag every small summer gutter job a regular tech handles.
+    # (INTERPRETATION — confirm with Dallon: Tom-tier only, or all jobs?)
+    if (is_dry_season and prop.get("pitch") == "tom_only"
+            and lane_lines and 0 < lane_total < DRY_SEASON_ROOF_FLOOR):
+        notes.append(f"DRY SEASON: Tom-tier roof-lane visit is only "
+                     f"${lane_total:.0f} — Tom won't roll out for under "
+                     f"${DRY_SEASON_ROOF_FLOOR} in dry season. Bundle more, "
+                     "or hold for a fuller day.")
 
     # ── DAY-CAPACITY CHECK (schedule is booked by dollars) ──
     booked_total = sum(s["price"] for s in results)
