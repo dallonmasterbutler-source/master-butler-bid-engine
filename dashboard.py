@@ -2447,6 +2447,10 @@ _cs.onchange = function(){{
                     pi.get("pitch"), pi.get("roof_material")) if v)
             q = quotes.get(nb["stamp"])
             qchip = quote_chip(q, qurls) if q else ""
+            if nb.get("jobber_client_url"):
+                qchip += (f" <a href='{esc(nb['jobber_client_url'])}' "
+                          f"target='_blank' rel='noopener' class='chip win' "
+                          f"style='text-decoration:none'>👤 Jobber ↗</a>")
             actionable = (not nb["reviewed"] and not sbs.get(nb["stamp"])
                           and not nb.get("dns_match")
                           and nb["stamp"] not in live_holds)
