@@ -151,7 +151,8 @@ def flagged_for_review():
 # (one email or domain per line).
 INTERNAL_DEFAULT = ["masterbutlerinc.com", "dallon.masterbutler@gmail.com"]
 NOISE_SENDERS = ["no-reply", "noreply", "donotreply", "marketing@",
-                 "accounts.google.com", "notifications@", "newsletter"]
+                 "accounts.google.com", "notifications@", "newsletter",
+                 "invoice+statements", "@stripe.com", "receipts@"]
 
 
 _SENDERS_CACHE = {"at": 0.0, "list": None}
@@ -190,21 +191,18 @@ def _learned_spam():
     return _SPAM_CACHE["v"]
 
 
-_SOLICIT = ("circling back", "quick call", "per service area",
-            "in your market", "commercial quotes", "lead generation",
-            "seo", "google ranking", "book a call", "grow your business",
-            "we only work with one company", "guarantee you",
-            "schedule a demo", "increase your revenue")
-
-
 def _looks_solicitation(rec):
-    """Someone selling TO us, not a homeowner: sales phrases + no
-    property address. Conservative — one phrase isn't enough."""
-    if rec.get("address") or rec.get("kind") == "phone_lead":
-        return False
-    body = ((rec.get("newest_message") or "") + " "
-            + (rec.get("subject") or "")).lower()
-    return sum(1 for s in _SOLICIT if s in body) >= 2
+    """Someone selling TO us, not a homeowner — the full learned filter
+    lives in spam_filter.py (trained on the Jul 8 study of all 179
+    account emails, locked by test_spam_filter.py)."""
+    import spam_filter
+    is_spam, why = spam_filter.looks_spam(
+        rec.get("from"), rec.get("subject"),
+        rec.get("newest_message") or "",
+        has_address=bool(rec.get("address")),
+        list_unsub=bool(rec.get("list_unsub")),
+        kind=rec.get("kind") or "")
+    return why if is_spam else ""
 
 
 def classify_row(rec):
@@ -219,15 +217,20 @@ def classify_row(rec):
                                "request_received"):
             return "main", None
         return "aside", f"jobber event: {ev.get('event')}"
+    if rec.get("spam_auto"):          # the poller already ruled at intake
+        return "aside", f"spam — {rec['spam_auto'][:80]}"
     sender = (rec.get("from") or "").lower()
-    for s in _learned_spam():
-        if s and s in sender:
-            return "aside", "spam (office taught me this sender)"
-    if _looks_solicitation(rec):
-        return "aside", "solicitation to US, not a customer (auto)"
+    # internal FIRST: Dallon/Tom's own strategy mail must never be able
+    # to trip the sales-phrase lexicon
     for s in _internal_senders():
         if s in sender:
             return "aside", "internal (Dallon/Tom/company)"
+    for s in _learned_spam():
+        if s and s in sender:
+            return "aside", "spam (office taught me this sender)"
+    why_spam = _looks_solicitation(rec)
+    if why_spam:
+        return "aside", f"spam — {why_spam[:80]}"
     for s in NOISE_SENDERS:
         if s in sender:
             return "aside", "robot mail"
@@ -974,15 +977,30 @@ def home_page():
             + decided_rows + "</table></div>")
 
     aside_html = ""
+    # spam gets its own drawer — filtered, never vanished: the office
+    # can rescue a mistake with one look (never-hide-a-customer rule)
+    spam_pile = [(b, w) for b, w in aside
+                 if "spam" in (w or "") or "solicitation" in (w or "")]
+    aside = [(b, w) for b, w in aside if (b, w) not in spam_pile]
+    if spam_pile:
+        items = "".join(
+            f"<div>🚫 <a href='/bid/{b['stamp']}'>{esc(b['from'])[:44]}</a> "
+            f"<span style='color:#888'>({esc(why)})</span></div>"
+            for b, why in spam_pile)
+        aside_html += (
+            f"<details class='card'><summary style='cursor:pointer;"
+            f"color:#666'>🚫 Filtered as spam ({len(spam_pile)}) — "
+            f"glance occasionally; open one if it's actually a customer"
+            f"</summary>{items}</details>")
     if aside:
         items = "".join(
             f"<div>· <a href='/bid/{b['stamp']}'>{esc(b['from'])[:44]}</a> "
             f"<span style='color:#888'>({esc(why)})</span></div>"
             for b, why in aside)
-        aside_html = (f"<details class='card'><summary style='cursor:pointer;"
-                      f"color:#666'>Internal &amp; other mail "
-                      f"({len(aside)}) — not customer work</summary>"
-                      f"{items}</details>")
+        aside_html += (f"<details class='card'><summary style='cursor:pointer;"
+                       f"color:#666'>Internal &amp; other mail "
+                       f"({len(aside)}) — not customer work</summary>"
+                       f"{items}</details>")
     if chatter:
         items = "".join(
             f"<div>💬 <a href='/bid/{b['stamp']}'>{esc(b['from'])[:44]}</a> "
@@ -2053,15 +2071,21 @@ def customers_page(sel=None, draft=""):
         c = entry(key)
         c["email"] = c["email"] or e
         nm = (b.get("from") or "").split("<")[0].strip()
-        if nm and not c["name"]:
+        if nm and nm.lower() not in ("none", "none none") \
+                and not c["name"]:
             c["name"] = nm
         c["bids"].append(b)
+    import spam_filter
     _not_customers = (list(_internal_senders()) + list(_learned_spam())
-                      + list(NOISE_SENDERS))
+                      + list(NOISE_SENDERS)
+                      + list(spam_filter.KNOWN_SPAM_DOMAINS))
     for addr, name, msgs in msglog.threads():
         # a thread with no bid gets the same spam/internal filter bids do
         if addr not in cust and any(s and s in addr
                                     for s in _not_customers):
+            continue
+        if addr not in cust and spam_filter.looks_spam(
+                addr, msgs[-1].get("subject"), msgs[-1].get("body"))[0]:
             continue
         c = entry(addr)
         c["email"] = c["email"] or addr

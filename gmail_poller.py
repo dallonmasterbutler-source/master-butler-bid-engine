@@ -329,6 +329,12 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     """Run one raw email through the pipeline; save the shadow draft."""
     SHADOW_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    while (SHADOW_DIR / f"{stamp}.json").exists():
+        # two emails in the same second must not share a stamp — the
+        # second would silently overwrite the first (found in testing)
+        from datetime import timedelta
+        stamp = (datetime.strptime(stamp, "%Y%m%d-%H%M%S")
+                 + timedelta(seconds=1)).strftime("%Y%m%d-%H%M%S")
 
     # save the raw email so the pipeline (and any re-run) can use it
     eml_path = SHADOW_DIR / f"{stamp}.eml"
@@ -345,6 +351,44 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
               "services": parsed["services"], "address": parsed["address"],
               "phone": parsed.get("phone"),
               "newest_message": parsed.get("newest_message")}
+    # bulk-mail marker for the spam filter (real customers never have it)
+    try:
+        import email as _email
+        if _email.message_from_bytes(raw_bytes).get("List-Unsubscribe"):
+            record["list_unsub"] = True
+    except Exception:
+        pass
+
+    # SPAM GATE (Dallon Jul 8: "teach our program... avoid putting it in
+    # the dashboard"): solicitations get SAVED — visible in the queue's
+    # spam drawer, never vanished — but skip pricing, Jobber lookups,
+    # satellite imagery, and the conversation log entirely.
+    try:
+        import spam_filter
+        _is_spam, _why = spam_filter.looks_spam(
+            record["from"], record["subject"],
+            record.get("newest_message") or "",
+            has_address=bool(record.get("address")),
+            list_unsub=bool(record.get("list_unsub")),
+            kind=record["kind"])
+    except Exception:
+        _is_spam, _why = False, ""
+    if _is_spam:
+        record["spam_auto"] = _why
+        print(f"  🚫 spam — filed without pricing: "
+              f"{record['subject'][:48]} ({_why[:60]})")
+        (SHADOW_DIR / f"{stamp}.json").write_text(json.dumps(record,
+                                                             indent=1))
+        try:
+            import clouddb
+            if clouddb.available():
+                clouddb.ingest_shadow(stamp, record)
+            else:
+                from cloudpush import push_or_queue
+                push_or_queue(stamp, record)
+        except Exception:
+            pass
+        return
     # DO-NOT-SERVICE GUARD (Dallon): match by email, phone, ADDRESS
     # (new-email evaders), or name — flag loudly before anyone quotes.
     if parsed["kind"] in ("new_request", "scheduling"):
