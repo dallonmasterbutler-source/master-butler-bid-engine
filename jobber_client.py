@@ -382,6 +382,13 @@ def split_address(address):
     return {"street1": street, "city": city, "province": province,
             "postalCode": postal, "country": "US"}
 
+_CLIENT_PROPERTIES = """
+query Props($id: EncodedId!) {
+  client(id: $id) { properties { id address { street1 } } }
+}
+"""
+
+
 def create_property(client_id, address):
     variables = {"clientId": client_id,
                  "input": {"properties": [{"address": split_address(address)}]}}
@@ -389,7 +396,19 @@ def create_property(client_id, address):
     if data.get("dry_run"):
         return "DRY_RUN_PROPERTY_ID"
     props = data.get("propertyCreate", {}).get("properties") or []
-    return props[0]["id"] if props else None
+    if props:
+        return props[0]["id"]
+    # duplicate address (e.g. a double-click re-push) — REUSE the
+    # client's existing property instead of sending a null id into
+    # quoteCreate (the Martha double-approve lesson, Jul 9)
+    want = split_address(address)["street1"].lower()[:20]
+    data = _post(_CLIENT_PROPERTIES, {"id": client_id}, "list properties")
+    for p in (data.get("client") or {}).get("properties") or []:
+        st = ((p.get("address") or {}).get("street1") or "").lower()
+        if want and st.startswith(want):
+            return p["id"]
+    plist = (data.get("client") or {}).get("properties") or []
+    return plist[0]["id"] if plist else None
 
 
 

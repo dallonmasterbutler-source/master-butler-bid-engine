@@ -3457,6 +3457,16 @@ class Handler(BaseHTTPRequestHandler):
             if get("action") == "approve" and (
                     _push_enabled()
                     or get("stamp") in _blob_rw("push_allow", [])):
+                already_q = quote_numbers().get(get("stamp"))
+                if already_q:            # double-click guard: one bid,
+                    entry["jobber_quote"] = already_q   # one quote, ever
+                    entry["note"] = (f"already pushed as #{already_q} — "
+                                     "no second quote created")
+                    save_review(entry)
+                    self.send_response(303)
+                    self.send_header("Location", f"/bid/{get('stamp')}")
+                    self.end_headers()
+                    return
                 rec = dict(_shadow_source()).get(get("stamp")) or {}
                 d = rec.get("draft")
                 if rec.get("dns_match"):     # HARD BLOCK, even when live
