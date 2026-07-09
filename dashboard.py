@@ -2845,7 +2845,7 @@ def _photo_urls_for(stamp, address, host):
         # the URL tail (files landed as nameless '0' blobs without it)
         urls.append(f"https://{host}/pub/photo/"
                     f"{_photo_token(ref, kind, idx)}/{ref}/{kind}/"
-                    f"{idx}.jpg")
+                    f"{kind}-{idx}.jpg")
     return urls
 
 
@@ -3421,8 +3421,8 @@ class Handler(BaseHTTPRequestHandler):
         # SIGNED photo links (no session auth — Jobber's fetcher uses
         # these to pull bid photos onto the client profile). The HMAC
         # token makes each URL unguessable; nothing is listable.
-        m = re.match(r"^/pub/photo/([0-9a-f]{16})/([\w.-]+)/(\w+)/(\d+)"
-                     r"(?:\.jpg)?$", self.path)
+        m = re.match(r"^/pub/photo/([0-9a-f]{16})/([\w.-]+)/(\w+)/"
+                     r"(?:\w+-)?(\d+)(?:\.jpg)?$", self.path)
         if m:
             tok, ref, kind, idx = m.groups()
             if tok != _photo_token(ref, kind, idx):
