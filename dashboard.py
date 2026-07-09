@@ -660,6 +660,7 @@ def page(title, body, refresh=None):
              ("/new", "➕", "New lead", "New lead"),
              ("/winback", "📞", "Win-back", "Win-back"),
              ("/scoreboard", "📊", "Scoreboard", "Scoreboard"),
+             ("/history", "🗂", "History", "History"),
              ("/settings", "⚙️", "Settings", "Settings"),
              ("/brief", "☀️", "Morning brief", "Morning brief"))
     nav = "".join(
@@ -806,7 +807,12 @@ def home_page():
              f"<div class='stat'><b>{oldest:.0f}h</b><span>oldest wait</span></div>"
              f"<div class='stat'><b>{len(decided_today)}</b><span>decided today</span></div>"
              f"<div class='stat'><b>{wins}</b><span>quote wins 🎉</span></div>"
-             f"{ears}</div>")
+             + (f"<a href='/messages' style='text-decoration:none'>"
+                f"<div class='stat' style='border-color:#c9a227'>"
+                f"<b style='color:#8a5a00'>{_rail_counts()[1]}</b>"
+                f"<span>unread messages</span></div></a>"
+                if _rail_counts()[1] else "")
+             + f"{ears}</div>")
 
     band = ""
     if attention:                      # SYSTEM alarms only (ears silent)
@@ -1155,6 +1161,32 @@ def bid_page(stamp, user=None):
                             f"<img src='/aerial/{extra}' style='height:110px;"
                             f"margin:4px;border-radius:6px;border:2px solid "
                             f"{color}' title='{label}'></a>")
+    convo_card = ""
+    try:
+        if cust_email:
+            import msglog
+            th = next((ms for a, n, ms in msglog.threads()
+                       if a == cust_email.lower()), [])
+            if len(th) > 1:
+                bubbles = ""
+                for m_ in th[-3:]:
+                    inn = m_["dir"] == "in"
+                    bubbles += (
+                        f"<div style='display:flex;justify-content:"
+                        f"{'flex-start' if inn else 'flex-end'};margin:5px 0'>"
+                        f"<div style='max-width:82%;padding:7px 12px;"
+                        f"border-radius:12px;font-size:12.5px;"
+                        f"{'background:#f2f5f3' if inn else 'background:#0b3d2e;color:#eef4f0'}'>"
+                        f"{esc(msglog.clean_body(m_.get('body') or '')[:160] or m_.get('subject') or '')}"
+                        f"</div></div>")
+                convo_card = (
+                    f"<div class='card'><h3 style='margin-top:0'>Recent "
+                    f"conversation <a style='font-weight:400;font-size:12px' "
+                    f"href='/messages?t={urllib.parse.quote(cust_email)}'>"
+                    f"open full thread →</a></h3>{bubbles}</div>")
+    except Exception:
+        convo_card = ""
+
     gallery_card = (f"<div class='card'><h3 style='margin-top:0'>Photos it "
                     f"used {'(green = aerial, blue = street)' if has_imagery else ''}</h3>"
                     f"{gallery or '<div style=color:#888>No photos on this '
@@ -1379,6 +1411,7 @@ def bid_page(stamp, user=None):
    background:#fbfaf5'><h3>What the customer said</h3>
   <div style='font-style:italic;color:#3a4046;font-size:15px'>&ldquo;{esc(b.get('newest_message'))}&rdquo;</div>
   </div>""" if b.get('newest_message') else ''}
+ {convo_card}
  {gallery_card}
  {pricing_explainer_card(pi)}
  {service_history_card(b.get('address'),
@@ -2014,6 +2047,40 @@ def settings_page(msg=""):
     return page("Settings", banner + qr_card + pricing_card + hist)
 
 
+def history_page():
+    """Every bid the system has ever seen, newest first — the office's
+    'where did that one go?' answer. Search included."""
+    bids = load_bids()[::-1]
+    holds, _ = active_holds()
+    flags_open = {f.get("stamp") for f in flagged_for_review()}
+    sbs = scoreboard_status()
+    claims = _claims()
+    quotes, qurls = quote_numbers(), quote_urls()
+    rows = ""
+    for b in bids[:400]:
+        nm = esc(b.get("from", "")).split("&lt;")[0].strip()
+        q = quotes.get(b["stamp"])
+        rows += (
+            f"<tr data-q='{esc((b.get('from') or '').lower())} "
+            f"{esc((b.get('address') or '').lower())}'>"
+            f"<td class='subtext'>{b['stamp'][:4]}-{b['stamp'][4:6]}-"
+            f"{b['stamp'][6:8]}</td>"
+            f"<td><a href='/bid/{b['stamp']}'><b>{nm[:34]}</b></a>"
+            + (f"<div class='subtext'>{quote_chip(q, qurls)}</div>" if q else "")
+            + f"</td><td>{bid_status(b, holds, flags_open, sbs, claims)}</td>"
+            f"<td>{', '.join(svc_label(s) for s in (b.get('services') or [])[:3]) or '—'}</td>"
+            f"<td class='num'>{('$' + str(b['total_guess'])) if b.get('total_guess') else '—'}</td></tr>")
+    body = f"""
+<div class='card'><h2 style='margin-top:0'>Every bid</h2>
+ <input type='text' placeholder='find a customer or address…'
+  style='max-width:300px;margin-bottom:10px' oninput=\"var v=this.value
+  .toLowerCase();document.querySelectorAll('tr[data-q]').forEach(
+  function(t){{t.style.display=t.dataset.q.indexOf(v)>=0?'':'none';}});\">
+ <table><tr><th>Date</th><th>Customer</th><th>Status</th><th>Services</th>
+ <th class='num'>Est.</th></tr>{rows}</table></div>"""
+    return page("History", body)
+
+
 def winback_page(showall=False):
     """LaRee's call-back list: loyal clients (2+ yrs, 3+ jobs) who went
     quiet. Ranked by lifetime value; one click marks them contacted."""
@@ -2433,6 +2500,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith("/settings"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             return self._send(settings_page((q.get("msg") or [""])[0]))
+        if self.path == "/history":
+            return self._send(history_page())
         if self.path.startswith("/messages"):
             q = urllib.parse.urlparse(self.path).query
             sel = urllib.parse.parse_qs(q).get("t", [None])[0]
