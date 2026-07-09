@@ -523,8 +523,10 @@ def _history_hits(records, services):
 STYLE = """<style>
 :root{--green:#0b3d2e;--green2:#177245;--accent:#1e8449;--gold:#c9a227;
       --goldbg:#fdf4dd;--goldink:#7a5300;--alarm:#b03a2e;
-      --bg:#f7f7f5;--ink:#1a1e1c;--mut:#6b736e;--line:#e7e9e5;
-      --card:#ffffff;--soft:#f1f3f0;
+      /* whites warmed a step — Jessica, Jul 9: 'the white against the
+         green is really aggressive on the eyes' */
+      --bg:#f2f3ee;--ink:#1a1e1c;--mut:#6b736e;--line:#e4e6e0;
+      --card:#fcfcf9;--soft:#eef0ea;
       --bluebg:#e5edff;--blueink:#1d4ed8;
       --purplebg:#f0e9fd;--purpleink:#6d28d9;--heading:#0b3d2e}
 /* the mockup's GREEN-SCALE dark theme (Dallon: 'the background is
@@ -640,7 +642,7 @@ button.big{padding:12px 22px;font-size:14.5px;background:var(--green);
 button.gray{background:var(--soft);color:var(--ink);
        border:1px solid var(--line);font-weight:600}
 button.red{background:#b03a2e}
-.reason{background:#fff;color:var(--green2);border:1.5px solid var(--green2);
+.reason{background:var(--card);color:var(--green2);border:1.5px solid var(--green2);
         font-weight:500;padding:7px 12px}
 .reason.sel{background:var(--green2);color:#fff}
 input[type=text],input[type=date],select,textarea{width:100%;padding:10px 12px;
@@ -2404,6 +2406,21 @@ SLA_WORD = {"dns": "do not service", "hold": "parked",
             "won": "won ✓", "sent": "quote sent", "ok": "approved"}
 
 
+def _sounds_urgent(text):
+    """Customer-worry language that must float to the very top (Jessica,
+    Jul 9). Returns the matched phrase (shown to the office) or None."""
+    t = (text or "").lower()
+    for p in ("urgent", "asap", "as soon as possible", "emergency",
+              "no show", "no-show", "didn't show", "did not show",
+              "hasn't shown", "never showed", "not here yet",
+              "still waiting", "leak", "leaking", "damage", "damaged",
+              "broke", "broken", "upset", "frustrated", "disappointed",
+              "unacceptable", "refund", "complaint", "wrong house"):
+        if p in t:
+            return p
+    return None
+
+
 def _status_word(nb, holds, flags_open, sbs, claims):
     """The quiet one-word status for an Inbox row (no pill zoo)."""
     if not nb:
@@ -2482,7 +2499,12 @@ def inbox_page(sel=None, draft="", user=None):
                     + "|" + (lead.get("when") or b["stamp"]))
             c = entry(vkey)
             dur = lead.get("duration") or "?"
-            c["name"] = (f"☎ Voicemail · {lead.get('caller') or b.get('phone') or 'unknown'}")[:38]
+            # A PERSON, not 'voicemail' (Jessica, Jul 9): when Jobber
+            # knows the number, the entry wears the caller's name
+            _cid = b.get("caller_id") or {}
+            c["name"] = ((f"☎ {_cid['name']}" if _cid.get("name") else
+                          f"☎ Voicemail · "
+                          f"{lead.get('caller') or b.get('phone') or 'unknown'}"))[:38]
             c["vm"] = {"dur": dur, "when": lead.get("when"),
                        "caller": lead.get("caller") or b.get("phone")}
             c["bids"].append(b)
@@ -2574,14 +2596,30 @@ def inbox_page(sel=None, draft="", user=None):
                             "color:var(--green2);font-weight:800")
         elif (oq or qno) and grp == 0 and word == "review":
             word = "has a quote — see it"
+        # URGENT-SOUNDING mail floats to the very top (Jessica, Jul 9:
+        # 'a customer worried about their tech not showing up on time
+        # needs to be brought to the top')
+        urgent = None
+        if grp == 0 and unread:
+            _lastin = next((m for m in reversed(c["msgs"])
+                            if m["dir"] == "in"), None) if c["msgs"] else None
+            urgent = _sounds_urgent(
+                ((_lastin.get("body") or "") if _lastin else "")
+                + " " + ((nb.get("newest_message") or "") if nb else ""))
+            if urgent:
+                word = f"⚠ urgent — “{urgent}”"
+                wstyle = "color:var(--alarm);font-weight:800"
         roster.append({"key": key, "c": c, "nb": nb, "unread": unread,
                        "grp": grp, "at": last_at, "word": word,
                        "wstyle": wstyle, "age": age_h or 0,
                        "new_msg": new_msg, "oq": oq, "qno": qno,
-                       "won": won})
-    roster.sort(key=lambda r: (not r["unread"], ), reverse=False)
+                       "won": won, "urgent": bool(urgent)})
+    # GMAIL MIRROR (Jessica, Jul 9: office works Gmail + dashboard side
+    # by side for a while) — inside each section the order is pure
+    # newest-activity-first, exactly like the Gmail list; bold marks
+    # unread but does NOT reorder. Urgent still outranks everything.
     roster.sort(key=lambda r: r["at"], reverse=True)
-    roster.sort(key=lambda r: (r["grp"], not r["unread"]))
+    roster.sort(key=lambda r: (r["grp"], not r["urgent"]))
 
     cur = next((r for r in roster if r["key"] == sel), None)
     convo_open = bool(cur and cur["new_msg"])
@@ -2854,7 +2892,10 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                     or last_in.get("subject")) if last_in
                    else (nb.get("newest_message") if nb else "")) or ""
     if say_txt:
-        say = f"<div class='say'>“{esc(say_txt[:260])}”</div>"
+        # voicemail transcripts show IN FULL (Jessica, Jul 9: 'transcript
+        # section needs to be bigger so the office can read' it all)
+        cut = 2000 if (c.get("vm") and "🎙" in say_txt) else 260
+        say = f"<div class='say'>“{esc(say_txt[:cut])}”</div>"
     chips = ""
     if nb:
         # HOUSE FACTS up top (Jessica, Jul 9: 'info about the house on
@@ -3069,7 +3110,11 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                   f"border:1px solid var(--line);border-radius:6px;"
                   f"padding:4px'>{was}</td>" if editable
                   else f"<td class='num'>${s['price']:,.0f}</td>")
-            lines += (f"<tr><td>{esc(s['name'])}</td>{pc}"
+            rng = (f"<div class='subtext' style='font-size:10.5px'>"
+                   f"range ${s['low']:,.0f}–${s['high']:,.0f}</div>"
+                   if s.get("low") and s.get("high")
+                   and s["low"] != s["high"] else "")
+            lines += (f"<tr><td>{esc(s['name'])}{rng}</td>{pc}"
                       f"<td class='subtext'>{cells or '—'}</td></tr>")
         reason_chips = "".join(
             f"<button type='button' class='reason' onclick=\""
@@ -3097,6 +3142,44 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
         folds += fold("Line items", "no priced draft — office quotes this",
                       f"<div class='subtext'>{esc((nb.get('pipeline_output') or '')[-300:])}</div>"
                       + add_service_card(nb, back=back))
+
+    # HOW IT WAS PRICED (Jessica, Jul 9: 'classic bid view is better for
+    # the two prices, measurements used etc — combine them, do away with
+    # the separate pages'): the classic page's pricing detail, as a fold
+    if nb and bid_d.get("services"):
+        pi_x = d.get("prop_info") or {}
+        priced_inner = pricing_explainer_card(pi_x)
+        _all_notes = (" ".join(bid_d.get("notes") or [])
+                      + " " + (nb.get("pipeline_output") or ""))
+        m2 = re.search(r"DRY-DAY OPTION[^:]*: roof lane \$(\d+)[^$]*\$(\d+)",
+                       _all_notes)
+        if m2:
+            dry, std = m2.group(1), m2.group(2)
+            priced_inner += f"""<div style='border-left:4px solid
+  var(--green2);background:var(--soft);border-radius:12px;
+  padding:12px 16px;margin-top:10px'>
+  <b>Two prices — customer's choice</b>
+  <div style='display:flex;gap:26px;margin-top:6px'>
+   <div><div style='color:var(--mut);font-size:11px;
+     text-transform:uppercase'>Their date (standard)</div>
+    <div style='font-size:22px;font-weight:800'>${std}</div></div>
+   <div><div style='color:var(--mut);font-size:11px;
+     text-transform:uppercase'>Our dry day (flexible)</div>
+    <div style='font-size:22px;font-weight:800;color:var(--green2)'>
+     ${dry}</div></div></div>
+  <div class='subtext' style='margin-top:6px'>Standard is the true price
+   for records. Offer the dry-day price on a price objection ONLY —
+   if they take it, hold it weather-pending.</div></div>"""
+        surf = pi_x.get("aerial_surfaces") or {}
+        if surf:
+            priced_inner += ("<div class='subtext' style='margin-top:8px'>"
+                             "📐 Aerial-measured: " + " · ".join(
+                                 f"{k} ~{v:,.0f} sqft"
+                                 for k, v in surf.items()) + "</div>")
+        if priced_inner:
+            folds += fold("How it was priced",
+                          "size · multipliers · measurements",
+                          priced_inner)
 
     # photos & flyover
     if nb:
@@ -3794,6 +3877,8 @@ def add_service_card(b, back=""):
     menu = list(ADD_MENU) + [
         (f"pw_{k}", f"Pressure wash {k} (~{a:,} sqft, aerial-measured)")
         for k, a in sorted(asf.items()) if a]
+    # MULTI-SELECT + LIVE TOTAL (Jessica, Jul 9: 'can't click on
+    # multiple, and clicking on one doesn't do anything to the price')
     rows = ""
     for svc, label in menu:
         lines = price_one_service(b, svc)
@@ -3803,18 +3888,17 @@ def add_service_card(b, back=""):
             continue                        # already on the quote
         price = sum(li["price"] for li in lines)
         rows += (
-            f"<tr><td>{esc(label)}</td>"
-            f"<td class='num'><b>${price:,.0f}</b></td>"
-            f"<td style='text-align:right'>"
-            f"<form method='POST' action='/add_service' style='margin:0'>"
-            f"<input type='hidden' name='stamp' value='{b['stamp']}'>"
-            f"<input type='hidden' name='svc' value='{svc}'>"
-            f"<input type='hidden' name='back' value='{esc(back)}'>"
-            f"<input type='hidden' name='customer' value='{esc(b.get('from') or '')}'>"
-            f"<button class='gray' style='padding:4px 14px;font-size:12px'>"
-            f"➕ Add to quote</button></form></td></tr>")
+            f"<label style='display:flex;align-items:center;gap:10px;"
+            f"padding:7px 10px;border:1px solid var(--line);"
+            f"border-radius:10px;margin:4px 0;cursor:pointer'>"
+            f"<input type='checkbox' name='svc' value='{svc}' "
+            f"data-price='{price:.0f}' class='addsvc' "
+            f"style='width:17px;height:17px'>"
+            f"<span style='flex:1'>{esc(label)}</span>"
+            f"<b>${price:,.0f}</b></label>")
     if not rows:
         return ""
+    cur_total = (b.get("draft") or {}).get("total") or 0
     debris_line = (f"debris/buildup priced from this home's imagery reads "
                    f"({esc(pi.get('debris_read'))})"
                    if pi.get("debris_read") else "standard debris assumed")
@@ -3830,12 +3914,44 @@ def add_service_card(b, back=""):
             f"pre-priced pressure washing</button></form>")
     return (
         "<details class='card'><summary style='cursor:pointer;"
-        "font-weight:700;color:var(--green2)'>➕ Add another service — "
-        "pre-priced for this home (customer asked for more?)</summary>"
-        "<table style='margin-top:8px'>" + rows + "</table>"
+        "font-weight:700;color:var(--green2)'>➕ Add more services — "
+        "check any, watch the total, add them all at once</summary>"
+        f"<form method='POST' action='/add_service' id='addsvcform' "
+        f"style='margin-top:8px'>"
+        f"<input type='hidden' name='stamp' value='{b['stamp']}'>"
+        f"<input type='hidden' name='back' value='{esc(back)}'>"
+        f"<input type='hidden' name='customer' "
+        f"value='{esc(b.get('from') or '')}'>"
+        + rows +
+        f"<div style='display:flex;justify-content:space-between;"
+        f"align-items:center;margin-top:10px'>"
+        f"<b id='addsvctotal' data-base='{cur_total:.0f}' "
+        f"style='color:var(--green2)'>quote stays ${cur_total:,.0f}</b>"
+        f"<button class='gray' style='font-weight:700' disabled "
+        f"id='addsvcbtn'>➕ Add checked services</button></div></form>"
+        """<script>
+(function(){
+  var boxes = document.querySelectorAll('#addsvcform .addsvc');
+  var tot = document.getElementById('addsvctotal');
+  var btn = document.getElementById('addsvcbtn');
+  if (!tot) return;
+  var base = parseFloat(tot.getAttribute('data-base')) || 0;
+  function upd(){
+    var add = 0, n = 0;
+    boxes.forEach(function(b){ if (b.checked){
+      add += parseFloat(b.getAttribute('data-price')) || 0; n++; } });
+    btn.disabled = n === 0;
+    tot.textContent = n === 0
+      ? 'quote stays $' + base.toLocaleString()
+      : '+$' + add.toLocaleString() + ' → new total $'
+        + (base + add).toLocaleString();
+  }
+  boxes.forEach(function(b){ b.addEventListener('change', upd); });
+  upd();
+})();
+</script>"""
         f"<div class='subtext' style='margin-top:6px'>Engine prices from "
-        f"this property's record ({debris_line}) — the line lands on the "
-        f"draft instantly, logged with your name. PW lines: office rule "
+        f"this property's record ({debris_line}). PW lines: office rule "
         f"still applies — verify surfaces/pictures before booking.</div>"
         + measure_btn + "</details>")
 
@@ -4470,7 +4586,8 @@ def scoreboard_page():
                   "awaiting_response": "quote sent",
                   "draft": "approved", "archived": "archived"}.get(js)
         qbtn = (f"<a class='btn' style='padding:5px 12px;font-size:12px;"
-                f"background:#fff;color:#177245;border:1px solid #cfe0d6' "
+                f"background:var(--card);color:var(--green2);"
+                f"border:1px solid var(--line)' "
                 f"href='{esc(r['jobber_url'])}' target='_blank' "
                 f"rel='noopener'>Jobber #{r['office_quote']} ↗</a>"
                 if r.get("jobber_url") else f"#{r['office_quote']}")
@@ -5471,20 +5588,34 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return
         elif self.path == "/add_service":
-            # ONE-CLICK LINE ADD (Dallon Jul 9): price the extra service
-            # from the record and append — no full pipeline re-run.
-            stamp, svc = get("stamp"), get("svc")
+            # LINE ADD (Dallon Jul 9; multi-select per Jessica Jul 9):
+            # price the checked service(s) from the record and append —
+            # no full pipeline re-run.
+            stamp = get("stamp")
             rec = dict(_shadow_source()).get(stamp)
-            lines = price_one_service(rec, svc) if rec else None
-            if rec and lines and not rec.get("dns_match"):
-                bid_d = rec.setdefault("draft", {}).setdefault("bid", {})
-                svcs = bid_d.setdefault("services", [])
-                names = {s["name"] for s in svcs}
-                added = [li for li in lines if li["name"] not in names]
-                svcs.extend(added)
-                rec["draft"]["total"] = sum(s["price"] for s in svcs)
-                rec["services"] = sorted(set((rec.get("services") or [])
-                                             + [svc]))
+            picked = [s for s in form.get("svc", []) if s]
+            all_added, all_names = [], []
+            if rec and picked and not rec.get("dns_match"):
+                for svc in picked:
+                    lines = price_one_service(rec, svc)
+                    if not lines:
+                        continue
+                    bid_d = rec.setdefault("draft", {}).setdefault("bid", {})
+                    svcs = bid_d.setdefault("services", [])
+                    names = {s["name"] for s in svcs}
+                    added = [li for li in lines if li["name"] not in names]
+                    if not added:
+                        continue
+                    svcs.extend(added)
+                    all_added += added
+                    all_names.append(svc)
+                    rec["draft"]["total"] = sum(s["price"] for s in svcs)
+                    rec["services"] = sorted(set((rec.get("services") or [])
+                                                 + [svc]))
+            if all_added:
+                svc = ", ".join(all_names)
+                added = all_added
+                bid_d = rec["draft"]["bid"]
                 _pi = (rec.get("draft") or {}).get("prop_info") or {}
                 note = (f"{svc.replace('_', ' ')} added from the menu by "
                         f"{_user or 'the office'} — engine-priced from the "
@@ -5493,7 +5624,7 @@ class Handler(BaseHTTPRequestHandler):
                            if _pi.get("debris_read")
                            else "(standard debris assumed).")
                         + (" PW office rule: verify surfaces/pictures "
-                           "before booking." if svc.startswith("pw_")
+                           "before booking." if "pw_" in svc
                            else ""))
                 bid_d.setdefault("notes", []).append(note)
                 rec["pipeline_output"] = (rec.get("pipeline_output", "")

@@ -554,6 +554,9 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
             cid = None
         if cid:
             record["caller_id"] = cid
+            # the entry becomes a PERSON (Jessica): name + address on it
+            if not record.get("address") and cid.get("address"):
+                record["address"] = cid["address"]
             who = (f"{cid['name']} ({who}) — EXISTING CLIENT, "
                    f"{cid['invoices']} past job(s)"
                    + (f", {cid['address']}" if cid.get("address") else ""))
