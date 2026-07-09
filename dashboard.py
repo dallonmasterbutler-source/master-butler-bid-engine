@@ -1699,13 +1699,14 @@ def messages_page(sel=None, draft=""):
             unread.append((addr, name, msgs))
         else:
             older.append((addr, name, msgs))
-    if sel is None:
-        sel = (unread or ts)[0][0]
-    # opening a thread marks it read (records the newest message time)
-    cur = next((t for t in ts if t[0] == sel), None)
-    if cur:
-        read_marks[sel] = cur[2][-1]["at"]
-        _msg_read_save(read_marks)
+    # NO auto-select (Dallon: landing on the page must not mark anything
+    # read) — a thread opens, and gets marked read, only on a real click.
+    cur = None
+    if sel is not None:
+        cur = next((t for t in ts if t[0] == sel), None)
+        if cur:
+            read_marks[sel] = cur[2][-1]["at"]
+            _msg_read_save(read_marks)
 
     def render_items(group, is_unread):
         items = ""
@@ -1751,6 +1752,31 @@ def messages_page(sel=None, draft=""):
                       f"style='cursor:pointer;color:var(--mut);font-size:12px;"
                       f"font-weight:700;padding:0 14px'>Older conversations "
                       f"({len(older)})</summary>{render_items(older, False)}</details>")
+    if sel is None:
+        placeholder = (
+            "<div class='card' style='display:flex;align-items:center;"
+            "justify-content:center;min-height:320px;color:var(--mut)'>"
+            "<div style='text-align:center'><div style='font-size:34px'>💬"
+            "</div><b>Pick a conversation</b><div class='subtext'>"
+            "Nothing gets marked read until you open it.</div></div></div>")
+        body = f"""
+<div style='display:grid;grid-template-columns:290px 1fr;gap:16px;
+            align-items:start'>
+ <div class='card' style='padding:12px'>
+  <h3 style='padding:0 6px;display:flex;align-items:center'>Needs attention
+   <form method='POST' action='/msg_read_all' style='margin-left:auto'>
+    <button class='gray' style='padding:2px 8px;font-size:10.5px'>mark all
+    read</button></form></h3>{{items}}{{older_html}}</div>
+ {{placeholder}}</div>""".format(items=render_items(unread, True) or
+        "<div class='subtext' style='padding:8px 14px'>All caught up ✅</div>",
+        older_html=("" if not older else
+        f"<details style='margin-top:10px'><summary style='cursor:pointer;"
+        f"color:var(--mut);font-size:12px;font-weight:700;padding:0 14px'>"
+        f"Older conversations ({{}})</summary>{{}}</details>".format(
+            len(older), render_items(older, False))),
+        placeholder=placeholder)
+        return page("Messages", body)
+
     thread_html = ""
     tname, tmsgs = sel, []
     for addr, name, msgs in ts:
