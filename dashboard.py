@@ -634,6 +634,27 @@ details.card[open] summary{margin-bottom:8px}
 footer{margin:8px 0 28px;padding:0 24px;
        color:#a3aaa2;font-size:12px}
 /* ——— THE INBOX (mockup-exact, Jul 9) ——— */
+.mock{background:var(--card);border:1px solid var(--line);
+  border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05);
+  margin-top:6px}
+.chrome{background:var(--green);color:#e9efe9;padding:11px 20px;
+  font-size:13.5px;display:flex;gap:16px;align-items:center}
+.chrome b{font-size:14.5px;color:#fff}
+.chrome .navr{margin-left:auto;display:flex;gap:4px;align-items:center}
+.chrome .navr a{color:#cfe0d6;text-decoration:none;padding:5px 12px;
+  border-radius:8px;font-weight:600;font-size:13px}
+.chrome .navr a:hover{color:#fff;text-decoration:none}
+.chrome .navr a.on{background:rgba(255,255,255,.14);color:#fff}
+.chrome .whobox{margin-left:14px;padding-left:14px;
+  border-left:1px solid rgba(255,255,255,.25);opacity:.95;font-size:13px}
+.inboxgrid{display:grid;grid-template-columns:330px 1fr;min-height:640px}
+@media(max-width:840px){.inboxgrid{grid-template-columns:1fr}}
+.ilist{border-right:1px solid var(--line);padding:8px;overflow-y:auto;
+  max-height:calc(100vh - 140px)}
+.idetail{display:flex;flex-direction:column;max-height:calc(100vh - 140px);
+  overflow-y:auto}
+.ifolds{padding:8px 18px 22px}
+
 .ihead{padding:12px 12px 4px;font-size:11px;font-weight:800;color:var(--mut);
   text-transform:uppercase;letter-spacing:1px}
 .irow{display:block;padding:12px;border-radius:10px;cursor:pointer;
@@ -654,7 +675,7 @@ footer{margin:8px 0 28px;padding:0 24px;
 .iage{color:var(--mut);font-variant-numeric:tabular-nums;font-size:12.5px}
 .iage.alarm{color:var(--alarm);font-weight:700}
 .pinned{padding:20px 26px 16px;border-bottom:2px solid var(--line);
-  background:var(--card);border-radius:16px 16px 0 0}
+  background:var(--card)}
 .pin-top{display:flex;justify-content:space-between;gap:18px;
   align-items:flex-start;flex-wrap:wrap}
 .pin-top h2{margin:0;font-size:22px;letter-spacing:-.4px;color:var(--ink)}
@@ -738,6 +759,19 @@ def _rail_counts():
 def page(title, body, refresh=None, chrome="rail"):
     auto = (f"<meta http-equiv='refresh' content='{refresh}'>"
             if refresh else "")
+    if chrome == "bare":
+        # the Inbox draws its own framed app window (mockup-exact) —
+        # this shell is just <html> + tokens + footer
+        return (f"<!doctype html><html><head><meta charset='utf-8'>"
+                f"<meta name='viewport' content='width=device-width,"
+                f"initial-scale=1'>{auto}{FAVICON}"
+                f"<title>{title}</title>{STYLE}</head>"
+                f"<body style='padding:14px 16px 0'>"
+                f"<div style='max-width:1280px;margin:0 auto'>{body}"
+                f"<footer style='padding:10px 4px'>Every quote is a draft "
+                f"until a human sends it · bold = nobody's seen it · "
+                f"every price traces to a real job.</footer>"
+                f"</div></body></html>").encode()
     if chrome == "top":
         # THE INBOX CHROME (Dallon Jul 9): no left rail — pages live
         # top-right, the left side of the screen is only ever the list.
@@ -2592,21 +2626,51 @@ def inbox_page(sel=None, draft="", user=None):
 
     # ── right: pinned card + folds ──
     if not cur:
-        detail = ("<div class='card' style='display:flex;align-items:"
-                  "center;justify-content:center;min-height:420px;"
+        detail = ("<div style='display:flex;align-items:center;"
+                  "justify-content:center;min-height:420px;flex:1;"
                   "color:var(--mut)'><div style='text-align:center'>"
                   "<div style='font-size:36px'>📥</div><b>Pick a customer"
-                  "</b><div class='subtext'>Bold = unread. Nothing gets "
-                  "marked read until someone opens it.</div></div></div>")
+                  "</b><div class='subtext'>Bold = nobody's handled it "
+                  "yet. Opening never greys it — the ✓ Done button does."
+                  "</div></div></div>")
     else:
         detail = _inbox_detail(cur, quotes, qurls, live_holds, flags_open,
                                sbs, claims, draft, convo_open, user)
 
-    body = (f"<div style='display:grid;grid-template-columns:330px 1fr;"
-            f"gap:14px;align-items:start'>"
-            f"<div class='card' style='padding:10px;max-height:"
-            f"calc(100vh - 110px);overflow-y:auto'>{lst}</div>"
-            f"{detail}</div>")
+    navr = "".join(
+        f"<a href='{href}' class='{'on' if here else ''}'>{label}</a>"
+        for href, label, here in (("/", "📥 Bids", True),
+                                  ("/scoreboard", "📊 Scoreboard", False),
+                                  ("/winback", "📞 Win-back", False),
+                                  ("/settings", "⚙️ Settings", False)))
+    chrome_bar = ("<div class='chrome'><b>🎩 Master Butler</b>"
+                  f"<div class='navr'>{navr}"
+                  "<span id='who' class='whobox'></span></div></div>"
+                  + """<script>
+(function(){
+  var m=document.cookie.match(/office_user=([^;]+)/);
+  var el=document.getElementById('who');
+  function set(n){document.cookie='office_user='+encodeURIComponent(n)
+    +';path=/;max-age=31536000';location.reload();}
+  if(m){var n=decodeURIComponent(m[1]);
+    el.innerHTML='👤 <b>'+n+'</b> <a href="#" style="opacity:.6;color:#cfe0d6">change</a>';
+    el.querySelector('a').onclick=function(e){e.preventDefault();
+      document.cookie='office_user=;path=/;max-age=0';location.reload();};
+  } else {
+    el.innerHTML='Who’s working? ';
+    ['LaRee','Jessica','Martha','Dallon','Tom'].forEach(function(n){
+      var a=document.createElement('a');a.href='#';a.textContent=n;
+      a.style.cssText='margin:0 5px;color:#c9a227;font-weight:700';
+      a.onclick=function(e){e.preventDefault();set(n);};
+      el.appendChild(a);});
+  }
+})();
+</script>""")
+    body = (f"<div class='mock'>{chrome_bar}"
+            f"<div class='inboxgrid'>"
+            f"<div class='ilist'>{lst}</div>"
+            f"<div class='idetail'>{detail}</div>"
+            f"</div></div>")
     body += """
 <script>
 (function(){
@@ -2623,7 +2687,7 @@ def inbox_page(sel=None, draft="", user=None):
   setInterval(bump, 30000); bump();
 })();
 </script>"""
-    return page("Bids", body, chrome="top")
+    return page("Bids", body, chrome="bare")
 
 
 def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
@@ -2841,7 +2905,7 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                      f"{esc(nb['address'])}</a>")
     elif c["email"]:
         addr_line = esc(c["email"])
-    pinned = (f"<div class='card pinned'>{banners}"
+    pinned = (f"<div class='pinned'>{banners}"
               f"<div class='pin-top'><div>"
               f"<h2>{esc(c['name'] or c['email'] or '')}{mark_unread}</h2>"
               f"<div class='paddr'>{addr_line}{jobber_bits}{ident_links}"
@@ -3099,7 +3163,7 @@ function qh(d){
   document.getElementById('holddate').value = t.toISOString().slice(0,10);
 }
 </script>"""
-    return f"<div>{pinned}{folds}{scripts}</div>"
+    return f"{pinned}<div class='ifolds'>{folds}</div>{scripts}"
 
 
 def customers_page(sel=None, draft=""):
