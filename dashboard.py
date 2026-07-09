@@ -772,8 +772,10 @@ def home_page():
     queue, aside, chatter, office_done = [], [], [], []
     for b in pending:
         # the OFFICE already quoted it -> nothing left to review here;
-        # it lives in "Recently decided" with its live Jobber status
-        if sbs.get(b["stamp"]) and not b.get("office_alert"):
+        # it lives in "Recently decided" with its live Jobber status.
+        # EXCEPT: an open second-look question always stays visible.
+        if sbs.get(b["stamp"]) and not b.get("office_alert") \
+                and b["stamp"] not in bid_status._sl:
             office_done.append(b)
             continue
         lane, why = classify_row(b)
