@@ -342,18 +342,26 @@ def _save_claims(c):
         (BASE / "data" / "bid_claims.json").write_text(json.dumps(c))
 
 
-def claim_bid(stamp, user):
+def claim_bid(stamp, user, force=False):
     """Soft lock: opening a bid marks it 'user is working on this' for
-    15 min. Returns the OTHER person's fresh claim if there is one."""
+    15 min. Returns the OTHER person's fresh claim if there is one.
+    force=True reassigns instantly (the Take-over button)."""
     claims = _claims()
     other = claims.get(stamp)
-    if other and other["by"] != user and other["mins"] <= CLAIM_FRESH_MIN:
+    if (not force and other and other["by"] != user
+            and other["mins"] <= CLAIM_FRESH_MIN):
         return other                      # someone else is on it — warn
     if user:
         claims[stamp] = {"by": user,
                          "at": datetime.now().isoformat(timespec="seconds")}
         _save_claims(claims)
     return None
+
+
+def release_claim(stamp):
+    claims = _claims()
+    claims.pop(stamp, None)
+    _save_claims(claims)
 
 
 STATUS_STYLE = {                          # label -> (text color, bg)
@@ -702,6 +710,15 @@ def page(title, body, refresh=None):
 })();
 </script></header>"""
             f"<div class='wrap'>{body}</div>"
+            + """<script>
+document.querySelectorAll('tr[data-href]').forEach(function(t){
+  t.style.cursor='pointer';
+  t.addEventListener('click', function(e){
+    if (e.target.closest('a,button,form,input,select,textarea,details')) return;
+    location = t.dataset.href;
+  });
+});
+</script>"""
             f"<footer>Every quote is a draft until a human sends it · the "
             f"inbox is never marked read · every price traces to a real "
             f"job.</footer></div></body></html>").encode()
@@ -879,7 +896,8 @@ def home_page():
                 f"color:{'#1e8449' if c >= 75 else '#c77700' if c >= 50 else '#b03a2e'}'>"
                 f"{c}%</span>")
         rows += (f"<tr data-q='{esc((b.get('from') or '').lower())} "
-                 f"{esc((b.get('address') or '').lower())}'>"
+                 f"{esc((b.get('address') or '').lower())}' "
+                 f"data-href='/bid/{b['stamp']}'>"
                  f"<td>{age_html(b['age_hours'])}</td>"
                  f"<td><a href='/bid/{b['stamp']}'><b>{name}</b></a>"
                  f"<div class='subtext'>{sub}</div>{badge}</td>"
@@ -1105,7 +1123,17 @@ def bid_page(stamp, user=None):
     # MULTI-PERSON GUARD: opening a bid claims it for 15 min; if someone
     # else already has it open, say so LOUDLY before any buttons.
     other = claim_bid(stamp, user)
+    mine = (_claims().get(stamp) or {}).get("by") == user if user else False
     collision = ""
+    if mine and not other:
+        collision += (
+            f"<div class='subtext' style='margin:4px 0 8px'>You're on this "
+            f"bid. Walking away? "
+            f"<form method='POST' action='/claim_release' "
+            f"style='display:inline'>"
+            f"<input type='hidden' name='stamp' value='{stamp}'>"
+            f"<button class='gray' style='padding:2px 10px;font-size:11px'>"
+            f"Release it</button></form></div>")
     if b.get("dns_match"):
         h = b["dns_match"]
         collision += (
@@ -1121,7 +1149,11 @@ def bid_page(stamp, user=None):
             f"#b9ccf5;border-left-color:#1d4ed8'><b style='color:#1d4ed8'>"
             f"👥 {esc(other['by'])} opened this bid "
             f"{other['mins']:.0f} min ago</b> — check with them before "
-            f"deciding, so you don't both answer the same customer.</div>")
+            f"deciding, so you don't both answer the same customer. "
+            f"<form method='POST' action='/claim_take' style='display:inline'>"
+            f"<input type='hidden' name='stamp' value='{stamp}'>"
+            f"<button style='padding:4px 12px;font-size:12px;"
+            f"background:#1d4ed8'>🤝 Take over this bid</button></form></div>")
 
     gallery, has_imagery = "", False
     if clouddb.available():
@@ -2068,7 +2100,8 @@ def history_page():
         q = quotes.get(b["stamp"])
         rows += (
             f"<tr data-q='{esc((b.get('from') or '').lower())} "
-            f"{esc((b.get('address') or '').lower())}'>"
+            f"{esc((b.get('address') or '').lower())}' "
+            f"data-href='/bid/{b['stamp']}'>"
             f"<td class='subtext'>{b['stamp'][:4]}-{b['stamp'][4:6]}-"
             f"{b['stamp'][6:8]}</td>"
             f"<td><a href='/bid/{b['stamp']}'><b>{nm[:34]}</b></a>"
@@ -3010,6 +3043,24 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(303)
             self.send_header("Location",
                              f"/messages?t={urllib.parse.quote(to)}")
+            self.end_headers()
+            return
+        elif self.path == "/claim_take":
+            prev = (_claims().get(get("stamp")) or {}).get("by")
+            if _user:
+                claim_bid(get("stamp"), _user, force=True)
+                save_review({"stamp": get("stamp"), "action": "handoff",
+                             "customer": "",
+                             "note": f"bid handed over: "
+                                     f"{prev or 'unclaimed'} → {_user}"})
+            self.send_response(303)
+            self.send_header("Location", f"/bid/{get('stamp')}")
+            self.end_headers()
+            return
+        elif self.path == "/claim_release":
+            release_claim(get("stamp"))
+            self.send_response(303)
+            self.send_header("Location", "/")
             self.end_headers()
             return
         elif self.path == "/winback_done":
