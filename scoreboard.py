@@ -52,6 +52,17 @@ def load_shadows():
     def add(rec, stamp):
         if not stamp or stamp in seen:
             return
+        # folded duplicates and filtered spam never make scoreboard rows
+        # (Dallon Jul 9: 'there are duplicates in the scoreboard')
+        if rec.get("merged_into") or rec.get("spam_auto"):
+            return
+        try:                    # pre-gate spam records never score
+            import spam_filter
+            if spam_filter.looks_spam(rec.get("from"), rec.get("subject"),
+                                      rec.get("newest_message") or "")[0]:
+                return
+        except Exception:
+            pass
         rec["stamp"] = stamp
         if rec.get("draft") and rec["draft"].get("total"):
             out.append(rec); seen.add(stamp)
@@ -163,10 +174,23 @@ def match(shadow, quotes):
 
 def run(limit=60):
     shadows = load_shadows()
+    # ONE row per customer: several emails from the same person collapse
+    # to their NEWEST priced draft (matches the Inbox's one-entry rule)
+    by_cust = {}
+    for s in sorted(shadows, key=lambda r: r["stamp"]):
+        m = re.search(r"<([^>]+)>", s.get("from") or "")
+        key = (m.group(1).lower() if m else s["stamp"])
+        by_cust[key] = s
+    shadows = list(by_cust.values())
     quotes = fetch_recent_quotes(limit)
     rows, matched = [], 0
+    used_quotes = set()
     for s in shadows:
         q, how = match(s, quotes)
+        if q and q["quoteNumber"] in used_quotes:
+            q, how = None, None       # a quote only ever matches once
+        if q:
+            used_quotes.add(q["quoteNumber"])
         row = {"stamp": s["stamp"], "customer": s.get("from"),
                "services": s.get("services"),
                "system_total": s["draft"]["total"]}
