@@ -451,10 +451,14 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
         except Exception:
             cs = None
         if cs is not None:
-            if not cs["known"] or cs["invoices"] == 0:
+            if not cs["known"]:
                 record["customer_status"] = "new"
+            elif cs["invoices"] == 0:
+                record["customer_status"] = "in Jobber — no completed jobs yet"
             else:
                 record["customer_status"] = f"returning ({cs['invoices']} jobs)"
+            if cs.get("url"):
+                record["jobber_client_url"] = cs["url"]
     if parsed.get("jobber_event"):
         ev = parsed["jobber_event"]
         record["jobber_event"] = ev

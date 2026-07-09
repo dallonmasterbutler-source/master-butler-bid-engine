@@ -201,10 +201,14 @@ def process_manual(name, address, phone="", email="", services=None,
                     "in Jobber — no completed jobs yet"
                     if cs.get("invoices", 0) == 0
                     else f"returning ({cs['invoices']} jobs)")
+                if cs.get("url"):
+                    record["jobber_client_url"] = cs["url"]
             elif phone:
                 cid = jc.caller_id(phone)
                 if cid:
                     record["caller_id"] = cid
+                    if cid.get("url"):
+                        record["jobber_client_url"] = cid["url"]
                     record["customer_status"] = (
                         f"returning ({cid.get('invoices', 0)} jobs)")
                     record["office_alert"] = (

@@ -249,7 +249,7 @@ def find_client_address(email_addr):
 FIND_CLIENT_BY_PHONE = """
 query FindByPhone($term: String!) {
   clients(searchTerm: $term, first: 3) {
-    nodes { name
+    nodes { name jobberWebUri
             invoices(first: 1) { totalCount }
             quotes(first: 1) { totalCount }
             properties { address { street city } } }
@@ -285,7 +285,8 @@ def caller_id(phone):
                 return {"name": n["name"],
                         "invoices": n["invoices"]["totalCount"],
                         "quotes": n["quotes"]["totalCount"],
-                        "address": addr}
+                        "address": addr,
+                        "url": n.get("jobberWebUri")}
     finally:
         DRY_RUN = was
     return None
@@ -297,7 +298,7 @@ def caller_id(phone):
 CLIENT_SUMMARY = """
 query Summary($term: String!) {
   clients(searchTerm: $term, first: 5) {
-    nodes { emails { address }
+    nodes { emails { address } jobberWebUri
             invoices(first: 1) { totalCount } }
   }
 }
@@ -322,7 +323,8 @@ def client_summary(email_addr):
         addrs = [e["address"].lower() for e in node.get("emails", [])]
         if email_addr.lower() in addrs:
             return {"known": True,
-                    "invoices": node["invoices"]["totalCount"]}
+                    "invoices": node["invoices"]["totalCount"],
+                    "url": node.get("jobberWebUri")}
     return {"known": False, "invoices": 0}
 
 

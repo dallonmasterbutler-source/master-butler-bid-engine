@@ -1520,7 +1520,11 @@ def bid_page(stamp, user=None):
    <div style='color:var(--mut)'>
     {f"<a href='/property/{_slug(b.get('address'))}'>{esc(b.get('address'))}</a>"
      if b.get('address') else '— address not found'}
-    <span class='subtext'> · {esc(cust_email or '')}</span></div>
+    <span class='subtext'> · {esc(cust_email or '')}</span>
+    {(f" <a href='{esc(b['jobber_client_url'])}' target='_blank' "
+      f"rel='noopener' class='chip win' style='text-decoration:none'>"
+      f"👤 Jobber profile ↗</a>") if b.get('jobber_client_url') else ''}
+   </div>
    {(f"<div style='margin-top:6px;display:inline-block;background:#e5edff;"
      f"color:#1d4ed8;border-radius:999px;padding:4px 13px;font-size:12.5px;"
      f"font-weight:700'>📅 Asked about timing: &ldquo;{esc(b['sched_pref'])}"
