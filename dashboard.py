@@ -2200,7 +2200,7 @@ def messages_page(sel=None, draft=""):
             f"<div style='font-size:10px;font-weight:700;opacity:.65;"
             f"margin-bottom:3px'>"
             f"{esc(m.get('name') or '') if inbound else 'Master Butler' + (' · ' + esc(m['by']) if m.get('by') else '')}"
-            f" · {esc(m['at'][:16].replace('T', ' '))}</div>"
+            f" · {esc(_pt(m['at']))}</div>"
             f"<div style='white-space:pre-wrap;font-size:13.5px'>"
             f"{esc(msglog.clean_body(m.get('body') or '') or m.get('subject') or '')}</div>"
             + (f"<div style='margin-top:4px'><a href='/bid/{m['stamp']}' "
@@ -2294,6 +2294,22 @@ sel.onchange = function(){{
     return page("Messages", body)
 
 
+
+def _pt(iso):
+    """Display any stored timestamp in PACIFIC (Dallon: 'timestamps are
+    out of whack') — storage stays UTC/original for honest sorting."""
+    try:
+        from datetime import datetime as _d, timezone as _z
+        from zoneinfo import ZoneInfo
+        t = _d.fromisoformat(iso)
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=_z.utc)
+        return t.astimezone(ZoneInfo("America/Los_Angeles")) \
+                .strftime("%b %d, %-I:%M %p")
+    except Exception:
+        return (iso or "")[:16].replace("T", " ")
+
+
 def _bid_email(b):
     e = ((b.get("draft") or {}).get("customer") or {}).get("email")
     if not e:
@@ -2369,7 +2385,8 @@ def inbox_page(sel=None, draft="", user=None):
 
     def entry(key):
         if key not in cust:
-            cust[key] = {"name": "", "email": None, "bids": [], "msgs": []}
+            cust[key] = {"name": "", "email": None, "bids": [],
+                         "msgs": [], "vm": None}
             order.append(key)
         return cust[key]
 
@@ -2380,6 +2397,21 @@ def inbox_page(sel=None, draft="", user=None):
         if b.get("kind") == "jobber_event" and (not e or "getjobber" in e):
             c = entry("stamp:" + b["stamp"])
             c["name"] = (b.get("subject") or "Jobber event")[:40]
+            c["bids"].append(b)
+            continue
+        lead = b.get("lead") or {}
+        if lead or "copycall" in (e or ""):
+            # ONE ENTRY PER CALL (Dallon's catch: every voicemail merged
+            # into one 'messages@copycall' person, wearing the wrong
+            # number) — key by caller+time so double-processed
+            # notifications collapse too
+            vkey = ("vm:" + (lead.get("caller") or b.get("phone") or "?")
+                    + "|" + (lead.get("when") or b["stamp"]))
+            c = entry(vkey)
+            dur = lead.get("duration") or "?"
+            c["name"] = (f"☎ Voicemail · {lead.get('caller') or b.get('phone') or 'unknown'}")[:38]
+            c["vm"] = {"dur": dur, "when": lead.get("when"),
+                       "caller": lead.get("caller") or b.get("phone")}
             c["bids"].append(b)
             continue
         key = e or ("stamp:" + b["stamp"])
@@ -2480,14 +2512,10 @@ def inbox_page(sel=None, draft="", user=None):
 
     cur = next((r for r in roster if r["key"] == sel), None)
     convo_open = bool(cur and cur["new_msg"])
-    if cur:                        # opening marks read — office-wide.
-        # We store the READ TIME (not the activity time): a new message
-        # still un-bolds it, and the walk-away net below can measure
-        # how long ago it was opened.
-        from datetime import datetime as _dtm2, timezone as _tz2
-        read_marks[sel] = _dtm2.now(_tz2.utc).isoformat(timespec="seconds")
-        _msg_read_save(read_marks)
-        cur["unread"] = False
+    if cur:
+        # OPENING NO LONGER GREYS IT (Dallon: 'if someone clicks out and
+        # needs to go back in quickly, it stays'). Grey happens on the
+        # ✓ Done button, or automatically with any real decision.
         if cur["nb"] and not cur["nb"].get("reviewed") and user:
             claim_bid(cur["nb"]["stamp"], user)
 
@@ -2500,8 +2528,16 @@ def inbox_page(sel=None, draft="", user=None):
         op = "" if (r["unread"] or active or r["grp"] == 0) else "opacity:.62;"
         nm_w = "font-weight:800" if r["unread"] else "font-weight:600"
         dot = "<span class='dot'></span>" if r["unread"] else ""
-        if c["msgs"] and (not nb or c["msgs"][-1]["at"]
-                          >= _stamp_utc(nb["stamp"])):
+        if c.get("vm"):
+            vm = c["vm"]
+            pv = (f"{vm['dur']} voicemail"
+                  + (" — hang-up, nothing to hear"
+                     if vm["dur"] in ("0:00", "0:01", "0:02")
+                     else " — transcript on the card"
+                     if "🎙" in (nb.get("newest_message") or "")
+                     else " — no audio attached, dial in to hear it"))
+        elif c["msgs"] and (not nb or c["msgs"][-1]["at"]
+                            >= _stamp_utc(nb["stamp"])):
             last = c["msgs"][-1]
             arrow = "←" if last["dir"] == "in" else "→"
             pv = f"{arrow} {(last.get('body') or last.get('subject') or '')[:52]}"
@@ -2652,9 +2688,23 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
     say = ""
     last_in = next((m for m in reversed(c["msgs"]) if m["dir"] == "in"),
                    None) if c["msgs"] else None
-    say_txt = ((msglog.clean_body(last_in.get("body") or "")
-                or last_in.get("subject")) if last_in
-               else (nb.get("newest_message") if nb else "")) or ""
+    if c.get("vm"):
+        vm = c["vm"]
+        msgtxt = (nb.get("newest_message") or "") if nb else ""
+        if "🎙" in msgtxt:
+            say_txt = msgtxt                      # the real transcript
+        elif vm["dur"] in ("0:00", "0:01", "0:02"):
+            say_txt = (f"{vm['dur']} voicemail from {vm['caller']} — a "
+                       "hang-up; nothing recorded, nothing to do.")
+        else:
+            say_txt = (f"{vm['dur']} voicemail from {vm['caller']} "
+                       f"({vm.get('when') or ''}) — CopyCall attached no "
+                       "audio, so no transcript. Dial the mailbox to "
+                       "hear it, then reply by email.")
+    else:
+        say_txt = ((msglog.clean_body(last_in.get("body") or "")
+                    or last_in.get("subject")) if last_in
+                   else (nb.get("newest_message") if nb else "")) or ""
     if say_txt:
         say = f"<div class='say'>“{esc(say_txt[:260])}”</div>"
     chips = ""
@@ -2685,12 +2735,22 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                   and not nb.get("dns_match") and stamp not in live_holds)
     mark_unread = ""
     if c["msgs"] or nb:
-        mark_unread = (f"<form method='POST' action='/msg_unread' "
-                       f"style='display:inline;margin-left:8px'>"
-                       f"<input type='hidden' name='addr' value='{esc(key)}'>"
-                       f"<input type='hidden' name='back' value='/'>"
-                       f"<button class='readbtn'>↩ mark unread"
-                       f"</button></form>")
+        if cur.get("unread"):
+            mark_unread = (
+                f"<form method='POST' action='/mark_done' "
+                f"style='display:inline;margin-left:8px'>"
+                f"<input type='hidden' name='addr' value='{esc(key)}'>"
+                f"<input type='hidden' name='back' value='/'>"
+                f"<button class='readbtn' style='background:var(--goldbg);"
+                f"border-color:var(--gold);color:#7a5300;font-weight:800'>"
+                f"✓ Done — seen it</button></form>")
+        else:
+            mark_unread = (
+                f"<form method='POST' action='/msg_unread' "
+                f"style='display:inline;margin-left:8px'>"
+                f"<input type='hidden' name='addr' value='{esc(key)}'>"
+                f"<input type='hidden' name='back' value='/'>"
+                f"<button class='readbtn'>↩ mark unread</button></form>")
     actions = ""
     if actionable:
         actions = f"""
@@ -2913,7 +2973,7 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
             f"{'background:var(--soft)' if inn else 'background:#0b3d2e;color:#eef4f0'}'>"
             f"<div style='font-size:10px;font-weight:700;opacity:.6'>"
             f"{esc((m_.get('name') or c['name'] or 'Customer') if inn else 'Master Butler' + ((' · ' + m_['by']) if m_.get('by') else ''))}"
-            f" · {esc(m_['at'][:16].replace('T', ' '))}</div>"
+            f" · {esc(_pt(m_['at']))}</div>"
             f"{esc(msglog.clean_body(m_.get('body') or '')[:400] or m_.get('subject') or '')}"
             f"</div></div>")
     reply_ui = ""
@@ -3221,7 +3281,7 @@ def customers_page(sel=None, draft=""):
                 f"{'background:#f2f5f3;color:#20242a' if inn else 'background:#0b3d2e;color:#eef4f0'}'>"
                 f"<div style='font-size:10px;font-weight:700;opacity:.65;"
                 f"margin-bottom:2px'>{who} · "
-                f"{esc(m_['at'][:16].replace('T', ' '))}</div>"
+                f"{esc(_pt(m_['at']))}</div>"
                 f"<div style='white-space:pre-wrap'>"
                 f"{esc(msglog.clean_body(m_.get('body') or '') or m_.get('subject') or '')}</div>"
                 f"</div></div>"))
@@ -4463,6 +4523,16 @@ class Handler(BaseHTTPRequestHandler):
                 d.setdefault("by", _user)
             return _sr(d)
 
+        def _mark_done_for(customer_str):
+            m = re.search(r"<([^>]+)>", customer_str or "")
+            if not m:
+                return
+            d = _msg_read()
+            from datetime import timezone as _tzz
+            d[m.group(1).lower()] = datetime.now(_tzz.utc).isoformat(
+                timespec="seconds")
+            _msg_read_save(d)
+
         if self.path == "/review":
             entry = {"stamp": get("stamp"), "action": get("action"),
                      "customer": get("customer"),
@@ -4545,6 +4615,7 @@ class Handler(BaseHTTPRequestHandler):
                     entry["jobber_quote"] = ("no structured draft on this "
                                              "record — re-run needed")
             save_review(entry)
+            _mark_done_for(get("customer"))    # a decision = seen it
         elif self.path == "/repeat_welcome":
             name = get("customer").split("<")[0].strip()
             promise = ""
@@ -5004,6 +5075,20 @@ class Handler(BaseHTTPRequestHandler):
                 fc[name] = ent
                 _blob_save("fold_clicks", fc)
             return self._send(b"ok")
+        elif self.path == "/mark_done":
+            # explicit 'seen it' (Dallon's read-flow ruling): greys the
+            # entry for the whole office; decisions do this automatically
+            d = _msg_read()
+            from datetime import timezone as _tzd
+            d[get("addr")] = datetime.now(_tzd.utc).isoformat(
+                timespec="seconds")
+            _msg_read_save(d)
+            back = get("back")
+            self.send_response(303)
+            self.send_header("Location", back if back.startswith("/")
+                             else "/")
+            self.end_headers()
+            return
         elif self.path == "/msg_read_all":
             import msglog
             marks = _msg_read()
@@ -5111,6 +5196,7 @@ class Handler(BaseHTTPRequestHandler):
                          "customer": get("customer"),
                          "note": f"linked to {get('linked')}"})
         elif self.path == "/hold":
+            _mark_done_for(get("customer"))
             save_review({"stamp": get("stamp"), "action": "hold",
                          "customer": get("customer"),
                          "hold_reason": get("hold_reason"),
