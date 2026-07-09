@@ -163,6 +163,40 @@ try:
 except Exception as e:
     print(f"   brief skipped ({e})")
 
+# 5b ── QA self-check: every live bid page must render
+try:
+    import json
+    import urllib.request
+    from base64 import b64encode
+    from pathlib import Path
+    from cloudpush import _cfg
+    url, pw = _cfg("DASHBOARD_URL"), _cfg("DASHBOARD_PASSWORD")
+    if url and pw:
+        hdr = {"Authorization": "Basic "
+               + b64encode(f"office:{pw}".encode()).decode()}
+        recs = json.load(urllib.request.urlopen(
+            urllib.request.Request(url.rstrip("/") + "/api/records",
+                                   headers=hdr), timeout=120))
+        bad = []
+        for r in recs:
+            try:
+                h = urllib.request.urlopen(urllib.request.Request(
+                    f"{url.rstrip('/')}/bid/{r['stamp']}", headers=hdr),
+                    timeout=45).read().decode()
+                if "Small hiccup" in h or len(h) < 2000:
+                    bad.append(r["stamp"])
+            except Exception:
+                bad.append(r["stamp"])
+        msg = (f"   QA: {len(recs)} bid pages checked, "
+               f"{len(bad)} broken" + (f" -> {bad[:5]}" if bad else " ✅"))
+        print(msg)
+        if bad:
+            Path("data/brief_pin.txt").write_text(
+                f"🔴 QA ALERT: {len(bad)} bid page(s) failing to render: "
+                f"{', '.join(bad[:6])} — tell Claude.\n")
+except Exception as e:
+    print(f"   QA check skipped ({e})")
+
 # 6 ── mirror display data to the cloud dashboard
 print("\n[6/6] Cloud mirror…")
 try:

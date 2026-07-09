@@ -1932,7 +1932,20 @@ def settings_page(msg=""):
    <button style='margin-top:6px'>Add response</button>
   </form></details></div>"""
 
-    return page("Settings", banner + qr_card + pricing_card)
+    changes = [r for r in load_reviews()
+               if r.get("action") == "settings_change"][-8:][::-1]
+    hist = ""
+    if changes:
+        hist = ("<div class='card'><h3>Recent changes</h3>"
+                + "".join(
+                    f"<div style='padding:4px 0;border-bottom:1px solid "
+                    f"var(--line)'><span class='subtext'>"
+                    f"{esc((c.get('at') or '')[:16].replace('T', ' '))}"
+                    + (f" · {esc(c['by'])}" if c.get("by") else "")
+                    + f"</span><br>{esc(c.get('note') or '')[:160]}</div>"
+                    for c in changes)
+                + "</div>")
+    return page("Settings", banner + qr_card + pricing_card + hist)
 
 
 def winback_page(showall=False):
@@ -1946,6 +1959,17 @@ def winback_page(showall=False):
     rows = rep.get("loyal_then_gone") or []
     if not rows:
         return page("Win-back", "<div class='card'>No churn report yet.</div>")
+    # NEVER put a do-not-service customer on the call list
+    try:
+        import dns_check
+        dns_names = { (e.get("name") or "").lower().lstrip("*x ").strip()
+                      for e in dns_check._list() }
+        before = len(rows)
+        rows = [r for r in rows
+                if (r["name"] or "").lower().strip() not in dns_names]
+        dns_removed = before - len(rows)
+    except Exception:
+        dns_removed = 0
     done = _winback_done()
     remaining = sum(1 for r in rows if r["name"] not in done)
     body_rows = ""
@@ -1994,6 +2018,8 @@ def winback_page(showall=False):
  seen in 20+ months — worth <b>${rep.get('lost_lifetime_value', 0):,}</b>
  lifetime combined. Sorted by value: start at the top.
  <b>{remaining}</b> left to contact.
+ {f"<span class='subtext'>({dns_removed} do-not-service customers removed "
+  f"from this list automatically.)</span>" if dns_removed else ""}
  <b style='color:#1e6b34'>{sum(1 for v in done.values()
                               if v.get("outcome") == "rebooked")} rebooked so
  far.</b> A friendly "we miss you — want your
