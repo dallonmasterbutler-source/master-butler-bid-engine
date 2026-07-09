@@ -130,7 +130,7 @@ def active_holds():
     return live, resurfaced
 
 
-DECIDED_ACTIONS = ("approve", "adjusted", "escalated", "duplicate_same",
+DECIDED_ACTIONS = ("approve", "adjusted", "duplicate_same",
                    "combined")
 
 
@@ -408,7 +408,22 @@ def bid_status(b, holds, flags_open, sb_status, claims):
         return status_pill("archived")
     if b.get("reviewed") or js == "draft":
         return status_pill("approved")
+    if stamp in getattr(bid_status, "_sl", {}):
+        return ("<span style='display:inline-block;background:#f0e9fd;"
+                "color:#6d28d9;border-radius:999px;padding:3px 12px;"
+                "font-size:11.5px;font-weight:800'>🔍 second look</span>")
     return status_pill("needs review")
+
+
+def second_looks():
+    """Open office second-look requests: stamp -> (question, who asked).
+    Cleared naturally when the bid gets a real decision."""
+    out = {}
+    for r in load_reviews():
+        if r.get("action") == "escalated" and r.get("stamp"):
+            out[r["stamp"]] = (r.get("note") or "(no question written)",
+                               r.get("by") or "the office")
+    return out
 
 
 def scoreboard_status():
@@ -752,6 +767,7 @@ def home_page():
     claims = _claims()
     flags_open = {f.get("stamp") for f in flagged_for_review()}
     sbs = scoreboard_status()
+    bid_status._sl = second_looks()
 
     queue, aside, chatter, office_done = [], [], [], []
     for b in pending:
@@ -784,6 +800,10 @@ def home_page():
         elif b.get("pipeline_error"):
             attn_badge[b["stamp"]] = ("#b03a2e", "🔴 pipeline error — open "
                                                  "the bid for details")
+        elif b["stamp"] in bid_status._sl:
+            q_, who_ = bid_status._sl[b["stamp"]]
+            attn_badge[b["stamp"]] = ("#6d28d9",
+                                      f"🔍 {who_} asks: “{q_[:80]}”")
         # past-SLA needs no badge: the WAITING column already burns red
     queue.sort(key=lambda b: (b["stamp"] not in resurfaced))
     reviews_all = load_reviews()
@@ -1122,6 +1142,15 @@ def bid_page(stamp, user=None):
 
     # MULTI-PERSON GUARD: opening a bid claims it for 15 min; if someone
     # else already has it open, say so LOUDLY before any buttons.
+    sl = second_looks().get(stamp)
+    sl_banner = ""
+    if sl and not b.get("reviewed"):
+        sl_banner = (
+            f"<div class='band' style='background:#f0e9fd;border-color:"
+            f"#d8c7f7;border-left-color:#6d28d9'><b style='color:#6d28d9'>"
+            f"🔍 {esc(sl[1])} asked for a second look:</b> "
+            f"“{esc(sl[0][:200])}” — answer it with a decision below, or "
+            f"use the 🚩 if the office can't settle it.</div>")
     other = claim_bid(stamp, user)
     mine = (_claims().get(stamp) or {}).get("by") == user if user else False
     collision = ""
@@ -1418,6 +1447,7 @@ def bid_page(stamp, user=None):
 <a href='/'>&larr; back to queue</a>
 {(f" · <a href='/messages?t={urllib.parse.quote(cust_email)}'>💬 view conversation</a>") if cust_email else ""}
 {collision}
+{sl_banner}
 <div class='grid'><div>
  <div class='card' style='display:flex;justify-content:space-between;
       gap:18px;flex-wrap:wrap;align-items:flex-start'>
@@ -1518,8 +1548,8 @@ def bid_page(stamp, user=None):
    <input type='hidden' name='stamp' value='{stamp}'>
    <input type='hidden' name='customer' value='{esc(b['from'])}'>
    <input type='hidden' name='total' value='{d.get('total') or ''}'>
-   <button style='background:var(--gold);color:#1c2b23'>🚩 Send to Tom
-   &amp; Dallon for review</button>
+   <button style='background:var(--gold);color:#1c2b23'>🚩 Stuck? Send to
+   Dallon &amp; Tom (final step)</button>
   </form>
   <details style='margin-top:10px;border-top:1px solid var(--line);
     padding-top:8px'>
@@ -1529,8 +1559,8 @@ def bid_page(stamp, user=None):
    <input type='hidden' name='stamp' value='{stamp}'>
    <input type='hidden' name='customer' value='{esc(b['from'])}'>
    <input type='hidden' name='address' value='{esc(b.get('address'))}'>
-   <input type='text' name='question' placeholder='the ONE question for Dallon/Tom'>
-   <button class='red'>Escalate → standardized form</button>
+   <input type='text' name='question' placeholder='your question, one line'>
+   <button style='background:#6d28d9'>🔍 Ask the office for a second look</button>
   </form>
   <form method='POST' action='/photo_request' style='margin-top:6px'>
    <input type='hidden' name='stamp' value='{stamp}'>
@@ -3113,22 +3143,9 @@ class Handler(BaseHTTPRequestHandler):
                 to="dallon")
             save_review({"stamp": get("stamp"), "action": "escalated",
                          "customer": get("customer"),
-                         "note": f"form: {path.name}"})
-            # escalations now REACH Dallon & Tom immediately (internal
-            # email, same channel as the 🚩 flag)
-            try:
-                import mailer
-                host = self.headers.get("Host") or ""
-                link = (f"https://{host}/bid/{get('stamp')}" if host else "")
-                mailer.send_internal(
-                    f"❓ Office escalation: {get('customer')[:60]}",
-                    f"Question from {_user or 'the office'}:\n\n"
-                    f"{get('question') or '(no question written)'}\n\n"
-                    f"Customer: {get('customer')}\n"
-                    f"Address: {get('address')}\n"
-                    + (f"Bid: {link}\n" if link else ""))
-            except Exception:
-                pass
+                         "note": get("question") or "(no question written)"})
+            # Dallon's ruling: the OFFICE reviews second-looks on the
+            # dashboard; Dallon & Tom only get the 🚩 when they're stuck.
         elif self.path == "/photo_request":
             services = [s for s in get("services").split(",") if s]
             path = templates.draft_photo_request(
