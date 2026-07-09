@@ -608,11 +608,15 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 td b{color:var(--green)}
 .age{font-weight:700;font-variant-numeric:tabular-nums}
 .age.warn{color:#c77700}.age.late{color:var(--alarm)}
-.chip{display:inline-block;background:#f2f5f3;border-radius:999px;
-      padding:3px 12px;margin:2px 3px 2px 0;font-size:12px;color:#3f5147;
-      font-weight:500}
+.chip{display:inline-block;background:var(--soft);border-radius:999px;
+      padding:3px 12px;margin:2px 3px 2px 0;font-size:12px;
+      color:var(--ink);font-weight:500}
 .flag{background:#fdecea;color:#a93226}
 .win{background:#e6f4ea;color:#1e6b34;font-weight:600}
+@media (prefers-color-scheme: dark){
+  .win{background:#173525;color:#7fd6a2}
+  .flag{background:#3a1713;color:#f1998e}
+}
 .ok{color:var(--accent);font-weight:600}
 a{color:var(--green2);text-decoration:none}a:hover{text-decoration:underline}
 pre{background:var(--soft);border:1px solid var(--line);border-radius:12px;
@@ -777,6 +781,40 @@ def _rail_counts():
     return q, m
 
 
+
+def _chrome_bar(active=""):
+    """The framed window's green top bar — one for every page."""
+    navr = "".join(
+        f"<a href='{href}' class='{'on' if t == active else ''}'>{label}</a>"
+        for href, label, t in (("/", "📥 Bids", "Bids"),
+                               ("/scoreboard", "📊 Scoreboard", "Scoreboard"),
+                               ("/winback", "📞 Win-back", "Win-back"),
+                               ("/settings", "⚙️ Settings", "Settings")))
+    return ("<div class='chrome'><b>🎩 Master Butler</b>"
+            f"<div class='navr'>{navr}"
+            "<span id='who' class='whobox'></span></div></div>"
+            + """<script>
+(function(){
+  var m=document.cookie.match(/office_user=([^;]+)/);
+  var el=document.getElementById('who');
+  function set(n){document.cookie='office_user='+encodeURIComponent(n)
+    +';path=/;max-age=31536000';location.reload();}
+  if(m){var n=decodeURIComponent(m[1]);
+    el.innerHTML='👤 <b>'+n+'</b> <a href="#" style="opacity:.6;color:#cfe0d6">change</a>';
+    el.querySelector('a').onclick=function(e){e.preventDefault();
+      document.cookie='office_user=;path=/;max-age=0';location.reload();};
+  } else {
+    el.innerHTML='Who’s working? ';
+    ['LaRee','Jessica','Martha','Dallon','Tom'].forEach(function(n){
+      var a=document.createElement('a');a.href='#';a.textContent=n;
+      a.style.cssText='margin:0 5px;color:#c9a227;font-weight:700';
+      a.onclick=function(e){e.preventDefault();set(n);};
+      el.appendChild(a);});
+  }
+})();
+</script>""")
+
+
 def page(title, body, refresh=None, chrome="rail"):
     auto = (f"<meta http-equiv='refresh' content='{refresh}'>"
             if refresh else "")
@@ -842,60 +880,27 @@ border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
                 f"bold = unread, shared by the whole office · every price "
                 f"traces to a real job.</footer></div></body></html>"
                 ).encode()
-    qn, mn = _rail_counts()
-
-    def badge(n):
-        return (f"<span style='margin-left:auto;background:#c9a227;"
-                f"color:#0b3d2e;border-radius:999px;padding:1px 8px;"
-                f"font-size:11px;font-weight:800'>{n}</span>" if n else "")
-    links = (("/customers", "👥", f"Customers{badge(qn + mn)}", "Customers"),
-             ("/", "📥", f"Bid queue{badge(qn)}", "Bid queue"),
-             ("/messages", "💬", f"Messages{badge(mn)}", "Messages"),
-             ("/new", "➕", "New lead", "New lead"),
-             ("/winback", "📞", "Win-back", "Win-back"),
-             ("/scoreboard", "📊", "Scoreboard", "Scoreboard"),
-             ("/history", "🗂", "History", "History"),
-             ("/settings", "⚙️", "Settings", "Settings"),
-             ("/brief", "☀️", "Morning brief", "Morning brief"))
-    nav = "".join(
-        f"<a href='{href}' class='{'active' if title == t else ''}'>"
-        f"<span class='ico'>{ico}</span>{label}</a>"
-        for href, ico, label, t in links)
-    mode = ("approve pushes DRAFT quotes to Jobber" if _push_enabled()
-            else "shadow mode · nothing sends without you")
+    # EVERY page lives in the framed green window now (Dallon Jul 9:
+    # the left rail's links were dead — deleted; colors match the Inbox)
+    inbox_titles = {"Bids", "Bid queue", "Customers", "Messages"}
+    active = title if title in ("Scoreboard", "Win-back", "Settings") \
+        else ("Bids" if title in inbox_titles else "")
     return (f"<!doctype html><html><head><meta charset='utf-8'>"
-            f"<meta name='viewport' content='width=device-width,initial-scale=1'>"
-            f"{auto}{FAVICON}"
-            f"<title>{title}</title>{STYLE}</head><body>"
-            f"<aside class='rail'>"
-            f"<div class='brand'>🎩 Master Butler"
-            f"<div class='brandsub'>Monroe WA · Office</div></div>"
-            f"<nav>{nav}</nav>"
-            f"<div class='railfoot'>{mode}</div></aside>"
-            f"<div class='main'>"
-            f"<header><b>{title}</b>"
-            + """<span id='who' style='margin-left:auto;font-size:13px'></span>
-<script>
-(function(){
-  var m=document.cookie.match(/office_user=([^;]+)/);
-  var el=document.getElementById('who');
-  function set(n){document.cookie='office_user='+encodeURIComponent(n)
-    +';path=/;max-age=31536000';location.reload();}
-  if(m){var n=decodeURIComponent(m[1]);
-    el.innerHTML='👤 <b>'+n+'</b> <a href="#" style="opacity:.6">change</a>';
-    el.querySelector('a').onclick=function(e){e.preventDefault();
-      document.cookie='office_user=;path=/;max-age=0';location.reload();};
-  } else {
-    el.innerHTML='Who\u2019s working? ';
-    ['LaRee','Jessica','Dallon','Tom'].forEach(function(n){
-      var a=document.createElement('a');a.href='#';a.textContent=n;
-      a.style.cssText='margin:0 5px;color:#c9a227;font-weight:700';
-      a.onclick=function(e){e.preventDefault();set(n);};
-      el.appendChild(a);});
-  }
-})();
-</script></header>"""
-            f"<div class='wrap'>{body}</div>"
+            f"<meta name='viewport' content='width=device-width,"
+            f"initial-scale=1'>{auto}{FAVICON}"
+            f"<title>{title}</title>{STYLE}</head>"
+            f"<body style='padding:14px 16px 0'>"
+            f"<div style='max-width:1280px;margin:0 auto'>"
+            f"<div class='mock'>{_chrome_bar(active)}"
+            f"<div style='padding:18px 22px'>"
+            + (f"<div style='font-size:11px;font-weight:800;"
+               f"text-transform:uppercase;letter-spacing:1.2px;"
+               f"color:var(--mut);margin-bottom:10px'>{title}</div>"
+               if not active else "")
+            + f"{body}</div></div>"
+            f"<footer style='padding:10px 4px'>Every quote is a draft "
+            f"until a human sends it · every price traces to a real job."
+            f"</footer></div>"
             + """<script>
 document.querySelectorAll('tr[data-href]').forEach(function(t){
   t.style.cursor='pointer';
@@ -905,9 +910,7 @@ document.querySelectorAll('tr[data-href]').forEach(function(t){
   });
 });
 </script>"""
-            f"<footer>Every quote is a draft until a human sends it · the "
-            f"inbox is never marked read · every price traces to a real "
-            f"job.</footer></div></body></html>").encode()
+            + "</body></html>").encode()
 
 
 def esc(s):
@@ -4122,9 +4125,8 @@ def scoreboard_page():
         gap = r.get("gap_pct")
         ar = auto.get(r.get("stamp"))
         if ar:
-            pill = (f"<span style='display:inline-block;background:#eaf5ec;"
-                    f"color:#1e6b34;border-radius:999px;padding:3px 12px;"
-                    f"font-size:11.5px;font-weight:700' "
+            pill = (f"<span class='chip win' style='font-size:11.5px;"
+                    f"font-weight:700' "
                     f"title=\"{esc(ar['summary'])}\">📖 auto-reviewed"
                     + (f" · {gap:+.0f}%" if gap is not None else "")
                     + "</span>"
