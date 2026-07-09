@@ -1559,7 +1559,9 @@ def new_lead_page(msg=""):
    <div style='flex:1'><b>Phone</b><input type='text' name='phone'></div>
    <div style='flex:1'><b>Email (optional)</b><input type='text' name='email'></div>
   </div>
-  <div style='margin:10px 0'><b>Services requested</b><br>{checks}</div>
+  <div style='margin:10px 0'><b>Services requested</b>
+   <div style='display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;
+        margin-top:6px'>{checks}</div></div>
   <div style='margin-bottom:8px'><b>Notes (optional)</b>
    <input type='text' name='extra'
           placeholder='e.g. heavy moss on north side, gate code 1234'></div>
@@ -2582,8 +2584,9 @@ class Handler(BaseHTTPRequestHandler):
             # changes, so reading/scrolling is never interrupted
             try:
                 stamps = [s for s, _ in _shadow_source()]
+                import msglog
                 token = f"{len(stamps)}:{max(stamps) if stamps else ''}:" \
-                        f"{len(load_reviews())}"
+                        f"{len(load_reviews())}:{len(msglog._load()[0])}"
             except Exception:
                 token = "err"
             return self._send(json.dumps({"t": token}).encode(),
