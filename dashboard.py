@@ -1492,12 +1492,7 @@ def bid_page(stamp, user=None, draft=""):
             reply_subject = (last_subject if last_subject.lower()
                              .startswith("re:") else f"Re: {last_subject}"
                              if last_subject else "Master Butler")
-            if clouddb.available():
-                _cn = clouddb.get_blob("canned_replies") or {}
-            else:
-                _cp = BASE / "data" / "canned_replies.json"
-                _cn = json.loads(_cp.read_text()) if _cp.exists() else {}
-            _cn_json = json.dumps(_cn).replace("</", "<\\/")
+            _cn_json = _canned_payload()
             reply_ui = f"""
   <div style='border-top:1px solid var(--line);margin-top:10px;
        padding-top:10px'>
@@ -1524,7 +1519,8 @@ def bid_page(stamp, user=None, draft=""):
     </div>
    </form></div>
 <script>
-var BC = {_cn_json};
+{_CANNED_MERGE_JS}
+var BC = mergeCanned({_cn_json});
 var _bs = document.getElementById('bidcanned');
 Object.keys(BC).forEach(function(k){{
   var o = document.createElement('option'); o.value = k; o.textContent = k;
@@ -2286,12 +2282,7 @@ def messages_page(sel=None, draft=""):
                f"style='font-size:11px;color:{'#177245' if inbound else '#c9a227'}'>"
                f"open the bid →</a></div>" if m.get("stamp") else "")
             + "</div></div>")
-    if clouddb.available():
-        _canned = clouddb.get_blob("canned_replies") or {}
-    else:
-        cp = BASE / "data" / "canned_replies.json"
-        _canned = json.loads(cp.read_text()) if cp.exists() else {}
-    canned_json = json.dumps(_canned).replace("</", "<\\/")
+    canned_json = _canned_payload()
     last_subject = next((m.get("subject") for m in reversed(tmsgs)
                          if m.get("subject")), "")
     reply_subject = (last_subject if last_subject.lower().startswith("re:")
@@ -2345,7 +2336,8 @@ sends real email to {esc(tname)} when you hit Send'>{esc(draft)}</textarea>
    </div>
   </form></div></div>
 <script>
-var CANNED = {canned_json};
+{_CANNED_MERGE_JS}
+var CANNED = mergeCanned({canned_json});
 var sel = document.getElementById('canned');
 Object.keys(CANNED).forEach(function(k){{
   var o = document.createElement('option'); o.value = k; o.textContent = k;
@@ -3167,12 +3159,7 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
             f"</div></div>")
     reply_ui = ""
     if c["email"]:
-        if clouddb.available():
-            _cn = clouddb.get_blob("canned_replies") or {}
-        else:
-            _cp = BASE / "data" / "canned_replies.json"
-            _cn = json.loads(_cp.read_text()) if _cp.exists() else {}
-        _cn_json = json.dumps(_cn).replace("</", "<\\/")
+        _cn_json = _canned_payload()
         last_subject = next((m_.get("subject") for m_ in
                              reversed(c["msgs"] or []) if m_.get("subject")),
                             "") or (nb.get("subject") if nb else "") or ""
@@ -3203,7 +3190,8 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
     <button class='big' type='button' onclick="alert('Sending is switched OFF while we test — copy the text into Gmail for now.')">Send reply</button>
    </div></form></div>
 <script>
-var IC = {_cn_json};
+{_CANNED_MERGE_JS}
+var IC = mergeCanned({_cn_json});
 var _is = document.getElementById('inboxcanned');
 Object.keys(IC).forEach(function(k){{
   var o = document.createElement('option'); o.value = k; o.textContent = k;
@@ -3504,12 +3492,7 @@ def customers_page(sel=None, draft=""):
         thread_html = "".join(h for _, h in tl) or \
             "<div class='subtext'>No messages or bids logged yet.</div>"
 
-        if clouddb.available():
-            _canned = clouddb.get_blob("canned_replies") or {}
-        else:
-            cp = BASE / "data" / "canned_replies.json"
-            _canned = json.loads(cp.read_text()) if cp.exists() else {}
-        canned_json = json.dumps(_canned).replace("</", "<\\/")
+        canned_json = _canned_payload()
         last_subject = next((m.get("subject") for m in reversed(c["msgs"])
                              if m.get("subject")), "")
         reply_subject = (last_subject if last_subject.lower()
@@ -3545,7 +3528,8 @@ def customers_page(sel=None, draft=""):
     </div>
    </form></div>
 <script>
-var CANNED = {canned_json};
+{_CANNED_MERGE_JS}
+var CANNED = mergeCanned({canned_json});
 var _cs = document.getElementById('canned');
 Object.keys(CANNED).forEach(function(k){{
   var o = document.createElement('option'); o.value = k; o.textContent = k;
@@ -4014,6 +3998,28 @@ def flyover_page(addr):
                 "fallback.</div>")
 
 
+def _canned_payload():
+    """Quick responses for the dropdowns: the shared set + everyone's
+    personal sets (Jessica, Jul 9). The page's JS picks the personal set
+    matching the name cookie and marks those entries ★."""
+    shared = _blob_rw("canned_replies", {})
+    personal = _blob_rw("canned_replies_personal", {})
+    return json.dumps({"shared": shared,
+                       "personal": personal}).replace("</", "<\\/")
+
+
+_CANNED_MERGE_JS = """
+function mergeCanned(payload){
+  var m = document.cookie.match(/office_user=([^;]+)/);
+  var mine = m ? (payload.personal[decodeURIComponent(m[1])] || {}) : {};
+  var out = {};
+  Object.keys(payload.shared).forEach(function(k){out[k]=payload.shared[k];});
+  Object.keys(mine).forEach(function(k){out['\\u2605 '+k]=mine[k];});
+  return out;
+}
+"""
+
+
 def _tax_glance(address):
     """Small at-a-glance sales-tax chip by the address (Jessica, Jul 9:
     'verify the tax situation... a small at a glance by the address').
@@ -4107,7 +4113,7 @@ def _blob_save(key, val):
             pass
 
 
-def settings_page(msg=""):
+def settings_page(msg="", user=None):
     """The office's own control room (Dallon: 'they work on this daily,
     I don't') — quick responses and pricing knobs, no code, no Dallon."""
     import bid_engine as be
@@ -4199,6 +4205,69 @@ def settings_page(msg=""):
     style='margin-top:6px'></textarea>
    <button style='margin-top:6px'>Add response</button>
   </form></details></div>"""
+
+    # ---- MY quick responses (Jessica, Jul 9: 'make each profile be
+    # able to adjust their own quick responses') ----
+    if user:
+        mine = (_blob_rw("canned_replies_personal", {})).get(user, {})
+        mqr = ""
+        for name, text in mine.items():
+            mqr += f"""
+<details style='border-bottom:1px solid var(--line);padding:8px 0'>
+ <summary style='cursor:pointer;font-weight:700;color:var(--heading)'>
+  ★ {esc(name)}</summary>
+ <form method='POST' action='/qr_save' style='margin-top:8px'>
+  <input type='hidden' name='mine' value='1'>
+  <input type='hidden' name='name' value='{esc(name)}'>
+  <textarea name='text' rows='5'>{esc(text)}</textarea>
+  <div style='margin-top:6px'>
+   <button>Save</button>
+   <button name='delete' value='1' class='red'
+    onclick="return confirm('Delete this response?')">Delete</button>
+  </div></form></details>"""
+        my_card = f"""
+<div class='card'><h2 style='margin-top:0'>★ {esc(user)}'s quick
+ responses</h2>
+ <div class='subtext' style='margin-bottom:6px'>Only you see these in
+ the dropdown (marked ★). The shared set above stays everyone's.</div>
+ {mqr or "<div class='subtext'>None yet.</div>"}
+ <details style='padding:10px 0'>
+  <summary style='cursor:pointer;font-weight:700'>➕ Add one of my own
+  </summary>
+  <form method='POST' action='/qr_save' style='margin-top:8px'>
+   <input type='hidden' name='mine' value='1'>
+   <input type='text' name='name' placeholder='Name'>
+   <textarea name='text' rows='4' placeholder='The reply text…'
+    style='margin-top:6px'></textarea>
+   <button style='margin-top:6px'>Add</button>
+  </form></details></div>"""
+    else:
+        my_card = ("<div class='card'><h2 style='margin-top:0'>★ My quick "
+                   "responses</h2><div class='subtext'>Pick your name in "
+                   "the top bar to build your own set.</div></div>")
+    qr_card += my_card
+
+    # ---- discount policy (Jessica, Jul 9: 'discounts need to be in
+    # the settings') — feeds the ✨ drafter's house rules + the Guide ----
+    dp = _blob_rw("discount_policy", {})
+    disc_card = f"""
+<div class='card'><h2 style='margin-top:0'>Discounts</h2>
+ <div class='subtext' style='margin-bottom:8px'>What the ✨ draft-a-reply
+ writer is allowed to tell customers, and the internal friends-&amp;-family
+ rule. Plain sentences — written exactly as you'd say them.</div>
+ <form method='POST' action='/discounts_save'>
+  <label style='font-weight:700;font-size:13px'>Customer discount</label>
+  <textarea name='customer' rows='2'>{esc(dp.get("customer",
+      "15% off services booked in the second half of August or "
+      "September"))}</textarea>
+  <label style='font-weight:700;font-size:13px;display:block;
+   margin-top:8px'>Friends &amp; family (internal — never told to
+   customers)</label>
+  <textarea name='fnf' rows='2'>{esc(dp.get("fnf",
+      "50% — September and February"))}</textarea>
+  <button style='margin-top:8px'>Save discounts</button>
+ </form></div>"""
+    qr_card += disc_card
 
     changes = [r for r in load_reviews()
                if r.get("action") == "settings_change"][-8:][::-1]
@@ -4693,7 +4762,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(winback_page("all=1" in self.path))
         if self.path.startswith("/settings"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-            return self._send(settings_page((q.get("msg") or [""])[0]))
+            cm = re.search(r"office_user=([^;]+)",
+                           self.headers.get("Cookie") or "")
+            return self._send(settings_page(
+                (q.get("msg") or [""])[0],
+                user=urllib.parse.unquote(cm.group(1)) if cm else None))
         if self.path == "/history":
             return self._send(history_page())
         if self.path == "/guide":
@@ -5114,8 +5187,11 @@ class Handler(BaseHTTPRequestHandler):
                     "are not included on high-risk roofs that only our "
                     "lead technician can service; we carry liability "
                     "insurance with American Family Insurance; discount: "
-                    "15% off services booked in the second half of August "
-                    "or September; moss product: a commercial Dalco "
+                    + _blob_rw("discount_policy", {}).get(
+                        "customer",
+                        "15% off services booked in the second half of "
+                        "August or September")
+                    + "; moss product: a commercial Dalco "
                     "product we call Moss Off, billed per canister "
                     "($14.50, 1-3 typical, technician determines "
                     "on-site).\n"
@@ -5226,7 +5302,12 @@ class Handler(BaseHTTPRequestHandler):
                                                     "top bar first."))
                 self.end_headers()
                 return
-            canned = _blob_rw("canned_replies", {})
+            personal = bool(get("mine"))      # ★ my-own set (Jessica)
+            if personal:
+                allp = _blob_rw("canned_replies_personal", {})
+                canned = allp.get(_user, {})
+            else:
+                canned = _blob_rw("canned_replies", {})
             name = get("name").strip()
             if name:
                 if get("delete"):
@@ -5238,10 +5319,36 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     act = None
                 if act:
-                    _blob_save("canned_replies", canned)
+                    if personal:
+                        allp[_user] = canned
+                        _blob_save("canned_replies_personal", allp)
+                        act += f" (personal — {_user})"
+                    else:
+                        _blob_save("canned_replies", canned)
                     save_review({"stamp": "", "action": "settings_change",
                                  "customer": "QUICK RESPONSES",
                                  "note": act})
+            self.send_response(303)
+            self.send_header("Location", "/settings?msg=" +
+                             urllib.parse.quote("Saved."))
+            self.end_headers()
+            return
+        elif self.path == "/discounts_save":
+            if not _user:
+                self.send_response(303)
+                self.send_header("Location", "/settings?msg=" +
+                                 urllib.parse.quote("Pick your name in the "
+                                                    "top bar first."))
+                self.end_headers()
+                return
+            dp = {"customer": get("customer").strip(),
+                  "fnf": get("fnf").strip()}
+            _blob_save("discount_policy", dp)
+            save_review({"stamp": "", "action": "settings_change",
+                         "customer": "DISCOUNTS",
+                         "note": f"discount policy updated: customer="
+                                 f"'{dp['customer'][:60]}' fnf="
+                                 f"'{dp['fnf'][:40]}'"})
             self.send_response(303)
             self.send_header("Location", "/settings?msg=" +
                              urllib.parse.quote("Saved."))
