@@ -160,7 +160,9 @@ INTERNAL_DEFAULT = ["masterbutlerinc.com", "dallon.masterbutler@gmail.com",
                     "tomfricke2007@gmail.com", "frickefamily07@gmail.com"]
 NOISE_SENDERS = ["no-reply", "noreply", "donotreply", "marketing@",
                  "accounts.google.com", "notifications@", "newsletter",
-                 "invoice+statements", "@stripe.com", "receipts@"]
+                 "invoice+statements", "@stripe.com", "receipts@",
+                 # Jessica, Jul 9: "Facebook should always be removed"
+                 "facebookmail.com", "@facebook.com", "@instagram.com"]
 
 
 _SENDERS_CACHE = {"at": 0.0, "list": None}
@@ -471,6 +473,9 @@ def quote_urls():
     for stamp, rec in _shadow_source():
         if rec.get("jobber_quote") and rec.get("jobber_url"):
             urls[rec["jobber_quote"]] = rec["jobber_url"]
+    for r in load_reviews():          # approve-pushed quotes carry their
+        if r.get("jobber_quote") and r.get("jobber_url"):   # own link
+            urls[r["jobber_quote"]] = r["jobber_url"]
     return urls
 
 
@@ -804,7 +809,9 @@ def _chrome_bar(active=""):
                                ("/scoreboard", "📊 Scoreboard", "Scoreboard"),
                                ("/winback", "📞 Win-back", "Win-back"),
                                ("/settings", "⚙️ Settings", "Settings"),
-                               ("/guide", "❓ Guide", "Guide")))
+                               ("/guide", "❓ Guide", "Guide"),
+                               # Jessica, Jul 9: idea button up top too
+                               ("/guide#idea", "💡 Idea", "Idea")))
     return ("<div class='chrome'><b>🎩 Master Butler</b>"
             f"<div class='navr'>{navr}"
             "<span id='who' class='whobox'></span></div></div>"
@@ -2626,10 +2633,15 @@ def inbox_page(sel=None, draft="", user=None):
         cls = ("irow sel" if active else
                "irow unread" if r["unread"] else
                "irow" if r["grp"] == 0 else "irow readq")
+        # quiet price on the row (Jessica: 'I liked seeing that')
+        rp = ((nb.get("draft") or {}).get("total") if nb else None)
+        price = (f"<span style='float:right;font-weight:700;"
+                 f"color:var(--mut);font-size:12.5px'>${rp:,.0f}</span>"
+                 if rp else "")
         return (
             f"<a href='/?c={urllib.parse.quote(r['key'])}' class='{cls}'>"
             f"<div class='nm'>{dot}"
-            f"{esc(c['name'] or c['email'] or '(no name)')[:30]}</div>"
+            f"{esc(c['name'] or c['email'] or '(no name)')[:30]}{price}</div>"
             f"<div class='pv'>{esc(pv)}</div>"
             f"<div class='meta'><span class='word' style='{r['wstyle']}'>"
             f"{esc(r['word'])}</span>"
@@ -2646,7 +2658,28 @@ def inbox_page(sel=None, draft="", user=None):
            f"font-weight:700;font-size:13px'>➕ New lead</a>"
            f"<span class='subtext'>{counts[0]} need a person"
            + (f" · oldest {max((r['age'] for r in roster if r['grp'] == 0), default=0):.0f}h"
-              if counts[0] else " — all caught up ✅") + "</span></div>")
+              if counts[0] else " — all caught up ✅") + "</span></div>"
+           # search (Jessica, Jul 9) — filters the list as you type
+           "<input id='isearch' placeholder='🔎 Find a customer…' "
+           "style='width:100%;margin:0 0 10px;padding:8px 12px;"
+           "border-radius:9px;border:1px solid var(--line);"
+           "background:var(--card);color:var(--ink);font-size:13.5px'>"
+           """<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var s = document.getElementById('isearch');
+  if (!s) return;
+  s.addEventListener('input', function(){
+    var q = s.value.trim().toLowerCase();
+    document.querySelectorAll('.irow').forEach(function(r){
+      r.style.display = (!q || r.textContent.toLowerCase()
+                         .indexOf(q) >= 0) ? '' : 'none';
+    });
+    document.querySelectorAll('.ihead').forEach(function(h){
+      h.style.display = q ? 'none' : '';
+    });
+  });
+});
+</script>""")
     for g in (0, 1, 2):
         rows_g = [r for r in roster if r["grp"] == g]
         if not rows_g:
@@ -2677,36 +2710,7 @@ def inbox_page(sel=None, draft="", user=None):
         detail = _inbox_detail(cur, quotes, qurls, live_holds, flags_open,
                                sbs, claims, draft, convo_open, user)
 
-    navr = "".join(
-        f"<a href='{href}' class='{'on' if here else ''}'>{label}</a>"
-        for href, label, here in (("/", "📥 Bids", True),
-                                  ("/scoreboard", "📊 Scoreboard", False),
-                                  ("/winback", "📞 Win-back", False),
-                                  ("/settings", "⚙️ Settings", False)))
-    chrome_bar = ("<div class='chrome'><b>🎩 Master Butler</b>"
-                  f"<div class='navr'>{navr}"
-                  "<span id='who' class='whobox'></span></div></div>"
-                  + """<script>
-(function(){
-  var m=document.cookie.match(/office_user=([^;]+)/);
-  var el=document.getElementById('who');
-  function set(n){document.cookie='office_user='+encodeURIComponent(n)
-    +';path=/;max-age=31536000';location.reload();}
-  if(m){var n=decodeURIComponent(m[1]);
-    el.innerHTML='👤 <b>'+n+'</b> <a href="#" style="opacity:.6;color:#cfe0d6">change</a>';
-    el.querySelector('a').onclick=function(e){e.preventDefault();
-      document.cookie='office_user=;path=/;max-age=0';location.reload();};
-  } else {
-    el.innerHTML='Who’s working? ';
-    ['LaRee','Jessica','Martha','Dallon','Tom'].forEach(function(n){
-      var a=document.createElement('a');a.href='#';a.textContent=n;
-      a.style.cssText='margin:0 5px;color:#c9a227;font-weight:700';
-      a.onclick=function(e){e.preventDefault();set(n);};
-      el.appendChild(a);});
-  }
-})();
-</script>""")
-    body = (f"<div class='mock'>{chrome_bar}"
+    body = (f"<div class='mock'>{_chrome_bar('Bids')}"
             f"<div class='inboxgrid'>"
             f"<div class='ilist'>{lst}</div>"
             f"<div class='idetail'>{detail}</div>"
@@ -2725,6 +2729,25 @@ def inbox_page(sel=None, draft="", user=None):
     }).catch(function(){});
   }
   setInterval(bump, 30000); bump();
+})();
+// FOLDS SURVIVE REFRESH (Jessica, Jul 9: 'refreshing closes all the
+// drop down tabs... it would mess up flow') — remember which folds are
+// open per customer, restore them after any reload.
+(function(){
+  var key = 'folds:' + (new URLSearchParams(location.search).get('c') || '');
+  var open = [];
+  try { open = JSON.parse(sessionStorage.getItem(key) || '[]'); }
+  catch(e) {}
+  var folds = document.querySelectorAll('details.ifold');
+  folds.forEach(function(f, i){
+    if (open.indexOf(i) >= 0) f.open = true;
+    f.addEventListener('toggle', function(){
+      var now = [];
+      folds.forEach(function(g, j){ if (g.open) now.push(j); });
+      try { sessionStorage.setItem(key, JSON.stringify(now)); }
+      catch(e) {}
+    });
+  });
 })();
 </script>"""
     return page("Bids", body, chrome="bare")
@@ -2842,6 +2865,20 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
         say = f"<div class='say'>“{esc(say_txt[:260])}”</div>"
     chips = ""
     if nb:
+        # HOUSE FACTS up top (Jessica, Jul 9: 'info about the house on
+        # top of client page should be there. Sqft, 2 story/split, etc')
+        _pih = (nb.get("draft") or {}).get("prop_info") or {}
+        for _fact in (
+                f"{_pih['sqft']:,} sqft" if _pih.get("sqft") else None,
+                f"{_pih['stories']} story" if _pih.get("stories") else None,
+                {"mild": "mild pitch", "moderate": "moderate pitch",
+                 "steep": "STEEP pitch",
+                 "tom_only": "TOM-ONLY pitch"}.get(_pih.get("pitch")),
+                f"{_pih['roof_material']} roof"
+                if _pih.get("roof_material") not in (None, "standard")
+                else None):
+            if _fact:
+                chips += f"<span class='chip blue'>🏠 {esc(_fact)}</span> "
         if nb.get("sched_pref"):
             chips += (f"<span class='chip blue'>📅 "
                       f"{esc(nb['sched_pref'][:60])}</span> ")
@@ -2876,7 +2913,17 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                 f"<input type='hidden' name='back' value='/'>"
                 f"<button class='readbtn' style='background:var(--goldbg);"
                 f"border-color:var(--gold);color:var(--goldink);font-weight:800'>"
-                f"✓ Done — seen it</button></form>")
+                f"✓ Done — seen it</button></form>"
+                # Jessica, Jul 9: an explicit way to hand it back when
+                # you have to step away mid-review — stays bold for all
+                f"<form method='POST' action='/step_away' "
+                f"style='display:inline;margin-left:6px'>"
+                f"<input type='hidden' name='addr' value='{esc(key)}'>"
+                f"<input type='hidden' name='stamp' "
+                f"value='{stamp or ''}'>"
+                f"<button class='readbtn' title='Releases it — stays "
+                f"bold, next person picks it up'>🚶 Stepping away"
+                f"</button></form>")
         else:
             mark_unread = (
                 f"<form method='POST' action='/msg_unread' "
@@ -2981,7 +3028,8 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
     addr_line = ""
     if nb and nb.get("address"):
         addr_line = (f"<a href='/property/{_slug(nb['address'])}'>"
-                     f"{esc(nb['address'])}</a>")
+                     f"{esc(nb['address'])}</a> "
+                     + _tax_glance(nb["address"]))
     elif c["email"]:
         addr_line = esc(c["email"])
     pinned = (f"<div class='pinned'>{banners}"
@@ -3905,9 +3953,17 @@ def guide_page():
         "<b>nothing sends to a customer without a human</b>. The rest is "
         "detail — tap any question.</div>"
         + folds +
-        "<div class='subtext' style='margin-top:14px'>Missing an answer? "
-        "Put it in the 💡 idea box on any bid — this page grows from "
-        "those.</div></div>")
+        # the top-bar 💡 Idea button lands here (Jessica, Jul 9)
+        "<div id='idea' style='margin-top:16px;background:var(--soft);"
+        "border:1px solid var(--line);border-radius:12px;padding:14px 16px'>"
+        "<b>💡 Send Dallon an idea</b>"
+        "<div class='subtext' style='margin:4px 0 8px'>Emails him "
+        "instantly, and Claude starts planning the fix overnight.</div>"
+        "<form method='POST' action='/idea_send' style='display:flex;"
+        "gap:8px'><input type='hidden' name='back' value='/guide#idea'>"
+        "<input name='text' required placeholder='What should "
+        "this dashboard do better?' style='flex:1'>"
+        "<button>Send</button></form></div></div>")
     return page("Guide", body)
 
 
@@ -3956,6 +4012,38 @@ def flyover_page(addr):
                 "have 3D coverage for this address (or the lookup "
                 "hiccuped). The Zillow/Redfin links on the bid are the "
                 "fallback.</div>")
+
+
+def _tax_glance(address):
+    """Small at-a-glance sales-tax chip by the address (Jessica, Jul 9:
+    'verify the tax situation... a small at a glance by the address').
+    Rate comes from WA DOR's own per-address API; cached forever per
+    address in the tax_glance blob so pages stay fast."""
+    if not address:
+        return ""
+    slug = _slug(address)
+    cache = _blob_rw("tax_glance", {})
+    hit = cache.get(slug)
+    if hit is None:
+        try:
+            import jobber_client as jc
+            a = jc.split_address(address)
+            if (a.get("province") or "WA") != "WA":
+                hit = {"code": None, "rate": None}
+            else:
+                code, rate = jc.wa_dor_location_code(
+                    a["street1"], a["city"], a["postalCode"])
+                hit = {"code": code, "rate": rate}
+        except Exception:
+            hit = {"code": None, "rate": None}
+        cache[slug] = hit
+        _blob_save("tax_glance", cache)
+    if not hit.get("code"):
+        return ""
+    return (f"<span class='chip' style='font-size:11.5px' title='Sales tax "
+            f"straight from the WA Dept of Revenue for this exact address "
+            f"(location code {esc(hit['code'])}) — what the quote will "
+            f"charge'>🧾 tax {hit['rate']*100:.2f}%</span>")
 
 
 def _photo_refs(stamp, address):
@@ -4858,6 +4946,8 @@ class Handler(BaseHTTPRequestHandler):
                         "userErrors") or []
                     if q.get("quoteNumber"):
                         entry["jobber_quote"] = q["quoteNumber"]
+                        if q.get("jobberWebUri"):  # clickable # (Jessica)
+                            entry["jobber_url"] = q["jobberWebUri"]
                     else:
                         # NEVER show the office raw GraphQL — plain words
                         # (Dallon saw a wall of JSON on the queue, Jul 9)
@@ -5385,6 +5475,21 @@ class Handler(BaseHTTPRequestHandler):
             _msg_read_save(marks)
             self.send_response(303)
             self.send_header("Location", "/messages")
+            self.end_headers()
+            return
+        elif self.path == "/step_away":
+            # Jessica, Jul 9: leave mid-review without losing it for the
+            # office — releases the 'working · NAME' claim AND keeps the
+            # entry bold so the next person naturally picks it up.
+            d = _msg_read()
+            d.pop(get("addr"), None)
+            _msg_read_save(d)
+            if get("stamp"):
+                cl = _claims()
+                if cl.pop(get("stamp"), None) is not None:
+                    _save_claims(cl)
+            self.send_response(303)
+            self.send_header("Location", "/")
             self.end_headers()
             return
         elif self.path == "/msg_unread":

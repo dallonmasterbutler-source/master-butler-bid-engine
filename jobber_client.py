@@ -599,7 +599,7 @@ def match_tax_rate(city, postal=None, rates=None, street=None):
 CREATE_QUOTE = """
 mutation CreateQuote($attributes: QuoteCreateAttributes!) {
   quoteCreate(attributes: $attributes) {
-    quote { id quoteNumber }
+    quote { id quoteNumber jobberWebUri }
     userErrors { message }
   }
 }
