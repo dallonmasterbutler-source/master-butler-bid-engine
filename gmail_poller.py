@@ -325,6 +325,22 @@ def _transcribe_voicemail(record, parsed, raw_bytes, stamp, who):
         return False
 
 
+def _shadow_sources_for_dedupe():
+    """(stamp, record) pairs from wherever records live — small helper
+    shared by the voicemail fold check."""
+    try:
+        import clouddb
+        if clouddb.available():
+            return clouddb.all_shadow()
+    except Exception:
+        pass
+    try:
+        return [(p.stem, json.loads(p.read_text()))
+                for p in sorted(SHADOW_DIR.glob("*.json"))]
+    except Exception:
+        return []
+
+
 def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     """Run one raw email through the pipeline; save the shadow draft."""
     SHADOW_DIR.mkdir(parents=True, exist_ok=True)
@@ -490,6 +506,18 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     if parsed.get("lead"):
         lead = parsed["lead"]
         record["lead"] = lead
+        # SAME CALL, SECOND NOTIFICATION (deploy overlaps double-process;
+        # CopyCall sometimes re-sends): fold instead of a second entry
+        try:
+            for _ps, _pr in _shadow_sources_for_dedupe():
+                _pl = _pr.get("lead") or {}
+                if _pl.get("caller") == lead.get("caller") \
+                        and _pl.get("when") == lead.get("when") \
+                        and _ps != stamp:
+                    record["merged_into"] = _ps
+                    break
+        except Exception:
+            pass
         style = lead.get("style")
         who = parsed.get("phone") or "unknown caller"
         # SOFTWARE CALLER-ID: Jobber usually knows this number already.
