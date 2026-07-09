@@ -1126,11 +1126,20 @@ def bid_page(stamp, user=None):
         for ref, kind, idx in clouddb.photos_index([stamp, slug] if slug
                                                    else [stamp]):
             has_imagery = has_imagery or kind in ("aerial", "street")
-            gallery += (f"<a href='/img/{ref}/{kind}/{idx}' target='_blank'>"
-                        f"<img src='/img/{ref}/{kind}/{idx}' "
-                        f"style='height:110px;margin:4px;border-radius:6px;"
-                        f"border:2px solid {colors.get(kind)}' "
-                        f"title='{kind}'></a>")
+            lbl = {"aerial": ("Aerial", "#1e8449"),
+                   "street": ("Street", "#1d4ed8"),
+                   "customer": ("Customer", "#8a5a00")}.get(
+                       kind, (kind.title(), "#6b7280"))
+            gallery += (
+                f"<a href='/img/{ref}/{kind}/{idx}' target='_blank' "
+                f"style='position:relative;display:inline-block;margin:4px'>"
+                f"<img src='/img/{ref}/{kind}/{idx}' "
+                f"style='width:190px;height:120px;object-fit:cover;"
+                f"border-radius:10px;border:2px solid {lbl[1]}55'>"
+                f"<span style='position:absolute;top:7px;left:7px;"
+                f"background:{lbl[1]};color:#fff;font-size:9.5px;"
+                f"font-weight:800;padding:2px 8px;border-radius:6px'>"
+                f"{lbl[0]}</span></a>")
     else:
         photos = bid_photos(stamp)
         gallery = "".join(
@@ -1155,13 +1164,19 @@ def bid_page(stamp, user=None):
     notes = re.findall(r"⚠ ?(.+)", b.get("pipeline_output", ""))
     if b.get("office_alert"):
         notes.insert(0, b["office_alert"])
-    notes_html = "".join(f"<div>⚠ {esc(n)}</div>" for n in notes) or \
-                 "<div>(no flags)</div>"
+    notes_html = "".join(
+        f"<div style='display:flex;gap:8px;align-items:flex-start;"
+        f"color:#7a5300;padding:4px 0'><span>⚠</span>"
+        f"<span>{esc(n)}</span></div>" for n in notes) or \
+        "<div class='subtext'>(no flags)</div>"
     # Must Know rides at the TOP of the one stack (Martha's no-hunting rule)
     mk = get_must_know(b.get("address"))
     if mk:
-        notes_html = (f"<div style='font-weight:600'>📌 MUST KNOW "
-                      f"(this property): {esc(mk)}</div>") + notes_html
+        notes_html = (
+            f"<div style='background:#f7dfa0;border-left:4px solid #c9861a;"
+            f"border-radius:8px;padding:9px 12px;margin-bottom:8px;"
+            f"font-weight:700;color:#6b4a00'>📌 MUST KNOW (this property): "
+            f"{esc(mk)}</div>") + notes_html
 
     prior = property_history(b.get("address"), stamp)
     history_card = ""
@@ -1336,19 +1351,25 @@ def bid_page(stamp, user=None):
 {(f" · <a href='/messages?t={urllib.parse.quote(cust_email)}'>💬 view conversation</a>") if cust_email else ""}
 {collision}
 <div class='grid'><div>
- <div class='card'>
-  <h2 style='margin-top:0'>{esc((b.get('from') or '').split('<')[0].strip())}
-   <span class='subtext' style='font-weight:400'>{esc(cust_email or '')}</span>
-   {age_html(b['age_hours'])}
-  {quote_chip(my_quote, quote_urls(),
-              label=f"Open quote #{esc(my_quote)} in Jobber")
-   if my_quote else ''}</h2>
-  {draft_headline}
-  <div style='color:var(--mut);margin-top:6px'>
-   <b>Subject:</b> {esc(b.get('subject'))} &nbsp;·&nbsp;
-   <b>Address:</b> {f"<a href='/property/{_slug(b.get('address'))}'>{esc(b.get('address'))}</a>"
-                    if b.get('address') else '— not found'} &nbsp;·&nbsp;
-   {esc(b.get('folder', 'INBOX'))}</div>
+ <div class='card' style='display:flex;justify-content:space-between;
+      gap:18px;flex-wrap:wrap;align-items:flex-start'>
+  <div>
+   <div style='font-size:10px;font-weight:800;letter-spacing:1.4px;
+        text-transform:uppercase;color:var(--green2)'>Active bid review
+        · {age_html(b['age_hours'])}</div>
+   <h2 style='margin:4px 0 2px;font-size:26px;letter-spacing:-.5px'>
+    {esc((b.get('from') or '').split('<')[0].strip())}</h2>
+   <div style='color:var(--mut)'>
+    {f"<a href='/property/{_slug(b.get('address'))}'>{esc(b.get('address'))}</a>"
+     if b.get('address') else '— address not found'}
+    <span class='subtext'> · {esc(cust_email or '')}</span></div>
+   <div class='subtext' style='margin-top:4px'>
+    {esc(b.get('subject'))} · {esc(b.get('folder', 'INBOX'))}
+    {quote_chip(my_quote, quote_urls(),
+                label=f"Open quote #{esc(my_quote)} in Jobber")
+     if my_quote else ''}</div>
+  </div>
+  <div style='text-align:right'>{draft_headline}</div>
  </div>
  {two_price}
  {combine_card}
@@ -1364,8 +1385,9 @@ def bid_page(stamp, user=None):
                        (b.get('draft') or {}).get('customer', {}).get('name')
                        or esc(b['from']).split('&lt;')[0].strip())}
  {history_card}
- <div class='card'><h3 style='margin-top:0'>All notes — one stack</h3>
-  <div class='notes'>{notes_html}</div>
+ <div class='card' style='background:#fffbeb;border-color:#f3e3bd'>
+  <h3 style='margin-top:0;color:#8a5a00'>⚠ All notes — one stack</h3>
+  <div>{notes_html}</div>
   {"<form method='POST' action='/must_know' style='margin-top:8px'>"
    f"<input type='hidden' name='stamp' value='{stamp}'>"
    f"<input type='hidden' name='address' value='{esc(b.get('address'))}'>"
@@ -1378,7 +1400,8 @@ def bid_page(stamp, user=None):
  <details class='card'><summary>Raw system output (full trace)</summary>
   <pre>{esc(b.get('pipeline_output') or '(no draft — ' +
              esc(b.get('kind')) + ')')}</pre></details>
-</div><div>
+</div><div style='position:sticky;top:70px;max-height:calc(100vh - 84px);
+     overflow-y:auto;border-radius:16px'>
  <div class='card'><h3 style='margin-top:0'>Decide</h3>
   <form method='POST' action='/review'>
    <input type='hidden' name='stamp' value='{stamp}'>
