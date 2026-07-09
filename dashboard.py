@@ -2890,6 +2890,16 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
     <input type='hidden' name='back' value='/'>
     <button style='background:var(--gold);color:#1c2b23'>🚩 Still stuck —
      email Dallon &amp; Tom</button>
+   </form>
+   <form method='POST' action='/idea_send' style='margin-top:10px;
+        border-top:1px dashed var(--line);padding-top:10px'>
+    <input type='hidden' name='context'
+     value='while working {esc((nb.get("from") or "").split("<")[0].strip())} ({stamp})'>
+    <input type='hidden' name='back' value='{esc(back)}'>
+    <input type='text' name='text' placeholder='💡 Idea to make this better? Tell Dallon &amp; Claude — one line is plenty'>
+    <button class='gray'>💡 Send the idea</button>
+    <div class='subtext' style='margin-top:3px'>Emails Dallon instantly;
+     Claude reads every idea overnight and pre-plans the fix.</div>
    </form></div>"""
 
     # THE CUSTOMER'S EXISTING JOBBER QUOTE (Dallon, the Mia rule):
@@ -4491,7 +4501,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(json.dumps(load_reviews()).encode(),
                               ctype="application/json")
         m = re.match(r"^/api/blob/(mail_outbox|pricing_overrides|"
-                     r"canned_replies|msg_read|jobber_tokens)$", self.path)
+                     r"canned_replies|msg_read|jobber_tokens|ideas)$", self.path)
         if m:                     # blobs the Mac mirrors down
             val = (clouddb.get_blob(m.group(1))
                    if clouddb.available() else None)
@@ -5169,6 +5179,35 @@ class Handler(BaseHTTPRequestHandler):
                 fc[name] = ent
                 _blob_save("fold_clicks", fc)
             return self._send(b"ok")
+        elif self.path == "/idea_send":
+            # THE OFFICE'S DIRECT LINE (Dallon Jul 9): ideas go to him by
+            # email INSTANTLY, land in the ideas list (Claude reads them
+            # every night + every session), and show in the review feed.
+            text = get("text").strip()
+            if text:
+                who = _user or "the office"
+                full = text + (f" — {get('context')}" if get("context")
+                               else "")
+                add_idea(who, full)
+                save_review({"stamp": "", "action": "office_idea",
+                             "customer": who, "note": text[:250]})
+                try:
+                    import mailer
+                    ok, why = mailer.send_internal(
+                        f"💡 Dashboard idea from {who}",
+                        f"{who} suggested, from the dashboard:\n\n"
+                        f"“{text}”\n\n({get('context')})\n\n"
+                        "It's saved on the ideas list — Claude will "
+                        "pre-plan a fix on the nightly run.",
+                        to=[mailer.DALLON])
+                except Exception:
+                    pass
+            back = get("back")
+            self.send_response(303)
+            self.send_header("Location", back if back.startswith("/")
+                             else "/")
+            self.end_headers()
+            return
         elif self.path == "/mark_done":
             # explicit 'seen it' (Dallon's read-flow ruling): greys the
             # entry for the whole office; decisions do this automatically

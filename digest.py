@@ -134,9 +134,11 @@ def build():
         ideas = [x for x in db.load_ideas() if x.get("status") == "open"]
         if ideas:
             lines.append("")
-            lines.append(f"💡 IDEAS FROM THE OFFICE ({len(ideas)} open):")
-            for x in ideas[:6]:
-                lines.append(f"  · {x['who']}: {x['text'][:90]}")
+            lines.append(f"💡 IDEAS FROM THE OFFICE ({len(ideas)} open) "
+                         "— Claude pre-plans these overnight:")
+            for x in ideas[:8]:
+                lines.append(f"  · {x['who']} ({x.get('at', '')[:10]}): "
+                             f"{x['text'][:90]}")
     except Exception:
         pass
 
