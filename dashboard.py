@@ -682,9 +682,58 @@ def _rail_counts():
     return q, m
 
 
-def page(title, body, refresh=None):
+def page(title, body, refresh=None, chrome="rail"):
     auto = (f"<meta http-equiv='refresh' content='{refresh}'>"
             if refresh else "")
+    if chrome == "top":
+        # THE INBOX CHROME (Dallon Jul 9): no left rail — pages live
+        # top-right, the left side of the screen is only ever the list.
+        nav = "".join(
+            f"<a href='{href}' style='color:{'#fff' if title == t else '#cfe0d6'};"
+            f"text-decoration:none;padding:6px 13px;border-radius:8px;"
+            f"font-weight:600;font-size:13.5px;"
+            f"{'background:rgba(255,255,255,.14)' if title == t else ''}'>"
+            f"{label}</a>"
+            for href, label, t in (("/", "📥 Bids", "Bids"),
+                                   ("/scoreboard", "📊 Scoreboard", "Scoreboard"),
+                                   ("/winback", "📞 Win-back", "Win-back"),
+                                   ("/settings", "⚙️ Settings", "Settings")))
+        return (f"<!doctype html><html><head><meta charset='utf-8'>"
+                f"<meta name='viewport' content='width=device-width,"
+                f"initial-scale=1'>{auto}{FAVICON}"
+                f"<title>{title}</title>{STYLE}</head><body>"
+                f"<div class='main' style='margin-left:0'>"
+                f"<header style='background:var(--green);color:#e9efe9'>"
+                f"<b style='font-size:15px'>🎩 Master Butler</b>"
+                f"<span style='margin-left:auto;display:flex;gap:2px;"
+                f"align-items:center'>{nav}"
+                + """<span id='who' style='margin-left:14px;padding-left:14px;
+border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
+<script>
+(function(){
+  var m=document.cookie.match(/office_user=([^;]+)/);
+  var el=document.getElementById('who');
+  function set(n){document.cookie='office_user='+encodeURIComponent(n)
+    +';path=/;max-age=31536000';location.reload();}
+  if(m){var n=decodeURIComponent(m[1]);
+    el.innerHTML='👤 <b>'+n+'</b> <a href="#" style="opacity:.6;color:#cfe0d6">change</a>';
+    el.querySelector('a').onclick=function(e){e.preventDefault();
+      document.cookie='office_user=;path=/;max-age=0';location.reload();};
+  } else {
+    el.innerHTML='Who’s working? ';
+    ['LaRee','Jessica','Martha','Dallon','Tom'].forEach(function(n){
+      var a=document.createElement('a');a.href='#';a.textContent=n;
+      a.style.cssText='margin:0 5px;color:#c9a227;font-weight:700';
+      a.onclick=function(e){e.preventDefault();set(n);};
+      el.appendChild(a);});
+  }
+})();
+</script></header>"""
+                f"<div class='wrap' style='max-width:1280px'>{body}</div>"
+                f"<footer>Every quote is a draft until a human sends it · "
+                f"bold = unread, shared by the whole office · every price "
+                f"traces to a real job.</footer></div></body></html>"
+                ).encode()
     qn, mn = _rail_counts()
 
     def badge(n):
@@ -2210,6 +2259,702 @@ def _stamp_utc(stamp):
         return ""
 
 
+SLA_WORD = {"dns": "do not service", "hold": "parked",
+            "flag": "with Dallon & Tom", "sl": "question for office",
+            "won": "won ✓", "sent": "quote sent", "ok": "approved"}
+
+
+def _status_word(nb, holds, flags_open, sbs, claims):
+    """The quiet one-word status for an Inbox row (no pill zoo)."""
+    if not nb:
+        return "reply", ""
+    s = nb["stamp"]
+    if nb.get("dns_match"):
+        return "do not service", "color:var(--alarm);font-weight:800"
+    if s in holds:
+        return "parked", ""
+    if s in flags_open:
+        return "with Dallon & Tom", ""
+    cl = claims.get(s)
+    if cl and cl["mins"] <= CLAIM_FRESH_MIN:
+        return f"working · {cl['by']}", "color:#1d4ed8"
+    js = (sbs.get(s) or "").lower()
+    if js in ("approved", "converted"):
+        return "won ✓", "color:var(--green2)"
+    if js == "awaiting_response":
+        return "quote sent", ""
+    if s in getattr(bid_status, "_sl", {}):
+        return "question for office", "color:#6d28d9"
+    if nb.get("reviewed") or js in ("draft", "archived"):
+        return "done", ""
+    if nb.get("kind") == "phone_lead":
+        return "listen / review", "color:var(--green2);font-weight:800"
+    c = nb.get("confidence")
+    if c is not None and c >= 75 and ((nb.get("draft") or {}).get("total")
+                                      or 0) > 0:
+        return "ready to approve", "color:var(--green2);font-weight:800"
+    return "review", "color:var(--green2)"
+
+
+def inbox_page(sel=None, draft="", user=None):
+    """THE INBOX (Dallon picked direction A, Jul 9): bids + messages,
+    one list, read/unread shared office-wide, pinned critical info,
+    big folds. Scoreboard/Win-back/Settings live top-right."""
+    import msglog
+    bids = load_bids()
+    live_holds, resurfaced = active_holds()
+    quotes = quote_numbers()
+    qurls = quote_urls()
+    claims = _claims()
+    flags_open = {f.get("stamp") for f in flagged_for_review()}
+    sbs = scoreboard_status()
+    bid_status._sl = second_looks()
+    read_marks = _msg_read()
+
+    # ── merge: one entry per customer (same engine as Customers view) ──
+    cust, order = {}, []
+
+    def entry(key):
+        if key not in cust:
+            cust[key] = {"name": "", "email": None, "bids": [], "msgs": []}
+            order.append(key)
+        return cust[key]
+
+    for b in bids:
+        if b.get("merged_into") or classify_row(b)[0] == "aside":
+            continue
+        e = _bid_email(b)
+        if b.get("kind") == "jobber_event" and (not e or "getjobber" in e):
+            c = entry("stamp:" + b["stamp"])
+            c["name"] = (b.get("subject") or "Jobber event")[:40]
+            c["bids"].append(b)
+            continue
+        key = e or ("stamp:" + b["stamp"])
+        c = entry(key)
+        c["email"] = c["email"] or e
+        nm = (b.get("from") or "").split("<")[0].strip()
+        if nm and nm.lower() not in ("none", "none none") and not c["name"]:
+            c["name"] = nm
+        c["bids"].append(b)
+    import spam_filter
+    _skip = (list(_internal_senders()) + list(_learned_spam())
+             + list(NOISE_SENDERS) + list(spam_filter.KNOWN_SPAM_DOMAINS))
+    for addr, name, msgs in msglog.threads():
+        if addr not in cust and (any(s and s in addr for s in _skip)
+                                 or spam_filter.looks_spam(
+                addr, msgs[-1].get("subject"), msgs[-1].get("body"))[0]):
+            continue
+        c = entry(addr)
+        c["email"] = c["email"] or addr
+        if name and name != addr and not c["name"]:
+            c["name"] = name
+        c["msgs"] = msgs
+
+    roster = []
+    for key in order:
+        c = cust[key]
+        c["bids"].sort(key=lambda b: b["stamp"])
+        nb = c["bids"][-1] if c["bids"] else None
+        last_at = max(c["msgs"][-1]["at"] if c["msgs"] else "",
+                      _stamp_utc(nb["stamp"]) if nb else "")
+        unread = last_at > read_marks.get(key, "")
+        word, wstyle = _status_word(nb, live_holds, flags_open, sbs, claims)
+        needs = (nb and not nb["reviewed"] and not sbs.get(nb["stamp"])
+                 and nb["stamp"] not in live_holds
+                 and nb["stamp"] not in flags_open)
+        # WALK-AWAY NET (Dallon's concern, Jul 9): opened but still
+        # undecided after 30 min -> it re-bolds itself for everyone.
+        # Nobody has to remember to mark-unread after stepping away.
+        if not unread and needs and read_marks.get(key):
+            try:
+                from datetime import datetime as _d3, timezone as _z3
+                rt = _d3.fromisoformat(read_marks[key])
+                if rt.tzinfo is None:
+                    rt = rt.replace(tzinfo=_z3.utc)
+                if (_d3.now(_z3.utc) - rt).total_seconds() > 1800:
+                    unread = True
+            except ValueError:
+                pass
+        new_msg = bool(c["msgs"]) and c["msgs"][-1]["dir"] == "in" \
+            and c["msgs"][-1]["at"] > read_marks.get(key, "")
+        if nb and nb.get("dns_match"):
+            grp = 0
+        elif new_msg or needs or (nb and (nb.get("office_alert")
+                                  or nb["stamp"] in bid_status._sl)):
+            grp = 0                                # new — needs a person
+        elif nb and (nb["stamp"] in live_holds
+                     or nb["stamp"] in flags_open
+                     or claims.get(nb["stamp"])):
+            grp = 1                                # in someone's hands
+        elif nb and (sbs.get(nb["stamp"]) or "").lower() \
+                == "awaiting_response":
+            grp = 2                                # waiting on customers
+        else:
+            grp = 3                                # done / quiet
+        age_h = nb["age_hours"] if nb else None
+        if age_h is None and c["msgs"]:
+            try:
+                from datetime import datetime as _dtm, timezone as _tz
+                t0 = _dtm.fromisoformat(c["msgs"][-1]["at"])
+                if t0.tzinfo is None:
+                    t0 = t0.replace(tzinfo=_tz.utc)
+                age_h = (_dtm.now(_tz.utc) - t0).total_seconds() / 3600
+            except Exception:
+                age_h = 0
+        roster.append({"key": key, "c": c, "nb": nb, "unread": unread,
+                       "grp": grp, "at": last_at, "word": word,
+                       "wstyle": wstyle, "age": age_h or 0,
+                       "new_msg": new_msg})
+    roster.sort(key=lambda r: (not r["unread"], ), reverse=False)
+    roster.sort(key=lambda r: r["at"], reverse=True)
+    roster.sort(key=lambda r: (r["grp"], not r["unread"]))
+
+    cur = next((r for r in roster if r["key"] == sel), None)
+    convo_open = bool(cur and cur["new_msg"])
+    if cur:                        # opening marks read — office-wide.
+        # We store the READ TIME (not the activity time): a new message
+        # still un-bolds it, and the walk-away net below can measure
+        # how long ago it was opened.
+        from datetime import datetime as _dtm2, timezone as _tz2
+        read_marks[sel] = _dtm2.now(_tz2.utc).isoformat(timespec="seconds")
+        _msg_read_save(read_marks)
+        cur["unread"] = False
+        if cur["nb"] and not cur["nb"].get("reviewed") and user:
+            claim_bid(cur["nb"]["stamp"], user)
+
+    # ── left list ──
+    def row(r):
+        c, nb = r["c"], r["nb"]
+        active = r["key"] == sel
+        box = ("background:var(--soft);outline:2px solid var(--green2)"
+               if active else "")
+        op = "" if (r["unread"] or active or r["grp"] == 0) else "opacity:.62;"
+        nm_w = "font-weight:800" if r["unread"] else "font-weight:600"
+        dot = ("<span style='display:inline-block;width:9px;height:9px;"
+               "border-radius:50%;background:var(--gold);margin-right:8px'>"
+               "</span>" if r["unread"] else "")
+        if c["msgs"] and (not nb or c["msgs"][-1]["at"]
+                          >= _stamp_utc(nb["stamp"])):
+            last = c["msgs"][-1]
+            arrow = "←" if last["dir"] == "in" else "→"
+            pv = f"{arrow} {(last.get('body') or last.get('subject') or '')[:52]}"
+        elif nb:
+            pv = (nb.get("newest_message") or nb.get("subject") or "")[:52]
+        else:
+            pv = ""
+        alarm = (r["grp"] == 0 and r["age"] >= SLA_HOURS)
+        age = (f"{r['age']*60:.0f}m" if r["age"] < 1 else
+               f"{r['age']:.0f}h" if r["age"] < 48 else
+               f"{r['age']/24:.0f}d")
+        return (
+            f"<a href='/?c={urllib.parse.quote(r['key'])}' "
+            f"style='display:block;padding:11px 12px;border-radius:10px;"
+            f"margin:1px 0;text-decoration:none;color:var(--ink);{op}{box}'>"
+            f"<div style='font-size:14px;{nm_w}'>{dot}"
+            f"{esc(c['name'] or c['email'] or '(no name)')[:30]}</div>"
+            f"<div style='color:var(--mut);font-size:12px;white-space:"
+            f"nowrap;overflow:hidden;text-overflow:ellipsis'>{esc(pv)}</div>"
+            f"<div style='display:flex;justify-content:space-between;"
+            f"margin-top:2px'><span style='font-size:10.5px;font-weight:700;"
+            f"letter-spacing:.4px;text-transform:uppercase;"
+            f"color:var(--mut);{r['wstyle']}'>{esc(r['word'])}</span>"
+            f"<span style='font-size:12px;font-variant-numeric:tabular-nums;"
+            + ("color:var(--alarm);font-weight:700" if alarm
+               else "color:var(--mut)") + f"'>{age}</span></div></a>")
+
+    sec_names = {0: "New — needs a person", 1: "In someone's hands",
+                 2: "Waiting on customers"}
+    counts = {g: sum(1 for r in roster if r["grp"] == g) for g in range(4)}
+    lst = (f"<div style='display:flex;gap:8px;align-items:center;"
+           f"padding:2px 4px 10px'>"
+           f"<a href='/new' style='background:var(--green);color:#fff;"
+           f"border-radius:9px;padding:7px 14px;text-decoration:none;"
+           f"font-weight:700;font-size:13px'>➕ New lead</a>"
+           f"<span class='subtext'>{counts[0]} need a person"
+           + (f" · oldest {max((r['age'] for r in roster if r['grp'] == 0), default=0):.0f}h"
+              if counts[0] else " — all caught up ✅") + "</span></div>")
+    for g in (0, 1, 2):
+        rows_g = [r for r in roster if r["grp"] == g]
+        if not rows_g:
+            continue
+        lst += (f"<div style='font-size:10.5px;font-weight:800;"
+                f"text-transform:uppercase;letter-spacing:1px;"
+                f"color:var(--mut);padding:12px 8px 3px'>"
+                f"{sec_names[g]} ({len(rows_g)})</div>")
+        lst += "".join(row(r) for r in rows_g[:40])
+    done_rows = [r for r in roster if r["grp"] == 3]
+    lst += (f"<details style='margin-top:12px'><summary style='cursor:"
+            f"pointer;color:var(--mut);font-size:12.5px;font-weight:700;"
+            f"padding:0 8px'>Done &amp; quiet ({len(done_rows)}) · "
+            f"<a href='/queue'>old queue</a> · <a href='/history'>history"
+            f"</a></summary>"
+            + "".join(row(r) for r in done_rows[:30]) + "</details>")
+
+    # ── right: pinned card + folds ──
+    if not cur:
+        detail = ("<div class='card' style='display:flex;align-items:"
+                  "center;justify-content:center;min-height:420px;"
+                  "color:var(--mut)'><div style='text-align:center'>"
+                  "<div style='font-size:36px'>📥</div><b>Pick a customer"
+                  "</b><div class='subtext'>Bold = unread. Nothing gets "
+                  "marked read until someone opens it.</div></div></div>")
+    else:
+        detail = _inbox_detail(cur, quotes, qurls, live_holds, flags_open,
+                               sbs, claims, draft, convo_open, user)
+
+    body = (f"<div style='display:grid;grid-template-columns:330px 1fr;"
+            f"gap:14px;align-items:start'>"
+            f"<div class='card' style='padding:10px;max-height:"
+            f"calc(100vh - 110px);overflow-y:auto'>{lst}</div>"
+            f"{detail}</div>")
+    body += """
+<script>
+(function(){
+  var last = null;
+  function bump(){
+    fetch('/api/pulse').then(function(r){return r.json();}).then(function(d){
+      if (last === null) { last = d.t; return; }
+      var rb = document.getElementById('bidreply') ||
+               document.getElementById('inboxreply');
+      if (d.t !== last && (!rb || !rb.value.trim())) location.reload();
+      last = d.t;
+    }).catch(function(){});
+  }
+  setInterval(bump, 30000); bump();
+})();
+</script>"""
+    return page("Bids", body, chrome="top")
+
+
+def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
+                  claims, draft, convo_open, user):
+    """Pinned critical card + the big folds for one Inbox entry."""
+    import msglog
+    c, nb = cur["c"], cur["nb"]
+    key = cur["key"]
+    back = f"/?c={urllib.parse.quote(key)}"
+    d = (nb.get("draft") or {}) if nb else {}
+    bid_d = d.get("bid") or {}
+    stamp = nb["stamp"] if nb else None
+
+    # banners: collision / dns / second look
+    banners = ""
+    if nb:
+        other = claims.get(stamp)
+        if other and other.get("by") != user \
+                and other["mins"] <= CLAIM_FRESH_MIN:
+            banners += (
+                f"<div class='band' style='background:#e5edff;border-color:"
+                f"#b9ccf5;border-left-color:#1d4ed8;margin:0 0 10px'>"
+                f"<b style='color:#1d4ed8'>👥 {esc(other['by'])} is on this "
+                f"({other['mins']:.0f} min)</b> — check with them first. "
+                f"<form method='POST' action='/claim_take' style='display:"
+                f"inline'><input type='hidden' name='stamp' value='{stamp}'>"
+                f"<button style='padding:3px 10px;font-size:11.5px;"
+                f"background:#1d4ed8'>🤝 Take over</button></form></div>")
+        if nb.get("dns_match"):
+            h = nb["dns_match"]
+            banners += (
+                f"<div class='band' style='background:#1c1c1c;border-color:"
+                f"#000;border-left-color:#ff6b5e;margin:0 0 10px'>"
+                f"<b style='color:#ff6b5e'>⛔ DO NOT SERVICE</b> "
+                f"<span style='color:#ddd'>— matches “{esc(h['name'])}” "
+                f"({esc(h['matched_by'])}). Don't quote or schedule.</span>"
+                f"</div>")
+        sl = getattr(bid_status, "_sl", {}).get(stamp)
+        if sl and not nb.get("reviewed"):
+            banners += (
+                f"<div class='band' style='background:#f0e9fd;border-color:"
+                f"#d8c7f7;border-left-color:#6d28d9;margin:0 0 10px'>"
+                f"<b style='color:#6d28d9'>🔍 {esc(sl[1])} asked:</b> "
+                f"“{esc(sl[0][:160])}”</div>")
+
+    # pinned card pieces
+    conf = nb.get("confidence") if nb else None
+    cc = ("#1e8449" if (conf or 0) >= 75 else
+          "#c77700" if (conf or 0) >= 50 else "#b03a2e")
+    total_html = "<div class='subtext'>no priced draft</div>"
+    if d.get("total"):
+        rng = ""
+        if conf is not None and conf < 50:
+            from bid_engine import round_to_5 as _r5
+            rng = (f"<div style='font-size:11.5px;font-weight:700;"
+                   f"color:#c77700'>likely ${_r5(d['total']*0.8):,.0f}–"
+                   f"${_r5(d['total']*1.2):,.0f}</div>")
+        total_html = (f"<div style='font-size:32px;font-weight:800;"
+                      f"letter-spacing:-1.5px;color:var(--green2);"
+                      f"line-height:1'>${d['total']:,.0f}</div>{rng}"
+                      + (f"<div style='font-size:11.5px;font-weight:700;"
+                         f"color:{cc}'>{conf}% sure</div>"
+                         if conf is not None else ""))
+    say = ""
+    last_in = next((m for m in reversed(c["msgs"]) if m["dir"] == "in"),
+                   None) if c["msgs"] else None
+    say_txt = ((msglog.clean_body(last_in.get("body") or "")
+                or last_in.get("subject")) if last_in
+               else (nb.get("newest_message") if nb else "")) or ""
+    if say_txt:
+        say = (f"<div style='background:var(--soft);border-radius:11px;"
+               f"padding:10px 14px;font-style:italic;font-size:13.5px;"
+               f"margin-top:10px'>“{esc(say_txt[:260])}”</div>")
+    chips = ""
+    if nb:
+        if nb.get("sched_pref"):
+            chips += (f"<span class='chip' style='background:#e5edff;"
+                      f"color:#1d4ed8'>📅 {esc(nb['sched_pref'][:60])}</span> ")
+        if nb.get("tech_request"):
+            chips += (f"<span class='chip' style='background:#f0e9fd;"
+                      f"color:#6d28d9'>👷 {esc(nb['tech_request'][:60])}</span> ")
+        if nb.get("office_alert"):
+            chips += (f"<span class='chip' style='background:var(--goldbg,"
+                      f"#fdf4dd);color:#7a5300'>⚠ "
+                      f"{esc(nb['office_alert'][:90])}</span> ")
+        chips += other_homes_card(nb)
+    q = quotes.get(stamp) if stamp else None
+    jobber_bits = ""
+    if nb and nb.get("customer_status"):
+        jobber_bits += f" · {esc(nb['customer_status'])}"
+    ident_links = ""
+    if nb and nb.get("jobber_client_url"):
+        ident_links += (f" <a href='{esc(nb['jobber_client_url'])}' "
+                        f"target='_blank' rel='noopener' class='chip win' "
+                        f"style='text-decoration:none'>👤 Jobber ↗</a>")
+    if q:
+        ident_links += " " + quote_chip(q, qurls)
+
+    actionable = (nb and not nb.get("reviewed") and not sbs.get(stamp)
+                  and not nb.get("dns_match") and stamp not in live_holds)
+    mark_unread = ""
+    if c["msgs"] or nb:
+        mark_unread = (f"<form method='POST' action='/msg_unread' "
+                       f"style='display:inline;margin-left:8px'>"
+                       f"<input type='hidden' name='addr' value='{esc(key)}'>"
+                       f"<input type='hidden' name='back' value='/'>"
+                       f"<button class='gray' style='padding:2px 9px;"
+                       f"font-size:10.5px'>↩ mark unread</button></form>")
+    actions = ""
+    if actionable:
+        actions = f"""
+  <div style='display:flex;gap:8px;margin-top:12px;flex-wrap:wrap'>
+   <form method='POST' action='/review' style='flex:2;min-width:220px'>
+    <input type='hidden' name='stamp' value='{stamp}'>
+    <input type='hidden' name='customer' value='{esc(nb.get("from") or "")}'>
+    <input type='hidden' name='back' value='{esc(back)}'>
+    <button name='action' value='approve' class='big' style='width:100%'>
+     ✓ Price is right — approve</button>
+   </form>
+   <button class='gray' style='flex:1' onclick="tg('parkbox')">⏸ Not now</button>
+   <button class='gray' style='flex:1' onclick="tg('helpbox')">🙋 Help</button>
+  </div>
+  <div id='parkbox' style='display:none;margin-top:8px;background:var(--soft);
+       border-radius:10px;padding:10px'>
+   <form method='POST' action='/hold'>
+    <input type='hidden' name='stamp' value='{stamp}'>
+    <input type='hidden' name='customer' value='{esc(nb.get("from") or "")}'>
+    <input type='hidden' name='back' value='/'>
+    <select name='hold_reason'>{''.join(f"<option value='{r}'>{r.replace('_', ' ')}</option>" for r in HOLD_REASONS)}</select>
+    until <input type='date' name='hold_until' id='holddate'>
+    <button type='button' class='gray' onclick='qh(7)'>+1wk</button>
+    <button type='button' class='gray' onclick='qh(14)'>+2wk</button>
+    <button type='button' class='gray' onclick="qh('aug')">Aug 1</button>
+    <button class='gray' style='font-weight:700'>⏸ Park it</button>
+   </form></div>
+  <div id='helpbox' style='display:none;margin-top:8px;background:var(--soft);
+       border-radius:10px;padding:10px'>
+   <form method='POST' action='/escalate' style='margin-bottom:6px'>
+    <input type='hidden' name='stamp' value='{stamp}'>
+    <input type='hidden' name='customer' value='{esc(nb.get("from") or "")}'>
+    <input type='hidden' name='address' value='{esc(nb.get("address") or "")}'>
+    <input type='hidden' name='back' value='/'>
+    <input type='text' name='question' placeholder='your question, one line'>
+    <button style='background:#6d28d9'>🔍 Ask the office</button>
+   </form>
+   <form method='POST' action='/flag_review'>
+    <input type='hidden' name='stamp' value='{stamp}'>
+    <input type='hidden' name='customer' value='{esc(nb.get("from") or "")}'>
+    <input type='hidden' name='total' value='{d.get("total") or ""}'>
+    <input type='hidden' name='back' value='/'>
+    <button style='background:var(--gold);color:#1c2b23'>🚩 Still stuck —
+     email Dallon &amp; Tom</button>
+   </form></div>"""
+
+    addr_line = ""
+    if nb and nb.get("address"):
+        addr_line = (f"<a href='/property/{_slug(nb['address'])}'>"
+                     f"{esc(nb['address'])}</a>")
+    elif c["email"]:
+        addr_line = esc(c["email"])
+    pinned = (f"<div class='card' style='border-bottom:2px solid "
+              f"var(--line)'>{banners}"
+              f"<div style='display:flex;justify-content:space-between;"
+              f"gap:16px;flex-wrap:wrap;align-items:flex-start'><div>"
+              f"<h2 style='margin:0;font-size:22px;letter-spacing:-.4px'>"
+              f"{esc(c['name'] or c['email'] or '')}{mark_unread}</h2>"
+              f"<div style='color:var(--mut);font-size:13px;margin-top:2px'>"
+              f"{addr_line}{jobber_bits}{ident_links}</div></div>"
+              f"<div style='text-align:right'>{total_html}</div></div>"
+              f"{say}"
+              + (f"<div style='margin-top:8px'>{chips}</div>" if chips else "")
+              + actions + "</div>")
+
+    # ── folds ──
+    def fold(title, peek, inner, open_=False, count=None):
+        cnt = (f"<span style='background:var(--soft);border-radius:999px;"
+               f"font-size:11.5px;padding:1px 9px;color:var(--mut);"
+               f"font-weight:700'>{count}</span>" if count else "")
+        return (f"<details class='card' {'open' if open_ else ''} "
+                f"style='margin-top:10px'>"
+                f"<summary style='cursor:pointer;font-weight:800;"
+                f"font-size:15.5px;padding:4px 2px;display:flex;"
+                f"align-items:center;gap:10px'>{title} {cnt}"
+                f"<span style='color:var(--mut);font-weight:500;"
+                f"font-size:12.5px;margin-left:auto;text-align:right'>"
+                f"{peek}</span></summary>"
+                f"<div style='padding-top:8px'>{inner}</div></details>")
+
+    folds = ""
+    # line items (editable, same endpoint)
+    if nb and bid_d.get("services"):
+        hist = _history_entry(
+            nb.get("address"),
+            (d.get("customer") or {}).get("name")
+            or (nb.get("from") or "").split("<")[0].strip()) or {}
+        try:
+            from store import _service_key
+        except Exception:
+            def _service_key(n):
+                return None
+        editable = actionable
+        lines = ""
+        for i, s in enumerate(bid_d["services"]):
+            past = hist.get(_service_key(s["name"]) or "") or []
+            recent = sorted(past, reverse=True)[:2]
+            cells = " · ".join(f"{dt[:7]} ${p:,.0f}" for dt, p in recent)
+            was = (f"<div class='subtext' style='font-size:10.5px'>system "
+                   f"said ${s['orig_price']:,.0f}</div>"
+                   if s.get("orig_price") not in (None, s["price"]) else "")
+            pc = (f"<td class='num'>$<input type='number' name='p_{i}' "
+                  f"value='{s['price']:.0f}' step='5' min='0' "
+                  f"style='width:76px;text-align:right;font-weight:700;"
+                  f"border:1px solid var(--line);border-radius:6px;"
+                  f"padding:4px'>{was}</td>" if editable
+                  else f"<td class='num'>${s['price']:,.0f}</td>")
+            lines += (f"<tr><td>{esc(s['name'])}</td>{pc}"
+                      f"<td class='subtext'>{cells or '—'}</td></tr>")
+        reason_chips = "".join(
+            f"<button type='button' class='reason' onclick=\""
+            f"document.getElementById('ireason').value='{r}';"
+            f"document.querySelectorAll('#ipc .reason').forEach("
+            f"x=>x.classList.remove('sel'));this.classList.add('sel')\">"
+            f"{r.replace('_', ' ')}</button>" for r in REASONS)
+        edit_ctl = (f"<input type='hidden' id='ireason' name='reason' "
+                    f"value=''><div style='margin:6px 0'>{reason_chips}"
+                    f"</div><button class='gray' style='font-weight:700'>"
+                    f"💾 Save my prices</button>" if editable else "")
+        inner = (f"<form method='POST' action='/edit_prices' id='ipc'>"
+                 f"<input type='hidden' name='stamp' value='{stamp}'>"
+                 f"<input type='hidden' name='customer' "
+                 f"value='{esc(nb.get('from') or '')}'>"
+                 f"<input type='hidden' name='back' value='{esc(back)}'>"
+                 f"<table><tr><th>Service</th><th class='num'>Price</th>"
+                 f"<th>Past here</th></tr>{lines}</table>{edit_ctl}</form>"
+                 + add_service_card(nb, back=back))
+        folds += fold("Line items",
+                      "tap a price to fix it" if editable else "as decided",
+                      inner, open_=not convo_open,
+                      count=len(bid_d["services"]))
+    elif nb:
+        folds += fold("Line items", "no priced draft — office quotes this",
+                      f"<div class='subtext'>{esc((nb.get('pipeline_output') or '')[-300:])}</div>"
+                      + add_service_card(nb, back=back))
+
+    # photos & flyover
+    if nb:
+        gallery = ""
+        if clouddb.available():
+            slug = re.sub(r"[^a-z0-9]+", "-",
+                          (nb.get("address") or "").lower()).strip("-")[:60]
+            for ref, kind, idx in clouddb.photos_index(
+                    [stamp, slug] if slug else [stamp]):
+                if kind == "eml":
+                    continue
+                lbl = {"aerial": ("Aerial", "#1e8449"),
+                       "street": ("Street", "#1d4ed8"),
+                       "customer": ("Customer", "#8a5a00")}.get(
+                           kind, (kind.title(), "#6b7280"))
+                gallery += (
+                    f"<a href='/img/{ref}/{kind}/{idx}' target='_blank' "
+                    f"style='position:relative;display:inline-block;"
+                    f"margin:4px'><img src='/img/{ref}/{kind}/{idx}' "
+                    f"style='width:170px;height:108px;object-fit:cover;"
+                    f"border-radius:10px;border:2px solid {lbl[1]}55'>"
+                    f"<span style='position:absolute;top:6px;left:6px;"
+                    f"background:{lbl[1]};color:#fff;font-size:9px;"
+                    f"font-weight:800;padding:2px 7px;border-radius:6px'>"
+                    f"{lbl[0]}</span></a>")
+        extra = ""
+        if nb.get("address"):
+            try:
+                from aerial_view import listing_links
+                extra = (f"<div style='margin-top:8px'>"
+                         f"<a href='/flyover?addr="
+                         f"{urllib.parse.quote(nb['address'])}' "
+                         f"target='_blank' class='chip' style='background:"
+                         f"#e5edff;color:#1d4ed8;font-weight:700;"
+                         f"text-decoration:none'>🎥 3D flyover</a> "
+                         + "".join(
+                             f"<a href='{esc(u)}' target='_blank' "
+                             f"rel='noopener' class='chip' "
+                             f"style='text-decoration:none'>🏠 {n} ↗</a> "
+                             for n, u in listing_links(nb["address"]))
+                         + "</div>")
+            except Exception:
+                pass
+        folds += fold("Photos &amp; flyover", "aerial · street · 🎥",
+                      (gallery or "<div class='subtext'>no photos yet"
+                       "</div>") + extra)
+
+    # conversation & reply
+    bubbles = ""
+    for m_ in (c["msgs"] or [])[-8:]:
+        inn = m_["dir"] == "in"
+        bubbles += (
+            f"<div style='display:flex;justify-content:"
+            f"{'flex-start' if inn else 'flex-end'};margin:5px 0'>"
+            f"<div style='max-width:82%;padding:8px 12px;border-radius:12px;"
+            f"font-size:13px;"
+            f"{'background:var(--soft)' if inn else 'background:#0b3d2e;color:#eef4f0'}'>"
+            f"<div style='font-size:10px;font-weight:700;opacity:.6'>"
+            f"{esc((m_.get('name') or c['name'] or 'Customer') if inn else 'Master Butler' + ((' · ' + m_['by']) if m_.get('by') else ''))}"
+            f" · {esc(m_['at'][:16].replace('T', ' '))}</div>"
+            f"{esc(msglog.clean_body(m_.get('body') or '')[:400] or m_.get('subject') or '')}"
+            f"</div></div>")
+    reply_ui = ""
+    if c["email"]:
+        if clouddb.available():
+            _cn = clouddb.get_blob("canned_replies") or {}
+        else:
+            _cp = BASE / "data" / "canned_replies.json"
+            _cn = json.loads(_cp.read_text()) if _cp.exists() else {}
+        _cn_json = json.dumps(_cn).replace("</", "<\\/")
+        last_subject = next((m_.get("subject") for m_ in
+                             reversed(c["msgs"] or []) if m_.get("subject")),
+                            "") or (nb.get("subject") if nb else "") or ""
+        reply_subject = (last_subject if last_subject.lower()
+                         .startswith("re:") else f"Re: {last_subject}"
+                         if last_subject else "Master Butler")
+        reply_ui = f"""
+ <div style='border-top:1px solid var(--line);margin-top:8px;padding-top:8px'>
+  <div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px'>
+   <form method='POST' action='/msg_draft' style='display:inline'>
+    <input type='hidden' name='to' value='{esc(c["email"])}'>
+    <input type='hidden' name='back' value='inbox:{esc(key)}'>
+    <button class='gray' style='border-color:var(--gold);color:#8a5a00'>
+     ✨ Draft a reply for me</button>
+   </form>
+   <select id='inboxcanned' style='max-width:280px'>
+    <option value=''>Quick responses…</option></select>
+  </div>
+  <form method='POST' action='/msg_send'>
+   <input type='hidden' name='to' value='{esc(c["email"])}'>
+   <input type='hidden' name='subject' value='{esc(reply_subject)}'>
+   <input type='hidden' name='back' value='{esc(back)}'>
+   <textarea id='inboxreply' name='body' rows='3' style='min-height:76px'
+    placeholder='Reply to {esc(c["email"])} — copy into Gmail while sending is off'>{esc(draft)}</textarea>
+   <div style='display:flex;justify-content:space-between;align-items:center;
+        margin-top:6px'>
+    <span class='subtext'>Sending stays locked until Dallon flips it on.</span>
+    <button class='big' type='button' onclick="alert('Sending is switched OFF while we test — copy the text into Gmail for now.')">Send reply</button>
+   </div></form></div>
+<script>
+var IC = {_cn_json};
+var _is = document.getElementById('inboxcanned');
+Object.keys(IC).forEach(function(k){{
+  var o = document.createElement('option'); o.value = k; o.textContent = k;
+  _is.appendChild(o);
+}});
+_is.onchange = function(){{
+  if (!_is.value) return;
+  var t = document.getElementById('inboxreply');
+  t.value = IC[_is.value]; t.style.height = 'auto';
+  t.style.height = Math.min(t.scrollHeight + 6, 420) + 'px'; t.focus();
+}};
+</script>"""
+    folds += fold("Conversation &amp; reply",
+                  "quick responses · ✨ draft",
+                  (bubbles or "<div class='subtext'>No messages logged — "
+                   "replying starts the thread.</div>") + reply_ui,
+                  open_=convo_open, count=len(c["msgs"] or []) or None)
+
+    # history & must-know
+    if nb and nb.get("address"):
+        prior = property_history(nb.get("address"), stamp)
+        hist_rows = "".join(
+            f"<div>🏠 <a href='/bid/{s}'>{esc(r.get('from'))[:34]}</a> — "
+            f"{esc(r.get('kind'))}, {s[:8]}</div>" for s, r in prior[:5]) \
+            if prior else ""
+        mk = get_must_know(nb.get("address"))
+        mk_form = (f"<form method='POST' action='/must_know' "
+                   f"style='margin-top:8px'>"
+                   f"<input type='hidden' name='stamp' value='{stamp}'>"
+                   f"<input type='hidden' name='address' "
+                   f"value='{esc(nb.get('address'))}'>"
+                   f"<input type='hidden' name='back' value='{esc(back)}'>"
+                   f"<input type='text' name='text' value='{esc(mk)}' "
+                   f"placeholder='Must Know for this home (gate code, dog…)'>"
+                   f"<button class='gray' style='margin-top:4px'>Save "
+                   f"Must Know</button></form>")
+        folds += fold("History at this home",
+                      ("📌 " + esc(mk[:50])) if mk else "past visits · Must Know",
+                      (service_history_card(nb.get("address"),
+                       (d.get("customer") or {}).get("name")
+                       or (nb.get("from") or "").split("<")[0].strip())
+                       or "") + hist_rows + mk_form)
+
+    # warnings
+    if nb:
+        notes = re.findall(r"⚠ ?(.+)", nb.get("pipeline_output", ""))
+        notes += [n for n in (bid_d.get("notes") or [])
+                  if n not in notes][:10]
+        n_html = "".join(
+            f"<div style='display:flex;gap:8px;align-items:flex-start;"
+            f"color:#7a5300;padding:3px 0'><span>⚠</span>"
+            f"<span>{esc(n)}</span></div>" for n in notes[:14]) or \
+            "<div class='subtext'>(no warnings)</div>"
+        folds += fold("Warnings", notes[0][:60] if notes else "none",
+                      n_html, count=len(notes) or None)
+
+    # more actions
+    if nb:
+        more = f"""
+  <form method='POST' action='/photo_request' style='display:inline'>
+   <input type='hidden' name='stamp' value='{stamp}'>
+   <input type='hidden' name='customer' value='{esc(nb.get("from") or "")}'>
+   <input type='hidden' name='services' value='{','.join(nb.get('services') or [])}'>
+   <input type='hidden' name='back' value='/'>
+   <button class='gray'>Draft photo-request</button></form>
+  <form method='POST' action='/mark_spam' style='display:inline'>
+   <input type='hidden' name='stamp' value='{stamp}'>
+   <input type='hidden' name='sender' value='{esc(nb.get("from") or "")}'>
+   <button class='gray'>🚫 Spam</button></form>
+  <a href='/bid/{stamp}' class='chip' style='text-decoration:none'>
+   open the classic bid page →</a>"""
+        folds += fold("More", "photo request · spam · classic view", more)
+
+    scripts = """
+<script>
+function tg(id){var e=document.getElementById(id);
+  e.style.display = e.style.display==='none'?'block':'none';}
+function qh(d){
+  var t = new Date();
+  if (d === 'aug') { t = new Date(t.getFullYear() + (t.getMonth() >= 7 ? 1 : 0), 7, 1); }
+  else { t.setDate(t.getDate() + d); }
+  document.getElementById('holddate').value = t.toISOString().slice(0,10);
+}
+</script>"""
+    return f"<div>{pinned}{folds}{scripts}</div>"
+
+
 def customers_page(sel=None, draft=""):
     """FEATURE D (Dallon, Jul 8): Messages + Queue merged into ONE
     customer view — pick a person once and see the conversation, the
@@ -2710,7 +3455,7 @@ def price_one_service(rec, svc):
         return None
 
 
-def add_service_card(b):
+def add_service_card(b, back=""):
     """Pre-priced menu of the services NOT on this bid — one click adds
     the line. Prices come from the same engine + property record."""
     d = b.get("draft") or {}
@@ -2744,6 +3489,7 @@ def add_service_card(b):
             f"<form method='POST' action='/add_service' style='margin:0'>"
             f"<input type='hidden' name='stamp' value='{b['stamp']}'>"
             f"<input type='hidden' name='svc' value='{svc}'>"
+            f"<input type='hidden' name='back' value='{esc(back)}'>"
             f"<input type='hidden' name='customer' value='{esc(b.get('from') or '')}'>"
             f"<button class='gray' style='padding:4px 14px;font-size:12px'>"
             f"➕ Add to quote</button></form></td></tr>")
@@ -3439,8 +4185,14 @@ class Handler(BaseHTTPRequestHandler):
             return
         if not self._authed():
             return self._require_auth()
-        if self.path == "/":
-            return self._send(home_page())
+        if self.path == "/" or self.path.startswith("/?"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            cm = re.search(r"office_user=([^;]+)",
+                           self.headers.get("Cookie") or "")
+            u = urllib.parse.unquote(cm.group(1)) if cm else None
+            return self._send(inbox_page(q.get("c", [None])[0], user=u))
+        if self.path == "/queue":              # the pre-Inbox layout,
+            return self._send(home_page())     # kept during transition
         if self.path == "/scoreboard":
             return self._send(scoreboard_page())
         if self.path == "/drafts":
@@ -3773,6 +4525,10 @@ class Handler(BaseHTTPRequestHandler):
                 _bstamp = _back[4:]
                 def _page(sel, draft=""):
                     return bid_page(_bstamp, draft=draft)
+            elif _back.startswith("inbox:"):
+                _ikey = _back[6:]
+                def _page(sel, draft=""):
+                    return inbox_page(_ikey, draft=draft, user=_user)
             else:
                 _page = messages_page
             draft = ""
@@ -4033,8 +4789,10 @@ class Handler(BaseHTTPRequestHandler):
                                  "customer": get("customer"),
                                  "reason": reason,
                                  "note": "; ".join(changes)[:250]})
+            back = get("back")
             self.send_response(303)
-            self.send_header("Location", f"/bid/{stamp}")
+            self.send_header("Location", back if back.startswith("/")
+                             else f"/bid/{stamp}")
             self.end_headers()
             return
         elif self.path == "/measure_surfaces":
@@ -4125,8 +4883,10 @@ class Handler(BaseHTTPRequestHandler):
                 save_review({"stamp": stamp, "action": "line_added",
                              "customer": get("customer"),
                              "note": f"{svc}: +${sum(li['price'] for li in added):,.0f}"})
+            back = get("back")
             self.send_response(303)
-            self.send_header("Location", f"/bid/{stamp}")
+            self.send_header("Location", back if back.startswith("/")
+                             else f"/bid/{stamp}")
             self.end_headers()
             return
         elif self.path == "/fold_click":

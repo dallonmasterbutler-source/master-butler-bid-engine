@@ -89,7 +89,7 @@ KNOWN_SPAM_DOMAINS = (
     "globalaxisintel.com", "99designs.com", "kaizendirectmedia.com",
     "wavevector.info", "lamues.com", "themaverickaiservice.com",
     "reliablebackground", "automationworld", "controldesign",
-    "stockalert", "callclnr.co",
+    "stockalert", "callclnr.co", "propertyleads",
 )
 
 
