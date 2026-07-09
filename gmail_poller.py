@@ -351,6 +351,7 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
               "services": parsed["services"], "address": parsed["address"],
               "phone": parsed.get("phone"),
               "sched_pref": parsed.get("sched_pref"),
+              "tech_request": parsed.get("tech_request"),
               "newest_message": parsed.get("newest_message")}
     # bulk-mail marker for the spam filter (real customers never have it)
     try:

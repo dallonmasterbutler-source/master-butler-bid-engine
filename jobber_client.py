@@ -605,6 +605,48 @@ mutation CreateQuote($attributes: QuoteCreateAttributes!) {
 }
 """
 
+def _service_descriptions():
+    """The office's own standard line descriptions (mined from their
+    recent real quotes, Jul 9; stored office-editable in the blob)."""
+    try:
+        import clouddb
+        if clouddb.available():
+            return clouddb.get_blob("service_descriptions") or {}
+    except Exception:
+        pass
+    p = Path(__file__).parent / "data" / "service_descriptions.json"
+    return json.loads(p.read_text()) if p.exists() else {}
+
+
+# engine line name -> (standard office name, tom-only office name).
+# The office's own convention (their quotes): high-risk roofs get the
+# '- Other Roof' service, whose description says July/August + lead
+# technician — Martha's 'Tom only line item', done their way.
+_OFFICE_LINE = {
+    "Gutter Cleaning": ("Gutter Cleaning - Composition",
+                        "Gutter Cleaning - Other Roof"),
+    "Roof Blow Off": ("Roof Blow Off - Composition",
+                      "Roof Blow Off - Other Roof"),
+    "Roof Blow Off for Gutter Guards":
+        ("Roof Blow Off for Installed Gutter Guards",) * 2,
+    "Moss Treatment": ("Apply Moss Treatment-Comp",
+                       "Apply Moss Treatment-Other"),
+    "Window Cleaning (Exterior Only)": ("Window Cleaning Exterior Only",) * 2,
+    "Windows In & Out": ("Window Cleaning In & Out",) * 2,
+    "House Wash": ("House Washing",) * 2,
+    "Dryer Vent Cleaning": ("Dryer Vent Cleaning",) * 2,
+    "Pressure Wash Driveway": ("Pressure Wash Driveway",) * 2,
+}
+
+
+def _is_tom_only(prop_info):
+    pi = prop_info or {}
+    return (str(pi.get("pitch")) == "tom_only"
+            or str(pi.get("roof_material")).lower() in
+            ("metal", "shake", "cedar shake", "tile", "concrete tile")
+            or str(pi.get("stories")) == "3")
+
+
 def create_draft_quote(client_id, property_id, bid, prop_info=None,
                        address=None):
     """bid = the dict from calculate_bid: has line items + office notes.
@@ -613,13 +655,30 @@ def create_draft_quote(client_id, property_id, bid, prop_info=None,
 
     We attach our office notes and confidence as the quote message so
     the reviewer sees exactly why the engine priced it this way.
+    Lines carry the OFFICE'S standard service names + descriptions
+    (Martha, Jul 9: 'line items are empty... need the descriptions').
     """
-    line_items = [{
-        "name": s["name"],
-        "quantity": 1,
-        "unitPrice": float(s["price"]),
-        "saveToProductsAndServices": False,   # don't pollute their catalog
-    } for s in bid["services"]]
+    descs = _service_descriptions()
+    tom = _is_tom_only(prop_info)
+    line_items = []
+    for s in bid["services"]:
+        names = _OFFICE_LINE.get(s["name"].split(" (~")[0])
+        oname = (names[1] if tom else names[0]) if names else s["name"]
+        li = {"name": oname,
+              "quantity": 1,
+              "unitPrice": float(s["price"]),
+              "saveToProductsAndServices": False}
+        if descs.get(oname):
+            li["description"] = descs[oname]
+        line_items.append(li)
+        # the office always pairs treatment with its product line
+        if oname.startswith("Apply Moss Treatment") \
+                and "Moss Treatment Product" not in [
+                    x["name"] for x in line_items]:
+            line_items.append({
+                "name": "Moss Treatment Product", "quantity": 1,
+                "unitPrice": 14.50, "saveToProductsAndServices": False,
+                "description": descs.get("Moss Treatment Product", "")})
 
     # INTERNAL notes (confidence, hazards, move-items) go on the quote as a
     # pinned internal note — the office/tech see them, the CUSTOMER NEVER DOES.
@@ -724,15 +783,48 @@ def add_lines_to_quote(quote_node_id, services):
 # THE ONE FUNCTION THE PIPELINE CALLS
 # ─────────────────────────────────────────────────────────────
 
-def push_approved_bid(customer, bid, prop_info=None):
+CLIENT_NOTE = """
+mutation Note($clientId: EncodedId!, $input: ClientCreateNoteInput!) {
+  clientCreateNote(clientId: $clientId, input: $input) {
+    clientNote { id }
+    userErrors { message }
+  }
+}
+"""
+
+
+def add_photos_to_client(client_id, photo_urls, message):
+    """Attach the bid's photos to the CLIENT PROFILE as a note (Martha,
+    Jul 9: 'need to pull the pictures over to the jobber profile').
+    Jobber fetches each URL itself — we pass signed dashboard links."""
+    if not (client_id and photo_urls):
+        return None
+    return _post(CLIENT_NOTE, {
+        "clientId": client_id,
+        "input": {"message": message,
+                  "attachments": [{"url": u} for u in photo_urls[:8]]}},
+        "client photo note")
+
+
+def push_approved_bid(customer, bid, prop_info=None, photo_urls=None,
+                      photo_note=""):
     """customer = {name, email, phone, address}; bid = calculate_bid output;
     prop_info = measured facts for custom fields (sqft, pitch, roof, stories).
-    Creates client (if new) + property + DRAFT quote. Never sends."""
+    Creates client (if new) + property + DRAFT quote (+ photos onto the
+    client profile when given). Never sends."""
     client_id = find_or_create_client(
         customer.get("name"), customer.get("email"), customer.get("phone"))
     property_id = create_property(client_id, customer.get("address", ""))
-    return create_draft_quote(client_id, property_id, bid, prop_info,
-                              address=customer.get("address"))
+    res = create_draft_quote(client_id, property_id, bid, prop_info,
+                             address=customer.get("address"))
+    if photo_urls and not res.get("error"):
+        try:
+            add_photos_to_client(client_id, photo_urls,
+                                 photo_note or "Photos from the bid "
+                                 "system (auto-attached).")
+        except Exception:
+            pass                     # photos are a bonus, never a blocker
+    return res
 
 
 # ─────────────────────────────────────────────────────────────

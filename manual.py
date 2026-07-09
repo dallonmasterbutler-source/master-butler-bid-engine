@@ -75,6 +75,7 @@ def process_manual(name, address, phone="", email="", services=None,
         "address": parsed.get("address") or address,
         "phone": parsed.get("phone") or phone,
         "sched_pref": parsed.get("sched_pref"),
+        "tech_request": parsed.get("tech_request"),
         "newest_message": parsed.get("newest_message"),
         "office_alert": f"MANUAL ENTRY — added by {entered_by} "
                         "(e.g. a tech's curbside lead). Ran through the full "

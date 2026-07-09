@@ -382,6 +382,7 @@ def parse_eml(path) -> dict:
         "services": services,
         "kind": classify(fresh, services),
         "sched_pref": find_sched_pref(fresh),
+        "tech_request": find_tech_request(fresh),
         "has_attachments": any(
             part.get_content_disposition() == "attachment"
             for part in msg.walk()
@@ -403,6 +404,30 @@ _SCHED_PAT = re.compile(
     r"(?:st|nd|rd|th)?"
     r"|\d{1,2}/\d{1,2}"
     r")\b", re.I)
+
+
+# Martha (Jul 9): "customers request specific technicians sometimes...
+# trying to book with the technician who serviced it last." Catch the
+# sentence where a customer names one of our techs.
+_TECH_NAMES = ("dallon", "tom", "connor", "nick", "gus", "blake",
+               "spencer", "adam", "robin")
+_TECH_CTX = ("tech", "technician", "again", "last time", "last year",
+             "request", "prefer", "same", "send", "ask for", "did our",
+             "who came", "who did")
+
+
+def find_tech_request(text):
+    if not text:
+        return None
+    import re as _re
+    for sent in _re.split(r"(?<=[.!?\n])\s+", text[:1200]):
+        low = sent.lower()
+        if len(sent) < 8 or len(sent) > 220:
+            continue
+        if any(_re.search(rf"\b{n}\b", low) for n in _TECH_NAMES) \
+                and any(c in low for c in _TECH_CTX):
+            return _re.sub(r"\s+", " ", sent.strip())[:160]
+    return None
 
 
 def find_sched_pref(text):

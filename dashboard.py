@@ -977,11 +977,15 @@ def home_page():
             break
     decided_html = ""
     if decided_rows:
+        n_decided = decided_rows.count("<tr>")
         decided_html = (
-            "<div class='card'><h2 style='margin-top:0'>Recently decided"
-            "</h2><table><tr><th>Customer</th><th>Status</th>"
-            "<th>Decision</th><th>When</th></tr>"
-            + decided_rows + "</table></div>")
+            f"<details class='card'><summary style='cursor:pointer;"
+            f"font-weight:700;color:var(--mut)'>✅ Recently decided "
+            f"({n_decided}) — open if you need to double-check one · "
+            f"<a href='/history'>full history</a></summary>"
+            "<table style='margin-top:8px'><tr><th>Customer</th>"
+            "<th>Status</th><th>Decision</th><th>When</th></tr>"
+            + decided_rows + "</table></details>")
 
     aside_html = ""
     # spam gets its own drawer — filtered, never vanished: the office
@@ -1162,7 +1166,33 @@ def aerial_tile_for(address):
     return tile, street
 
 
-def bid_page(stamp, user=None):
+def other_homes_card(b):
+    """MULTI-HOME CLIENTS (Martha + LaRee's questionnaire): same person,
+    different addresses — link every property so notes stay per-home."""
+    m = re.search(r"<([^>]+)>", b.get("from") or "")
+    email = (m.group(1).lower() if m else None)
+    if not email or not b.get("address"):
+        return ""
+    mine = _canon_addr(b["address"])
+    others = {}
+    for s, r in _shadow_source():
+        rm = re.search(r"<([^>]+)>", r.get("from") or "")
+        if rm and rm.group(1).lower() == email and r.get("address") \
+                and _canon_addr(r["address"]) != mine:
+            others[_canon_addr(r["address"])] = r["address"]
+    if not others:
+        return ""
+    links = " · ".join(
+        f"<a href='/property/{_slug(a)}'>{esc(a)[:40]}</a>"
+        for a in others.values())
+    return (f"<div style='margin-top:6px;display:inline-block;"
+            f"background:#fdf4dd;color:#7a5300;border-radius:999px;"
+            f"padding:4px 13px;font-size:12.5px;font-weight:700'>"
+            f"🏘 Same customer, other home(s): {links} — notes stay "
+            f"per-home</div>")
+
+
+def bid_page(stamp, user=None, draft=""):
     bids = {b["stamp"]: b for b in load_bids()}
     b = bids.get(stamp)
     if not b:
@@ -1260,23 +1290,77 @@ def bid_page(stamp, user=None):
             import msglog
             th = next((ms for a, n, ms in msglog.threads()
                        if a == cust_email.lower()), [])
-            if len(th) > 1:
-                bubbles = ""
-                for m_ in th[-3:]:
-                    inn = m_["dir"] == "in"
-                    bubbles += (
-                        f"<div style='display:flex;justify-content:"
-                        f"{'flex-start' if inn else 'flex-end'};margin:5px 0'>"
-                        f"<div style='max-width:82%;padding:7px 12px;"
-                        f"border-radius:12px;font-size:12.5px;"
-                        f"{'background:#f2f5f3' if inn else 'background:#0b3d2e;color:#eef4f0'}'>"
-                        f"{esc(msglog.clean_body(m_.get('body') or '')[:160] or m_.get('subject') or '')}"
-                        f"</div></div>")
-                convo_card = (
-                    f"<div class='card'><h3 style='margin-top:0'>Recent "
-                    f"conversation <a style='font-weight:400;font-size:12px' "
-                    f"href='/messages?t={urllib.parse.quote(cust_email)}'>"
-                    f"open full thread →</a></h3>{bubbles}</div>")
+            bubbles = ""
+            for m_ in th[-3:]:
+                inn = m_["dir"] == "in"
+                bubbles += (
+                    f"<div style='display:flex;justify-content:"
+                    f"{'flex-start' if inn else 'flex-end'};margin:5px 0'>"
+                    f"<div style='max-width:82%;padding:7px 12px;"
+                    f"border-radius:12px;font-size:12.5px;"
+                    f"{'background:#f2f5f3' if inn else 'background:#0b3d2e;color:#eef4f0'}'>"
+                    f"{esc(msglog.clean_body(m_.get('body') or '')[:160] or m_.get('subject') or '')}"
+                    f"</div></div>")
+            # REPLY WITHOUT LEAVING THE BID (Martha, Jul 9): quick
+            # responses + ✨ draft + the same locked Send as Messages.
+            last_subject = next((m_.get("subject") for m_ in reversed(th)
+                                 if m_.get("subject")), "") or b.get("subject") or ""
+            reply_subject = (last_subject if last_subject.lower()
+                             .startswith("re:") else f"Re: {last_subject}"
+                             if last_subject else "Master Butler")
+            if clouddb.available():
+                _cn = clouddb.get_blob("canned_replies") or {}
+            else:
+                _cp = BASE / "data" / "canned_replies.json"
+                _cn = json.loads(_cp.read_text()) if _cp.exists() else {}
+            _cn_json = json.dumps(_cn).replace("</", "<\\/")
+            reply_ui = f"""
+  <div style='border-top:1px solid var(--line);margin-top:10px;
+       padding-top:10px'>
+   <div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px'>
+    <form method='POST' action='/msg_draft' style='display:inline'>
+     <input type='hidden' name='to' value='{esc(cust_email)}'>
+     <input type='hidden' name='back' value='bid:{stamp}'>
+     <button class='gray' style='border-color:var(--gold);color:#8a5a00'>
+      ✨ Draft a reply for me</button>
+    </form>
+    <select id='bidcanned' style='max-width:280px'>
+     <option value=''>Quick responses…</option></select>
+   </div>
+   <form method='POST' action='/msg_send'>
+    <input type='hidden' name='to' value='{esc(cust_email)}'>
+    <input type='hidden' name='subject' value='{esc(reply_subject)}'>
+    <input type='hidden' name='back' value='/bid/{stamp}'>
+    <textarea id='bidreply' name='body' rows='3' style='min-height:76px'
+     placeholder='Reply to {esc(cust_email)} — or copy into Gmail while sending is off'>{esc(draft)}</textarea>
+    <div style='display:flex;justify-content:space-between;
+                align-items:center;margin-top:6px'>
+     <span class='subtext'>Sending stays locked until Dallon flips it on.</span>
+     <button class='big' type='button' onclick="alert('Sending is switched OFF while we test — copy the text into Gmail for now.')">Send reply</button>
+    </div>
+   </form></div>
+<script>
+var BC = {_cn_json};
+var _bs = document.getElementById('bidcanned');
+Object.keys(BC).forEach(function(k){{
+  var o = document.createElement('option'); o.value = k; o.textContent = k;
+  _bs.appendChild(o);
+}});
+_bs.onchange = function(){{
+  if (!_bs.value) return;
+  var t = document.getElementById('bidreply');
+  t.value = BC[_bs.value]; t.style.height = 'auto';
+  t.style.height = Math.min(t.scrollHeight + 6, 420) + 'px'; t.focus();
+}};
+</script>"""
+            convo_card = (
+                f"<div class='card'><h3 style='margin-top:0'>Conversation "
+                f"&amp; reply <a style='font-weight:400;font-size:12px' "
+                f"href='/messages?t={urllib.parse.quote(cust_email)}'>"
+                f"full thread →</a></h3>"
+                + (bubbles or "<div class='subtext'>No messages logged "
+                              "yet — replying starts the thread.</div>")
+                + reply_ui + "</div>")
     except Exception:
         convo_card = ""
 
@@ -1442,8 +1526,9 @@ def bid_page(stamp, user=None):
         except Exception:
             def _service_key(n):
                 return None
+        editable = not b.get("reviewed") and not b.get("dns_match")
         lines = ""
-        for s in bid_d["services"]:
+        for i, s in enumerate(bid_d["services"]):
             past = hist.get(_service_key(s["name"]) or "") or []
             recent = sorted(past, reverse=True)[:3]
             cells = " · ".join(f"{dt[:7]} ${p:,.0f}" for dt, p in recent)
@@ -1451,18 +1536,47 @@ def bid_page(stamp, user=None):
             if recent and s["price"] < recent[0][1]:
                 hint = (" <b style='color:#b03a2e'>⬆ below last paid "
                         f"(${recent[0][1]:,.0f})</b>")
-            lines += (
-                f"<tr><td>{esc(s['name'])}</td>"
-                f"<td class='num'>${s['price']:,.0f}</td>"
-                f"<td class='subtext'>{cells or '—'}{hint}</td></tr>")
+            was = (f"<div class='subtext' style='font-size:10.5px'>system "
+                   f"said ${s['orig_price']:,.0f}</div>"
+                   if s.get("orig_price") not in (None, s["price"]) else "")
+            price_cell = (
+                f"<td class='num'>$<input type='number' name='p_{i}' "
+                f"value='{s['price']:.0f}' step='5' min='0' "
+                f"style='width:78px;text-align:right;font-weight:700;"
+                f"border:1px solid var(--line);border-radius:6px;"
+                f"padding:4px'>{was}</td>"
+                if editable else f"<td class='num'>${s['price']:,.0f}</td>")
+            lines += (f"<tr><td>{esc(s['name'])}</td>{price_cell}"
+                      f"<td class='subtext'>{cells or '—'}{hint}</td></tr>")
+        # WHY chips ride WITH the price edit — one tap teaches the system
+        reason_chips = "".join(
+            f"<button type='button' class='reason' "
+            f"onclick=\"document.getElementById('editreason').value='{r}';"
+            f"document.querySelectorAll('#pricecard .reason').forEach("
+            f"x=>x.classList.remove('sel'));this.classList.add('sel')\">"
+            f"{r.replace('_', ' ')}</button>" for r in REASONS)
+        edit_controls = (f"""
+  <div style='margin-top:8px;border-top:1px dashed var(--line);
+       padding-top:8px'>
+   <div class='subtext' style='margin-bottom:4px'>Changed a number?
+   Tap why (teaches the system), then save:</div>
+   <input type='hidden' id='editreason' name='reason' value=''>
+   <div style='margin-bottom:6px'>{reason_chips}</div>
+   <button class='gray' style='font-weight:700'>💾 Save my prices</button>
+  </div>""" if editable else "")
         price_card = (
-            "<div class='card'><h3>Proposed line items</h3><table>"
+            f"<form method='POST' action='/edit_prices' id='pricecard'>"
+            f"<input type='hidden' name='stamp' value='{stamp}'>"
+            f"<input type='hidden' name='customer' value='{esc(b['from'])}'>"
+            "<div class='card'><h3>Line items — "
+            + ("type right on a price to fix it"
+               if editable else "as decided") + "</h3><table>"
             "<tr><th>Service</th><th class='num'>Price</th>"
             "<th>Past at this property</th></tr>" + lines +
             f"<tr style='background:#f3f4f1'><td><b>Total estimate</b></td>"
             f"<td class='num'><b>${d.get('total', 0):,.0f}</b></td>"
             "<td></td></tr>"
-            "</table></div>")
+            "</table>" + edit_controls + "</div></form>")
     price_card += add_service_card(b)
     pi = d.get("prop_info") or {}
     measure_card = ""
@@ -1529,6 +1643,12 @@ def bid_page(stamp, user=None):
      f"color:#1d4ed8;border-radius:999px;padding:4px 13px;font-size:12.5px;"
      f"font-weight:700'>📅 Asked about timing: &ldquo;{esc(b['sched_pref'])}"
      f"&rdquo;</div>") if b.get('sched_pref') else ''}
+   {(f"<div style='margin-top:6px;display:inline-block;background:#f0e9fd;"
+     f"color:#6d28d9;border-radius:999px;padding:4px 13px;font-size:12.5px;"
+     f"font-weight:700'>👷 Mentions a tech: &ldquo;{esc(b['tech_request'])}"
+     f"&rdquo; — book them if possible</div>")
+    if b.get('tech_request') else ''}
+   {other_homes_card(b)}
    <div class='subtext' style='margin-top:4px'>
     {esc(b.get('subject'))} · {esc(b.get('folder', 'INBOX'))}
     {quote_chip(my_quote, quote_urls(),
@@ -1569,19 +1689,22 @@ def bid_page(stamp, user=None):
              esc(b.get('kind')) + ')')}</pre></details>
 </div><div style='position:sticky;top:70px;max-height:calc(100vh - 84px);
      overflow-y:auto;border-radius:16px'>
- <div class='card'><h3 style='margin-top:0'>Decide</h3>
+ <div class='card'><h3 style='margin-top:0'>Decide — 3 choices</h3>
+  <div class='subtext' style='margin-bottom:8px'>Wrong number? Fix it
+  right on the line items (left) and tap 💾 first.</div>
   <form method='POST' action='/review'>
    <input type='hidden' name='stamp' value='{stamp}'>
    <input type='hidden' name='customer' value='{esc(b['from'])}'>
-   <input type='hidden' id='reason' name='reason' value=''>
-   <div style='margin-bottom:6px'>{reasons}</div>
-   <input type='text' name='note' placeholder='optional: teach it in one line'>
-   <div style='margin-top:10px'>
-    <button name='action' value='approve' class='big'>✓ Approve as-is</button>
-    <button name='action' value='adjusted' class='gray'>Adjusted (reason above)</button>
+   <button name='action' value='approve' class='big' style='width:100%'>
+    ✓ Price is right — approve</button>
+   <div class='subtext' style='margin:3px 0 0'>
+    {"Creates the DRAFT quote in Jobber (photos attach to the client profile). Nothing emails the customer." if _push_enabled() or stamp in _blob_rw("push_allow", []) else "Records your OK. (Jobber push is off for this bid — shadow mode.)"}
    </div>
   </form>
   {duplicate_forms}
+  <details style='margin-top:12px'>
+   <summary style='cursor:pointer;font-weight:700'>⏸ Not now — park it
+    (comes back by itself)</summary>
   <form method='POST' action='/hold' style='margin-top:6px'>
    <input type='hidden' name='stamp' value='{stamp}'>
    <input type='hidden' name='customer' value='{esc(b['from'])}'>
@@ -1591,7 +1714,6 @@ def bid_page(stamp, user=None):
    </select>
    until <input type='date' name='hold_until' id='holddate'
                 style='padding:6px;border-radius:6px'>
-   <button class='gray'>Hold (auto-resurfaces)</button>
    <div style='margin-top:4px'>
     <button type='button' class='gray' style='padding:3px 10px;font-size:11.5px'
      onclick="qh(7)">+1 week</button>
@@ -1600,6 +1722,7 @@ def bid_page(stamp, user=None):
     <button type='button' class='gray' style='padding:3px 10px;font-size:11.5px'
      onclick="qh('aug')">Dry season (Aug 1)</button>
    </div>
+   <button class='gray' style='margin-top:6px'>⏸ Park it</button>
    <script>
    function qh(d){{
      var t = new Date();
@@ -1609,27 +1732,33 @@ def bid_page(stamp, user=None):
      document.getElementById('holddate').value = t.toISOString().slice(0,10);
    }}
    </script>
-   <div style='font-size:12px;color:#888'>Hold parks the WORK, never the
-   reply — customer still gets answered with the timeline.</div>
+   <div style='font-size:12px;color:#888'>Parking hides the WORK until
+   the date — still answer the customer with the timeline.</div>
   </form>
-  <form method='POST' action='/flag_review' style='margin-top:6px'>
-   <input type='hidden' name='stamp' value='{stamp}'>
-   <input type='hidden' name='customer' value='{esc(b['from'])}'>
-   <input type='hidden' name='total' value='{d.get('total') or ''}'>
-   <button style='background:var(--gold);color:#1c2b23'>🚩 Stuck? Send to
-   Dallon &amp; Tom (final step)</button>
-  </form>
-  <details style='margin-top:10px;border-top:1px solid var(--line);
+  </details>
+  <details style='margin-top:8px'>
+   <summary style='cursor:pointer;font-weight:700'>🙋 Not sure — ask
+    for help</summary>
+   <form method='POST' action='/escalate' style='margin-top:8px'>
+    <input type='hidden' name='stamp' value='{stamp}'>
+    <input type='hidden' name='customer' value='{esc(b['from'])}'>
+    <input type='hidden' name='address' value='{esc(b.get('address'))}'>
+    <input type='text' name='question' placeholder='your question, one line'>
+    <button style='background:#6d28d9'>🔍 Ask the office — stays on the
+     queue with your question</button>
+   </form>
+   <form method='POST' action='/flag_review' style='margin-top:6px'>
+    <input type='hidden' name='stamp' value='{stamp}'>
+    <input type='hidden' name='customer' value='{esc(b['from'])}'>
+    <input type='hidden' name='total' value='{d.get('total') or ''}'>
+    <button style='background:var(--gold);color:#1c2b23'>🚩 Still stuck —
+     email Dallon &amp; Tom</button>
+   </form>
+  </details>
+  <details style='margin-top:8px;border-top:1px solid var(--line);
     padding-top:8px'>
    <summary style='cursor:pointer;color:var(--mut);font-size:12.5px;
-    font-weight:700'>More actions (escalate · photos · spam)</summary>
-  <form method='POST' action='/escalate' style='margin-top:8px'>
-   <input type='hidden' name='stamp' value='{stamp}'>
-   <input type='hidden' name='customer' value='{esc(b['from'])}'>
-   <input type='hidden' name='address' value='{esc(b.get('address'))}'>
-   <input type='text' name='question' placeholder='your question, one line'>
-   <button style='background:#6d28d9'>🔍 Ask the office for a second look</button>
-  </form>
+    font-weight:700'>More actions (photos · spam · welcome-back)</summary>
   <form method='POST' action='/photo_request' style='margin-top:6px'>
    <input type='hidden' name='stamp' value='{stamp}'>
    <input type='hidden' name='customer' value='{esc(b['from'])}'>
@@ -2689,6 +2818,31 @@ def flyover_page(addr):
                 "fallback.</div>")
 
 
+def _photo_token(ref, kind, idx):
+    """Unguessable per-photo token — lets Jobber fetch bid photos
+    without the office password ever leaving the building."""
+    import hashlib
+    import hmac as _hmac
+    key = (_password() or "local").encode()
+    return _hmac.new(key, f"{ref}|{kind}|{idx}".encode(),
+                     hashlib.sha256).hexdigest()[:16]
+
+
+def _photo_urls_for(stamp, address, host):
+    """Signed public URLs for a bid's photos (customer + aerial/street)."""
+    if not (clouddb.available() and host):
+        return []
+    slug = re.sub(r"[^a-z0-9]+", "-", (address or "").lower()).strip("-")[:60]
+    urls = []
+    for ref, kind, idx in clouddb.photos_index(
+            [stamp, slug] if slug else [stamp]):
+        if kind == "eml":
+            continue
+        urls.append(f"https://{host}/pub/photo/"
+                    f"{_photo_token(ref, kind, idx)}/{ref}/{kind}/{idx}")
+    return urls
+
+
 def _blob_rw(key, default):
     if clouddb.available():
         return clouddb.get_blob(key) or default
@@ -3258,6 +3412,25 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/health":          # no auth, no data — lets the
             return self._send(b"ok")        # poller keep the service warm
+        # SIGNED photo links (no session auth — Jobber's fetcher uses
+        # these to pull bid photos onto the client profile). The HMAC
+        # token makes each URL unguessable; nothing is listable.
+        m = re.match(r"^/pub/photo/([0-9a-f]{16})/([\w.-]+)/(\w+)/(\d+)$",
+                     self.path)
+        if m:
+            tok, ref, kind, idx = m.groups()
+            if tok != _photo_token(ref, kind, idx):
+                return self._send(b"bad token", 403)
+            img = clouddb.get_photo(ref, kind, int(idx)) \
+                if clouddb.available() else None
+            if not img:
+                return self._send(b"not found", 404)
+            self.send_response(200)
+            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Content-Length", str(len(img)))
+            self.end_headers()
+            self.wfile.write(img)
+            return
         if not self._authed():
             return self._require_auth()
         if self.path == "/":
@@ -3450,6 +3623,14 @@ class Handler(BaseHTTPRequestHandler):
                      "customer": get("customer"),
                      "reason": get("reason") or None,
                      "note": get("note") or None}
+            # approving AFTER editing prices = an 'adjusted' decision —
+            # the calibration ledger learns from the edit, automatically
+            if get("action") == "approve":
+                _rec0 = dict(_shadow_source()).get(get("stamp")) or {}
+                if any(s.get("orig_price") is not None for s in
+                       (((_rec0.get("draft") or {}).get("bid") or {})
+                        .get("services") or [])):
+                    entry["action"] = "adjusted"
             # PUSH: globally via PUSH_ON_APPROVE, or per-bid via the
             # push_allow blob (Dallon Jul 9: Martha's bid front-to-back,
             # nothing else). Reads the record from wherever records live
@@ -3476,8 +3657,14 @@ class Handler(BaseHTTPRequestHandler):
                 if d:
                     import jobber_client as jc
                     jc.DRY_RUN = False       # real DRAFT quote; never sends
-                    res = jc.push_approved_bid(d["customer"], d["bid"],
-                                               d.get("prop_info"))
+                    purls = _photo_urls_for(get("stamp"),
+                                            rec.get("address"),
+                                            self.headers.get("Host"))
+                    res = jc.push_approved_bid(
+                        d["customer"], d["bid"], d.get("prop_info"),
+                        photo_urls=purls,
+                        photo_note=f"Photos from bid {get('stamp')} "
+                        "(bid system, auto-attached on approve).")
                     q = (res.get("quoteCreate", {}) or {}).get("quote", {})
                     errs = (res.get("quoteCreate", {}) or {}).get(
                         "userErrors") or []
@@ -3573,8 +3760,15 @@ class Handler(BaseHTTPRequestHandler):
             # SUGGESTION into the box. A human still edits and sends.
             # (works from Messages AND the unified Customers view)
             to = get("to")
-            _page = (customers_page if get("back") == "customers"
-                     else messages_page)
+            _back = get("back")
+            if _back == "customers":
+                _page = customers_page
+            elif _back.startswith("bid:"):
+                _bstamp = _back[4:]
+                def _page(sel, draft=""):
+                    return bid_page(_bstamp, draft=draft)
+            else:
+                _page = messages_page
             draft = ""
             try:
                 import msglog
@@ -3786,6 +3980,55 @@ class Handler(BaseHTTPRequestHandler):
                                  "spam from now on"})
             self.send_response(303)
             self.send_header("Location", "/")
+            self.end_headers()
+            return
+        elif self.path == "/edit_prices":
+            # MARTHA'S #1 ASK: fix a price ON the dashboard (no more
+            # 'push to Jobber then edit there'). The system still learns:
+            # the engine's original price is snapshotted on first edit,
+            # so calibration compares office-final vs SYSTEM, not vs
+            # the office's own edit.
+            stamp = get("stamp")
+            rec = dict(_shadow_source()).get(stamp)
+            bid_d = ((rec or {}).get("draft") or {}).get("bid") or {}
+            svcs = bid_d.get("services") or []
+            changes = []
+            if rec and svcs and not rec.get("dns_match"):
+                for i, s in enumerate(svcs):
+                    raw = get(f"p_{i}")
+                    if not raw:
+                        continue
+                    try:
+                        new = round(float(raw))
+                    except ValueError:
+                        continue
+                    if new != round(s["price"]):
+                        s.setdefault("orig_price", s["price"])
+                        changes.append(f"{s['name']}: "
+                                       f"${s['price']:,.0f}→${new:,.0f}")
+                        s["price"] = new
+                if changes:
+                    rec["draft"]["total"] = sum(s["price"] for s in svcs)
+                    reason = get("reason") or "no reason tapped"
+                    bid_d.setdefault("notes", []).append(
+                        f"prices edited by {_user or 'office'} "
+                        f"({reason}): " + "; ".join(changes))
+                    if clouddb.available():
+                        clouddb.ingest_shadow(stamp, rec)
+                    else:
+                        (SHADOW / f"{stamp}.json").write_text(
+                            json.dumps(rec, indent=1))
+                        try:
+                            from cloudpush import push_or_queue
+                            push_or_queue(stamp, rec)
+                        except Exception:
+                            pass
+                    save_review({"stamp": stamp, "action": "price_edited",
+                                 "customer": get("customer"),
+                                 "reason": reason,
+                                 "note": "; ".join(changes)[:250]})
+            self.send_response(303)
+            self.send_header("Location", f"/bid/{stamp}")
             self.end_headers()
             return
         elif self.path == "/measure_surfaces":
