@@ -65,6 +65,49 @@ def _wav_rate(b):
     return None
 
 
+def _wav_format(b):
+    """(format_code, rate) from a RIFF header, or (None, None)."""
+    try:
+        if b[:4] == b"RIFF" and b[8:12] == b"WAVE":
+            import struct
+            fmt = b.find(b"fmt ")
+            if fmt > 0:
+                code, _ch, rate = struct.unpack("<HHI", b[fmt + 8:fmt + 16])
+                return code, rate
+    except Exception:
+        pass
+    return None, None
+
+
+def _to_pcm(audio_bytes):
+    """Decode a non-PCM WAV (CopyCall records GSM 6.10 — Jul 9 finding)
+    to raw 16-bit PCM. Cloud: soundfile/libsndfile. Mac: afconvert.
+    Returns (pcm_bytes, rate) or (None, None)."""
+    try:                                    # Render (pip: soundfile)
+        import io
+        import soundfile as sf
+        data, rate = sf.read(io.BytesIO(audio_bytes), dtype="int16")
+        return data.tobytes(), int(rate)
+    except Exception:
+        pass
+    try:                                    # macOS built-in converter
+        import subprocess
+        import tempfile
+        import wave
+        with tempfile.TemporaryDirectory() as td:
+            src_p = td + "/in.wav"
+            dst_p = td + "/out.wav"
+            open(src_p, "wb").write(audio_bytes)
+            subprocess.run(["afconvert", "-f", "WAVE", "-d", "LEI16",
+                            src_p, dst_p], check=True, capture_output=True,
+                           timeout=60)
+            with wave.open(dst_p, "rb") as w:
+                return (w.readframes(w.getnframes()), w.getframerate())
+    except Exception:
+        pass
+    return None, None
+
+
 def transcribe(audio_bytes, filename=""):
     """Audio bytes -> transcript text, or '' if not possible."""
     key = _key()
@@ -84,10 +127,18 @@ def transcribe(audio_bytes, filename=""):
         # the beta API does NOT read WAV headers itself ("bad encoding") —
         # parse the header and say it explicitly (verified Jul 8: header-
         # less config 400s; LINEAR16 @ parsed rate transcribes perfectly)
-        rate = _wav_rate(audio_bytes)
-        if rate:
+        code, wrate = _wav_format(audio_bytes)
+        if code == 1 and wrate:                    # plain PCM
             attempts.append(dict(base_cfg, encoding="LINEAR16",
-                                 sampleRateHertz=rate))
+                                 sampleRateHertz=wrate))
+        elif code not in (None, 1):
+            # compressed telephone WAV (CopyCall = GSM 6.10): decode
+            # to raw PCM first — Google doesn't speak GSM
+            pcm, prate = _to_pcm(audio_bytes)
+            if pcm:
+                content = base64.b64encode(pcm).decode()
+                attempts.append(dict(base_cfg, encoding="LINEAR16",
+                                     sampleRateHertz=prate or 8000))
         attempts += [dict(base_cfg, encoding="MULAW", sampleRateHertz=8000),
                      dict(base_cfg, encoding="LINEAR16",
                           sampleRateHertz=8000),

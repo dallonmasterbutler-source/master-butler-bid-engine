@@ -3,3 +3,5 @@
 #  pillow  — image resize in the cloud (the Mac uses built-in sips)
 psycopg[binary]>=3.1
 pillow>=10
+soundfile
+numpy
