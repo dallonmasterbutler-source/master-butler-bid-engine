@@ -262,6 +262,11 @@ def process(eml_path):
             print(f"    Aerial cross-check: {len(anotes)} note(s)")
         except Exception as e:
             office_flags.append(f"Aerial cross-check unavailable ({e}).")
+        try:                    # pre-warm the 3D flyover (free tier) so
+            from aerial_view import request_render   # it's ready when the
+            request_render(parsed["address"])        # office opens the bid
+        except Exception:
+            pass
         try:
             from aerial import fetch_streetview, street_check
             if fetch_streetview(parsed["address"]) is None:

@@ -1273,11 +1273,30 @@ def bid_page(stamp, user=None):
     except Exception:
         convo_card = ""
 
+    # MORE VIEWS (Jul 9, Dallon: "google isn't enough sometimes"):
+    # 3D flyover (every side of the house) + one-click listing lookups
+    more_views = ""
+    if b.get("address"):
+        try:
+            from aerial_view import listing_links
+            links = "".join(
+                f"<a href='{esc(u)}' target='_blank' rel='noopener' "
+                f"class='chip' style='text-decoration:none'>🏠 {n} ↗</a> "
+                for n, u in listing_links(b["address"]))
+        except Exception:
+            links = ""
+        more_views = (
+            f"<div style='margin-top:8px'>"
+            f"<a href='/flyover?addr={urllib.parse.quote(b['address'])}' "
+            f"target='_blank' class='chip' style='text-decoration:none;"
+            f"background:#e5edff;color:#1d4ed8;font-weight:700'>"
+            f"🎥 3D flyover — every side of the house</a> {links}</div>")
+
     gallery_card = (f"<div class='card'><h3 style='margin-top:0'>Photos it "
                     f"used {'(green = aerial, blue = street)' if has_imagery else ''}</h3>"
                     f"{gallery or '<div style=color:#888>No photos on this '
                     'request — the photo-request button drafts the ask.</div>'}"
-                    "</div>")
+                    f"{more_views}</div>")
 
     notes = re.findall(r"⚠ ?(.+)", b.get("pipeline_output", ""))
     if b.get("office_alert"):
@@ -2464,6 +2483,53 @@ _cs.onchange = function(){{
     return page("Customers", body)
 
 
+def flyover_page(addr):
+    """Google Aerial View orbit video — every side of the house.
+    (LaRee's questionnaire wish; solves 'can't find home pictures'.)"""
+    if not addr:
+        return page("3D flyover", "<div class='card'>No address.</div>")
+    from aerial_view import lookup
+    state, payload = lookup(addr)
+    head = (f"<a href='javascript:history.back()'>&larr; back to the bid"
+            f"</a><h2 style='margin:10px 0 4px'>🎥 {esc(addr)}</h2>")
+    if state == "ACTIVE":
+        mp4 = ((payload.get("MP4_HIGH") or payload.get("MP4_MEDIUM")
+                or payload.get("MP4_LOW") or {}).get("landingPageUri")
+               if isinstance(payload, dict) else None)
+        # prefer the raw video uri when present
+        for k in ("MP4_HIGH", "MP4_MEDIUM", "MP4_LOW"):
+            u = (payload.get(k) or {})
+            if u.get("uri"):
+                mp4 = u["uri"]
+                break
+        if mp4:
+            body = (head + f"<div class='card' style='max-width:900px'>"
+                    f"<video controls autoplay muted loop "
+                    f"style='width:100%;border-radius:12px' "
+                    f"src='{esc(mp4)}'></video>"
+                    f"<div class='subtext' style='margin-top:6px'>Google's "
+                    f"3D orbit of the property — every side of the house. "
+                    f"Pause on the sides the street can't see.</div></div>")
+            return page("3D flyover", body)
+        state = "ERROR"
+    if state == "PROCESSING" or state == "NOT_FOUND":
+        return page("3D flyover", head +
+                    "<div class='card' style='max-width:640px'>⏳ Google is "
+                    "rendering this home's flyover now — usually a few "
+                    "minutes. This page refreshes itself.</div>", refresh=45)
+    if state == "DISABLED":
+        return page("3D flyover", head +
+                    "<div class='card' style='max-width:640px'>🔒 Needs "
+                    "Dallon's one-time enable (Aerial View API — same two "
+                    "clicks as Speech-to-Text). Tell him it's ready to "
+                    "switch on.</div>")
+    return page("3D flyover", head +
+                "<div class='card' style='max-width:640px'>Google doesn't "
+                "have 3D coverage for this address (or the lookup "
+                "hiccuped). The Zillow/Redfin links on the bid are the "
+                "fallback.</div>")
+
+
 def _blob_rw(key, default):
     if clouddb.available():
         return clouddb.get_blob(key) or default
@@ -3046,6 +3112,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(settings_page((q.get("msg") or [""])[0]))
         if self.path == "/history":
             return self._send(history_page())
+        if self.path.startswith("/flyover"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            return self._send(flyover_page(q.get("addr", [""])[0]))
         if self.path.startswith("/customers"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             return self._send(customers_page(q.get("c", [None])[0]))
