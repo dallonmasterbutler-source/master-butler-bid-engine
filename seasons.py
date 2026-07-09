@@ -33,11 +33,18 @@ _GUTTER_ROOF = ("gutter", "roof_blow_off", "moss")
 
 def _city(address):
     a = (address or "").lower()
+    # ANOTHER STATE entirely (Martha's Heber City UT test sailed
+    # through silently) — that's the loudest out-of-area there is
+    import re
+    m = re.search(r"\b(ut|utah|or|oregon|id|idaho|ca|california|az|"
+                  r"arizona|nv|nevada|mt|montana|tx|texas|fl|florida|"
+                  r"co|colorado)\.?\s+\d{5}", a)
+    if m and not re.search(r"\bwa\b|\bwashington\b", a):
+        return "__out_of_state__"
     for c in sorted(REFER_FRICKE | IN_AREA, key=len, reverse=True):
         if c in a:
             return c
     # try "…, City, WA" shape for cities we don't know
-    import re
     m = re.search(r",\s*([a-z .]+?),?\s*(?:wa|washington)\b", a)
     return m.group(1).strip() if m else None
 
@@ -144,7 +151,11 @@ def check(parsed, prop=None, when=None):
 
     # 10 · OUT-OF-AREA REFERRALS (doc: Office Procedures)
     city = _city(parsed.get("address"))
-    if city in REFER_FRICKE:
+    if city == "__out_of_state__":
+        alert = ("Address appears to be OUTSIDE WASHINGTON — we don't "
+                 "service there. Double-check the address (typo?) before "
+                 "declining.")
+    elif city in REFER_FRICKE:
         alert = (f"OUT OF AREA ({city.title()}) — office refers these "
                  f"to {FRICKE}. Don't quote.")
     elif city is None and parsed.get("address"):

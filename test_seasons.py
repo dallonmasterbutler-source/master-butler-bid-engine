@@ -117,6 +117,10 @@ def run():
           "address": "12 Elm St, Tacoma, WA 98402"}, when=JUL)
     case("no address → quiet", False, False,
          {"services": ["gutter_cleaning"]}, when=JUL)
+    case("Utah address → out-of-state alert (Martha's test)",
+         "outside washington", None,
+         {"services": ["gutter_cleaning"],
+          "address": "969 S 770 E Heber City UT 84032"}, when=JUL)
 
     print("=" * 50)
     for f in F:
