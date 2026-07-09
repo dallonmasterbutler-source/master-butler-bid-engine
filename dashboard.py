@@ -510,9 +510,28 @@ def _history_hits(records, services):
 
 STYLE = """<style>
 :root{--green:#0b3d2e;--green2:#177245;--accent:#1e8449;--gold:#c9a227;
-      --goldbg:#fdf4dd;--alarm:#b03a2e;
+      --goldbg:#fdf4dd;--goldink:#7a5300;--alarm:#b03a2e;
       --bg:#f7f7f5;--ink:#1a1e1c;--mut:#6b736e;--line:#e7e9e5;
-      --card:#ffffff;--soft:#f1f3f0}
+      --card:#ffffff;--soft:#f1f3f0;
+      --bluebg:#e5edff;--blueink:#1d4ed8;
+      --purplebg:#f0e9fd;--purpleink:#6d28d9}
+/* the mockup's GREEN-SCALE dark theme (Dallon: 'the background is
+   green as well') — follows the machine's appearance setting */
+@media (prefers-color-scheme: dark){
+  :root{--bg:#121614;--card:#1b211e;--line:#2b332e;--ink:#e8ece9;
+        --mut:#94a09a;--soft:#232a26;--goldbg:#33290f;--goldink:#e8c56a;
+        --accent:#5fbd85;--green2:#4fae78;
+        --bluebg:#1a2440;--blueink:#93b4f5;
+        --purplebg:#241a40;--purpleink:#c4b0f0}
+  .ring{background:var(--card)}
+  header{background:var(--card);color:var(--ink)}
+  td b{color:var(--accent)}
+  .card h2,.card h3{color:var(--accent)}
+  .headline .total,.stat b{color:var(--accent)}
+  .money .ptotal{color:var(--accent)}
+  .notes{background:var(--soft);border-color:var(--line)}
+  .band{background:var(--soft);border-color:var(--line)}
+}
 *{box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,
      sans-serif;margin:0;background:var(--bg);color:var(--ink);
@@ -689,10 +708,10 @@ footer{margin:8px 0 28px;padding:0 24px;
 .say{background:var(--soft);border-radius:11px;padding:10px 14px;
   font-style:italic;font-size:14px;margin-top:12px}
 .pchips{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
-.pchips .chip{background:var(--goldbg);color:#7a5300;border-radius:999px;
-  padding:3px 12px;font-size:12px;font-weight:700}
-.pchips .chip.blue{background:#e5edff;color:#1d4ed8}
-.pchips .chip.purple{background:#f0e9fd;color:#6d28d9}
+.pchips .chip{background:var(--goldbg);color:var(--goldink);
+  border-radius:999px;padding:3px 12px;font-size:12px;font-weight:700}
+.pchips .chip.blue{background:var(--bluebg);color:var(--blueink)}
+.pchips .chip.purple{background:var(--purplebg);color:var(--purpleink)}
 .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 .readbtn{border:1px solid var(--line);background:none;border-radius:7px;
   color:var(--mut);font-size:11px;padding:3px 9px;cursor:pointer;
@@ -1462,7 +1481,7 @@ def bid_page(stamp, user=None, draft=""):
     <form method='POST' action='/msg_draft' style='display:inline'>
      <input type='hidden' name='to' value='{esc(cust_email)}'>
      <input type='hidden' name='back' value='bid:{stamp}'>
-     <button class='gray' style='border-color:var(--gold);color:#8a5a00'>
+     <button class='gray' style='border-color:var(--gold);color:var(--goldink)'>
       ✨ Draft a reply for me</button>
     </form>
     <select id='bidcanned' style='max-width:280px'>
@@ -1535,7 +1554,7 @@ _bs.onchange = function(){{
         notes.insert(0, b["office_alert"])
     notes_html = "".join(
         f"<div style='display:flex;gap:8px;align-items:flex-start;"
-        f"color:#7a5300;padding:4px 0'><span>⚠</span>"
+        f"color:var(--goldink);padding:4px 0'><span>⚠</span>"
         f"<span>{esc(n)}</span></div>" for n in notes) or \
         "<div class='subtext'>(no flags)</div>"
     # Must Know rides at the TOP of the one stack (Martha's no-hunting rule)
@@ -2808,7 +2827,7 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                 f"<input type='hidden' name='addr' value='{esc(key)}'>"
                 f"<input type='hidden' name='back' value='/'>"
                 f"<button class='readbtn' style='background:var(--goldbg);"
-                f"border-color:var(--gold);color:#7a5300;font-weight:800'>"
+                f"border-color:var(--gold);color:var(--goldink);font-weight:800'>"
                 f"✓ Done — seen it</button></form>")
         else:
             mark_unread = (
@@ -3062,7 +3081,7 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
    <form method='POST' action='/msg_draft' style='display:inline'>
     <input type='hidden' name='to' value='{esc(c["email"])}'>
     <input type='hidden' name='back' value='inbox:{esc(key)}'>
-    <button class='gray' style='border-color:var(--gold);color:#8a5a00'>
+    <button class='gray' style='border-color:var(--gold);color:var(--goldink)'>
      ✨ Draft a reply for me</button>
    </form>
    <select id='inboxcanned' style='max-width:280px'>
@@ -3131,7 +3150,7 @@ _is.onchange = function(){{
                   if n not in notes][:10]
         n_html = "".join(
             f"<div style='display:flex;gap:8px;align-items:flex-start;"
-            f"color:#7a5300;padding:3px 0'><span>⚠</span>"
+            f"color:var(--goldink);padding:3px 0'><span>⚠</span>"
             f"<span>{esc(n)}</span></div>" for n in notes[:14]) or \
             "<div class='subtext'>(no warnings)</div>"
         folds += fold("Warnings", notes[0][:60] if notes else "none",
@@ -3496,7 +3515,7 @@ _cs.onchange = function(){{
             if nb.get("office_alert"):
                 alerts += (f"<div style='background:#fdf4dd;border-left:4px "
                            f"solid #c9a227;border-radius:9px;padding:8px 11px;"
-                           f"font-size:12px;color:#7a5300;font-weight:600;"
+                           f"font-size:12px;color:var(--goldink);font-weight:600;"
                            f"margin:8px 0'>⚠ {esc(nb['office_alert'][:180])}"
                            f"</div>")
             sl = bid_status._sl.get(nb["stamp"])
