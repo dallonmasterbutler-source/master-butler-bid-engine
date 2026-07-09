@@ -1335,7 +1335,9 @@ def bid_page(stamp, user=None):
 {collision}
 <div class='grid'><div>
  <div class='card'>
-  <h2 style='margin-top:0'>{esc(b['from'])} {age_html(b['age_hours'])}
+  <h2 style='margin-top:0'>{esc((b.get('from') or '').split('<')[0].strip())}
+   <span class='subtext' style='font-weight:400'>{esc(cust_email or '')}</span>
+   {age_html(b['age_hours'])}
   {quote_chip(my_quote, quote_urls(),
               label=f"Open quote #{esc(my_quote)} in Jobber")
    if my_quote else ''}</h2>
@@ -1928,7 +1930,7 @@ def settings_page(msg=""):
     return page("Settings", banner + qr_card + pricing_card)
 
 
-def winback_page():
+def winback_page(showall=False):
     """LaRee's call-back list: loyal clients (2+ yrs, 3+ jobs) who went
     quiet. Ranked by lifetime value; one click marks them contacted."""
     if clouddb.available():
@@ -1942,7 +1944,7 @@ def winback_page():
     done = _winback_done()
     remaining = sum(1 for r in rows if r["name"] not in done)
     body_rows = ""
-    for r in rows:
+    for r in (rows if showall else rows[:200]):
         key = r["name"]
         is_done = key in done
         phone = r.get("phone") or ""
@@ -2001,7 +2003,11 @@ def winback_page():
       <th>Last visit</th><th class='num'>Typical</th>
       <th class='num'>Lifetime</th><th></th><th></th></tr>
   {body_rows}
- </table></div>"""
+ </table>
+ {"" if showall or len(rows) <= 200 else
+  f"<a href='/winback?all=1' class='btn' style='display:inline-block;"
+  f"margin-top:10px'>Show all {len(rows)} (top 200 shown)</a>"}
+ </div>"""
     return page("Win-back", body)
 
 
@@ -2325,8 +2331,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(scoreboard_page())
         if self.path == "/drafts":
             return self._send(drafts_page())
-        if self.path == "/winback":
-            return self._send(winback_page())
+        if self.path.startswith("/winback"):
+            return self._send(winback_page("all=1" in self.path))
         if self.path.startswith("/settings"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             return self._send(settings_page((q.get("msg") or [""])[0]))
@@ -2900,6 +2906,26 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(303)
         self.send_header("Location", "/")
         self.end_headers()
+
+    def handle_one_request(self):
+        # SAFETY NET: an unexpected bug shows the office a friendly
+        # "hiccup" page instead of a blank screen, and logs the cause.
+        try:
+            super().handle_one_request()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        except Exception:
+            import traceback
+            print("UNHANDLED:\n" + traceback.format_exc()[-800:])
+            try:
+                self._send(
+                    b"<div style='font-family:sans-serif;padding:40px'>"
+                    b"<h2>\xf0\x9f\x8e\xa9 Small hiccup</h2><p>Something "
+                    b"glitched loading this page. <a href='/'>Back to the "
+                    b"queue</a> \xe2\x80\x94 your work is saved; nothing "
+                    b"was lost.</p></div>", code=500)
+            except Exception:
+                pass
 
     def log_message(self, *a):        # keep the console quiet
         pass

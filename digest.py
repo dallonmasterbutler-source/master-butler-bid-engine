@@ -70,6 +70,46 @@ def build():
             lines.append(f"SCOREBOARD: {waiting} shadow draft(s) still "
                          "waiting for office quotes.")
 
+    # WINS + campaign + conversation glance (all from shared blobs)
+    try:
+        sbs = db.scoreboard_status()
+        wins = [s for s, st in sbs.items()
+                if (st or "").lower() in ("approved", "converted")]
+        if wins:
+            lines.append("")
+            lines.append(f"🏆 WON: {len(wins)} quote(s) approved by "
+                         "customers — see the scoreboard.")
+    except Exception:
+        pass
+    try:
+        wb = db._winback_done()
+        reb = sum(1 for v in wb.values() if v.get("outcome") == "rebooked")
+        if wb:
+            lines.append(f"📞 Win-back: {len(wb)} contacted, "
+                         f"{reb} REBOOKED so far.")
+    except Exception:
+        pass
+    try:
+        import msglog
+        marks = db._msg_read()
+        unread = sum(1 for a, n, ms in msglog.threads()
+                     if ms[-1]["at"] > marks.get(a, ""))
+        if unread:
+            lines.append(f"💬 {unread} conversation(s) waiting on the "
+                         "Messages tab.")
+    except Exception:
+        pass
+    try:
+        ar = db._blob_rw("auto_reviews", {})
+        recent_ar = [v for v in ar.values() if v.get("summary")][-3:]
+        if recent_ar:
+            lines.append("")
+            lines.append("📖 WHAT THE SYSTEM LEARNED (auto-reviews):")
+            for v in recent_ar:
+                lines.append(f"  · {v['summary'][:90]}")
+    except Exception:
+        pass
+
     reviews = db.load_reviews()
     today = datetime.now().date().isoformat()
     recent = [r for r in reviews if (r.get("at") or "").startswith(today)]
