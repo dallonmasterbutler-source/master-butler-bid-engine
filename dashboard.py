@@ -3481,11 +3481,20 @@ class Handler(BaseHTTPRequestHandler):
                     q = (res.get("quoteCreate", {}) or {}).get("quote", {})
                     errs = (res.get("quoteCreate", {}) or {}).get(
                         "userErrors") or []
-                    entry["jobber_quote"] = (q.get("quoteNumber")
-                                             or str(res)[:120])
-                    if errs and not q.get("quoteNumber"):
-                        entry["note"] = ("PUSH FAILED: " + "; ".join(
-                            e.get("message", "") for e in errs)[:180])
+                    if q.get("quoteNumber"):
+                        entry["jobber_quote"] = q["quoteNumber"]
+                    else:
+                        # NEVER show the office raw GraphQL — plain words
+                        # (Dallon saw a wall of JSON on the queue, Jul 9)
+                        why = ("; ".join(e.get("message", "")
+                                         for e in errs)[:150] if errs
+                               else str((res.get("body") or [{}])[0]
+                                        .get("message", res))[:150]
+                               if res.get("error") else str(res)[:150])
+                        entry["note"] = (f"⚠ QUOTE PUSH FAILED — the bid "
+                                         f"is approved but NO quote was "
+                                         f"made in Jobber. Tell Dallon. "
+                                         f"({why})")
                 else:
                     entry["jobber_quote"] = ("no structured draft on this "
                                              "record — re-run needed")
