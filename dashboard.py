@@ -3446,10 +3446,14 @@ class Handler(BaseHTTPRequestHandler):
                      "customer": get("customer"),
                      "reason": get("reason") or None,
                      "note": get("note") or None}
-            if get("action") == "approve" and _push_enabled():
-                rec_path = SHADOW / f"{get('stamp')}.json"
-                rec = (json.loads(rec_path.read_text())
-                       if rec_path.exists() else {})
+            # PUSH: globally via PUSH_ON_APPROVE, or per-bid via the
+            # push_allow blob (Dallon Jul 9: Martha's bid front-to-back,
+            # nothing else). Reads the record from wherever records live
+            # (the old file-only read silently no-op'd in the cloud).
+            if get("action") == "approve" and (
+                    _push_enabled()
+                    or get("stamp") in _blob_rw("push_allow", [])):
+                rec = dict(_shadow_source()).get(get("stamp")) or {}
                 d = rec.get("draft")
                 if rec.get("dns_match"):     # HARD BLOCK, even when live
                     entry["note"] = ("REFUSED: do-not-service match — "
@@ -3457,10 +3461,17 @@ class Handler(BaseHTTPRequestHandler):
                     d = None
                 if d:
                     import jobber_client as jc
+                    jc.DRY_RUN = False       # real DRAFT quote; never sends
                     res = jc.push_approved_bid(d["customer"], d["bid"],
                                                d.get("prop_info"))
                     q = (res.get("quoteCreate", {}) or {}).get("quote", {})
-                    entry["jobber_quote"] = q.get("quoteNumber") or str(res)[:120]
+                    errs = (res.get("quoteCreate", {}) or {}).get(
+                        "userErrors") or []
+                    entry["jobber_quote"] = (q.get("quoteNumber")
+                                             or str(res)[:120])
+                    if errs and not q.get("quoteNumber"):
+                        entry["note"] = ("PUSH FAILED: " + "; ".join(
+                            e.get("message", "") for e in errs)[:180])
                 else:
                     entry["jobber_quote"] = ("no structured draft on this "
                                              "record — re-run needed")
