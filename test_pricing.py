@@ -577,8 +577,12 @@ m = _re2.search(r"roof lane \$(\d+)", dry_note)
 dry = int(m.group(1)) if m else 0
 check("Dry-day price is ~27% below standard",
       1 if dry and abs(dry - lane*0.73) <= 20 else 0, 1)
-check("Customer-facing dry-day offer present",
-      1 if any(n.startswith("CUSTOMER:") and "flexible" in n for n in notes) else 0, 1)
+# Dallon Jul 9 (the Carl leak): the dry-day offer must NEVER be
+# customer-facing — internal note only, played on price objection
+check("NO customer-facing notes, ever (Carl-leak rule)",
+      0 if any(n.startswith("CUSTOMER:") for n in notes) else 1, 1)
+check("Dry-day offer marked don't-volunteer",
+      1 if any("don't volunteer" in n for n in notes) else 0, 1)
 check("Standard price kept as true price (both shown)",
       1 if any("TRUE price for records" in n for n in notes) else 0, 1)
 # a small roof lane (near the floor) gets NO dry-day option

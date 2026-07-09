@@ -666,16 +666,17 @@ def calculate_bid(prop):
         dry = max(DRY_SEASON_ROOF_FLOOR,
                   round_to_5(lane_total * (1 - DRY_DAY_DISCOUNT)))
         if dry < lane_total:
+            # INTERNAL ONLY (Dallon Jul 9: this text reached a customer
+            # quote uninvited — "we can't have that"). The dry-day offer
+            # is a price-objection tool the OFFICE plays, never a note
+            # the system volunteers.
             notes.append(
-                f"CUSTOMER: We can do the roof/gutter work for ${dry:.0f} if "
-                "you're flexible on timing — we schedule it for a dry day "
-                "when it's fastest for our crew. Otherwise it's "
-                f"${lane_total:.0f} on your preferred date.")
-            notes.append(
-                f"DRY-DAY OPTION: roof lane ${dry:.0f} (vs ${lane_total:.0f} "
-                "standard). Standard is the TRUE price for records; the "
-                "dry-day price is a flexible-timing concession, not a rate "
-                "cut — becomes a weather-pending hold if the customer takes it.")
+                f"DRY-DAY OPTION (if the customer balks at price — don't "
+                f"volunteer it): roof lane ${dry:.0f} flexible-timing vs "
+                f"${lane_total:.0f} standard. Standard is the TRUE price "
+                "for records; dry-day is a scheduling concession — "
+                "becomes a weather-pending hold if they take it. Use the "
+                "'Dry-Day Flexible Pricing' quick response.")
     # The $400 dry-season floor is about TOM'S roll-outs — he does
     # high-risk roofs only now (tom_only pitch). Scoped there so it
     # doesn't nag every small summer gutter job a regular tech handles.

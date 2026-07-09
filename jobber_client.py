@@ -683,8 +683,9 @@ def create_draft_quote(client_id, property_id, bid, prop_info=None,
     # INTERNAL notes (confidence, hazards, move-items) go on the quote as a
     # pinned internal note — the office/tech see them, the CUSTOMER NEVER DOES.
     # The client-facing `message` stays clean and professional.
-    customer_lines = [n[len("CUSTOMER:"):].strip()
-                      for n in bid["notes"] if n.startswith("CUSTOMER:")]
+    # NOTHING auto-writes to the customer (Dallon Jul 9 — a dry-day
+    # two-price note leaked into a quote message). Every engine note is
+    # INTERNAL; the customer message is the clean standard greeting.
     note_lines = [f"Auto-generated draft — confidence {bid['confidence']}%."]
     note_lines += [f"⚠ {n}" for n in bid["notes"]
                    if not n.startswith("CUSTOMER:")]
@@ -707,9 +708,9 @@ def create_draft_quote(client_id, property_id, bid, prop_info=None,
         "lineItems": line_items,
         "message": "Thank you for requesting a quote from Master Butler! "
                    "Please review the services below and let us know of any "
-                   "questions."
-                   + ("".join("\n\n" + c for c in customer_lines)),
-                   # customer-facing: generic text + explicit CUSTOMER: notes only
+                   "questions.",
+                   # customer-facing text is ALWAYS just this greeting —
+                   # nothing generated ever rides along (Dallon, Jul 9)
         "notes": [{"message": "\n".join(note_lines), "pinned": True}],
         "customFields": build_custom_fields(prop_info),
         # NOTE: no transitionQuoteTo, no send/deliver anywhere. Draft only.
