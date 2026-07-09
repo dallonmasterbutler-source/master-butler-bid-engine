@@ -678,7 +678,8 @@ def page(title, body, refresh=None):
         return (f"<span style='margin-left:auto;background:#c9a227;"
                 f"color:#0b3d2e;border-radius:999px;padding:1px 8px;"
                 f"font-size:11px;font-weight:800'>{n}</span>" if n else "")
-    links = (("/", "📥", f"Bid queue{badge(qn)}", "Bid queue"),
+    links = (("/customers", "👥", f"Customers{badge(qn + mn)}", "Customers"),
+             ("/", "📥", f"Bid queue{badge(qn)}", "Bid queue"),
              ("/messages", "💬", f"Messages{badge(mn)}", "Messages"),
              ("/new", "➕", "New lead", "New lead"),
              ("/winback", "📞", "Win-back", "Win-back"),
@@ -1991,6 +1992,447 @@ sel.onchange = function(){{
     return page("Messages", body)
 
 
+def _bid_email(b):
+    e = ((b.get("draft") or {}).get("customer") or {}).get("email")
+    if not e:
+        m = re.search(r"<([^>]+)>", b.get("from") or "")
+        e = m.group(1) if m else None
+    return (e or "").strip().lower() or None
+
+
+def _stamp_utc(stamp):
+    """Bid stamp (local time) -> UTC iso, comparable with msglog times."""
+    from datetime import timezone
+    try:
+        return (datetime.strptime(stamp, "%Y%m%d-%H%M%S").astimezone()
+                .astimezone(timezone.utc).isoformat(timespec="seconds"))
+    except ValueError:
+        return ""
+
+
+def customers_page(sel=None, draft=""):
+    """FEATURE D (Dallon, Jul 8): Messages + Queue merged into ONE
+    customer view — pick a person once and see the conversation, the
+    money, and the decision without tab-hopping. The old tabs stay."""
+    import msglog
+    bids = load_bids()
+    live_holds, _resurfaced = active_holds()
+    quotes = quote_numbers()
+    qurls = quote_urls()
+    claims = _claims()
+    flags_open = {f.get("stamp") for f in flagged_for_review()}
+    sbs = scoreboard_status()
+    bid_status._sl = second_looks()
+    read_marks = _msg_read()
+
+    # ── one entry per customer: bids + thread merged by email ──
+    cust, order = {}, []
+
+    def entry(key):
+        if key not in cust:
+            cust[key] = {"name": "", "email": None, "bids": [], "msgs": []}
+            order.append(key)
+        return cust[key]
+
+    for b in bids:                                  # oldest first
+        if b.get("merged_into"):
+            continue
+        if classify_row(b)[0] == "aside":           # spam/internal/robots
+            continue
+        e = _bid_email(b)
+        # an UNMATCHED Jobber event (didn't fold into a real customer's
+        # bid) is its own entry — the subject carries the customer's name;
+        # keying by noreply@ would lump every event into one fake person
+        if b.get("kind") == "jobber_event" and (not e or "getjobber" in e):
+            key = "stamp:" + b["stamp"]
+            c = entry(key)
+            c["name"] = (b.get("subject") or "Jobber event")[:40]
+            c["bids"].append(b)
+            continue
+        key = e or ("stamp:" + b["stamp"])
+        c = entry(key)
+        c["email"] = c["email"] or e
+        nm = (b.get("from") or "").split("<")[0].strip()
+        if nm and not c["name"]:
+            c["name"] = nm
+        c["bids"].append(b)
+    _not_customers = (list(_internal_senders()) + list(_learned_spam())
+                      + list(NOISE_SENDERS))
+    for addr, name, msgs in msglog.threads():
+        # a thread with no bid gets the same spam/internal filter bids do
+        if addr not in cust and any(s and s in addr
+                                    for s in _not_customers):
+            continue
+        c = entry(addr)
+        c["email"] = c["email"] or addr
+        if name and name != addr and not c["name"]:
+            c["name"] = name
+        c["msgs"] = msgs
+
+    # ── sort: needs-a-person first, WONs and quiet threads sink ──
+    roster = []
+    for key in order:
+        c = cust[key]
+        c["bids"].sort(key=lambda b: b["stamp"])
+        nb = c["bids"][-1] if c["bids"] else None
+        pill = (bid_status(nb, live_holds, flags_open, sbs, claims)
+                if nb else "")
+        unread = bool(c["msgs"]) and \
+            c["msgs"][-1]["at"] > read_marks.get(key, "")
+        last_at = max(c["msgs"][-1]["at"] if c["msgs"] else "",
+                      _stamp_utc(nb["stamp"]) if nb else "")
+        needs = (nb and not nb["reviewed"] and not sbs.get(nb["stamp"])
+                 and nb["stamp"] not in live_holds)
+        if unread or (nb and (nb.get("dns_match") or nb.get("office_alert")
+                              or nb["stamp"] in bid_status._sl)) or needs:
+            grp = 0                                # action needed
+        elif nb and (nb["stamp"] in live_holds or nb["stamp"] in flags_open
+                     or claims.get(nb["stamp"])):
+            grp = 1                                # in someone's hands
+        elif nb and (sbs.get(nb["stamp"]) or "").lower() == "awaiting_response":
+            grp = 2                                # quote out, waiting
+        else:
+            grp = 3                                # WON / archived / quiet
+        roster.append({"key": key, "c": c, "nb": nb, "pill": pill,
+                       "unread": unread, "grp": grp, "at": last_at})
+    roster.sort(key=lambda r: r["at"], reverse=True)
+    roster.sort(key=lambda r: r["grp"])
+
+    # a real click marks the thread read — never the page load
+    curc = next((r for r in roster if r["key"] == sel), None)
+    if curc and curc["c"]["msgs"]:
+        read_marks[sel] = curc["c"]["msgs"][-1]["at"]
+        _msg_read_save(read_marks)
+        curc["unread"] = False
+
+    # ── pane 1: the roster ──
+    items = ""
+    shown_grp = None
+    grp_names = {0: "Needs something", 1: "In someone's hands",
+                 2: "Quote out — waiting", 3: "Quiet · won · done"}
+    for r in roster[:60]:
+        c, nb = r["c"], r["nb"]
+        if r["grp"] != shown_grp:
+            shown_grp = r["grp"]
+            items += (f"<div style='font-size:10px;font-weight:800;"
+                      f"text-transform:uppercase;letter-spacing:1.1px;"
+                      f"color:var(--mut);padding:10px 8px 3px'>"
+                      f"{grp_names[shown_grp]}</div>")
+        active = r["key"] == sel
+        if active:
+            box = "background:#0b3d2e;color:#fff"
+            nm_c, pv_c = "color:#fff", "color:#bcd3c7"
+        elif r["unread"]:
+            box = ("background:#fdf4dd;border-left:5px solid #c9a227;"
+                   "box-shadow:0 1px 3px rgba(160,110,10,.15)")
+            nm_c, pv_c = "color:#0b3d2e", "color:#4b5563;font-weight:600"
+        elif r["grp"] == 3:
+            box, nm_c, pv_c = "opacity:.55", "", "color:var(--mut)"
+        else:
+            box, nm_c, pv_c = "", "", "color:var(--mut)"
+        if c["msgs"]:
+            last = c["msgs"][-1]
+            arrow = "←" if last["dir"] == "in" else "→"
+            pv = f"{arrow} {(last.get('body') or last.get('subject') or '')[:48]}"
+        elif nb:
+            pv = (nb.get("newest_message") or nb.get("subject") or "")[:48]
+        else:
+            pv = ""
+        newtag = ("<span style='float:right;background:#c9a227;"
+                  "color:#0b3d2e;font-size:9px;font-weight:800;"
+                  "border-radius:999px;padding:1px 7px'>NEW</span>"
+                  if r["unread"] and not active else "")
+        nm = c["name"] or c["email"] or "(no name)"
+        items += (
+            f"<a href='/customers?c={urllib.parse.quote(r['key'])}' "
+            f"style='display:block;padding:10px 12px;border-radius:11px;"
+            f"margin-bottom:4px;text-decoration:none;{box}'>{newtag}"
+            f"<b style='font-size:13.5px;{nm_c}'>{esc(nm)[:26]}</b>"
+            f"<div style='font-size:11.5px;{pv_c};white-space:nowrap;"
+            f"overflow:hidden;text-overflow:ellipsis'>{esc(pv)}</div>"
+            f"<div style='margin-top:2px'>{r['pill']}</div></a>")
+    if not items:
+        items = "<div class='subtext' style='padding:10px'>Nothing yet.</div>"
+    pane1 = (f"<div class='card' style='padding:12px;max-height:"
+             f"calc(100vh - 120px);overflow-y:auto'>"
+             f"<h3 style='padding:0 6px;margin:0 0 4px'>Customers</h3>"
+             f"{items}</div>")
+
+    # ── pane 2: the conversation IS the timeline ──
+    if not curc:
+        pane2 = ("<div class='card' style='display:flex;align-items:center;"
+                 "justify-content:center;min-height:340px;color:var(--mut)'>"
+                 "<div style='text-align:center'><div style='font-size:34px'>"
+                 "👥</div><b>Pick a customer</b><div class='subtext'>"
+                 "Conversation, bid, and decision — one screen.<br>"
+                 "Nothing gets marked read until you open it.</div></div></div>")
+        pane3 = ""
+    else:
+        c, nb = curc["c"], curc["nb"]
+        tl = []                                     # (utc_at, html)
+        for m_ in c["msgs"][-30:]:
+            inn = m_["dir"] == "in"
+            who = (esc(m_.get("name") or c["name"] or "Customer") if inn
+                   else "Master Butler"
+                   + (" · " + esc(m_["by"]) if m_.get("by") else ""))
+            tl.append((m_["at"],
+                f"<div style='display:flex;justify-content:"
+                f"{'flex-start' if inn else 'flex-end'};margin:7px 0'>"
+                f"<div style='max-width:78%;padding:9px 13px;"
+                f"border-radius:13px;font-size:13px;"
+                f"{'background:#f2f5f3;color:#20242a' if inn else 'background:#0b3d2e;color:#eef4f0'}'>"
+                f"<div style='font-size:10px;font-weight:700;opacity:.65;"
+                f"margin-bottom:2px'>{who} · "
+                f"{esc(m_['at'][:16].replace('T', ' '))}</div>"
+                f"<div style='white-space:pre-wrap'>"
+                f"{esc(msglog.clean_body(m_.get('body') or '') or m_.get('subject') or '')}</div>"
+                f"</div></div>"))
+        def evt(at, text, stamp=None):
+            link = (f" · <a href='/bid/{stamp}' style='color:inherit'>"
+                    f"open the bid →</a>" if stamp else "")
+            tl.append((at,
+                f"<div style='display:flex;align-items:center;gap:10px;"
+                f"margin:11px 0;color:var(--mut);font-size:11px;"
+                f"font-weight:700'><span style='flex:1;border-top:1px "
+                f"dashed var(--line)'></span><span>{text}{link}</span>"
+                f"<span style='flex:1;border-top:1px dashed var(--line)'>"
+                f"</span></div>"))
+        for b in c["bids"][-6:]:
+            d_ = b.get("draft") or {}
+            day = f"{b['stamp'][4:6]}/{b['stamp'][6:8]}"
+            if d_.get("total") is not None:
+                evt(_stamp_utc(b["stamp"]),
+                    f"{day} · 🤖 system drafted ${d_['total']:,.0f}",
+                    b["stamp"])
+            q = quotes.get(b["stamp"])
+            if q:
+                st = (sbs.get(b["stamp"]) or "").replace("_", " ")
+                evt(_stamp_utc(b["stamp"]) + "~1",   # sorts just after
+                    f"📋 office quote #{esc(q)}"
+                    + (f" — {esc(st)}" if st else ""))
+            ev = b.get("jobber_event") or {}
+            if ev.get("event") == "quote_approved":
+                evt(_stamp_utc(b["stamp"]) + "~2", "🎉 customer APPROVED")
+        tl.sort(key=lambda x: x[0])
+        thread_html = "".join(h for _, h in tl) or \
+            "<div class='subtext'>No messages or bids logged yet.</div>"
+
+        if clouddb.available():
+            _canned = clouddb.get_blob("canned_replies") or {}
+        else:
+            cp = BASE / "data" / "canned_replies.json"
+            _canned = json.loads(cp.read_text()) if cp.exists() else {}
+        canned_json = json.dumps(_canned).replace("</", "<\\/")
+        last_subject = next((m.get("subject") for m in reversed(c["msgs"])
+                             if m.get("subject")), "")
+        reply_subject = (last_subject if last_subject.lower()
+                         .startswith("re:") else f"Re: {last_subject}"
+                         if last_subject else "Master Butler")
+        back = f"/customers?c={urllib.parse.quote(sel)}"
+        reply_html = ""
+        if c["email"]:
+            reply_html = f"""
+  <div style='margin-top:10px;border-top:1px solid var(--line);
+       padding-top:10px'>
+   <div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px'>
+    <form method='POST' action='/msg_draft' style='display:inline'>
+     <input type='hidden' name='to' value='{esc(c["email"])}'>
+     <input type='hidden' name='back' value='customers'>
+     <button class='gray' style='border-color:var(--gold);
+             color:#8a5a00'>✨ Draft a reply for me</button>
+    </form>
+    <select id='canned' style='max-width:300px'>
+     <option value=''>Quick responses…</option>
+    </select>
+   </div>
+   <form method='POST' action='/msg_send'>
+    <input type='hidden' name='to' value='{esc(c["email"])}'>
+    <input type='hidden' name='subject' value='{esc(reply_subject)}'>
+    <input type='hidden' name='back' value='{esc(back)}'>
+    <textarea id='replybox' name='body' rows='4' style='min-height:90px'
+     placeholder='Reply as customercare@ — or copy into Gmail while sending is off'>{esc(draft)}</textarea>
+    <div style='display:flex;justify-content:space-between;
+                align-items:center;margin-top:6px'>
+     <span class='subtext'>Sending stays locked until Dallon flips it on.</span>
+     <button class='big' type='button' onclick="alert('Sending is switched OFF while we test — copy the text into Gmail for now. Dallon flips this on when ready.')">Send reply</button>
+    </div>
+   </form></div>
+<script>
+var CANNED = {canned_json};
+var _cs = document.getElementById('canned');
+Object.keys(CANNED).forEach(function(k){{
+  var o = document.createElement('option'); o.value = k; o.textContent = k;
+  _cs.appendChild(o);
+}});
+function grow(box){{
+  box.style.height = 'auto';
+  box.style.height = Math.min(box.scrollHeight + 6, 480) + 'px';
+}}
+var _rb = document.getElementById('replybox');
+_rb.addEventListener('input', function(){{ grow(_rb); }});
+if (_rb.value) grow(_rb);
+_cs.onchange = function(){{
+  if (!_cs.value) return;
+  _rb.value = CANNED[_cs.value]; grow(_rb); _rb.focus();
+}};
+</script>"""
+        unread_btn = ""
+        if c["msgs"]:
+            unread_btn = (f"<form method='POST' action='/msg_unread' "
+                          f"style='margin-left:auto'>"
+                          f"<input type='hidden' name='addr' value='{esc(sel)}'>"
+                          f"<input type='hidden' name='back' value='/customers'>"
+                          f"<button class='gray' style='padding:4px 11px;"
+                          f"font-size:11.5px' title='Hand this conversation "
+                          f"to the next person'>↩ Mark unread</button></form>")
+        pane2 = (
+            f"<div class='card'>"
+            f"<h2 style='margin-top:0;display:flex;align-items:center;"
+            f"gap:10px;flex-wrap:wrap'>{esc(c['name'] or c['email'] or '')}"
+            f"<span class='subtext' style='font-weight:400'>"
+            f"{esc(c['email'] or '')}</span>{unread_btn}</h2>"
+            f"<div style='max-height:56vh;overflow-y:auto;padding:4px 2px'>"
+            f"{thread_html}</div>{reply_html}</div>")
+
+        # ── pane 3: the bid rides shotgun ──
+        pane3 = ""
+        if nb:
+            d = nb.get("draft") or {}
+            bid_d = d.get("bid") or {}
+            conf = nb.get("confidence")
+            cc = ("#1e8449" if (conf or 0) >= 75 else
+                  "#c77700" if (conf or 0) >= 50 else "#b03a2e")
+            head = (
+                f"<div style='display:flex;justify-content:space-between;"
+                f"align-items:center'><div>"
+                f"<div style='font-size:10px;font-weight:800;letter-spacing:"
+                f"1.1px;text-transform:uppercase;color:var(--mut)'>The bid"
+                f" · {nb['stamp'][4:6]}/{nb['stamp'][6:8]}</div>"
+                + (f"<div style='font-size:28px;font-weight:800;"
+                   f"letter-spacing:-1px;color:var(--green2)'>"
+                   f"${d['total']:,.0f}</div>" if d.get("total") is not None
+                   else "<div class='subtext'>no priced draft</div>")
+                + "</div>"
+                + (f"<span class='ring' style='border-color:{cc};color:{cc}'>"
+                   f"{conf}%</span>" if conf is not None else "")
+                + "</div>")
+            alerts = ""
+            if nb.get("dns_match"):
+                alerts += ("<div style='background:#1c1c1c;color:#ff6b5e;"
+                           "border-radius:9px;padding:8px 11px;font-size:12px;"
+                           "font-weight:700;margin:8px 0'>⛔ DO NOT SERVICE "
+                           "— do not quote or schedule.</div>")
+            if nb.get("office_alert"):
+                alerts += (f"<div style='background:#fdf4dd;border-left:4px "
+                           f"solid #c9a227;border-radius:9px;padding:8px 11px;"
+                           f"font-size:12px;color:#7a5300;font-weight:600;"
+                           f"margin:8px 0'>⚠ {esc(nb['office_alert'][:180])}"
+                           f"</div>")
+            sl = bid_status._sl.get(nb["stamp"])
+            if sl:
+                alerts += (f"<div style='background:#f0e9fd;border-left:4px "
+                           f"solid #6d28d9;border-radius:9px;padding:8px 11px;"
+                           f"font-size:12px;color:#6d28d9;font-weight:600;"
+                           f"margin:8px 0'>🔍 {esc(sl[1])} asks: "
+                           f"“{esc(sl[0][:140])}”</div>")
+            lines = ""
+            if bid_d.get("services"):
+                hist = _history_entry(
+                    nb.get("address"),
+                    (d.get("customer") or {}).get("name")
+                    or (nb.get("from") or "").split("<")[0].strip()) or {}
+                try:
+                    from store import _service_key
+                except Exception:
+                    def _service_key(n):
+                        return None
+                for s in bid_d["services"]:
+                    past = hist.get(_service_key(s["name"]) or "") or []
+                    recent = sorted(past, reverse=True)[:2]
+                    cells = " · ".join(f"{dt[:7]} ${p:,.0f}"
+                                       for dt, p in recent)
+                    lines += (f"<tr><td>{esc(s['name'])}"
+                              + (f"<div class='subtext' style='font-size:"
+                                 f"10.5px'>{cells}</div>" if cells else "")
+                              + f"</td><td class='num'><b>${s['price']:,.0f}"
+                              f"</b></td></tr>")
+                lines = f"<table style='margin-top:8px'>{lines}</table>"
+            pi = d.get("prop_info") or {}
+            chips = "".join(
+                f"<span class='chip'>{esc(v)}</span>" for v in (
+                    f"{pi['sqft']:,} sqft · {pi.get('sqft_source') or 'listed'}"
+                    if pi.get("sqft") else None,
+                    f"{pi['stories']} story" if pi.get("stories") else None,
+                    pi.get("pitch"), pi.get("roof_material")) if v)
+            q = quotes.get(nb["stamp"])
+            qchip = quote_chip(q, qurls) if q else ""
+            actionable = (not nb["reviewed"] and not sbs.get(nb["stamp"])
+                          and not nb.get("dns_match")
+                          and nb["stamp"] not in live_holds)
+            back = f"/customers?c={urllib.parse.quote(sel)}"
+            decide = ""
+            if actionable:
+                decide = f"""
+  <form method='POST' action='/review' style='margin-top:10px'>
+   <input type='hidden' name='stamp' value='{nb["stamp"]}'>
+   <input type='hidden' name='customer' value='{esc(nb.get("from") or "")}'>
+   <input type='hidden' name='action' value='approve'>
+   <input type='hidden' name='back' value='{esc(back)}'>
+   <button style='width:100%'>✓ Approve as-is</button>
+  </form>
+  <a href='/bid/{nb["stamp"]}' style='display:block;text-align:center;
+     margin-top:7px;padding:8px;border:1px solid var(--line);
+     border-radius:9px;text-decoration:none;font-size:12.5px'>
+   Adjusted · Hold · 🚩 — open the full bid →</a>"""
+            else:
+                decide = (f"<a href='/bid/{nb['stamp']}' style='display:"
+                          f"block;text-align:center;margin-top:10px;"
+                          f"padding:8px;border:1px solid var(--line);"
+                          f"border-radius:9px;text-decoration:none;"
+                          f"font-size:12.5px'>Open the full bid page "
+                          f"(photos, notes, history) →</a>")
+            earlier = ""
+            if len(c["bids"]) > 1:
+                links = " · ".join(
+                    f"<a href='/bid/{e['stamp']}'>{e['stamp'][4:6]}/"
+                    f"{e['stamp'][6:8]}</a>" for e in c["bids"][:-1][-4:])
+                earlier = (f"<div class='subtext' style='margin-top:8px'>"
+                           f"earlier bids: {links}</div>")
+            pane3 = (
+                f"<div class='card' style='position:sticky;top:70px'>"
+                f"{head}{alerts}"
+                f"<div style='margin-top:6px'>{curc['pill']} {qchip}</div>"
+                f"{lines}"
+                + (f"<div style='margin-top:8px'>{chips}</div>" if chips
+                   else "")
+                + f"{decide}{earlier}</div>")
+        else:
+            pane3 = ("<div class='card'><div class='subtext'>No bid on "
+                     "file for this customer — conversation only.</div>"
+                     "</div>")
+
+    cols = ("270px 1fr" if not curc else "270px 1fr 330px")
+    body = (f"<div style='display:grid;grid-template-columns:{cols};"
+            f"gap:14px;align-items:start'>{pane1}{pane2}"
+            + (f"<div>{pane3}</div>" if curc else "") + "</div>")
+    body += """
+<script>
+(function(){
+  var last = null;
+  function bump(){
+    fetch('/api/pulse').then(function(r){return r.json();}).then(function(d){
+      if (last === null) { last = d.t; return; }
+      var rb = document.getElementById('replybox');
+      if (d.t !== last && (!rb || !rb.value.trim())) location.reload();
+      last = d.t;
+    }).catch(function(){});
+  }
+  setInterval(bump, 30000); bump();
+})();
+</script>"""
+    return page("Customers", body)
+
+
 def _blob_rw(key, default):
     if clouddb.available():
         return clouddb.get_blob(key) or default
@@ -2573,6 +3015,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(settings_page((q.get("msg") or [""])[0]))
         if self.path == "/history":
             return self._send(history_page())
+        if self.path.startswith("/customers"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            return self._send(customers_page(q.get("c", [None])[0]))
         if self.path.startswith("/messages"):
             q = urllib.parse.urlparse(self.path).query
             sel = urllib.parse.parse_qs(q).get("t", [None])[0]
@@ -2835,7 +3280,10 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/msg_draft":
             # AI-drafted reply: Claude reads the thread and writes a
             # SUGGESTION into the box. A human still edits and sends.
+            # (works from Messages AND the unified Customers view)
             to = get("to")
+            _page = (customers_page if get("back") == "customers"
+                     else messages_page)
             draft = ""
             try:
                 import msglog
@@ -2863,11 +3311,11 @@ class Handler(BaseHTTPRequestHandler):
                 last_in = next((m for m in reversed(thread)
                                 if m["dir"] == "in"), None)
                 if not last_in:
-                    return self._send(messages_page(to, draft=(
+                    return self._send(_page(to, draft=(
                         "(No customer message to answer in this thread — "
                         "pick one of LaRee's templates instead.)")))
                 if any(s in to for s in _internal_senders()):
-                    return self._send(messages_page(to, draft=(
+                    return self._send(_page(to, draft=(
                         "(Internal thread — no customer reply needed.)")))
                 system = (
                     "You draft email replies FROM the office staff of "
@@ -2926,7 +3374,7 @@ class Handler(BaseHTTPRequestHandler):
                     draft)[0].rstrip()
             except Exception as e:
                 draft = f"(draft failed: {e} — just type your reply)"
-            return self._send(messages_page(to, draft=draft))
+            return self._send(_page(to, draft=draft))
         elif self.path == "/settings_save":
             if not _user:
                 self.send_response(303)
@@ -3046,8 +3494,10 @@ class Handler(BaseHTTPRequestHandler):
             d = _msg_read()
             d.pop(get("addr"), None)
             _msg_read_save(d)
+            back = get("back")
             self.send_response(303)
-            self.send_header("Location", "/messages")
+            self.send_header("Location", back if back.startswith("/")
+                             else "/messages")
             self.end_headers()
             return
         elif self.path == "/msg_send":
@@ -3072,9 +3522,11 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     save_review({"stamp": "", "action": "reply_FAILED",
                                  "customer": to, "note": why[:150]})
+            back = get("back")
             self.send_response(303)
             self.send_header("Location",
-                             f"/messages?t={urllib.parse.quote(to)}")
+                             back if back.startswith("/")
+                             else f"/messages?t={urllib.parse.quote(to)}")
             self.end_headers()
             return
         elif self.path == "/claim_take":
@@ -3156,8 +3608,9 @@ class Handler(BaseHTTPRequestHandler):
             save_review({"stamp": get("stamp"), "action": "photo_requested",
                          "customer": get("customer"),
                          "note": f"draft: {path.name}"})
+        back = get("back")                # e.g. Approve on the Customers view
         self.send_response(303)
-        self.send_header("Location", "/")
+        self.send_header("Location", back if back.startswith("/") else "/")
         self.end_headers()
 
     def handle_one_request(self):
