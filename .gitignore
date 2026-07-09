@@ -1,4 +1,11 @@
-data/
+# data/ stays PRIVATE (customer records never reach GitHub) — but the
+# county assessor indexes are PUBLIC records the cloud needs to price
+# from sqft (they were never actually shipping before Jul 9: the cloud
+# had no indexes and silently priced without them)
+data/*
+!data/assessor/
+data/assessor/*
+!data/assessor/*.json.gz
 __pycache__/
 .DS_Store
 .env

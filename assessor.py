@@ -78,12 +78,21 @@ def lookup(lat, lng):
     hit = _index(fname).get(pin)
     if not hit:
         return None
-    sqft, stories, roof = hit
-    return {"sqft": sqft,
-            "stories": stories,
-            "roof_material": roof,
-            "parcel": pin,
-            "county": "Snohomish" if county == "61" else "King"}
+    sqft, stories, roof = hit[:3]
+    out = {"sqft": sqft,
+           "stories": stories,
+           "roof_material": roof,
+           "parcel": pin,
+           "county": "Snohomish" if county == "61" else "King"}
+    # Jessica Jensen lesson (Jul 9): a walkout basement hides in 'sqft'
+    # semantics and a garage adds real roof — carry both when the index
+    # has them (entries are [sqft, stories, roof, bsmt_fin, garage_att])
+    if len(hit) >= 5:
+        if hit[3]:
+            out["basement_sqft"] = hit[3]
+        if hit[4]:
+            out["garage_sqft"] = hit[4]
+    return out
 
 
 if __name__ == "__main__":

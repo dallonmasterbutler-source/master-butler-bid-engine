@@ -2909,7 +2909,11 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                  "tom_only": "TOM-ONLY pitch"}.get(_pih.get("pitch")),
                 f"{_pih['roof_material']} roof"
                 if _pih.get("roof_material") not in (None, "standard")
-                else None):
+                else None,
+                f"walkout bsmt {_pih['basement_sqft']:,} sqft"
+                if _pih.get("basement_sqft") else None,
+                f"garage {_pih['garage_sqft']:,} sqft"
+                if _pih.get("garage_sqft") else None):
             if _fact:
                 chips += f"<span class='chip blue'>🏠 {esc(_fact)}</span> "
         if nb.get("sched_pref"):

@@ -134,7 +134,9 @@ def process_manual(name, address, phone="", email="", services=None,
                               "sqft_source": facts.get("sqft_source"),
                               "pitch": prop.get("pitch"),
                               "roof_material": prop.get("roof_material"),
-                              "stories": prop.get("stories")},
+                              "stories": prop.get("stories"),
+                              "basement_sqft": prop.get("basement_sqft"),
+                              "garage_sqft": prop.get("garage_sqft")},
                 "total": total}
             for s in results:
                 out_lines.append(f"  {s['name']:<34} ${s['price']}")

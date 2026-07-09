@@ -234,6 +234,19 @@ def lookup_property(address, records=None):
                                  "calibration pending, office reviews price.")
             flags.append(f"Size from public record: {rec['sqft']} sqft "
                          f"({rec['county']} County parcel {rec['parcel']}).")
+            # walkout-rambler awareness (Jessica Jensen, Jul 9): finished
+            # basement + attached garage change what the ROOF really is —
+            # carried for display + notes; pricing math untouched until
+            # the calibration ledger says how much it should move
+            if rec.get("basement_sqft"):
+                out["basement_sqft"] = rec["basement_sqft"]
+                flags.append(
+                    f"Finished basement {rec['basement_sqft']:,} sqft on "
+                    "record — on a rambler/walkout, gutters are mostly at "
+                    "ONE-story height even though the roof is big. Price "
+                    "by access ease (the office's Jessica-Jensen rule).")
+            if rec.get("garage_sqft"):
+                out["garage_sqft"] = rec["garage_sqft"]
 
     roof = solar_roof(geo["lat"], geo["lng"], key)
     roof_sqft = roof["roof_sqft"] if roof else None

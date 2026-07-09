@@ -141,6 +141,10 @@ def build_property(parsed, facts):
         "wants_pw": ("pressure_washing" in parsed["services"]
                      or any(s.startswith("pw_")
                             for s in parsed["services"])),
+        # walkout-rambler facts (Jessica Jensen, Jul 9) — display/notes
+        # only for now; pricing waits for calibration evidence
+        "basement_sqft": facts.get("basement_sqft"),
+        "garage_sqft": facts.get("garage_sqft"),
     }
     return prop, office_flags
 
@@ -344,6 +348,9 @@ def process(eml_path):
                       "pitch": prop.get("pitch"),
                       "roof_material": prop.get("roof_material"),
                       "stories": prop.get("stories"),
+                      # walkout-rambler facts (Jessica Jensen, Jul 9)
+                      "basement_sqft": prop.get("basement_sqft"),
+                      "garage_sqft": prop.get("garage_sqft"),
                       # persisted reads → add-to-quote menu prices real
                       "aerial_surfaces": prop.get("aerial_surfaces"),
                       "debris_read": prop.get("debris_read")
