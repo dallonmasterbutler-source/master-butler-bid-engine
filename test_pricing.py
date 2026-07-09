@@ -334,17 +334,24 @@ check("Aerial fills missing surface (no more \$0 drafts)",
 check("Ground measurement never overridden",
       1 if "surfaces" not in cross_check(prop, "test",
           _reading=GAVIN_READING, _tile="t-z20.png")[0] else 0, 1)
-f, n = cross_check(prop, "test", _reading=GAVIN_READING,
+# tree/canopy reads only run when debris-priced work was requested
+# (Tillie rule, Jul 9: a lights-only bid must not grow debris notes)
+gutter_prop = dict(prop, services={"driveway": True, "gutters": True})
+f, n = cross_check(gutter_prop, "test", _reading=GAVIN_READING,
                    _tile="t-solar-201307.png")
 check("Stale imagery = tree reads skipped",
       1 if any("too old to trust" in x for x in n) else 0, 1)
 heavy_reading = dict(GAVIN_READING,
                      canopy_over_roof={"level": "heavy", "detail": "cedars",
                                        "confidence": "high"})
-f, n = cross_check(prop, "test", _reading=heavy_reading,
+f, n = cross_check(gutter_prop, "test", _reading=heavy_reading,
                    _tile="t-z20.png")
 check("Fresh heavy canopy = debris raised",
       1 if f.get("debris") == "heavy" else 0, 1)
+f_l, n_l = cross_check(prop, "test", _reading=heavy_reading,
+                       _tile="t-z20.png")
+check("No debris raise when no gutter/roof/moss asked (Tillie rule)",
+      0 if f_l.get("debris") else 1, 1)
 
 print("\n── RULE: street-view second opinion (conservative merge, offline) ──")
 from aerial import street_check

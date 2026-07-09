@@ -281,8 +281,15 @@ def load_bids():
         except ValueError:
             rec["age_hours"] = 0
         out = rec.get("pipeline_output", "")
-        m = re.findall(r"\$\s?([\d,]+)(?:\.\d+)?", out)
-        rec["total_guess"] = m[-1] if m else None
+        d_bid = ((rec.get("draft") or {}).get("bid") or {})
+        if rec.get("draft") is not None and not d_bid.get("services"):
+            # a draft with NO priced lines must not "guess" a total from
+            # note text (Tillie: a lights request showed Est. $80 lifted
+            # from an aerial pressure-washing menu note)
+            rec["total_guess"] = None
+        else:
+            m = re.findall(r"\$\s?([\d,]+)(?:\.\d+)?", out)
+            rec["total_guess"] = m[-1] if m else None
         rec["confidence"] = ((rec.get("draft") or {}).get("bid") or {}) \
             .get("confidence")
         if rec["confidence"] is None:
@@ -1444,6 +1451,7 @@ def bid_page(stamp, user=None):
             f"<td class='num'><b>${d.get('total', 0):,.0f}</b></td>"
             "<td></td></tr>"
             "</table></div>")
+    price_card += add_service_card(b)
     pi = d.get("prop_info") or {}
     measure_card = ""
     if any(pi.get(k) for k in ("sqft", "pitch", "roof_material", "stories")):
@@ -2481,6 +2489,102 @@ _cs.onchange = function(){{
 })();
 </script>"""
     return page("Customers", body)
+
+
+ADD_MENU = [("gutter_cleaning", "Gutter cleaning"),
+            ("roof_blow_off", "Roof blow off"),
+            ("moss_treatment", "Moss treatment"),
+            ("windows_exterior", "Windows — exterior"),
+            ("windows_in_out", "Windows — in & out"),
+            ("house_wash", "House wash"),
+            ("dryer_vent", "Dryer vent cleaning")]
+
+
+def price_one_service(rec, svc):
+    """Engine-price ONE service from the property facts already on the
+    record — powers the add-to-quote menu (Dallon Jul 9: customer asks
+    for gutters, then dryer vent, then PW — office shouldn't re-run
+    the whole system every time). Returns line dicts or None."""
+    pi = ((rec.get("draft") or {}).get("prop_info")) or {}
+    if not pi.get("sqft"):
+        return None
+    from pipeline import SERVICE_TO_ENGINE
+    from bid_engine import calculate_bid
+    if svc not in SERVICE_TO_ENGINE:
+        return None
+    key, val = SERVICE_TO_ENGINE[svc]
+    # BUNDLE CONTEXT: if the draft already has lines, the new service is
+    # an ADD-ON — dryer vent drops to its add-on rate, windows use the
+    # bundled floor. Price it alongside a companion, keep only its lines.
+    has_lines = bool(((rec.get("draft") or {}).get("bid") or {})
+                     .get("services"))
+    services = {key: val}
+    if has_lines and key != "gutters":
+        services["gutters"] = True
+    prop = {"sqft": pi["sqft"], "stories": str(pi.get("stories") or "2"),
+            "pitch": pi.get("pitch") or "moderate", "debris": "moderate",
+            "gutter_type": "standard",
+            "roof_material": pi.get("roof_material") or "standard",
+            "access": "normal", "window_style": "standard",
+            "window_condition": "normal", "window_access": "standard",
+            "french_pane": "none", "surfaces": {},
+            "services": services}
+    try:
+        results, _notes, _conf = calculate_bid(prop)
+        if "gutters" in services and key != "gutters":
+            gutter_only, _n, _c = calculate_bid(dict(prop,
+                services={"gutters": True}))
+            companion = {li["name"] for li in gutter_only}
+            results = [li for li in results if li["name"] not in companion]
+        return results or None
+    except Exception:
+        return None
+
+
+def add_service_card(b):
+    """Pre-priced menu of the services NOT on this bid — one click adds
+    the line. Prices come from the same engine + property record."""
+    d = b.get("draft") or {}
+    if not (d.get("prop_info") or {}).get("sqft") or b.get("reviewed") \
+            or b.get("dns_match"):
+        return ""
+    try:
+        from store import _service_key
+    except Exception:
+        def _service_key(n):
+            return (n or "").lower()
+    have = {_service_key(s["name"]) for s in
+            (d.get("bid") or {}).get("services") or []}
+    rows = ""
+    for svc, label in ADD_MENU:
+        lines = price_one_service(b, svc)
+        if not lines:
+            continue
+        if any(_service_key(li["name"]) in have for li in lines):
+            continue                        # already on the quote
+        price = sum(li["price"] for li in lines)
+        rows += (
+            f"<tr><td>{esc(label)}</td>"
+            f"<td class='num'><b>${price:,.0f}</b></td>"
+            f"<td style='text-align:right'>"
+            f"<form method='POST' action='/add_service' style='margin:0'>"
+            f"<input type='hidden' name='stamp' value='{b['stamp']}'>"
+            f"<input type='hidden' name='svc' value='{svc}'>"
+            f"<input type='hidden' name='customer' value='{esc(b.get('from') or '')}'>"
+            f"<button class='gray' style='padding:4px 14px;font-size:12px'>"
+            f"➕ Add to quote</button></form></td></tr>")
+    if not rows:
+        return ""
+    return (
+        "<details class='card'><summary style='cursor:pointer;"
+        "font-weight:700;color:var(--green2)'>➕ Add another service — "
+        "pre-priced for this home (customer asked for more?)</summary>"
+        "<table style='margin-top:8px'>" + rows + "</table>"
+        "<div class='subtext' style='margin-top:6px'>Engine prices from "
+        "this property's record (standard debris assumed) — the line "
+        "lands on the draft instantly, logged with your name. Bundle "
+        "discounts/minimums: give the total a once-over.</div>"
+        "</details>")
 
 
 def flyover_page(addr):
@@ -3592,6 +3696,44 @@ class Handler(BaseHTTPRequestHandler):
                                  "spam from now on"})
             self.send_response(303)
             self.send_header("Location", "/")
+            self.end_headers()
+            return
+        elif self.path == "/add_service":
+            # ONE-CLICK LINE ADD (Dallon Jul 9): price the extra service
+            # from the record and append — no full pipeline re-run.
+            stamp, svc = get("stamp"), get("svc")
+            rec = dict(_shadow_source()).get(stamp)
+            lines = price_one_service(rec, svc) if rec else None
+            if rec and lines and not rec.get("dns_match"):
+                bid_d = rec.setdefault("draft", {}).setdefault("bid", {})
+                svcs = bid_d.setdefault("services", [])
+                names = {s["name"] for s in svcs}
+                added = [li for li in lines if li["name"] not in names]
+                svcs.extend(added)
+                rec["draft"]["total"] = sum(s["price"] for s in svcs)
+                rec["services"] = sorted(set((rec.get("services") or [])
+                                             + [svc]))
+                note = (f"{svc.replace('_', ' ')} added from the menu by "
+                        f"{_user or 'the office'} — engine-priced from the "
+                        "property record (standard debris assumed).")
+                bid_d.setdefault("notes", []).append(note)
+                rec["pipeline_output"] = (rec.get("pipeline_output", "")
+                                          + f"\n      ⚠ {note}")
+                if clouddb.available():
+                    clouddb.ingest_shadow(stamp, rec)
+                else:
+                    (SHADOW / f"{stamp}.json").write_text(
+                        json.dumps(rec, indent=1))
+                    try:
+                        from cloudpush import push_or_queue
+                        push_or_queue(stamp, rec)
+                    except Exception:
+                        pass
+                save_review({"stamp": stamp, "action": "line_added",
+                             "customer": get("customer"),
+                             "note": f"{svc}: +${sum(li['price'] for li in added):,.0f}"})
+            self.send_response(303)
+            self.send_header("Location", f"/bid/{stamp}")
             self.end_headers()
             return
         elif self.path == "/fold_click":

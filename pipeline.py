@@ -136,6 +136,11 @@ def build_property(parsed, facts):
         "window_style": "standard", "window_condition": "normal",
         "window_access": "standard", "french_pane": "none",
         "services": services, "surfaces": {},
+        # they asked for PW (generically or by surface) — aerial may
+        # build its priced menu; otherwise it stays quiet (Tillie lesson)
+        "wants_pw": ("pressure_washing" in parsed["services"]
+                     or any(s.startswith("pw_")
+                            for s in parsed["services"])),
     }
     return prop, office_flags
 

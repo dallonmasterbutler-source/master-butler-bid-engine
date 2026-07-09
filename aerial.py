@@ -304,9 +304,13 @@ def cross_check(prop, address, today_year=2026, _reading=None, _tile=None):
 
     # 2b) GENERIC "pressure washing" with NO surface named: don't guess
     #     which surfaces the customer meant — hand the office a PRICED
-    #     MENU of what's visible from above instead.
+    #     MENU of what's visible from above instead. ONLY when they
+    #     actually asked for pressure washing (Tillie lesson: a
+    #     holiday-lights request was getting a PW menu, which read
+    #     like we quoted work she never asked about).
     pw_keys = ("driveway", "patio", "sidewalk")
-    if not any(prop.get("services", {}).get(k) for k in pw_keys):
+    if prop.get("wants_pw") \
+            and not any(prop.get("services", {}).get(k) for k in pw_keys):
         menu = []
         for s in reading.get("surfaces", []):
             key = {"driveway": "driveway", "walkway": "sidewalk",
@@ -326,8 +330,15 @@ def cross_check(prop, address, today_year=2026, _reading=None, _tile=None):
                          + ". (Individual prices; combining in one visit "
                          "shares the setup and comes out lower.)")
 
-    # 3) TREES (Connor's question) — only from reasonably fresh imagery.
-    if stale:
+    # 3) TREES (Connor's question) — only from reasonably fresh imagery,
+    #    and only when debris actually affects what they asked for
+    #    (gutters/roof/moss). A lights-only request doesn't need a
+    #    heavy-debris charge note (Tillie lesson).
+    debris_relevant = any(prop.get("services", {}).get(k)
+                          for k in ("gutters", "roof", "moss"))
+    if not debris_relevant:
+        pass
+    elif stale:
         notes.append(f"Aerial imagery is from {year} — tree/canopy reads "
                      "skipped (too old to trust).")
     else:
