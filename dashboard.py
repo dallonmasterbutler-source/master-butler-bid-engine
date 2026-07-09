@@ -1601,7 +1601,10 @@ def bid_page(stamp, user=None):
   </form>
   </details>
  </div>
- <details class='card'><summary style='cursor:pointer;font-weight:700;
+ <details class='card' ontoggle="if(this.open&&!this.dataset.c){{this.dataset.c=1;
+  fetch('/fold_click',{{method:'POST',headers:{{'Content-Type':
+  'application/x-www-form-urlencoded'}},body:'name=similar_homes'}});}}">
+  <summary style='cursor:pointer;font-weight:700;
   color:var(--mut);font-size:12px'>Similar homes (honor history) — open if
   you want comps</summary>{hist_html}</details>
 </div></div>"""
@@ -3502,6 +3505,20 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Location", "/")
             self.end_headers()
             return
+        elif self.path == "/fold_click":
+            # usage counter (idea E): does the office actually OPEN the
+            # 'Similar homes' fold? A week of data decides its fate.
+            name = re.sub(r"[^a-z_]", "", get("name"))[:30]
+            if name:
+                fc = _blob_rw("fold_clicks", {})
+                ent = fc.get(name) or {"count": 0}
+                ent["count"] += 1
+                ent["last"] = datetime.now().isoformat(timespec="seconds")
+                if _user:
+                    ent["last_by"] = _user
+                fc[name] = ent
+                _blob_save("fold_clicks", fc)
+            return self._send(b"ok")
         elif self.path == "/msg_read_all":
             import msglog
             marks = _msg_read()

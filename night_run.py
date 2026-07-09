@@ -156,8 +156,8 @@ try:
         import mailer
         ok, why = mailer.send_internal(
             f"☀️ Master Butler morning brief — {datetime.now():%b %d}",
-            brief_text, to=[mailer.DALLON])
-        print(f"   brief emailed to Dallon: {why}")
+            brief_text, to=[mailer.DALLON, mailer.TOM])
+        print(f"   brief emailed to Dallon + Tom: {why}")
     except Exception as e:
         print(f"   (brief email skipped: {e})")
 except Exception as e:

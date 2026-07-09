@@ -140,10 +140,24 @@ def build():
     except Exception:
         pass
 
+    try:                    # idea E: is 'Similar homes' earning its spot?
+        import clouddb
+        if clouddb.available():
+            fc = (clouddb.get_blob("fold_clicks") or {}).get("similar_homes")
+            lines += ["", "SIMILAR-HOMES FOLD (watching for a week): "
+                      + (f"opened {fc['count']}× (last {fc['last'][:10]}"
+                         + (f" by {fc['last_by']}" if fc.get("last_by")
+                            else "") + ")" if fc
+                         else "never opened yet — deleting it if this "
+                              "stays zero")]
+    except Exception:
+        pass
+
     lines += ["", "STANDING FLAGS FOR DALLON:",
               "  · Jobber portal: add Users-read scope (salesperson labels)",
               "  · Jobber: archive test quotes #36577/78, #36582-87, #36593",
-              "  · CopyCall ticket (FOR-JESSICA on Desktop) = free voicemail audio",
+              "  · Voicemail transcription LIVE — next real CopyCall email "
+              "with audio is the proof",
               "  · Martha: roof-blow-off-solo policy · Techs: grades #36582-87",
               "  · Messages send stays OFF (REPLIES_ENABLED) until you rule",
               "  · PUSH_ON_APPROVE stays OFF until you flip it", ""]
