@@ -1421,12 +1421,10 @@ def bid_page(stamp, user=None, draft=""):
 
     gallery, has_imagery = "", False
     if clouddb.available():
-        slug = re.sub(r"[^a-z0-9]+", "-",
-                      (b.get("address") or "").lower()).strip("-")[:60]
         colors = {"customer": "transparent", "aerial": "#0b6e4f",
                   "street": "#1a5276"}
-        for ref, kind, idx in clouddb.photos_index([stamp, slug] if slug
-                                                   else [stamp]):
+        for ref, kind, idx in clouddb.photos_index(
+                _photo_refs(stamp, b.get("address"))):
             has_imagery = has_imagery or kind in ("aerial", "street")
             lbl = {"aerial": ("Aerial", "#1e8449"),
                    "street": ("Street", "#1d4ed8"),
@@ -3031,10 +3029,8 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
     if nb:
         gallery = ""
         if clouddb.available():
-            slug = re.sub(r"[^a-z0-9]+", "-",
-                          (nb.get("address") or "").lower()).strip("-")[:60]
             for ref, kind, idx in clouddb.photos_index(
-                    [stamp, slug] if slug else [stamp]):
+                    _photo_refs(stamp, nb.get("address"))):
                 if kind == "eml":
                     continue
                 lbl = {"aerial": ("Aerial", "#1e8449"),
@@ -3929,6 +3925,22 @@ def flyover_page(addr):
                 "fallback.</div>")
 
 
+def _photo_refs(stamp, address):
+    """Every ref a bid's photos might live under: the stamp plus address
+    slugs — INCLUDING the street-only slug, because imagery saved before
+    an address gets completed/corrected stays filed under the short form
+    (Jessica Jensen, Jul 9: fixing her missing city orphaned her photos
+    right when the first real quote pushed)."""
+    refs = [stamp] if stamp else []
+    a = (address or "").lower()
+    for cand in (a, a.split(",")[0]):
+        for cut in (60, 40):
+            s = re.sub(r"[^a-z0-9]+", "-", cand).strip("-")[:cut]
+            if s and s not in refs:
+                refs.append(s)
+    return refs
+
+
 def _photo_token(ref, kind, idx):
     """Unguessable per-photo token — lets Jobber fetch bid photos
     without the office password ever leaving the building."""
@@ -3943,10 +3955,8 @@ def _photo_urls_for(stamp, address, host):
     """Signed public URLs for a bid's photos (customer + aerial/street)."""
     if not (clouddb.available() and host):
         return []
-    slug = re.sub(r"[^a-z0-9]+", "-", (address or "").lower()).strip("-")[:60]
     urls = []
-    for ref, kind, idx in clouddb.photos_index(
-            [stamp, slug] if slug else [stamp]):
+    for ref, kind, idx in clouddb.photos_index(_photo_refs(stamp, address)):
         if kind == "eml":
             continue
         # end with a real filename — Jobber names the attachment from
@@ -4441,7 +4451,7 @@ def property_page(slug):
         f"</tr>" for s, r in reversed(matches))
     gallery = ""
     if clouddb.available():
-        for ref, kind, idx in clouddb.photos_index([slug]):
+        for ref, kind, idx in clouddb.photos_index(_photo_refs(None, address)):
             gallery += (f"<a href='/img/{ref}/{kind}/{idx}' target='_blank'>"
                         f"<img src='/img/{ref}/{kind}/{idx}' "
                         "style='height:130px;margin:4px;border-radius:8px'>"
