@@ -2542,7 +2542,10 @@ def inbox_page(sel=None, draft="", user=None):
         if not rows_g:
             continue
         lst += f"<div class='ihead'>{sec_names[g]} ({len(rows_g)})</div>"
-        lst += "".join(row(r) for r in rows_g[:40])
+        # NO CAP on work sections — a truncated list once hid Mia
+        # Coffman entirely (read entries sort last; she fell off #41).
+        # Hiding a customer is the unforgivable failure.
+        lst += "".join(row(r) for r in rows_g)
     done_rows = [r for r in roster if r["grp"] == 3]
     lst += (f"<details style='margin-top:12px'><summary style='cursor:"
             f"pointer;color:var(--mut);font-size:12.5px;font-weight:700;"
