@@ -514,7 +514,7 @@ STYLE = """<style>
       --bg:#f7f7f5;--ink:#1a1e1c;--mut:#6b736e;--line:#e7e9e5;
       --card:#ffffff;--soft:#f1f3f0;
       --bluebg:#e5edff;--blueink:#1d4ed8;
-      --purplebg:#f0e9fd;--purpleink:#6d28d9}
+      --purplebg:#f0e9fd;--purpleink:#6d28d9;--heading:#0b3d2e}
 /* the mockup's GREEN-SCALE dark theme (Dallon: 'the background is
    green as well') — follows the machine's appearance setting */
 @media (prefers-color-scheme: dark){
@@ -522,15 +522,7 @@ STYLE = """<style>
         --mut:#a3bcae;--soft:#24402f;--goldbg:#3d3213;--goldink:#eccf7e;
         --accent:#6cc794;--green2:#5abd85;
         --bluebg:#1d2c4d;--blueink:#a3c0f7;
-        --purplebg:#2c2050;--purpleink:#cdbaf5}
-  .ring{background:var(--card)}
-  header{background:var(--card);color:var(--ink)}
-  td b{color:var(--accent)}
-  .card h2,.card h3{color:var(--accent)}
-  .headline .total,.stat b{color:var(--accent)}
-  .money .ptotal{color:var(--accent)}
-  .notes{background:var(--soft);border-color:var(--line)}
-  .band{background:var(--soft);border-color:var(--line)}
+        --purplebg:#2c2050;--purpleink:#cdbaf5;--heading:#8fd8b0}
 }
 *{box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,
@@ -745,6 +737,20 @@ footer{margin:8px 0 28px;padding:0 24px;
        .main{margin-left:0}
        header{font-size:15px;height:auto;padding:10px 16px;position:static}
        .headline .total{font-size:26px}}
+/* dark component overrides LAST — cascade order beats the light rules */
+@media (prefers-color-scheme: dark){
+  .ring{background:var(--card)}
+  header{background:var(--card);color:var(--ink)}
+  td b{color:var(--accent)}
+  a{color:var(--green2)}
+  .card h2,.card h3{color:var(--accent)}
+  .headline .total,.stat b{color:var(--accent)}
+  .money .ptotal{color:var(--accent)}
+  .notes{background:var(--soft);border-color:var(--line)}
+  .band{background:var(--soft);border-color:var(--line)}
+  .win{background:#173525;color:#7fd6a2}
+  .flag{background:#3a1713;color:#f1998e}
+}
 </style>"""
 
 
@@ -1159,30 +1165,30 @@ def home_page():
     if spam_pile:
         items = "".join(
             f"<div>🚫 <a href='/bid/{b['stamp']}'>{esc(b['from'])[:44]}</a> "
-            f"<span style='color:#888'>({esc(why)})</span></div>"
+            f"<span style='color:var(--mut)'>({esc(why)})</span></div>"
             for b, why in spam_pile)
         aside_html += (
             f"<details class='card'><summary style='cursor:pointer;"
-            f"color:#666'>🚫 Filtered as spam ({len(spam_pile)}) — "
+            f"color:var(--mut)'>🚫 Filtered as spam ({len(spam_pile)}) — "
             f"glance occasionally; open one if it's actually a customer"
             f"</summary>{items}</details>")
     if aside:
         items = "".join(
             f"<div>· <a href='/bid/{b['stamp']}'>{esc(b['from'])[:44]}</a> "
-            f"<span style='color:#888'>({esc(why)})</span></div>"
+            f"<span style='color:var(--mut)'>({esc(why)})</span></div>"
             for b, why in aside)
         aside_html += (f"<details class='card'><summary style='cursor:pointer;"
-                       f"color:#666'>Internal &amp; other mail "
+                       f"color:var(--mut)'>Internal &amp; other mail "
                        f"({len(aside)}) — not customer work</summary>"
                        f"{items}</details>")
     if chatter:
         items = "".join(
             f"<div>💬 <a href='/bid/{b['stamp']}'>{esc(b['from'])[:44]}</a> "
-            f"<span style='color:#888'>&ldquo;{esc((b.get('newest_message') or '')[:60])}"
+            f"<span style='color:var(--mut)'>&ldquo;{esc((b.get('newest_message') or '')[:60])}"
             f"&rdquo;</span></div>"
             for b, why in chatter)
         aside_html += (f"<details class='card'><summary style='cursor:"
-                       f"pointer;color:#666'>Conversations ({len(chatter)}) "
+                       f"pointer;color:var(--mut)'>Conversations ({len(chatter)}) "
                        f"— customers replying in office threads, no action "
                        f"needed</summary>{items}</details>")
 
@@ -1190,7 +1196,7 @@ def home_page():
     rev_rows = "".join(
         f"<div>✅ {esc(r.get('action'))} — {esc(r.get('customer', r.get('stamp')))}"
         f"{(' · ' + esc(r['reason'])) if r.get('reason') else ''}"
-        f"{(' <span style=color:#888>· by ' + esc(r['by']) + '</span>') if r.get('by') else ''}</div>"
+        f"{(' <span style=color:var(--mut)>· by ' + esc(r['by']) + '</span>') if r.get('by') else ''}</div>"
         for r in reviews) or "<div>No reviews yet.</div>"
 
     body = (stats + band +
@@ -1208,7 +1214,7 @@ def home_page():
         "<div class='card'><h3 style='margin-top:0'>Recent decisions"
         "</h3>" + rev_rows + "</div>"
         "<div class='card'><h3 style='margin-top:0'>Schedule glance</h3>"
-        "<div style='color:#888'>Jobber calendar — future phase. Days fill "
+        "<div style='color:var(--mut)'>Jobber calendar — future phase. Days fill "
         "toward the $850–1,100/tech target.</div></div></div></div>")
     body += """
 <script>
@@ -1548,7 +1554,7 @@ _bs.onchange = function(){{
 
     gallery_card = (f"<div class='card'><h3 style='margin-top:0'>Photos it "
                     f"used {'(green = aerial, blue = street)' if has_imagery else ''}</h3>"
-                    f"{gallery or '<div style=color:#888>No photos on this '
+                    f"{gallery or '<div style=color:var(--mut)>No photos on this '
                     'request — the photo-request button drafts the ask.</div>'}"
                     f"{more_views}</div>")
 
@@ -1845,7 +1851,7 @@ _bs.onchange = function(){{
    "'Must Know for this property (gate code, dog, sprinklers…)'>"
    "<button class='gray' style='margin-top:4px'>Save Must Know</button>"
    "</form>" if b.get("address") else
-   "<div style='color:#888;font-size:13px;margin-top:8px'>Must Know "
+   "<div style='color:var(--mut);font-size:13px;margin-top:8px'>Must Know "
    "needs an address on the request — none was parsed here.</div>"}</div>
  <details class='card'><summary>Raw system output (full trace)</summary>
   <pre>{esc(b.get('pipeline_output') or '(no draft — ' +
@@ -1895,7 +1901,7 @@ _bs.onchange = function(){{
      document.getElementById('holddate').value = t.toISOString().slice(0,10);
    }}
    </script>
-   <div style='font-size:12px;color:#888'>Parking hides the WORK until
+   <div style='font-size:12px;color:var(--mut)'>Parking hides the WORK until
    the date — still answer the customer with the timeline.</div>
   </form>
   </details>
@@ -2012,7 +2018,7 @@ def drafts_page():
             items += (f"<details style='margin:6px 0'><summary>{esc(f.name)}"
                       f"</summary><pre>{esc(f.read_text())}</pre></details>")
         sections += (f"<div class='card'><h3 style='margin-top:0'>{title}"
-                     f"</h3><div style='color:#888;font-size:13px'>{hint}"
+                     f"</h3><div style='color:var(--mut);font-size:13px'>{hint}"
                      f"</div>{items or '<div>(none yet)</div>'}</div>")
     return page("Drafts", sections)
 
@@ -2254,7 +2260,7 @@ def messages_page(sel=None, draft=""):
             f"justify-content:{'flex-start' if inbound else 'flex-end'};"
             f"margin-bottom:10px'>"
             f"<div style='max-width:78%;padding:10px 14px;border-radius:14px;"
-            f"{'background:#f2f5f3;color:#20242a' if inbound else 'background:#0b3d2e;color:#eef4f0'}'>"
+            f"{'background:var(--soft);color:var(--ink)' if inbound else 'background:#0b3d2e;color:#eef4f0'}'>"
             f"<div style='font-size:10px;font-weight:700;opacity:.65;"
             f"margin-bottom:3px'>"
             f"{esc(m.get('name') or '') if inbound else 'Master Butler' + (' · ' + esc(m['by']) if m.get('by') else '')}"
@@ -3366,7 +3372,7 @@ def customers_page(sel=None, draft=""):
                 f"{'flex-start' if inn else 'flex-end'};margin:7px 0'>"
                 f"<div style='max-width:78%;padding:9px 13px;"
                 f"border-radius:13px;font-size:13px;"
-                f"{'background:#f2f5f3;color:#20242a' if inn else 'background:#0b3d2e;color:#eef4f0'}'>"
+                f"{'background:var(--soft);color:var(--ink)' if inn else 'background:#0b3d2e;color:#eef4f0'}'>"
                 f"<div style='font-size:10px;font-weight:700;opacity:.65;"
                 f"margin-bottom:2px'>{who} · "
                 f"{esc(_pt(m_['at']))}</div>"
@@ -3916,7 +3922,7 @@ def settings_page(msg=""):
     for name, text in canned.items():
         qr += f"""
 <details style='border-bottom:1px solid var(--line);padding:8px 0'>
- <summary style='cursor:pointer;font-weight:700;color:var(--green)'>
+ <summary style='cursor:pointer;font-weight:700;color:var(--heading)'>
   {esc(name)}</summary>
  <form method='POST' action='/qr_save' style='margin-top:8px'>
   <input type='hidden' name='name' value='{esc(name)}'>
@@ -4255,7 +4261,7 @@ def pricing_explainer_card(pi):
         f"border-radius:12px;padding:10px 14px;min-width:120px'>"
         f"<div style='font-size:10px;color:var(--mut);text-transform:"
         f"uppercase;letter-spacing:.8px;font-weight:700'>{esc(k)}</div>"
-        f"<b style='font-size:15px;color:var(--green)'>{esc(v)}</b>"
+        f"<b style='font-size:15px;color:var(--heading)'>{esc(v)}</b>"
         f"<div class='subtext'>{esc(why)}</div></div>"
         for k, v, why in chips)
     return (f"<div class='card'><h3>How the price was built</h3>"
@@ -4284,7 +4290,7 @@ def service_history_card(address, client_name=None):
         rows += (
             f"<div style='display:flex;align-items:center;gap:14px;"
             f"padding:10px 2px;border-bottom:1px solid var(--line)'>"
-            f"<div style='min-width:120px'><b style='color:var(--green);"
+            f"<div style='min-width:120px'><b style='color:var(--heading);"
             f"text-transform:capitalize'>{esc(svc)}</b></div>"
             f"<div style='min-width:120px'><b style='font-size:17px;"
             f"font-variant-numeric:tabular-nums'>${last_p:,.0f}</b>"
