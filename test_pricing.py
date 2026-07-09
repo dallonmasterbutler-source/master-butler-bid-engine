@@ -8,7 +8,17 @@ instead of letting wrong bids go out silently.
 Run with:  python3 test_pricing.py
 """
 
-from bid_engine import calculate_bid, pw_concrete_price, round_to_5
+from bid_engine import calculate_bid as _calculate_bid, \
+    pw_concrete_price, round_to_5
+import datetime as _dt0
+
+
+def calculate_bid(prop):
+    """Anchors are July prices — pin the date so the winter gutter
+    floor (Oct-Feb $250, Dallon Jul 9) can't shift them when the suite
+    runs in November. Winter has its own explicit anchors below."""
+    prop.setdefault("request_date", _dt0.date(2026, 7, 15))
+    return _calculate_bid(prop)
 
 
 def house(**overrides):
@@ -54,6 +64,32 @@ check("Comp house total (w/ bundled window floor)", sum(s["price"] for s in r), 
 from bid_engine import GUTTER_CLEANING_MINIMUM, WINDOWS_MINIMUM
 check("Gutter min is Tom's $175 (Jul 8)", GUTTER_CLEANING_MINIMUM, 175)
 check("Windows min is Tom's $200 (Jul 8)", WINDOWS_MINIMUM, 200)
+
+print("\n── DALLON'S JUL 9 RULINGS: in/out $300 floor · winter gutters $250 ──")
+from bid_engine import WINDOWS_INOUT_MINIMUM, GUTTER_CLEANING_MINIMUM_WINTER
+check("Windows in&out minimum is $300", WINDOWS_INOUT_MINIMUM, 300)
+_small = {"sqft": 900, "stories": "1", "pitch": "mild", "debris": "minimal",
+          "gutter_type": "standard", "roof_material": "standard",
+          "access": "normal", "window_style": "standard",
+          "window_condition": "normal", "window_access": "standard",
+          "french_pane": "none", "surfaces": {}}
+_r, _n, _c = calculate_bid(dict(_small, services={"windows_inout": True}))
+check("Small in&out solo hits $300 floor", _r[0]["price"], 300)
+_r, _n, _c = calculate_bid(dict(_small,
+    services={"windows_inout": True, "gutters": True}))
+_w = next(s for s in _r if "In & Out" in s["name"])
+check("Small in&out BUNDLED still $300 (no bundle discount)",
+      _w["price"], 300)
+_r, _n, _c = _calculate_bid(dict(_small, services={"gutters": True},
+    request_date=_dt0.date(2026, 11, 15)))
+check("November small gutters hit $250 winter floor", _r[0]["price"], 250)
+_r, _n, _c = _calculate_bid(dict(_small, services={"gutters": True},
+    request_date=_dt0.date(2026, 2, 10)))
+check("February gutters also $250 (Feb in winter window)",
+      _r[0]["price"], 250)
+_r, _n, _c = _calculate_bid(dict(_small, services={"gutters": True},
+    request_date=_dt0.date(2026, 7, 15)))
+check("July small gutters stay at Tom's $175", _r[0]["price"], 175)
 
 print("\n── ANCHOR 2: Real shake job (Sammamish, charged $350) ──")
 r, _, _ = calculate_bid(house(sqft=2200, stories="1", pitch="moderate",
@@ -133,7 +169,7 @@ r, notes, _ = calculate_bid(house(sqft=3368, stories="2", pitch="mild",
                                   debris="moderate", gutter_type="guards",
                                   services={"gutters": True}))
 g = line(r, "guards")
-check("Guards blow-off near \$250", g["price"], 250, tolerance=15)
+check("Guards blow-off near \\$250", g["price"], 250, tolerance=15)
 check("Hours near 1h (blower job)", 1 if 0.5 <= g["hours"] <= 1.3 else 0, 1)
 
 print("\n── RULE: lights + gutter guards = DECLINE ──")

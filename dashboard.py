@@ -1398,13 +1398,25 @@ def bid_page(stamp, user=None):
     conf = b.get("confidence")
     conf_color = ("#1e8449" if (conf or 0) >= 75 else
                   "#c77700" if (conf or 0) >= 50 else "#b03a2e")
+    # LOW-CONFIDENCE RANGE (Dallon Jul 9): below 50% sure, a single
+    # number over-promises — show the honest band so the office reacts
+    # to a range and the calibration ledger learns from where they land.
+    range_html = ""
+    if conf is not None and conf < 50 and (d.get("total") or 0) > 0:
+        from bid_engine import round_to_5 as _r5
+        lo, hi = _r5(d["total"] * 0.8), _r5(d["total"] * 1.2)
+        range_html = (f"<div style='font-size:13px;font-weight:700;"
+                      f"color:#c77700'>likely ${lo:,.0f}–${hi:,.0f} "
+                      f"<span style='font-weight:400;color:var(--mut)'>"
+                      f"(below 50% sure — treat the number as a middle "
+                      f"guess)</span></div>")
     draft_headline = ""
     if d.get("total") is not None:
         draft_headline = (
             "<div class='headline'><div>"
             "<div style='font-size:11px;color:var(--mut);text-transform:"
             "uppercase;letter-spacing:.7px;font-weight:600'>Total quote</div>"
-            f"<span class='total'>${d['total']:,.0f}</span></div>"
+            f"<span class='total'>${d['total']:,.0f}</span>{range_html}</div>"
             + (f"<span class='ring' style='width:48px;height:48px;"
                f"border-color:{conf_color};color:{conf_color};"
                f"font-size:13px'>{conf}%</span>" if conf is not None else "")
@@ -2360,6 +2372,12 @@ _cs.onchange = function(){{
             conf = nb.get("confidence")
             cc = ("#1e8449" if (conf or 0) >= 75 else
                   "#c77700" if (conf or 0) >= 50 else "#b03a2e")
+            rng = ""
+            if conf is not None and conf < 50 and (d.get("total") or 0) > 0:
+                from bid_engine import round_to_5 as _r5
+                rng = (f"<div style='font-size:11.5px;font-weight:700;"
+                       f"color:#c77700'>likely ${_r5(d['total'] * 0.8):,.0f}"
+                       f"–${_r5(d['total'] * 1.2):,.0f}</div>")
             head = (
                 f"<div style='display:flex;justify-content:space-between;"
                 f"align-items:center'><div>"
@@ -2368,7 +2386,8 @@ _cs.onchange = function(){{
                 f" · {nb['stamp'][4:6]}/{nb['stamp'][6:8]}</div>"
                 + (f"<div style='font-size:28px;font-weight:800;"
                    f"letter-spacing:-1px;color:var(--green2)'>"
-                   f"${d['total']:,.0f}</div>" if d.get("total") is not None
+                   f"${d['total']:,.0f}</div>{rng}"
+                   if d.get("total") is not None
                    else "<div class='subtext'>no priced draft</div>")
                 + "</div>"
                 + (f"<span class='ring' style='border-color:{cc};color:{cc}'>"
@@ -2674,9 +2693,11 @@ def settings_page(msg=""):
 
     scalar_labels = {
         "JOB_MINIMUM": "Job minimum ($)",
-        "GUTTER_CLEANING_MINIMUM": "Gutter cleaning minimum ($)",
-        "WINDOWS_MINIMUM": "Windows-only minimum ($)",
-        "WINDOWS_MINIMUM_BUNDLED": "Windows minimum when bundled ($)",
+        "GUTTER_CLEANING_MINIMUM": "Gutter cleaning minimum, Mar–Sep ($)",
+        "GUTTER_CLEANING_MINIMUM_WINTER": "Gutter minimum, Oct–Feb ($)",
+        "WINDOWS_MINIMUM": "Windows exterior-only minimum ($)",
+        "WINDOWS_MINIMUM_BUNDLED": "Windows exterior minimum when bundled ($)",
+        "WINDOWS_INOUT_MINIMUM": "Windows in & out minimum ($)",
         "DRY_SEASON_ROOF_FLOOR": "Dry-season roof floor ($)",
         "DRY_DAY_DISCOUNT": "Dry-day discount (0.27 = 27%)",
         "DRYER_VENT_ADDON": "Dryer vent — with other work ($)",
@@ -3551,7 +3572,10 @@ class Handler(BaseHTTPRequestHandler):
                     "lead technician can service; we carry liability "
                     "insurance with American Family Insurance; discount: "
                     "15% off services booked in the second half of August "
-                    "or September.\n"
+                    "or September; moss product: a commercial Dalco "
+                    "product we call Moss Off, billed per canister "
+                    "($14.50, 1-3 typical, technician determines "
+                    "on-site).\n"
                     "Rules: 2-5 sentences, plain warm English, no emojis, "
                     "never invent specific dates, prices, or promises not "
                     "present in the context. If you need a date/price the "

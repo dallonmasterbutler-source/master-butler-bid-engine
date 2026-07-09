@@ -187,14 +187,21 @@ WET_DAY_GUTTER_MULT = 1.3  # gutters cost more on wet days (wet debris)
 # No visit goes out below this, period (Dallon's floor — drive time,
 # setup, and insurance make anything smaller a money-loser).
 JOB_MINIMUM = 150
-GUTTER_CLEANING_MINIMUM = 175   # Tom ruled Jul 8 (was $250) — lower easy
+GUTTER_CLEANING_MINIMUM = 175   # Mar-Sep (Tom ruled Jul 8) — lower easy
                                 # gutter jobs to WIN more of them
-# Windows floors (Tom Jul 8 + Dallon refinement): every window job is
+# Winter gutters are wet, dark, and icy (office doc '10. Winter
+# Gutters' says $250) — Dallon ruled Jul 9: $250 floor Oct-Feb.
+GUTTER_CLEANING_MINIMUM_WINTER = 250
+WINTER_GUTTER_MONTHS = (10, 11, 12, 1, 2)   # Feb per Dallon "potentially"
+# Windows floors (Tom Jul 8 + Dallon refinements): every window job is
 # AT LEAST an hour of work. Solo window visit = $200 floor. Windows in
 # a MULTI-SERVICE visit = $175 floor (ladders already out, but the hour
-# is still real). History says windows are our #1 quiet underbid.
-WINDOWS_MINIMUM = 200            # windows-only visit
-WINDOWS_MINIMUM_BUNDLED = 175    # windows within a multi-service visit
+# is still real). In & out = $300 floor ALWAYS (Dallon ruled Jul 9 —
+# interior labor doesn't shrink because the ladders were already out).
+# History says windows are our #1 quiet underbid.
+WINDOWS_MINIMUM = 200            # exterior, windows-only visit
+WINDOWS_MINIMUM_BUNDLED = 175    # exterior, within a multi-service visit
+WINDOWS_INOUT_MINIMUM = 300      # in & out, solo or bundled
 
 # ── TOM'S DRY-SEASON ROOF-LANE RULES (Jul 8 call) ──
 # The roof lane = gutters + roof blow-off + moss treatment.
@@ -328,7 +335,9 @@ import copy as _copy
 import time as _time
 
 EDITABLE_SCALARS = ("JOB_MINIMUM", "GUTTER_CLEANING_MINIMUM",
+                    "GUTTER_CLEANING_MINIMUM_WINTER",
                     "WINDOWS_MINIMUM", "WINDOWS_MINIMUM_BUNDLED",
+                    "WINDOWS_INOUT_MINIMUM",
                     "DRY_SEASON_ROOF_FLOOR", "DRY_DAY_DISCOUNT",
                     "DRYER_VENT_ADDON", "DRYER_VENT_ALONE",
                     "WET_DAY_GUTTER_MULT", "PW_HOUSE_WASH_RATE")
@@ -449,14 +458,18 @@ def calculate_bid(prop):
                          "quote if requested.")
         else:
             price = round_to_5(sqft * RATES["gutter_cleaning"] * gutter_roof)
-            # Current office practice: gutter cleaning never quotes below
-            # $250 (Jessica/Dallon, Jul 2026). PROVISIONAL — Tom may approve
-            # lowering it (strategy: win the easy jobs). One-number change.
-            if price < GUTTER_CLEANING_MINIMUM:
-                price = GUTTER_CLEANING_MINIMUM
-                notes.append(f"Gutter cleaning raised to the "
-                             f"${GUTTER_CLEANING_MINIMUM} service minimum "
-                             "(current office practice, pending Tom).")
+            # SEASONAL FLOOR (Dallon Jul 9): winter gutters (Oct-Feb) are
+            # wet/dark/icy — $250; rest of year Tom's $175 win-more floor.
+            _gfloor = (GUTTER_CLEANING_MINIMUM_WINTER
+                       if _when.month in WINTER_GUTTER_MONTHS
+                       else GUTTER_CLEANING_MINIMUM)
+            if price < _gfloor:
+                price = _gfloor
+                notes.append(f"Gutter cleaning raised to the ${_gfloor} "
+                             + ("WINTER minimum (Oct-Feb rule, Dallon "
+                                "Jul 9)." if _gfloor ==
+                                GUTTER_CLEANING_MINIMUM_WINTER else
+                                "service minimum."))
             hourly = "gutters_specialty" if roof_mult >= 1.35 else "gutters"
             add("Gutter Cleaning", price, hourly)
         if prop.get("wet_day"):
@@ -506,11 +519,11 @@ def calculate_bid(prop):
     # Same window scaling, but a higher rate because the tech cleans inside too.
     if prop["services"].get("windows_inout"):
         price = round_to_5(sqft * RATES["windows_in_out"] * window_mult * french_mult)
-        if price < _win_floor:
-            price = _win_floor
-            notes.append(f"Windows raised to the ${_win_floor} "
-                         f"{'bundled ' if _bundled else ''}minimum — every "
-                         "window job is at least an hour (Tom/Dallon, Jul 2026).")
+        if price < WINDOWS_INOUT_MINIMUM:
+            price = WINDOWS_INOUT_MINIMUM
+            notes.append(f"Windows in & out raised to the "
+                         f"${WINDOWS_INOUT_MINIMUM} minimum — interior "
+                         "work doesn't shrink when bundled (Dallon, Jul 9).")
         add("Windows In & Out", price, "windows")
 
     # ── PRESSURE WASHING (sqft-based; measured area required) ──
