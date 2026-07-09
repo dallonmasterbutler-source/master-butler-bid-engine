@@ -902,7 +902,7 @@ def home_page():
         decided_rows += (
             f"<tr><td><a href='/bid/{b['stamp']}'><b>{nm[:36]}</b></a>"
             + (f"<div class='subtext'>{quote_chip(q, qurls)}</div>" if q else "")
-            + f"<td>{bid_status(b, live_holds, flags_open, sbs, claims)}"
+            + f"</td><td>{bid_status(b, live_holds, flags_open, sbs, claims)}"
             f"</td><td>office quoted it</td><td class='subtext'>—</td></tr>")
     for r in reversed(load_reviews()):
         s = r.get("stamp")
