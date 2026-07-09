@@ -638,11 +638,13 @@ footer{margin:8px 0 28px;padding:0 24px;
   border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05);
   margin-top:6px}
 .chrome{background:var(--green);color:#e9efe9;padding:11px 20px;
-  font-size:13.5px;display:flex;gap:16px;align-items:center}
+  font-size:13.5px;display:flex;gap:16px;align-items:center;
+  flex-wrap:wrap}
+.chrome > b{white-space:nowrap}
 .chrome b{font-size:14.5px;color:#fff}
 .chrome .navr{margin-left:auto;display:flex;gap:4px;align-items:center}
 .chrome .navr a{color:#cfe0d6;text-decoration:none;padding:5px 12px;
-  border-radius:8px;font-weight:600;font-size:13px}
+  border-radius:8px;font-weight:600;font-size:13px;white-space:nowrap}
 .chrome .navr a:hover{color:#fff;text-decoration:none}
 .chrome .navr a.on{background:rgba(255,255,255,.14);color:#fff}
 .chrome .whobox{margin-left:14px;padding-left:14px;
