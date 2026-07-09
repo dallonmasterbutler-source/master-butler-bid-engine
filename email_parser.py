@@ -46,10 +46,23 @@ SERVICE_KEYWORDS = [
     ("roof blow off",              "roof_blow_off"),
     ("roof blow-off",              "roof_blow_off"),
     ("roof maintenance",           "roof_blow_off"),
+    # possessive roof mentions ('Tom needs to do my roof') — the office
+    # reviews every draft, so catching too much beats missing the roof
+    ("my roof",                    "roof_blow_off"),
+    ("our roof",                   "roof_blow_off"),
+    ("roof &",                     "roof_blow_off"),
+    ("roof and ",                  "roof_blow_off"),
     ("inside/outside window",      "windows_in_out"),
     ("in/out window",              "windows_in_out"),
     ("interior and exterior window", "windows_in_out"),
     ("window cleaning in & out",   "windows_in_out"),
+    # the Becky phrasing (Jul 9): 'windows inside & out' — plus kin
+    ("windows inside & out",       "windows_in_out"),
+    ("windows inside and out",     "windows_in_out"),
+    ("windows in & out",           "windows_in_out"),
+    ("windows in and out",         "windows_in_out"),
+    ("windows in/out",             "windows_in_out"),
+    ("windows, inside",            "windows_in_out"),
     ("exterior window",            "windows_exterior"),
     ("external window",            "windows_exterior"),
     ("window cleaning",            "windows_unspecified"),  # in or out? office confirms
@@ -413,7 +426,8 @@ _TECH_NAMES = ("dallon", "tom", "connor", "nick", "gus", "blake",
                "spencer", "adam", "robin")
 _TECH_CTX = ("tech", "technician", "again", "last time", "last year",
              "request", "prefer", "same", "send", "ask for", "did our",
-             "who came", "who did")
+             "who came", "who did", "needs to do", "do my", "has to do",
+             "only one", "needs to be")
 
 
 def find_tech_request(text):

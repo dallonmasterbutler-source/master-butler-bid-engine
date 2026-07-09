@@ -796,7 +796,8 @@ def _chrome_bar(active=""):
         for href, label, t in (("/", "📥 Bids", "Bids"),
                                ("/scoreboard", "📊 Scoreboard", "Scoreboard"),
                                ("/winback", "📞 Win-back", "Win-back"),
-                               ("/settings", "⚙️ Settings", "Settings")))
+                               ("/settings", "⚙️ Settings", "Settings"),
+                               ("/guide", "❓ Guide", "Guide")))
     return ("<div class='chrome'><b>🎩 Master Butler</b>"
             f"<div class='navr'>{navr}"
             "<span id='who' class='whobox'></span></div></div>"
@@ -890,7 +891,8 @@ border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
     # EVERY page lives in the framed green window now (Dallon Jul 9:
     # the left rail's links were dead — deleted; colors match the Inbox)
     inbox_titles = {"Bids", "Bid queue", "Customers", "Messages"}
-    active = title if title in ("Scoreboard", "Win-back", "Settings") \
+    active = title if title in ("Scoreboard", "Win-back", "Settings",
+                                "Guide") \
         else ("Bids" if title in inbox_titles else "")
     return (f"<!doctype html><html><head><meta charset='utf-8'>"
             f"<meta name='viewport' content='width=device-width,"
@@ -3772,6 +3774,109 @@ def add_service_card(b, back=""):
         + measure_btn + "</details>")
 
 
+GUIDE_FAQ = [
+ ("The 30-second morning",
+  "Open <b>Bids</b>. Anything <b>bold with a gold dot</b> hasn't been "
+  "handled by anyone yet — work top to bottom. The line above the list "
+  "tells you how many need a person and the oldest wait. That's it."),
+ ("What does bold / grey mean?",
+  "<b>Bold</b> = nobody has dealt with it. It stays bold even after you "
+  "open it — clicking around never loses anything. It turns grey when "
+  "someone presses <b>✓ Done — seen it</b> or makes a real decision "
+  "(approve / park). Grey is shared: one person handling it means the "
+  "whole office sees grey. Pressed Done but never decided? It re-bolds "
+  "itself after 30 minutes. <b>↩ mark unread</b> hands it back."),
+ ("One customer = one screen",
+  "Click a name: the top card pins the essentials — price, how sure the "
+  "system is, what they wrote, timing/tech asks — and the folds below "
+  "hold everything else (line items, photos, conversation, history, "
+  "warnings). New message from them? They jump to the top of the list "
+  "and the Conversation fold opens by itself."),
+ ("Deciding — the three choices",
+  "<b>✓ Price is right — approve</b> records your OK (on bids Dallon "
+  "has switched on, it also creates the DRAFT quote in Jobber — never "
+  "sends anything to the customer). <b>⏸ Not now</b> parks it until a "
+  "date you pick, then it comes back by itself. <b>🙋 Help</b> asks the "
+  "office a question (stays on the list), escalates to Dallon &amp; Tom "
+  "when truly stuck, or sends an idea."),
+ ("A price looks wrong",
+  "Type the right number straight over it in the Line items fold, tap "
+  "WHY (one tap teaches the system), press <b>💾 Save my prices</b>, "
+  "then approve. The system remembers what it originally guessed, so "
+  "it learns from your correction."),
+ ("Customer asks for MORE services mid-conversation",
+  "Open their entry → Line items fold → <b>➕ Add another service</b>. "
+  "Every service is pre-priced for that exact home; one click adds the "
+  "line. Pressure washing appears when the sky-measurement exists — "
+  "the 📐 button fetches it. Still verify PW with pictures before "
+  "booking (office rule)."),
+ ("They already HAVE a quote",
+  "A gold <b>📋 Their Jobber quote</b> panel shows on the pinned card — "
+  "number, status, total, the lines, and an open-in-Jobber link. Work "
+  "from THAT quote; the system physically refuses to create a second "
+  "one for them."),
+ ("Replying to a customer",
+  "Conversation fold → pick a Quick Response or press <b>✨ Draft a "
+  "reply for me</b>, edit, then copy it into Gmail. The Send button "
+  "stays locked while we test — nothing here can email a customer."),
+ ("Voicemails",
+  "Each call is its own entry. If audio came with it, the words appear "
+  "as a transcript. '0:00 — hang-up' means nothing was recorded. "
+  "'No audio attached' means dial the mailbox (press * during the "
+  "greeting, passcode 1234), then reply by email as usual."),
+ ("⛔ DO NOT SERVICE showed up",
+  "The system matched them to a do-not-service marker in Jobber — by "
+  "email, phone, ADDRESS, or name (it catches new-email tricks). Don't "
+  "quote or schedule; questions go to Dallon/Tom."),
+ ("Who's working on what?",
+  "Opening a bid quietly claims it for 15 minutes — others see "
+  "<b>working · your name</b> on the row and a banner on the bid. "
+  "Need it anyway? <b>🤝 Take over</b> (it's logged). Walking away? "
+  "Release it or just let the claim expire."),
+ ("What do Scoreboard and Win-back mean?",
+  "<b>Scoreboard</b>: the system's draft vs what the office actually "
+  "quoted — green means within 10%; it auto-reviews its own misses and "
+  "learns. <b>Win-back</b>: past customers worth a call, best first — "
+  "tap the outcome after each call."),
+ ("Settings — yours to change",
+  "Quick Responses and every pricing number/multiplier are editable by "
+  "the office, live immediately, logged with your name. 'Reset "
+  "everything to defaults' un-does all pricing changes in one click."),
+ ("💡 I have an idea for the system",
+  "Help fold → the idea box. One line. It emails Dallon instantly and "
+  "Claude (the builder) reads every idea overnight and pre-plans the "
+  "fix. This page you're reading came from one of those."),
+ ("Something looks broken",
+  "Nothing here can lose work — every quote is a draft until a human "
+  "sends it. If a page glitches, go back to Bids and tell Dallon (or "
+  "drop it in the idea box). The old layout still exists at /queue if "
+  "you ever feel lost."),
+]
+
+
+def guide_page():
+    """The office manual, living where the office lives (Dallon Jul 9:
+    'a tab that instructs... a FAQ type of situation')."""
+    folds = "".join(
+        f"<details class='ifold'><summary>{q}</summary>"
+        f"<div class='fbody' style='font-size:14.5px;line-height:1.65'>"
+        f"{a}</div></details>"
+        for q, a in GUIDE_FAQ)
+    body = (
+        "<div style='max-width:760px'>"
+        "<h2 style='margin:4px 0 2px;font-size:22px;letter-spacing:-.4px'>"
+        "How this dashboard works</h2>"
+        "<div class='subtext' style='margin-bottom:12px'>Two rules cover "
+        "almost everything: <b>bold means nobody's handled it</b>, and "
+        "<b>nothing sends to a customer without a human</b>. The rest is "
+        "detail — tap any question.</div>"
+        + folds +
+        "<div class='subtext' style='margin-top:14px'>Missing an answer? "
+        "Put it in the 💡 idea box on any bid — this page grows from "
+        "those.</div></div>")
+    return page("Guide", body)
+
+
 def flyover_page(addr):
     """Google Aerial View orbit video — every side of the house.
     (LaRee's questionnaire wish; solves 'can't find home pictures'.)"""
@@ -4455,6 +4560,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(settings_page((q.get("msg") or [""])[0]))
         if self.path == "/history":
             return self._send(history_page())
+        if self.path == "/guide":
+            return self._send(guide_page())
         if self.path.startswith("/flyover"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             return self._send(flyover_page(q.get("addr", [""])[0]))

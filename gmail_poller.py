@@ -659,6 +659,12 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
             record["pipeline_output"] = buf.getvalue()
             if draft:                       # structured copy for the dashboard
                 record["draft"] = draft
+                # a known customer often skips their address — the
+                # pipeline found it in Jobber; keep it ON the record
+                # (Becky lesson: record stayed address-less)
+                if not record.get("address"):
+                    record["address"] = (draft.get("customer") or {}) \
+                        .get("address")
             # playbook rule that deserves the queue badge (seasons.py)
             if not record.get("office_alert"):
                 m_a = _re.search(r"OFFICE_ALERT: (.+)",
