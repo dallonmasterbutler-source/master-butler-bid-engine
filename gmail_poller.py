@@ -285,6 +285,46 @@ def _attach_event(target_stamp, ev, event_stamp):
         print(f"  (event attach failed: {e})")
 
 
+def _transcribe_voicemail(record, parsed, raw_bytes, stamp, who):
+    """Audio attachment -> words on the dashboard (Dallon: 'extract the
+    info from the audio'). Returns True when a transcript landed."""
+    try:
+        import email as _em
+        import transcribe
+        msg_obj = _em.message_from_bytes(raw_bytes, policy=_em.policy.default)
+        fn, audio = transcribe.extract_audio(msg_obj)
+        if not audio:
+            return False
+        vdir = BASE / "data" / "voicemail"
+        vdir.mkdir(parents=True, exist_ok=True)
+        (vdir / f"{stamp}-{(fn or 'vm.wav')}").write_bytes(audio)
+        text = transcribe.transcribe(audio, fn or "")
+        if not text:
+            record["office_alert"] = (
+                f"VOICEMAIL AUDIO from {who} attached but transcription "
+                "unavailable — audio saved to data/voicemail; dial in or "
+                "enable Speech-to-Text (one click, ask Claude).")
+            return False
+        record["newest_message"] = f"🎙 VOICEMAIL: “{text}”"
+        record["kind"] = "new_request"
+        from email_parser import find_services, find_address
+        record["services"] = find_services(text) or record.get("services")
+        record["address"] = record.get("address") or find_address(text)
+        record["office_alert"] = (f"🎙 Voicemail from {who} — transcribed "
+                                  "automatically; their words are below.")
+        try:
+            import msglog
+            msglog.record("in", parsed.get("sender_email") or "",
+                          name=who, subject="Voicemail", body=text,
+                          stamp=stamp)
+        except Exception:
+            pass
+        return True
+    except Exception as e:
+        print(f"  (voicemail transcription skipped: {e})")
+        return False
+
+
 def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     """Run one raw email through the pipeline; save the shadow draft."""
     SHADOW_DIR.mkdir(parents=True, exist_ok=True)
@@ -409,6 +449,9 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
                    + (f", {cid['address']}" if cid.get("address") else ""))
         elif parsed.get("phone"):
             who = f"{who} — not in Jobber, likely NEW lead"
+        if style in ("notification", "audio") and \
+                _transcribe_voicemail(record, parsed, raw_bytes, stamp, who):
+            style = "transcript"
         if style == "notification":
             record["office_alert"] = (
                 f"VOICEMAIL from {who}"
