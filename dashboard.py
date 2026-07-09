@@ -1707,33 +1707,50 @@ def messages_page(sel=None, draft=""):
         read_marks[sel] = cur[2][-1]["at"]
         _msg_read_save(read_marks)
 
-    def render_items(group):
+    def render_items(group, is_unread):
         items = ""
         for addr, name, msgs in group[:40]:
             last = msgs[-1]
             active = addr == sel
             arrow = "←" if last["dir"] == "in" else "→"
+            if active:
+                box = "background:#0b3d2e;color:#fff"
+                nm_c, tx_c = "color:#fff", "color:#bcd3c7"
+            elif is_unread:
+                # UNREAD = LOUD: gold bar, tinted card, big dot, bold ink
+                box = ("background:#fdf4dd;border-left:5px solid #c9a227;"
+                       "box-shadow:0 1px 3px rgba(160,110,10,.15)")
+                nm_c, tx_c = "color:#0b3d2e", "color:#4b5563;font-weight:600"
+            else:
+                # read = quiet and grey
+                box = "opacity:.55"
+                nm_c = "color:#5b6570;font-weight:500"
+                tx_c = "color:#9aa1ab"
+            dot = ("<span style='color:#c9861a;font-size:15px'>●</span> "
+                   if is_unread and not active else "")
+            unread_tag = ("<span style='float:right;background:#c9a227;"
+                          "color:#0b3d2e;font-size:9px;font-weight:800;"
+                          "border-radius:999px;padding:1px 7px'>NEW</span>"
+                          if is_unread and not active else "")
             items += (
             f"<a href='/messages?t={urllib.parse.quote(addr)}' "
             f"style='display:block;padding:11px 14px;border-radius:12px;"
-            f"margin-bottom:4px;text-decoration:none;"
-            f"{'background:#0b3d2e;color:#fff' if active else ''}'>"
-            f"<b style='font-size:13.5px;"
-            f"{'color:#fff' if active else 'color:#0b3d2e'}'>"
-            f"{esc(name)[:26]}</b>"
-            f"<div style='font-size:12px;{'color:#bcd3c7' if active else 'color:#8a929c'};"
+            f"margin-bottom:5px;text-decoration:none;{box}'>"
+            f"{unread_tag}"
+            f"<b style='font-size:13.5px;{nm_c}'>{dot}{esc(name)[:24]}</b>"
+            f"<div style='font-size:12px;{tx_c};"
             f"white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"
             f"{arrow} {esc((last.get('body') or last.get('subject') or '')[:44])}"
             f"</div></a>")
         return items
 
-    items = render_items(unread) or "<div class='subtext' style='padding:8px 14px'>All caught up ✅</div>"
+    items = render_items(unread, True) or "<div class='subtext' style='padding:8px 14px'>All caught up ✅</div>"
     older_html = ""
     if older:
         older_html = (f"<details style='margin-top:10px'><summary "
                       f"style='cursor:pointer;color:var(--mut);font-size:12px;"
                       f"font-weight:700;padding:0 14px'>Older conversations "
-                      f"({len(older)})</summary>{render_items(older)}</details>")
+                      f"({len(older)})</summary>{render_items(older, False)}</details>")
     thread_html = ""
     tname, tmsgs = sel, []
     for addr, name, msgs in ts:
