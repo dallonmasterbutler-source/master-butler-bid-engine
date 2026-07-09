@@ -149,7 +149,10 @@ def flagged_for_review():
 # itself, and robot mail, goes to a collapsed drawer instead — shown,
 # never dropped. Add more internal senders in data/internal_senders.txt
 # (one email or domain per line).
-INTERNAL_DEFAULT = ["masterbutlerinc.com", "dallon.masterbutler@gmail.com"]
+INTERNAL_DEFAULT = ["masterbutlerinc.com", "dallon.masterbutler@gmail.com",
+                    # Tom + Kate (Dallon, Jul 9: Tom's office back-and-
+                    # forth was sitting on the queue as customer bids)
+                    "tomfricke2007@gmail.com", "frickefamily07@gmail.com"]
 NOISE_SENDERS = ["no-reply", "noreply", "donotreply", "marketing@",
                  "accounts.google.com", "notifications@", "newsletter",
                  "invoice+statements", "@stripe.com", "receipts@"]

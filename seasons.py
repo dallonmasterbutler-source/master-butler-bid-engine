@@ -142,6 +142,24 @@ def check(parsed, prop=None, when=None):
                      "only = no increase). Send home + pricing to "
                      "Dallon to double-check.")
 
+    # 8b · TOM'S ONE-OFF PRICING ANCHORS (learned from his office
+    #      threads, Jul 9 — Dallon: "needs to be learned from")
+    if has("solar panel", where=text) and has("pressure", "wash", "clean",
+                                              where=text):
+        notes.append("Solar panels: $10 per panel per side to pressure "
+                     "wash (Tom's ruling, Jul 2026; was $6 — raised). "
+                     "$27/side + materials if painting.")
+    if has("paint", "painting", where=text) and has("exterior", "house",
+                                                    "siding", where=text):
+        notes.append("Exterior painting: Tom's anchor ≈$3,200 labor + "
+                     "paint (includes pressure-wash prep) — he usually "
+                     "wants to see the house in person first. Custom "
+                     "quote, forward to Tom.")
+    if has("stain", "staining", where=text) and "fence" in text:
+        notes.append("Fence staining: $27 per side per panel + materials "
+                     "(Tom, Jul 2026). Pressure wash prep: $6 per panel "
+                     "per side.")
+
     # 9 · RUST STAINS: we don't (doc 9.5)
     if "rust" in text and has("pressure", "wash", "driveway",
                               "concrete"):
