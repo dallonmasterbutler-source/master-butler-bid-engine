@@ -509,19 +509,18 @@ def _history_hits(records, services):
 # ── html helpers (no frameworks — Martha's machine is slow) ──
 
 STYLE = """<style>
-@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 :root{--green:#0b3d2e;--green2:#177245;--accent:#1e8449;--gold:#c9a227;
-      --bg:#f8f9fa;--ink:#171b21;--mut:#6b7280;--line:#f0f1f3;
-      --card:#ffffff;--soft:#fafbfb}
+      --goldbg:#fdf4dd;--alarm:#b03a2e;
+      --bg:#f7f7f5;--ink:#1a1e1c;--mut:#6b736e;--line:#e7e9e5;
+      --card:#ffffff;--soft:#f1f3f0}
 *{box-sizing:border-box}
-body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,
      sans-serif;margin:0;background:var(--bg);color:var(--ink);
-     font-size:14.5px;line-height:1.5}
-h1,h2,h3,.total,.stat b{font-family:'Hanken Grotesk','Inter',sans-serif}
+     font-size:15px;line-height:1.55}
 .rail{position:fixed;left:0;top:0;bottom:0;width:212px;z-index:60;
       background:linear-gradient(175deg,var(--green),#08301f);
       display:flex;flex-direction:column;padding:20px 12px}
-.rail .brand{color:#fff;font-family:'Hanken Grotesk',sans-serif;
+.rail .brand{color:#fff;
       font-weight:800;font-size:17px;padding:2px 10px 18px;
       letter-spacing:-.2px}
 .rail .brandsub{color:#7ea892;font-size:9.5px;font-weight:700;
@@ -544,8 +543,7 @@ header{background:#fff;color:var(--green);padding:0 26px;min-height:56px;
        border-bottom:1px solid var(--line);
        box-shadow:0 1px 2px rgba(16,24,40,.04);
        display:flex;align-items:center;flex-wrap:wrap;gap:8px;
-       position:sticky;top:0;z-index:50;
-       font-family:'Hanken Grotesk',sans-serif}
+       position:sticky;top:0;z-index:50}
 header #who{color:var(--mut)}
 header #who b{color:var(--green)}
 .wrap{max-width:1180px;margin:0;padding:24px 24px 48px;flex:1}
@@ -582,7 +580,7 @@ header #who b{color:var(--green)}
       text-transform:uppercase;letter-spacing:1px}
 .band div{padding:3px 0}
 table{width:100%;border-collapse:collapse;font-size:14px}
-th{text-align:left;color:#9aa1ab;font-weight:700;padding:10px 8px;
+th{text-align:left;color:var(--mut);font-weight:700;padding:10px 8px;
    border-bottom:1px solid var(--line);font-size:10px;
    text-transform:uppercase;letter-spacing:1px}
 td{padding:13px 8px;border-bottom:1px solid var(--line);vertical-align:top}
@@ -590,7 +588,7 @@ tr:hover td{background:var(--soft)}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 td b{color:var(--green)}
 .age{font-weight:700;font-variant-numeric:tabular-nums}
-.age.warn{color:#c77700}.age.late{color:#c0392b}
+.age.warn{color:#c77700}.age.late{color:var(--alarm)}
 .chip{display:inline-block;background:#f2f5f3;border-radius:999px;
       padding:3px 12px;margin:2px 3px 2px 0;font-size:12px;color:#3f5147;
       font-weight:500}
@@ -604,23 +602,23 @@ pre{background:var(--soft);border:1px solid var(--line);border-radius:12px;
        padding:12px 16px}
 .notes div{padding:4px 0;border-bottom:1px dashed #eee}
 .notes div:last-child{border-bottom:0}
-button,.btn{background:var(--green);color:#fff;border:0;border-radius:10px;
+button,.btn{background:var(--green);color:#fff;border:0;border-radius:11px;
        padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;
        margin:3px 3px 3px 0;transition:transform .1s,filter .12s;
-       font-family:'Inter',sans-serif}
+       font-family:inherit}
 button:hover{filter:brightness(1.12)}
 button:active{transform:scale(.96)}
-button.big{padding:12px 24px;font-size:15px;background:var(--gold);
-       color:var(--green)}
-button.gray{background:#fff;color:#4b5563;border:1px solid #e2e5e9;
-       font-weight:600}
+button.big{padding:12px 22px;font-size:14.5px;background:var(--green);
+       color:#fff;font-weight:800}
+button.gray{background:var(--soft);color:var(--ink);
+       border:1px solid var(--line);font-weight:600}
 button.red{background:#b03a2e}
 .reason{background:#fff;color:var(--green2);border:1.5px solid var(--green2);
         font-weight:500;padding:7px 12px}
 .reason.sel{background:var(--green2);color:#fff}
 input[type=text],input[type=date],select,textarea{width:100%;padding:10px 12px;
-       border:1px solid #e2e5e9;border-radius:10px;font-size:14px;
-       font-family:'Inter',sans-serif;background:#fff}
+       border:1px solid var(--line);border-radius:10px;font-size:14px;
+       font-family:inherit;background:var(--card)}
 input[type=text]:focus,textarea:focus{outline:2px solid var(--gold);
        border-color:transparent}
 input[type=date],select{width:auto}
