@@ -518,11 +518,11 @@ STYLE = """<style>
 /* the mockup's GREEN-SCALE dark theme (Dallon: 'the background is
    green as well') — follows the machine's appearance setting */
 @media (prefers-color-scheme: dark){
-  :root{--bg:#121614;--card:#1b211e;--line:#2b332e;--ink:#e8ece9;
-        --mut:#94a09a;--soft:#232a26;--goldbg:#33290f;--goldink:#e8c56a;
-        --accent:#5fbd85;--green2:#4fae78;
-        --bluebg:#1a2440;--blueink:#93b4f5;
-        --purplebg:#241a40;--purpleink:#c4b0f0}
+  :root{--bg:#12211a;--card:#1a2f25;--line:#2f4a3c;--ink:#eaf2ec;
+        --mut:#a3bcae;--soft:#24402f;--goldbg:#3d3213;--goldink:#eccf7e;
+        --accent:#6cc794;--green2:#5abd85;
+        --bluebg:#1d2c4d;--blueink:#a3c0f7;
+        --purplebg:#2c2050;--purpleink:#cdbaf5}
   .ring{background:var(--card)}
   header{background:var(--card);color:var(--ink)}
   td b{color:var(--accent)}
