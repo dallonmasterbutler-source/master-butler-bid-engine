@@ -508,6 +508,14 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
                 record["customer_status"] = f"returning ({cs['invoices']} jobs)"
             if cs.get("url"):
                 record["jobber_client_url"] = cs["url"]
+            # PHOTO PORT (Jessica, Jul 9): on-site pictures already on
+            # the client's Jobber profile come over during intake —
+            # they show in the bid's gallery labeled 'Jobber'.
+            if cs.get("id") and cs.get("known"):
+                try:
+                    _port_jobber_photos(cs["id"], record, stamp)
+                except Exception:
+                    pass
     if parsed.get("jobber_event"):
         ev = parsed["jobber_event"]
         record["jobber_event"] = ev
@@ -761,6 +769,45 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
             print("     → cloud: " + ("synced" if ok else "queued (offline)"))
     except Exception:
         pass                    # cloud mirroring never blocks shadow mode
+
+
+def _port_jobber_photos(client_id, record, stamp, cap=6):
+    """Pull the client's own on-site pictures from their Jobber profile
+    into the bid's gallery (Jessica, Jul 9). Saved under kind 'jobber';
+    the gallery labels them automatically. Cloud-direct or courier."""
+    import re as _re
+    import urllib.request as _ur
+    import jobber_client as jc
+    photos = jc.client_photos(client_id, limit=cap)
+    if not photos:
+        return
+    ref = (_re.sub(r"[^a-z0-9]+", "-",
+                   (record.get("address") or "").lower()).strip("-")[:60]
+           or stamp)
+    saved = 0
+    for i, (_fn, url) in enumerate(photos):
+        try:
+            data = _ur.urlopen(url, timeout=25).read()
+            if len(data) > 4_000_000:
+                continue
+            from imgprep import prep_jpeg_bytes
+            data = prep_jpeg_bytes(data, 1000, 72)
+        except Exception:
+            continue
+        try:
+            import clouddb
+            if clouddb.available():
+                clouddb.put_photo(ref, "jobber", i, data)
+            else:
+                from cloudpush import push
+                import base64 as _b64
+                push(photos=[{"ref": ref, "kind": "jobber", "idx": i,
+                              "b64": _b64.b64encode(data).decode()}])
+            saved += 1
+        except Exception:
+            continue
+    if saved:
+        print(f"     → ported {saved} on-site photo(s) from Jobber")
 
 
 def _keep_cloud_warm():

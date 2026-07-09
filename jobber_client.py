@@ -298,7 +298,7 @@ def caller_id(phone):
 CLIENT_SUMMARY = """
 query Summary($term: String!) {
   clients(searchTerm: $term, first: 5) {
-    nodes { emails { address } jobberWebUri
+    nodes { id emails { address } jobberWebUri
             invoices(first: 1) { totalCount } }
   }
 }
@@ -324,7 +324,8 @@ def client_summary(email_addr):
         if email_addr.lower() in addrs:
             return {"known": True,
                     "invoices": node["invoices"]["totalCount"],
-                    "url": node.get("jobberWebUri")}
+                    "url": node.get("jobberWebUri"),
+                    "id": node.get("id")}
     return {"known": False, "invoices": 0}
 
 
@@ -792,6 +793,47 @@ mutation Note($clientId: EncodedId!, $input: ClientCreateNoteInput!) {
   }
 }
 """
+
+
+CLIENT_PHOTOS = """
+query ClientPhotos($id: EncodedId!) {
+  client(id: $id) {
+    notes(first: 20) { nodes { ... on ClientNote {
+      fileAttachments(first: 8) {
+        nodes { fileName contentType url } } } } }
+  }
+}
+"""
+
+
+def client_photos(client_id, limit=8):
+    """Images already on the client's Jobber profile — on-site photos
+    the office/techs uploaded (Jessica, Jul 9: 'port over pictures from
+    jobber during the info gathering phase — easier for bids').
+    READ-ONLY; returns [(fileName, url)], skips our own bid-system
+    uploads (they came FROM us — porting them back is a loop)."""
+    global DRY_RUN
+    was = DRY_RUN
+    DRY_RUN = False
+    try:
+        data = _post(CLIENT_PHOTOS, {"id": client_id}, "client photos")
+    finally:
+        DRY_RUN = was
+    if data.get("dry_run") or data.get("error"):
+        return []
+    out = []
+    for note in ((data.get("client") or {}).get("notes") or {}) \
+            .get("nodes", []):
+        for a in (note.get("fileAttachments") or {}).get("nodes", []):
+            fn = a.get("fileName") or ""
+            if not (a.get("contentType") or "").startswith("image/"):
+                continue
+            if fn.startswith(("aerial-", "street-", "customer-")):
+                continue                    # our own uploads — skip
+            out.append((fn, a.get("url")))
+            if len(out) >= limit:
+                return out
+    return out
 
 
 def add_photos_to_client(client_id, photo_urls, message):

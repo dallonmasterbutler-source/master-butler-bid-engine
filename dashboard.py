@@ -4037,6 +4037,35 @@ GUIDE_FAQ = [
   "sends it. If a page glitches, go back to Bids and tell Dallon (or "
   "drop it in the idea box). The old layout still exists at /queue if "
   "you ever feel lost."),
+ ("Finding a customer fast",
+  "Type in the <b>🔎 Find a customer</b> box above the list — it "
+  "filters as you type, across every section. Clear it to get the "
+  "sections back."),
+ ("Have to step away mid-review?",
+  "Press <b>🚶 Stepping away</b> on the customer's card. It releases "
+  "your claim and keeps the entry bold, so the next person naturally "
+  "picks it up. Nothing to remember."),
+ ("Why is something marked ⚠ urgent at the very top?",
+  "The system reads for worry words — no-show, leak, damage, upset, "
+  "refund and the like — and floats those above everything, naming the "
+  "phrase it saw. Handle these first."),
+ ("My own quick responses (★)",
+  "Settings → <b>★ your-name's quick responses</b>. Ones you add there "
+  "show only in YOUR dropdown, marked ★. The shared set stays "
+  "everyone's — edit those in the section above it."),
+ ("Adding several services at once",
+  "In <b>➕ Add more services</b>, check as many as they asked for — "
+  "the running total updates live ('+$150 → new total $595') — then "
+  "one click adds them all."),
+ ("Holiday lights — whose schedule?",
+  "Office rule from Dallon &amp; Jessica (Jul 2026): a NEW install can "
+  "go on anyone's schedule, but that season's <b>takedown belongs to "
+  "the installer</b>. The following year the home goes back into the "
+  "normal route rotation."),
+ ("What's the 🧾 tax % by the address?",
+  "The exact sales-tax rate for that address, straight from the WA "
+  "Department of Revenue — the same rate the quote will charge. If it "
+  "ever looks wrong for the area, tell Dallon."),
 ]
 
 
@@ -4204,8 +4233,8 @@ def _photo_urls_for(stamp, address, host):
         return []
     urls = []
     for ref, kind, idx in clouddb.photos_index(_photo_refs(stamp, address)):
-        if kind == "eml":
-            continue
+        if kind in ("eml", "jobber"):   # 'jobber' came FROM Jobber —
+            continue                    # pushing it back is a loop
         # end with a real filename — Jobber names the attachment from
         # the URL tail (files landed as nameless '0' blobs without it)
         urls.append(f"https://{host}/pub/photo/"
