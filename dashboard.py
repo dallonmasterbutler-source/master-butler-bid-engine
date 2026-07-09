@@ -633,6 +633,61 @@ details.card[open] summary{margin-bottom:8px}
        font-size:15px;color:#fff}
 footer{margin:8px 0 28px;padding:0 24px;
        color:#a3aaa2;font-size:12px}
+/* ——— THE INBOX (mockup-exact, Jul 9) ——— */
+.ihead{padding:12px 12px 4px;font-size:11px;font-weight:800;color:var(--mut);
+  text-transform:uppercase;letter-spacing:1px}
+.irow{display:block;padding:12px;border-radius:10px;cursor:pointer;
+  margin:1px 0;text-decoration:none;color:var(--ink)}
+.irow:hover{background:var(--soft);text-decoration:none}
+.irow.sel{background:var(--soft);outline:2px solid var(--green2)}
+.irow .nm{font-size:14.5px;font-weight:600}
+.irow.unread .nm{font-weight:800}
+.irow.readq{opacity:.62}
+.irow .pv{color:var(--mut);font-size:12.5px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.irow .meta{display:flex;justify-content:space-between;margin-top:3px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;
+  background:var(--gold);margin-right:9px;vertical-align:1px}
+.word{font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--mut);
+  text-transform:uppercase}
+.word.act{color:var(--green2)}
+.iage{color:var(--mut);font-variant-numeric:tabular-nums;font-size:12.5px}
+.iage.alarm{color:var(--alarm);font-weight:700}
+.pinned{padding:20px 26px 16px;border-bottom:2px solid var(--line);
+  background:var(--card);border-radius:16px 16px 0 0}
+.pin-top{display:flex;justify-content:space-between;gap:18px;
+  align-items:flex-start;flex-wrap:wrap}
+.pin-top h2{margin:0;font-size:22px;letter-spacing:-.4px;color:var(--ink)}
+.pin-top .paddr{color:var(--mut);font-size:13.5px;margin-top:2px}
+.money{text-align:right}
+.money .ptotal{font-size:34px;font-weight:800;letter-spacing:-1.5px;
+  color:var(--green2);line-height:1}
+.money .conf{font-size:12px;font-weight:700;color:var(--mut);margin-top:2px}
+.say{background:var(--soft);border-radius:11px;padding:10px 14px;
+  font-style:italic;font-size:14px;margin-top:12px}
+.pchips{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+.pchips .chip{background:var(--goldbg);color:#7a5300;border-radius:999px;
+  padding:3px 12px;font-size:12px;font-weight:700}
+.pchips .chip.blue{background:#e5edff;color:#1d4ed8}
+.pchips .chip.purple{background:#f0e9fd;color:#6d28d9}
+.actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.readbtn{border:1px solid var(--line);background:none;border-radius:7px;
+  color:var(--mut);font-size:11px;padding:3px 9px;cursor:pointer;
+  vertical-align:4px;margin-left:8px;font-weight:600}
+.ifold{border:1px solid var(--line);border-radius:12px;margin-top:10px;
+  background:var(--card);padding:0}
+.ifold summary{cursor:pointer;font-weight:800;font-size:16px;
+  padding:16px 18px;display:flex;align-items:center;gap:10px;
+  list-style:none;color:var(--ink)}
+.ifold summary::-webkit-details-marker{display:none}
+.ifold summary::before{content:"▸";color:var(--green2);font-size:15px;
+  transition:transform .12s}
+.ifold[open] summary::before{transform:rotate(90deg)}
+.ifold .peek{color:var(--mut);font-weight:500;font-size:12.5px;
+  margin-left:auto;text-align:right}
+.ifold .fcount{background:var(--soft);border-radius:999px;font-size:11.5px;
+  padding:1px 9px;color:var(--mut);font-weight:700}
+.ifold .fbody{padding:4px 20px 18px;border-top:1px dashed var(--line)}
 @media(max-width:860px){.grid{grid-template-columns:1fr}
        .rail{position:static;width:auto;flex-direction:row;
              align-items:center;padding:10px;overflow-x:auto}
@@ -2399,10 +2454,26 @@ def inbox_page(sel=None, draft="", user=None):
                 age_h = (_dtm.now(_tz.utc) - t0).total_seconds() / 3600
             except Exception:
                 age_h = 0
+        # the customer's Jobber quote may live on an EARLIER record
+        # (the Mia lesson): look across all their bids, newest first
+        oq = next((b2.get("open_quote_ctx") for b2 in reversed(c["bids"])
+                   if b2.get("open_quote_ctx")), None)
+        qno = next((quotes.get(b2["stamp"]) for b2 in reversed(c["bids"])
+                    if quotes.get(b2["stamp"])), None)
+        won = any((sbs.get(b2["stamp"]) or "").lower() in
+                  ("approved", "converted")
+                  or (b2.get("jobber_event") or {}).get("event")
+                  == "quote_approved" for b2 in c["bids"])
+        if won and grp == 0:
+            word, wstyle = ("won — schedule it",
+                            "color:var(--green2);font-weight:800")
+        elif (oq or qno) and grp == 0 and word == "review":
+            word = "has a quote — see it"
         roster.append({"key": key, "c": c, "nb": nb, "unread": unread,
                        "grp": grp, "at": last_at, "word": word,
                        "wstyle": wstyle, "age": age_h or 0,
-                       "new_msg": new_msg})
+                       "new_msg": new_msg, "oq": oq, "qno": qno,
+                       "won": won})
     roster.sort(key=lambda r: (not r["unread"], ), reverse=False)
     roster.sort(key=lambda r: r["at"], reverse=True)
     roster.sort(key=lambda r: (r["grp"], not r["unread"]))
@@ -2428,9 +2499,7 @@ def inbox_page(sel=None, draft="", user=None):
                if active else "")
         op = "" if (r["unread"] or active or r["grp"] == 0) else "opacity:.62;"
         nm_w = "font-weight:800" if r["unread"] else "font-weight:600"
-        dot = ("<span style='display:inline-block;width:9px;height:9px;"
-               "border-radius:50%;background:var(--gold);margin-right:8px'>"
-               "</span>" if r["unread"] else "")
+        dot = "<span class='dot'></span>" if r["unread"] else ""
         if c["msgs"] and (not nb or c["msgs"][-1]["at"]
                           >= _stamp_utc(nb["stamp"])):
             last = c["msgs"][-1]
@@ -2444,21 +2513,18 @@ def inbox_page(sel=None, draft="", user=None):
         age = (f"{r['age']*60:.0f}m" if r["age"] < 1 else
                f"{r['age']:.0f}h" if r["age"] < 48 else
                f"{r['age']/24:.0f}d")
+        cls = ("irow sel" if active else
+               "irow unread" if r["unread"] else
+               "irow" if r["grp"] == 0 else "irow readq")
         return (
-            f"<a href='/?c={urllib.parse.quote(r['key'])}' "
-            f"style='display:block;padding:11px 12px;border-radius:10px;"
-            f"margin:1px 0;text-decoration:none;color:var(--ink);{op}{box}'>"
-            f"<div style='font-size:14px;{nm_w}'>{dot}"
+            f"<a href='/?c={urllib.parse.quote(r['key'])}' class='{cls}'>"
+            f"<div class='nm'>{dot}"
             f"{esc(c['name'] or c['email'] or '(no name)')[:30]}</div>"
-            f"<div style='color:var(--mut);font-size:12px;white-space:"
-            f"nowrap;overflow:hidden;text-overflow:ellipsis'>{esc(pv)}</div>"
-            f"<div style='display:flex;justify-content:space-between;"
-            f"margin-top:2px'><span style='font-size:10.5px;font-weight:700;"
-            f"letter-spacing:.4px;text-transform:uppercase;"
-            f"color:var(--mut);{r['wstyle']}'>{esc(r['word'])}</span>"
-            f"<span style='font-size:12px;font-variant-numeric:tabular-nums;"
-            + ("color:var(--alarm);font-weight:700" if alarm
-               else "color:var(--mut)") + f"'>{age}</span></div></a>")
+            f"<div class='pv'>{esc(pv)}</div>"
+            f"<div class='meta'><span class='word' style='{r['wstyle']}'>"
+            f"{esc(r['word'])}</span>"
+            f"<span class='iage{' alarm' if alarm else ''}'>{age}</span>"
+            f"</div></a>")
 
     sec_names = {0: "New — needs a person", 1: "In someone's hands",
                  2: "Waiting on customers"}
@@ -2475,10 +2541,7 @@ def inbox_page(sel=None, draft="", user=None):
         rows_g = [r for r in roster if r["grp"] == g]
         if not rows_g:
             continue
-        lst += (f"<div style='font-size:10.5px;font-weight:800;"
-                f"text-transform:uppercase;letter-spacing:1px;"
-                f"color:var(--mut);padding:12px 8px 3px'>"
-                f"{sec_names[g]} ({len(rows_g)})</div>")
+        lst += f"<div class='ihead'>{sec_names[g]} ({len(rows_g)})</div>"
         lst += "".join(row(r) for r in rows_g[:40])
     done_rows = [r for r in roster if r["grp"] == 3]
     lst += (f"<details style='margin-top:12px'><summary style='cursor:"
@@ -2579,11 +2642,9 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
             rng = (f"<div style='font-size:11.5px;font-weight:700;"
                    f"color:#c77700'>likely ${_r5(d['total']*0.8):,.0f}–"
                    f"${_r5(d['total']*1.2):,.0f}</div>")
-        total_html = (f"<div style='font-size:32px;font-weight:800;"
-                      f"letter-spacing:-1.5px;color:var(--green2);"
-                      f"line-height:1'>${d['total']:,.0f}</div>{rng}"
-                      + (f"<div style='font-size:11.5px;font-weight:700;"
-                         f"color:{cc}'>{conf}% sure</div>"
+        total_html = (f"<div class='ptotal'>${d['total']:,.0f}</div>{rng}"
+                      + (f"<div class='conf' style='color:{cc}'>{conf}% "
+                         f"sure · engine-priced</div>"
                          if conf is not None else ""))
     say = ""
     last_in = next((m for m in reversed(c["msgs"]) if m["dir"] == "in"),
@@ -2592,20 +2653,17 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                 or last_in.get("subject")) if last_in
                else (nb.get("newest_message") if nb else "")) or ""
     if say_txt:
-        say = (f"<div style='background:var(--soft);border-radius:11px;"
-               f"padding:10px 14px;font-style:italic;font-size:13.5px;"
-               f"margin-top:10px'>“{esc(say_txt[:260])}”</div>")
+        say = f"<div class='say'>“{esc(say_txt[:260])}”</div>"
     chips = ""
     if nb:
         if nb.get("sched_pref"):
-            chips += (f"<span class='chip' style='background:#e5edff;"
-                      f"color:#1d4ed8'>📅 {esc(nb['sched_pref'][:60])}</span> ")
+            chips += (f"<span class='chip blue'>📅 "
+                      f"{esc(nb['sched_pref'][:60])}</span> ")
         if nb.get("tech_request"):
-            chips += (f"<span class='chip' style='background:#f0e9fd;"
-                      f"color:#6d28d9'>👷 {esc(nb['tech_request'][:60])}</span> ")
+            chips += (f"<span class='chip purple'>👷 "
+                      f"{esc(nb['tech_request'][:60])}</span> ")
         if nb.get("office_alert"):
-            chips += (f"<span class='chip' style='background:var(--goldbg,"
-                      f"#fdf4dd);color:#7a5300'>⚠ "
+            chips += (f"<span class='chip'>⚠ "
                       f"{esc(nb['office_alert'][:90])}</span> ")
         chips += other_homes_card(nb)
     q = quotes.get(stamp) if stamp else None
@@ -2628,12 +2686,12 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                        f"style='display:inline;margin-left:8px'>"
                        f"<input type='hidden' name='addr' value='{esc(key)}'>"
                        f"<input type='hidden' name='back' value='/'>"
-                       f"<button class='gray' style='padding:2px 9px;"
-                       f"font-size:10.5px'>↩ mark unread</button></form>")
+                       f"<button class='readbtn'>↩ mark unread"
+                       f"</button></form>")
     actions = ""
     if actionable:
         actions = f"""
-  <div style='display:flex;gap:8px;margin-top:12px;flex-wrap:wrap'>
+  <div class='actions'>
    <form method='POST' action='/review' style='flex:2;min-width:220px'>
     <input type='hidden' name='stamp' value='{stamp}'>
     <input type='hidden' name='customer' value='{esc(nb.get("from") or "")}'>
@@ -2676,39 +2734,67 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
      email Dallon &amp; Tom</button>
    </form></div>"""
 
+    # THE CUSTOMER'S EXISTING JOBBER QUOTE (Dallon, the Mia rule):
+    # read the past, find the quote, put ALL of it in front of the
+    # office — never draft a second one.
+    oq = cur.get("oq")
+    qno = cur.get("qno")
+    quote_panel = ""
+    if oq:
+        st = (oq.get("status") or "").replace("_", " ")
+        stc = ("var(--green2)" if oq.get("status") == "approved"
+               else "#7a5300")
+        qlines = "".join(
+            f"<div style='display:flex;justify-content:space-between;"
+            f"font-size:13px;padding:2px 0'><span>{esc(li['name'])}"
+            f"</span><b>${(li.get('price') or 0):,.0f}</b></div>"
+            for li in (oq.get("lines") or []))
+        quote_panel = (
+            f"<div style='background:var(--goldbg);border:1px solid "
+            f"var(--gold);border-radius:12px;padding:12px 16px;"
+            f"margin-top:10px'><div style='display:flex;justify-content:"
+            f"space-between;align-items:center'><b>📋 Their Jobber quote "
+            f"#{esc(oq['number'])}"
+            + (f" <a href='{esc(oq['url'])}' target='_blank' "
+               f"rel='noopener'>open ↗</a>" if oq.get("url") else "")
+            + f"</b><span style='font-weight:800;color:{stc}'>"
+            f"{esc(st)} · ${oq['total']}</span></div>{qlines}"
+            f"<div class='subtext' style='margin-top:4px'>Work from THIS "
+            f"quote — don't make a second one. Add lines in Jobber if "
+            f"they asked for more.</div></div>")
+    elif qno:
+        quote_panel = (
+            f"<div style='background:var(--goldbg);border:1px solid "
+            f"var(--gold);border-radius:12px;padding:10px 16px;"
+            f"margin-top:10px'><b>📋 Their Jobber quote:</b> "
+            f"{quote_chip(qno, qurls)}"
+            + (" <span style='font-weight:800;color:var(--green2)'>— "
+               "APPROVED, schedule it 🎉</span>" if cur.get("won") else "")
+            + "</div>")
+
     addr_line = ""
     if nb and nb.get("address"):
         addr_line = (f"<a href='/property/{_slug(nb['address'])}'>"
                      f"{esc(nb['address'])}</a>")
     elif c["email"]:
         addr_line = esc(c["email"])
-    pinned = (f"<div class='card' style='border-bottom:2px solid "
-              f"var(--line)'>{banners}"
-              f"<div style='display:flex;justify-content:space-between;"
-              f"gap:16px;flex-wrap:wrap;align-items:flex-start'><div>"
-              f"<h2 style='margin:0;font-size:22px;letter-spacing:-.4px'>"
-              f"{esc(c['name'] or c['email'] or '')}{mark_unread}</h2>"
-              f"<div style='color:var(--mut);font-size:13px;margin-top:2px'>"
-              f"{addr_line}{jobber_bits}{ident_links}</div></div>"
-              f"<div style='text-align:right'>{total_html}</div></div>"
-              f"{say}"
-              + (f"<div style='margin-top:8px'>{chips}</div>" if chips else "")
+    pinned = (f"<div class='card pinned'>{banners}"
+              f"<div class='pin-top'><div>"
+              f"<h2>{esc(c['name'] or c['email'] or '')}{mark_unread}</h2>"
+              f"<div class='paddr'>{addr_line}{jobber_bits}{ident_links}"
+              f"</div></div>"
+              f"<div class='money'>{total_html}</div></div>"
+              f"{say}{quote_panel}"
+              + (f"<div class='pchips'>{chips}</div>" if chips else "")
               + actions + "</div>")
 
     # ── folds ──
     def fold(title, peek, inner, open_=False, count=None):
-        cnt = (f"<span style='background:var(--soft);border-radius:999px;"
-               f"font-size:11.5px;padding:1px 9px;color:var(--mut);"
-               f"font-weight:700'>{count}</span>" if count else "")
-        return (f"<details class='card' {'open' if open_ else ''} "
-                f"style='margin-top:10px'>"
-                f"<summary style='cursor:pointer;font-weight:800;"
-                f"font-size:15.5px;padding:4px 2px;display:flex;"
-                f"align-items:center;gap:10px'>{title} {cnt}"
-                f"<span style='color:var(--mut);font-weight:500;"
-                f"font-size:12.5px;margin-left:auto;text-align:right'>"
-                f"{peek}</span></summary>"
-                f"<div style='padding-top:8px'>{inner}</div></details>")
+        cnt = (f"<span class='fcount'>{count}</span>" if count else "")
+        return (f"<details class='ifold' {'open' if open_ else ''}>"
+                f"<summary>{title} {cnt}"
+                f"<span class='peek'>{peek}</span></summary>"
+                f"<div class='fbody'>{inner}</div></details>")
 
     folds = ""
     # line items (editable, same endpoint)
@@ -4394,6 +4480,20 @@ class Handler(BaseHTTPRequestHandler):
             if get("action") == "approve" and (
                     _push_enabled()
                     or get("stamp") in _blob_rw("push_allow", [])):
+                _rec_g = dict(_shadow_source()).get(get("stamp")) or {}
+                _oqg = _rec_g.get("open_quote_ctx") or {}
+                if _oqg and _oqg.get("status") != "archived":
+                    entry["note"] = (f"NOT pushed — customer already has "
+                                     f"quote #{_oqg.get('number')} "
+                                     f"({_oqg.get('status')}). Work from "
+                                     "that one in Jobber.")
+                    save_review(entry)
+                    self.send_response(303)
+                    back_g = get("back")
+                    self.send_header("Location", back_g if
+                                     back_g.startswith("/") else "/")
+                    self.end_headers()
+                    return
                 already_q = quote_numbers().get(get("stamp"))
                 if already_q:            # double-click guard: one bid,
                     entry["jobber_quote"] = already_q   # one quote, ever

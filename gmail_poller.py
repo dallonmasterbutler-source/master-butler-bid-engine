@@ -412,7 +412,8 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     # OPEN-QUOTE CHECK (Dallon Jul 8, the Shadi/Nithya lesson): a known
     # customer writing in usually continues an EXISTING quote thread —
     # say so before anyone drafts a duplicate.
-    if parsed["kind"] == "new_request" and parsed.get("sender_email") \
+    if parsed["kind"] in ("new_request", "scheduling", "other") \
+            and parsed.get("sender_email") \
             and not record.get("dns_match"):
         try:
             import jobber_client as jc
@@ -428,7 +429,12 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
                 "number": oq["quoteNumber"], "status": oq["quoteStatus"],
                 "total": oq["amounts"]["total"],
                 "created": (oq.get("createdAt") or "")[:10],
-                "url": oq.get("jobberWebUri")}
+                "url": oq.get("jobberWebUri"),
+                # ALL the info comes in (Dallon Jul 9, the Mia lesson)
+                "lines": [{"name": li["name"],
+                           "price": li.get("totalPrice")}
+                          for li in (oq.get("lineItems") or {})
+                          .get("nodes", [])][:8]}
             if oq["quoteStatus"] == "approved":
                 record["office_alert"] = (
                     f"📎 CUSTOMER ALREADY APPROVED quote "
@@ -550,16 +556,28 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     try:
         from dedup import check_duplicate
         priors = []
-        for pj in sorted(SHADOW_DIR.glob("*.json")):
-            pr = json.loads(pj.read_text())
+        try:                    # records live in the DB on Render — the
+            import clouddb as _cdb   # file glob found NOTHING there and
+            if _cdb.available():     # the dup guard never fired (Mia bug)
+                _source = _cdb.all_shadow()
+            else:
+                _source = [(pj.stem, json.loads(pj.read_text()))
+                           for pj in sorted(SHADOW_DIR.glob("*.json"))]
+        except Exception:
+            _source = []
+        for _st, pr in _source:
             m = _re.search(r"<([^>]+)>", pr.get("from", ""))
+            try:
+                _rcv = datetime.strptime(_st, "%Y%m%d-%H%M%S")
+            except ValueError:
+                continue
             priors.append({
-                "stamp": pj.stem,
+                "stamp": _st,
                 "sender_email": m.group(1) if m else "",
                 "phone": pr.get("phone"),
                 "address": pr.get("address"),
                 "thread_id": None,
-                "received": datetime.strptime(pj.stem, "%Y%m%d-%H%M%S"),
+                "received": _rcv,
             })
         m = _re.search(r"<([^>]+)>", record["from"])
         verdict = check_duplicate(
