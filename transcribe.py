@@ -49,6 +49,22 @@ def _recognize(payload_cfg, content_b64, key):
         for alt in res.get("alternatives", [])[:1]).strip()
 
 
+def _wav_rate(b):
+    """Sample rate from a PCM WAV header, or None if not a plain WAV."""
+    try:
+        if b[:4] == b"RIFF" and b[8:12] == b"WAVE":
+            import struct
+            fmt = b.find(b"fmt ")
+            if fmt > 0:
+                audio_format, _ch, rate = struct.unpack(
+                    "<HHI", b[fmt + 8:fmt + 16])
+                if audio_format == 1:            # PCM
+                    return rate
+    except Exception:
+        pass
+    return None
+
+
 def transcribe(audio_bytes, filename=""):
     """Audio bytes -> transcript text, or '' if not possible."""
     key = _key()
@@ -64,9 +80,18 @@ def transcribe(audio_bytes, filename=""):
     if name.endswith(".mp3"):
         attempts = [dict(base_cfg, encoding="MP3", sampleRateHertz=8000),
                     dict(base_cfg, encoding="MP3", sampleRateHertz=44100)]
-    else:                       # WAV/FLAC carry their own header info
-        attempts = [dict(base_cfg),
-                    dict(base_cfg, encoding="MULAW", sampleRateHertz=8000)]
+    else:
+        # the beta API does NOT read WAV headers itself ("bad encoding") —
+        # parse the header and say it explicitly (verified Jul 8: header-
+        # less config 400s; LINEAR16 @ parsed rate transcribes perfectly)
+        rate = _wav_rate(audio_bytes)
+        if rate:
+            attempts.append(dict(base_cfg, encoding="LINEAR16",
+                                 sampleRateHertz=rate))
+        attempts += [dict(base_cfg, encoding="MULAW", sampleRateHertz=8000),
+                     dict(base_cfg, encoding="LINEAR16",
+                          sampleRateHertz=8000),
+                     dict(base_cfg)]        # FLAC/OGG carry their own info
     for cfg in attempts:
         try:
             text = _recognize(cfg, content, key)
