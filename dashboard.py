@@ -633,7 +633,8 @@ button.red{background:#b03a2e}
 .reason.sel{background:var(--green2);color:#fff}
 input[type=text],input[type=date],select,textarea{width:100%;padding:10px 12px;
        border:1px solid var(--line);border-radius:10px;font-size:14px;
-       font-family:inherit;background:var(--card)}
+       font-family:inherit;background:var(--card);color:var(--ink)}
+select option{background:var(--card);color:var(--ink)}
 input[type=text]:focus,textarea:focus{outline:2px solid var(--gold);
        border-color:transparent}
 input[type=date],select{width:auto}
