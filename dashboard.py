@@ -69,6 +69,11 @@ def svc_label(s):
 
 
 def _push_enabled():
+    import os
+    # Render provides real env vars (no .env file in the cloud) — the
+    # old file-only read meant the global switch could never turn on
+    if os.environ.get("PUSH_ON_APPROVE", "").lower() == "true":
+        return True
     env = BASE / ".env"
     if env.exists():
         for line in env.read_text().splitlines():
