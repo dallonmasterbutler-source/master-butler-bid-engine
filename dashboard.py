@@ -1161,6 +1161,10 @@ def bid_page(stamp, user=None):
                             f"<img src='/aerial/{extra}' style='height:110px;"
                             f"margin:4px;border-radius:6px;border:2px solid "
                             f"{color}' title='{label}'></a>")
+    cust_email = ((b.get("draft") or {}).get("customer") or {}).get("email")
+    if not cust_email:
+        m_ce = re.search(r"<([^>]+)>", b.get("from") or "")
+        cust_email = m_ce.group(1) if m_ce else None
     convo_card = ""
     try:
         if cust_email:
@@ -1252,7 +1256,7 @@ def bid_page(stamp, user=None):
 
     # COMBINE: does this customer already have an OPEN quote in Jobber?
     combine_card = ""
-    cust_email = ((b.get("draft") or {}).get("customer") or {}).get("email")
+    # (cust_email now defined earlier, before the cards)
     bid_lines = ((b.get("draft") or {}).get("bid") or {}).get("services")
     if cust_email and bid_lines and not b.get("reviewed"):
         try:
