@@ -188,6 +188,52 @@ def process_manual(name, address, phone="", email="", services=None,
             f"⛔ DO NOT SERVICE — matches '{hit['name']}' in Jobber "
             f"(matched by {hit['matched_by']}). Do not quote or schedule.")
 
+    # KNOWN IN JOBBER? Same lookups an inbound email gets (Martha's
+    # catch, Jul 9: her New-lead test didn't grab her Jobber account) —
+    # email → client record; no match → phone → caller-ID; plus the
+    # open-quote check so a manual entry can't double-quote either.
+    if not hit:
+        try:
+            import jobber_client as jc
+            cs = jc.client_summary(email) if email else None
+            if cs is not None and cs.get("known"):
+                record["customer_status"] = (
+                    "in Jobber — no completed jobs yet"
+                    if cs.get("invoices", 0) == 0
+                    else f"returning ({cs['invoices']} jobs)")
+            elif phone:
+                cid = jc.caller_id(phone)
+                if cid:
+                    record["caller_id"] = cid
+                    record["customer_status"] = (
+                        f"returning ({cid.get('invoices', 0)} jobs)")
+                    record["office_alert"] = (
+                        (record.get("office_alert") or "") +
+                        f" 👤 EXISTING JOBBER CLIENT (matched by phone): "
+                        f"{cid['name']}, {cid.get('invoices', 0)} past "
+                        f"job(s)"
+                        + (f", {cid['address']}" if cid.get("address")
+                           else "") + ".").strip()
+            if record.get("customer_status") is None and (email or phone):
+                record["customer_status"] = "new"
+            if email and not record.get("customer_status", "").startswith("new"):
+                oq = jc.find_open_quote(email, scan=80)
+                if oq:
+                    record["open_quote_ctx"] = {
+                        "number": oq["quoteNumber"],
+                        "status": oq["quoteStatus"],
+                        "total": oq["amounts"]["total"],
+                        "created": (oq.get("createdAt") or "")[:10],
+                        "url": oq.get("jobberWebUri")}
+                    record["office_alert"] = (
+                        (record.get("office_alert") or "") +
+                        f" 📎 EXISTING OPEN QUOTE #{oq['quoteNumber']} "
+                        f"(${oq['amounts']['total']}, {oq['quoteStatus']})"
+                        " — reply on that quote, don't make a second "
+                        "one.").strip()
+        except Exception:
+            pass          # Jobber enrichment is a bonus, never a blocker
+
     _save(stamp, record, eml_path)
     _imagery_async(stamp, record, eml_path)
     return stamp, record
