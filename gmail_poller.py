@@ -568,10 +568,53 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
              "address": record.get("address"),
              "received": datetime.now()}, priors)
         if verdict["verdict"] == "suspected_duplicate":
-            record["duplicate_of"] = verdict["match"]["stamp"]
-            record["office_alert"] = (record.get("office_alert", "") +
-                f" POSSIBLE DUPLICATE of {verdict['match']['stamp']} "
-                f"({verdict['reason']}) — same job or new job?").strip()
+            # AUTO-SETTLE the obvious ones (the Fenich lesson): a
+            # services-free reply/confirmation in the same thread folds
+            # into the earlier bid by itself; the office is only asked
+            # when there could be NEW work.
+            prior_rec = {}
+            try:
+                pj = SHADOW_DIR / f"{verdict['match']['stamp']}.json"
+                if pj.exists():
+                    prior_rec = json.loads(pj.read_text())
+                else:
+                    import clouddb as _cdb
+                    if _cdb.available():
+                        prior_rec = dict(_cdb.all_shadow()).get(
+                            verdict["match"]["stamp"]) or {}
+            except Exception:
+                prior_rec = {}
+            from dedup import looks_same_job
+            if looks_same_job(record.get("subject"),
+                              prior_rec.get("subject"),
+                              record.get("newest_message"),
+                              bool(parsed.get("services"))):
+                record["merged_into"] = verdict["match"]["stamp"]
+                record["office_alert"] = None
+                print(f"     → auto-folded into {verdict['match']['stamp']}"
+                      " (reply/confirmation, no new services)")
+                try:
+                    from store import save_review as _sr
+                except Exception:
+                    _sr = None
+                try:
+                    import clouddb as _cdb
+                    entry = {"stamp": stamp, "action": "duplicate_same",
+                             "customer": record.get("from"), "by": "auto",
+                             "note": f"auto-folded into "
+                                     f"{verdict['match']['stamp']} — reply/"
+                                     "confirmation, no new services",
+                             "at": datetime.now().isoformat(
+                                 timespec="seconds")}
+                    if _cdb.available():
+                        _cdb.add_review(entry)
+                except Exception:
+                    pass
+            else:
+                record["duplicate_of"] = verdict["match"]["stamp"]
+                record["office_alert"] = (record.get("office_alert", "") +
+                    f" POSSIBLE DUPLICATE of {verdict['match']['stamp']} "
+                    f"({verdict['reason']}) — same job or new job?").strip()
         elif verdict["verdict"] == "multi_property":
             # realty / property manager: same client, another house —
             # NEW job, own property record, notes stay per-property

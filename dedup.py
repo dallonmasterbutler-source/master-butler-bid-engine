@@ -41,6 +41,29 @@ def normalize_phone(phone: str) -> str:
     return digits[-10:] if len(digits) >= 10 else digits
 
 
+def looks_same_job(subject, prior_subject, message, has_services):
+    """AUTO-VERDICT (learned from the Fenich case, Jul 9 — his 'Yes,
+    the 14th will work' sat on the queue asking 'same job or new
+    job?'). Returns True only when it's SAFE to say same job:
+      · the email adds NO new services, AND
+      · it's a reply in the same thread, OR reads like a short
+        confirmation/acknowledgment.
+    Anything with new services or real length still asks the office —
+    folding a genuinely new request is the unforgivable failure."""
+    if has_services:
+        return False
+    msg = (message or "").strip().lower()
+    subj = (subject or "").strip().lower()
+    psubj = (prior_subject or "").strip().lower()
+    core = re.sub(r"^(re:|fwd?:)\s*", "", psubj).strip()
+    same_thread = subj.startswith(("re:", "fwd")) and core and core in subj
+    confirmish = (len(msg) <= 220 and re.search(
+        r"\b(yes|works for (me|us)|will work|that works|sounds good|"
+        r"perfect|confirm(ed)?|ok(ay)?|see you (then|on)|thank(s| you))\b",
+        msg))
+    return bool(same_thread or confirmish)
+
+
 def check_duplicate(incoming: dict, open_requests: list) -> dict:
     """Compare one incoming request against open ones — PROPERTY-AWARE.
 
