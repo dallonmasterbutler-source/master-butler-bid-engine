@@ -54,7 +54,8 @@ def load_shadows():
             return
         # folded duplicates and filtered spam never make scoreboard rows
         # (Dallon Jul 9: 'there are duplicates in the scoreboard')
-        if rec.get("merged_into") or rec.get("spam_auto"):
+        if rec.get("merged_into") or rec.get("spam_auto") \
+                or rec.get("tech_sender"):
             return
         try:                    # pre-gate spam records never score
             import spam_filter

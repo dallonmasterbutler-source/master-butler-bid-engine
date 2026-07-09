@@ -227,6 +227,8 @@ def classify_row(rec):
         return "aside", f"jobber event: {ev.get('event')}"
     if rec.get("spam_auto"):          # the poller already ruled at intake
         return "aside", f"spam — {rec['spam_auto'][:80]}"
+    if rec.get("tech_sender"):        # field traffic (Jessica, Jul 9) —
+        return "main", None           # tagged 👷, visible, never a bid
     sender = (rec.get("from") or "").lower()
     # internal FIRST: Dallon/Tom's own strategy mail must never be able
     # to trip the sales-phrase lexicon
@@ -2410,6 +2412,8 @@ def _status_word(nb, holds, flags_open, sbs, claims):
     s = nb["stamp"]
     if nb.get("dns_match"):
         return "do not service", "color:var(--alarm);font-weight:800"
+    if nb.get("tech_sender"):         # field traffic, never a bid
+        return "👷 tech note", "color:#6d28d9;font-weight:700"
     if s in holds:
         return "parked", ""
     if s in flags_open:
@@ -2768,6 +2772,35 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                 f"#d8c7f7;border-left-color:#6d28d9;margin:0 0 10px'>"
                 f"<b style='color:#6d28d9'>🔍 {esc(sl[1])} asked:</b> "
                 f"“{esc(sl[0][:160])}”</div>")
+        if nb.get("tech_sender"):
+            banners += (
+                f"<div class='band' style='background:var(--purplebg,"
+                f"#f0e9fd);border-color:#d8c7f7;border-left-color:#6d28d9;"
+                f"margin:0 0 10px'><b style='color:#6d28d9'>👷 Field mail "
+                f"from {esc(nb['tech_sender'])}</b> — one of our techs. "
+                f"Never gets a bid; if it's about a customer, handle it on "
+                f"that customer's thread.</div>")
+        # TOM ONLY must SHOUT (Jessica, Jul 9: Becky Pohlman's 11/12
+        # pitch was in the data but nobody saw it on the card)
+        _pi0 = (nb.get("draft") or {}).get("prop_info") or {}
+        try:
+            from jobber_client import _is_tom_only as _tomchk
+            _tomjob = _tomchk(_pi0)
+        except Exception:
+            _tomjob = _pi0.get("pitch") == "tom_only"
+        if _tomjob and not nb.get("tech_sender"):
+            _why_tom = ("steep pitch (Tom-tier)" if _pi0.get("pitch")
+                        == "tom_only" else
+                        f"{_pi0.get('roof_material')} roof"
+                        if any(m in str(_pi0.get("roof_material")).lower()
+                               for m in ("shake", "tile", "metal"))
+                        else f"{_pi0.get('stories')} stories")
+            banners += (
+                f"<div class='band' style='background:#8a1f13;border-color:"
+                f"#6d160c;border-left-color:#ffb4a8;margin:0 0 10px'>"
+                f"<b style='color:#fff'>🧗 TOM ONLY JOB</b> "
+                f"<span style='color:#ffd9d2'>— {esc(_why_tom)}. Do not "
+                f"assign or schedule other techs on this roof.</span></div>")
 
     # pinned card pieces
     conf = nb.get("confidence") if nb else None

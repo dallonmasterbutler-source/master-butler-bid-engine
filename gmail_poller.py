@@ -377,6 +377,32 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     except Exception:
         pass
 
+    # TECH GATE (Jessica's call, Jul 9): mail FROM one of our techs is
+    # field traffic — a callback, a job question. Tagged and VISIBLE on
+    # the inbox, but never priced, never a lead, never spam-filtered.
+    try:
+        from techs import tech_for
+        _tech = tech_for(parsed.get("sender_email"))
+    except Exception:
+        _tech = None
+    if _tech:
+        record["tech_sender"] = _tech
+        record["kind"] = "tech_note"
+        print(f"  👷 tech mail — {_tech}: {record['subject'][:48]} "
+              "(tagged, no bid)")
+        (SHADOW_DIR / f"{stamp}.json").write_text(json.dumps(record,
+                                                             indent=1))
+        try:
+            import clouddb
+            if clouddb.available():
+                clouddb.ingest_shadow(stamp, record)
+            else:
+                from cloudpush import push_or_queue
+                push_or_queue(stamp, record)
+        except Exception:
+            pass
+        return
+
     # SPAM GATE (Dallon Jul 8: "teach our program... avoid putting it in
     # the dashboard"): solicitations get SAVED — visible in the queue's
     # spam drawer, never vanished — but skip pricing, Jobber lookups,
