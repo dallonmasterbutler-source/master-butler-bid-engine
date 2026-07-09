@@ -135,6 +135,36 @@ def process_manual(name, address, phone="", email="", services=None,
         import traceback
         record["pipeline_error"] = traceback.format_exc()[-500:]
 
+    # DUPLICATE GUARD: the office may not know a request is already on
+    # the queue (customer emailed AND called). Warn, don't block.
+    try:
+        import re as _re
+        from dns_check import canon_addr
+        want_addr = canon_addr(record.get("address") or "")
+        want_email = (email or "").lower()
+        import clouddb
+        source = (clouddb.all_shadow() if clouddb.available() else
+                  [(pp.stem, __import__("json").loads(pp.read_text()))
+                   for pp in sorted(SHADOW_DIR.glob("*.json"))])
+        for s, r in source:
+            if s == stamp:
+                continue
+            m = _re.search(r"<([^>]+)>", r.get("from") or "")
+            r_email = m.group(1).lower() if m else ""
+            same_email = want_email and want_email == r_email
+            same_addr = (want_addr and
+                         canon_addr(r.get("address") or "") == want_addr)
+            if same_email or same_addr:
+                record["office_alert"] = (
+                    (record.get("office_alert") or "") +
+                    f" ⚠ POSSIBLE DUPLICATE of an existing item on the "
+                    f"dashboard (same {'email' if same_email else 'address'}"
+                    f": {(r.get('from') or '')[:40]}). Check before "
+                    "quoting twice.").strip()
+                break
+    except Exception:
+        pass
+
     # DO-NOT-SERVICE GUARD: manual entries get the same door check.
     try:
         import dns_check

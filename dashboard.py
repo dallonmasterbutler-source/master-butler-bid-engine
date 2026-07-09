@@ -1395,9 +1395,26 @@ def bid_page(stamp, user=None):
     {''.join(f"<option value='{r}'>{r.replace('_', ' ')}</option>"
              for r in HOLD_REASONS)}
    </select>
-   until <input type='date' name='hold_until'
+   until <input type='date' name='hold_until' id='holddate'
                 style='padding:6px;border-radius:6px'>
    <button class='gray'>Hold (auto-resurfaces)</button>
+   <div style='margin-top:4px'>
+    <button type='button' class='gray' style='padding:3px 10px;font-size:11.5px'
+     onclick="qh(7)">+1 week</button>
+    <button type='button' class='gray' style='padding:3px 10px;font-size:11.5px'
+     onclick="qh(14)">+2 weeks</button>
+    <button type='button' class='gray' style='padding:3px 10px;font-size:11.5px'
+     onclick="qh('aug')">Dry season (Aug 1)</button>
+   </div>
+   <script>
+   function qh(d){{
+     var t = new Date();
+     if (d === 'aug') {{
+       t = new Date(t.getFullYear() + (t.getMonth() >= 7 ? 1 : 0), 7, 1);
+     }} else {{ t.setDate(t.getDate() + d); }}
+     document.getElementById('holddate').value = t.toISOString().slice(0,10);
+   }}
+   </script>
    <div style='font-size:12px;color:#888'>Hold parks the WORK, never the
    reply — customer still gets answered with the timeline.</div>
   </form>
@@ -2857,6 +2874,21 @@ class Handler(BaseHTTPRequestHandler):
             save_review({"stamp": get("stamp"), "action": "escalated",
                          "customer": get("customer"),
                          "note": f"form: {path.name}"})
+            # escalations now REACH Dallon & Tom immediately (internal
+            # email, same channel as the 🚩 flag)
+            try:
+                import mailer
+                host = self.headers.get("Host") or ""
+                link = (f"https://{host}/bid/{get('stamp')}" if host else "")
+                mailer.send_internal(
+                    f"❓ Office escalation: {get('customer')[:60]}",
+                    f"Question from {_user or 'the office'}:\n\n"
+                    f"{get('question') or '(no question written)'}\n\n"
+                    f"Customer: {get('customer')}\n"
+                    f"Address: {get('address')}\n"
+                    + (f"Bid: {link}\n" if link else ""))
+            except Exception:
+                pass
         elif self.path == "/photo_request":
             services = [s for s in get("services").split(",") if s]
             path = templates.draft_photo_request(
