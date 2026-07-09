@@ -618,11 +618,45 @@ FAVICON = ("<link rel='icon' href=\"data:image/svg+xml,<svg xmlns='http://"
            "font-size='90'>🎩</text></svg>\">")
 
 
+_RAIL_CACHE = {"at": 0.0, "q": 0, "m": 0}
+
+
+def _rail_counts():
+    """Queue items needing review + unread message threads — shown as
+    badges in the rail so the office sees work from any page."""
+    import time as _t
+    if _t.time() - _RAIL_CACHE["at"] < 30:
+        return _RAIL_CACHE["q"], _RAIL_CACHE["m"]
+    q = m = 0
+    try:
+        holds, _ = active_holds()
+        sbs = scoreboard_status()
+        for b in load_bids():
+            if b["reviewed"] or b["stamp"] in holds or sbs.get(b["stamp"]):
+                continue
+            if classify_row(b)[0] == "main":
+                q += 1
+        import msglog
+        marks = _msg_read()
+        m = sum(1 for a, n, ms in msglog.threads()
+                if ms[-1]["at"] > marks.get(a, ""))
+    except Exception:
+        pass
+    _RAIL_CACHE.update(at=_t.time(), q=q, m=m)
+    return q, m
+
+
 def page(title, body, refresh=None):
     auto = (f"<meta http-equiv='refresh' content='{refresh}'>"
             if refresh else "")
-    links = (("/", "📥", "Bid queue", "Bid queue"),
-             ("/messages", "💬", "Messages", "Messages"),
+    qn, mn = _rail_counts()
+
+    def badge(n):
+        return (f"<span style='margin-left:auto;background:#c9a227;"
+                f"color:#0b3d2e;border-radius:999px;padding:1px 8px;"
+                f"font-size:11px;font-weight:800'>{n}</span>" if n else "")
+    links = (("/", "📥", f"Bid queue{badge(qn)}", "Bid queue"),
+             ("/messages", "💬", f"Messages{badge(mn)}", "Messages"),
              ("/new", "➕", "New lead", "New lead"),
              ("/drafts", "📝", "Drafts", "Drafts"),
              ("/winback", "📞", "Win-back", "Win-back"),
@@ -1897,14 +1931,27 @@ def winback_page():
         phone = r.get("phone") or ""
         jump = ("<span class='chip' style='background:#fdecea;color:#b03a2e'>"
                 "price jumped</span>" if r.get("price_jump") else "")
-        mark = (f"<span class='subtext'>✓ contacted "
-                f"{esc((done.get(key) or {}).get('at', ''))[:10]}</span>"
-                if is_done else
-                f"<form method='POST' action='/winback_done' "
-                f"style='display:inline'>"
-                f"<input type='hidden' name='name' value='{esc(key)}'>"
-                f"<button class='gray' style='padding:4px 12px'>✓ contacted"
-                f"</button></form>")
+        if is_done:
+            d0 = done.get(key) or {}
+            oc = d0.get("outcome", "contacted")
+            oc_style = {"rebooked": "background:#e6f4ea;color:#1e6b34",
+                        "not interested": "background:#fdecea;color:#a93226"}
+            mark = (f"<span class='chip' style='{oc_style.get(oc, '')}'>"
+                    f"{esc(oc)} · {esc(d0.get('at', ''))[:10]}"
+                    + (f" · {esc(d0['by'])}" if d0.get("by") else "")
+                    + "</span>")
+        else:
+            btns = "".join(
+                f"<button name='outcome' value='{v}' class='gray' "
+                f"style='padding:3px 9px;font-size:11.5px'>{t}</button>"
+                for v, t in (("rebooked", "✓ Rebooked!"),
+                             ("voicemail", "Voicemail"),
+                             ("no answer", "No answer"),
+                             ("not interested", "Not interested")))
+            mark = (f"<form method='POST' action='/winback_done' "
+                    f"style='display:inline;white-space:nowrap'>"
+                    f"<input type='hidden' name='name' value='{esc(key)}'>"
+                    f"{btns}</form>")
         body_rows += (
             f"<tr{' style=opacity:.45' if is_done else ''} "
             f"data-n='{esc(key.lower())}'>"
@@ -1922,7 +1969,10 @@ def winback_page():
  <p style='font-size:15px'>Loyal customers (2+ years, 3+ jobs) we haven't
  seen in 20+ months — worth <b>${rep.get('lost_lifetime_value', 0):,}</b>
  lifetime combined. Sorted by value: start at the top.
- <b>{remaining}</b> left to contact. A friendly "we miss you — want your
+ <b>{remaining}</b> left to contact.
+ <b style='color:#1e6b34'>{sum(1 for v in done.values()
+                              if v.get("outcome") == "rebooked")} rebooked so
+ far.</b> A friendly "we miss you — want your
  usual {datetime.now():%B} cleaning?" is the whole script.</p>
  <input id='wbf' type='text' placeholder='type a name to filter…'
         style='max-width:340px' oninput="
@@ -2760,8 +2810,14 @@ class Handler(BaseHTTPRequestHandler):
             if get("name"):
                 d = _winback_done()
                 d[get("name")] = {"at": datetime.now().isoformat(
-                    timespec="seconds")}
+                    timespec="seconds"),
+                    "outcome": get("outcome") or "contacted",
+                    "by": _user or ""}
                 _winback_save(d)
+                if get("outcome") == "rebooked":
+                    save_review({"stamp": "", "action": "winback_REBOOKED",
+                                 "customer": get("name"),
+                                 "note": "win-back call landed a booking 🎉"})
                 self.send_response(303)
                 self.send_header("Location", "/winback")
                 self.end_headers()
