@@ -235,6 +235,18 @@ def process(eml_path):
     except Exception:
         pass    # promises are a bonus, never a blocker
 
+    # ── OFFICE PLAYBOOK (Jul 9 — Martha/Jessica/LaRee's rules):
+    #    seasonal windows, service dependencies, referrals, skylights ──
+    try:
+        import seasons
+        s_alert, s_notes = seasons.check(parsed, prop)
+        office_flags += s_notes
+        if s_alert:
+            office_flags.append(s_alert)
+            print("OFFICE_ALERT: " + s_alert)   # poller lifts to the badge
+    except Exception:
+        pass    # playbook notes never block a bid
+
     # ── AERIAL CROSS-CHECK: the straight-down second opinion ──
     # Adds flags (wrong building, area disagreement) and may RAISE the
     # gutter-debris call from fresh canopy imagery. Never blocks a bid.

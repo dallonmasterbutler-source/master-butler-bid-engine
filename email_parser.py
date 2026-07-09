@@ -381,11 +381,42 @@ def parse_eml(path) -> dict:
         "phone": find_phone(fresh),
         "services": services,
         "kind": classify(fresh, services),
+        "sched_pref": find_sched_pref(fresh),
         "has_attachments": any(
             part.get_content_disposition() == "attachment"
             for part in msg.walk()
         ),
     }
+
+
+# ── SCHEDULING PREFERENCES (Martha, Jul 9: "people sometimes request
+# scheduling times or days of the week when they submit a quote
+# request, could the system capture these?") ──
+_SCHED_PAT = re.compile(
+    r"\b(?:"
+    r"(?:mon|tues|wednes|thurs|fri|satur|sun)days?"
+    r"|mornings?|afternoons?|evenings?"
+    r"|(?:before|after|by|around|between)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)"
+    r"|first app(?:ointmen)?t"
+    r"|week of"
+    r"|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}"
+    r"(?:st|nd|rd|th)?"
+    r"|\d{1,2}/\d{1,2}"
+    r")\b", re.I)
+
+
+def find_sched_pref(text):
+    """The sentence where the customer asks for a day or time — shown
+    on the bid so nobody misses 'before the party on the 19th'."""
+    if not text:
+        return None
+    for sent in re.split(r"(?<=[.!?\n])\s+", text[:1200]):
+        s = sent.strip()
+        if len(s) < 8 or len(s) > 220:
+            continue
+        if _SCHED_PAT.search(s):
+            return re.sub(r"\s+", " ", s)[:160]
+    return None
 
 
 # ─────────────────────────────────────────────────────────────

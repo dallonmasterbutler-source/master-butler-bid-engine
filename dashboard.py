@@ -1482,6 +1482,10 @@ def bid_page(stamp, user=None):
     {f"<a href='/property/{_slug(b.get('address'))}'>{esc(b.get('address'))}</a>"
      if b.get('address') else '— address not found'}
     <span class='subtext'> · {esc(cust_email or '')}</span></div>
+   {(f"<div style='margin-top:6px;display:inline-block;background:#e5edff;"
+     f"color:#1d4ed8;border-radius:999px;padding:4px 13px;font-size:12.5px;"
+     f"font-weight:700'>📅 Asked about timing: &ldquo;{esc(b['sched_pref'])}"
+     f"&rdquo;</div>") if b.get('sched_pref') else ''}
    <div class='subtext' style='margin-top:4px'>
     {esc(b.get('subject'))} · {esc(b.get('folder', 'INBOX'))}
     {quote_chip(my_quote, quote_urls(),
@@ -3359,6 +3363,22 @@ class Handler(BaseHTTPRequestHandler):
                     "2) 'Thank you for approving your quote! Our next "
                     "opening in your area is [DATE]. Please let us know if "
                     "that will work for you.'\n"
+                    "HOUSE RULES you may rely on (from the office's own "
+                    "documents): moss removal happens only in August — "
+                    "moss treatment (~$150) goes on first and needs 4-6 "
+                    "weeks to work; window cleaning and pressure washing "
+                    "pause each year from Oct 15 until late February; "
+                    "gutters can't be cleaned while holiday lights are "
+                    "up (Oct-Feb); roof blow-off is only sold together "
+                    "with a gutter cleaning unless the home has gutter "
+                    "guards; window tracks are NOT included in window "
+                    "cleaning (we wipe the base; detailed track cleaning "
+                    "is an extra the technician prices on-site); skylights "
+                    "are not included on high-risk roofs that only our "
+                    "lead technician can service; we carry liability "
+                    "insurance with American Family Insurance; discount: "
+                    "15% off services booked in the second half of August "
+                    "or September.\n"
                     "Rules: 2-5 sentences, plain warm English, no emojis, "
                     "never invent specific dates, prices, or promises not "
                     "present in the context. If you need a date/price the "

@@ -350,6 +350,7 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
               "subject": parsed["subject"], "kind": parsed["kind"],
               "services": parsed["services"], "address": parsed["address"],
               "phone": parsed.get("phone"),
+              "sched_pref": parsed.get("sched_pref"),
               "newest_message": parsed.get("newest_message")}
     # bulk-mail marker for the spam filter (real customers never have it)
     try:
@@ -592,6 +593,12 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
             record["pipeline_output"] = buf.getvalue()
             if draft:                       # structured copy for the dashboard
                 record["draft"] = draft
+            # playbook rule that deserves the queue badge (seasons.py)
+            if not record.get("office_alert"):
+                m_a = _re.search(r"OFFICE_ALERT: (.+)",
+                                 record["pipeline_output"])
+                if m_a:
+                    record["office_alert"] = m_a.group(1).strip()
             print("     → shadow draft generated")
         except Exception as e:
             record["pipeline_error"] = str(e)

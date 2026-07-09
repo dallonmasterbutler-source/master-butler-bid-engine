@@ -74,6 +74,7 @@ def process_manual(name, address, phone="", email="", services=None,
         "services": parsed.get("services") or services,
         "address": parsed.get("address") or address,
         "phone": parsed.get("phone") or phone,
+        "sched_pref": parsed.get("sched_pref"),
         "newest_message": parsed.get("newest_message"),
         "office_alert": f"MANUAL ENTRY — added by {entered_by} "
                         "(e.g. a tech's curbside lead). Ran through the full "
@@ -90,6 +91,15 @@ def process_manual(name, address, phone="", email="", services=None,
         addr = parsed.get("address") or address
         facts, flags, deduction = lookup(addr) if addr else ({}, [], 0)
         prop, oflags = build_property(parsed, facts or {})
+        try:                       # office playbook (seasons/dependencies)
+            import seasons
+            s_alert, s_notes = seasons.check(parsed, prop)
+            oflags += s_notes
+            if s_alert:
+                oflags.append(s_alert)
+                record["office_alert"] += " " + s_alert
+        except Exception:
+            pass
         out_lines = [f"MANUAL LEAD — {name}", f"Address: {addr}"]
         if not prop.get("sqft"):
             record["office_alert"] += (" No property size found — office "
