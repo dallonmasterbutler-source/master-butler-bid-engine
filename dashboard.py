@@ -658,7 +658,6 @@ def page(title, body, refresh=None):
     links = (("/", "📥", f"Bid queue{badge(qn)}", "Bid queue"),
              ("/messages", "💬", f"Messages{badge(mn)}", "Messages"),
              ("/new", "➕", "New lead", "New lead"),
-             ("/drafts", "📝", "Drafts", "Drafts"),
              ("/winback", "📞", "Win-back", "Win-back"),
              ("/scoreboard", "📊", "Scoreboard", "Scoreboard"),
              ("/settings", "⚙️", "Settings", "Settings"),
@@ -866,7 +865,10 @@ def home_page():
         sub = (quote_chip(q, qurls) if q else
                esc(b["from"]).split("&lt;")[-1].rstrip("&gt;")[:34])
         ring = ("—" if c is None else
-                f"<span class='ring' style='border-color:"
+                f"<span class='ring' title='how sure the system is about "
+                f"this price — green 75%+ is solid, orange means verify "
+                f"the flagged items, red means the data was thin' "
+                f"style='border-color:"
                 f"{'#1e8449' if c >= 75 else '#c77700' if c >= 50 else '#b03a2e'};"
                 f"color:{'#1e8449' if c >= 75 else '#c77700' if c >= 50 else '#b03a2e'}'>"
                 f"{c}%</span>")
@@ -1748,7 +1750,10 @@ def messages_page(sel=None, draft=""):
 <div style='display:grid;grid-template-columns:290px 1fr;gap:16px;
             align-items:start'>
  <div class='card' style='padding:12px'>
-  <h3 style='padding:0 6px'>Needs attention</h3>{items}{older_html}</div>
+  <h3 style='padding:0 6px;display:flex;align-items:center'>Needs attention
+   <form method='POST' action='/msg_read_all' style='margin-left:auto'>
+    <button class='gray' style='padding:2px 8px;font-size:10.5px'>mark all
+    read</button></form></h3>{items}{older_html}</div>
  <div class='card'>
   <h2 style='margin-top:0;display:flex;align-items:center;gap:10px'>
    {esc(tname)}
@@ -2790,6 +2795,16 @@ class Handler(BaseHTTPRequestHandler):
                                  "spam from now on"})
             self.send_response(303)
             self.send_header("Location", "/")
+            self.end_headers()
+            return
+        elif self.path == "/msg_read_all":
+            import msglog
+            marks = _msg_read()
+            for a, n, ms in msglog.threads():
+                marks[a] = ms[-1]["at"]
+            _msg_read_save(marks)
+            self.send_response(303)
+            self.send_header("Location", "/messages")
             self.end_headers()
             return
         elif self.path == "/msg_unread":
