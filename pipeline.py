@@ -263,6 +263,12 @@ def process(eml_path):
                 prop["debris"] = afields["debris"]
             for key, area in (afields.get("surfaces") or {}).items():
                 prop["surfaces"].setdefault(key, area)   # fill blanks only
+            # keep the raw reads for the record — the add-to-quote menu
+            # prices later services from these (real areas, real debris)
+            if afields.get("aerial_surfaces"):
+                prop["aerial_surfaces"] = afields["aerial_surfaces"]
+            if afields.get("canopy_level") == "heavy":
+                prop["debris_read"] = "heavy"
             office_flags += anotes
             print(f"    Aerial cross-check: {len(anotes)} note(s)")
         except Exception as e:
@@ -337,7 +343,12 @@ def process(eml_path):
                       "sqft_source": prop.get("sqft_source"),
                       "pitch": prop.get("pitch"),
                       "roof_material": prop.get("roof_material"),
-                      "stories": prop.get("stories")},
+                      "stories": prop.get("stories"),
+                      # persisted reads → add-to-quote menu prices real
+                      "aerial_surfaces": prop.get("aerial_surfaces"),
+                      "debris_read": prop.get("debris_read")
+                      or prop.get("debris"),
+                      "buildup_read": prop.get("buildup")},
         "total": total,
     }
 

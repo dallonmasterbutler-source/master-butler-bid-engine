@@ -2523,7 +2523,9 @@ def price_one_service(rec, svc):
     """Engine-price ONE service from the property facts already on the
     record — powers the add-to-quote menu (Dallon Jul 9: customer asks
     for gutters, then dryer vent, then PW — office shouldn't re-run
-    the whole system every time). Returns line dicts or None."""
+    the whole system every time). Returns line dicts or None.
+    Uses the REAL debris/buildup reads persisted at intake when the
+    record has them; PW surfaces price from aerial-measured areas."""
     pi = ((rec.get("draft") or {}).get("prop_info")) or {}
     if not pi.get("sqft"):
         return None
@@ -2532,6 +2534,12 @@ def price_one_service(rec, svc):
     if svc not in SERVICE_TO_ENGINE:
         return None
     key, val = SERVICE_TO_ENGINE[svc]
+    surfaces = {}
+    if key in ("driveway", "patio", "sidewalk", "deck"):
+        area = (pi.get("aerial_surfaces") or {}).get(key)
+        if not area:
+            return None               # no measured area — never guess
+        surfaces = {key: area}
     # BUNDLE CONTEXT: if the draft already has lines, the new service is
     # an ADD-ON — dryer vent drops to its add-on rate, windows use the
     # bundled floor. Price it alongside a companion, keep only its lines.
@@ -2541,12 +2549,14 @@ def price_one_service(rec, svc):
     if has_lines and key != "gutters":
         services["gutters"] = True
     prop = {"sqft": pi["sqft"], "stories": str(pi.get("stories") or "2"),
-            "pitch": pi.get("pitch") or "moderate", "debris": "moderate",
+            "pitch": pi.get("pitch") or "moderate",
+            "debris": pi.get("debris_read") or "moderate",
+            "buildup": pi.get("buildup_read") or "clean",
             "gutter_type": "standard",
             "roof_material": pi.get("roof_material") or "standard",
             "access": "normal", "window_style": "standard",
             "window_condition": "normal", "window_access": "standard",
-            "french_pane": "none", "surfaces": {},
+            "french_pane": "none", "surfaces": surfaces,
             "services": services}
     try:
         results, _notes, _conf = calculate_bid(prop)
@@ -2574,8 +2584,13 @@ def add_service_card(b):
             return (n or "").lower()
     have = {_service_key(s["name"]) for s in
             (d.get("bid") or {}).get("services") or []}
+    pi = d.get("prop_info") or {}
+    asf = pi.get("aerial_surfaces") or {}
+    menu = list(ADD_MENU) + [
+        (f"pw_{k}", f"Pressure wash {k} (~{a:,} sqft, aerial-measured)")
+        for k, a in sorted(asf.items()) if a]
     rows = ""
-    for svc, label in ADD_MENU:
+    for svc, label in menu:
         lines = price_one_service(b, svc)
         if not lines:
             continue
@@ -2594,16 +2609,29 @@ def add_service_card(b):
             f"➕ Add to quote</button></form></td></tr>")
     if not rows:
         return ""
+    debris_line = (f"debris/buildup priced from this home's imagery reads "
+                   f"({esc(pi.get('debris_read'))})"
+                   if pi.get("debris_read") else "standard debris assumed")
+    measure_btn = ""
+    if not asf and b.get("address"):
+        measure_btn = (
+            f"<form method='POST' action='/measure_surfaces' "
+            f"style='margin-top:8px'>"
+            f"<input type='hidden' name='stamp' value='{b['stamp']}'>"
+            f"<input type='hidden' name='customer' value='{esc(b.get('from') or '')}'>"
+            f"<button class='gray' style='font-size:12px'>📐 Measure "
+            f"driveway/patio/sidewalk from the sky (~2¢) — unlocks "
+            f"pre-priced pressure washing</button></form>")
     return (
         "<details class='card'><summary style='cursor:pointer;"
         "font-weight:700;color:var(--green2)'>➕ Add another service — "
         "pre-priced for this home (customer asked for more?)</summary>"
         "<table style='margin-top:8px'>" + rows + "</table>"
-        "<div class='subtext' style='margin-top:6px'>Engine prices from "
-        "this property's record (standard debris assumed) — the line "
-        "lands on the draft instantly, logged with your name. Bundle "
-        "discounts/minimums: give the total a once-over.</div>"
-        "</details>")
+        f"<div class='subtext' style='margin-top:6px'>Engine prices from "
+        f"this property's record ({debris_line}) — the line lands on the "
+        f"draft instantly, logged with your name. PW lines: office rule "
+        f"still applies — verify surfaces/pictures before booking.</div>"
+        + measure_btn + "</details>")
 
 
 def flyover_page(addr):
@@ -3722,6 +3750,53 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Location", "/")
             self.end_headers()
             return
+        elif self.path == "/measure_surfaces":
+            # ON-DEMAND aerial measure (older records lack the persisted
+            # reads): one Vision survey (~2¢) → real PW areas + debris.
+            stamp = get("stamp")
+            rec = dict(_shadow_source()).get(stamp)
+            if rec and rec.get("address"):
+                try:
+                    from aerial import cross_check
+                    afields, _n = cross_check(
+                        {"surfaces": {}, "services": {"gutters": True}},
+                        rec["address"])
+                    pi = rec.setdefault("draft", {}).setdefault(
+                        "prop_info", {})
+                    got = afields.get("aerial_surfaces") or {}
+                    if got:
+                        pi["aerial_surfaces"] = got
+                    if afields.get("debris") or afields.get("canopy_level"):
+                        pi["debris_read"] = (afields.get("debris")
+                                             or ("heavy" if afields.get(
+                                                 "canopy_level") == "heavy"
+                                                 else pi.get("debris_read")))
+                    if clouddb.available():
+                        clouddb.ingest_shadow(stamp, rec)
+                    else:
+                        (SHADOW / f"{stamp}.json").write_text(
+                            json.dumps(rec, indent=1))
+                        try:
+                            from cloudpush import push_or_queue
+                            push_or_queue(stamp, rec)
+                        except Exception:
+                            pass
+                    save_review({"stamp": stamp, "action": "surfaces_measured",
+                                 "customer": get("customer"),
+                                 "note": ("aerial: " + ", ".join(
+                                     f"{k} ~{a} sqft"
+                                     for k, a in got.items())
+                                     if got else "no surfaces visible "
+                                     "from above")})
+                except Exception as e:
+                    save_review({"stamp": stamp,
+                                 "action": "surfaces_measure_FAILED",
+                                 "customer": get("customer"),
+                                 "note": str(e)[:150]})
+            self.send_response(303)
+            self.send_header("Location", f"/bid/{stamp}")
+            self.end_headers()
+            return
         elif self.path == "/add_service":
             # ONE-CLICK LINE ADD (Dallon Jul 9): price the extra service
             # from the record and append — no full pipeline re-run.
@@ -3737,9 +3812,16 @@ class Handler(BaseHTTPRequestHandler):
                 rec["draft"]["total"] = sum(s["price"] for s in svcs)
                 rec["services"] = sorted(set((rec.get("services") or [])
                                              + [svc]))
+                _pi = (rec.get("draft") or {}).get("prop_info") or {}
                 note = (f"{svc.replace('_', ' ')} added from the menu by "
                         f"{_user or 'the office'} — engine-priced from the "
-                        "property record (standard debris assumed).")
+                        "property record "
+                        + (f"(debris: {_pi['debris_read']} from imagery)."
+                           if _pi.get("debris_read")
+                           else "(standard debris assumed).")
+                        + (" PW office rule: verify surfaces/pictures "
+                           "before booking." if svc.startswith("pw_")
+                           else ""))
                 bid_d.setdefault("notes", []).append(note)
                 rec["pipeline_output"] = (rec.get("pipeline_output", "")
                                           + f"\n      ⚠ {note}")

@@ -302,6 +302,20 @@ def cross_check(prop, address, today_year=2026, _reading=None, _tile=None):
                          f"sqft FROM ABOVE (range {s.get('sqft_low')}-"
                          f"{s.get('sqft_high')}, {conf} confidence){loud}.")
 
+    # 2a-bis) PERSIST every recognized surface (Jul 9, Dallon: the
+    #     add-to-quote menu should price PW from real measured areas,
+    #     not guess) — raw mids, notes stay gated below.
+    _surf_map = {"driveway": "driveway", "walkway": "sidewalk",
+                 "patio": "patio"}
+    _mids = {}
+    for s in reading.get("surfaces", []):
+        k = _surf_map.get(s.get("type"))
+        mid = int((s.get("sqft_low", 0) + s.get("sqft_high", 0)) / 2)
+        if k and mid > 0:
+            _mids[k] = max(mid, _mids.get(k, 0))
+    if _mids:
+        fields["aerial_surfaces"] = _mids
+
     # 2b) GENERIC "pressure washing" with NO surface named: don't guess
     #     which surfaces the customer meant — hand the office a PRICED
     #     MENU of what's visible from above instead. ONLY when they
@@ -336,6 +350,12 @@ def cross_check(prop, address, today_year=2026, _reading=None, _tile=None):
     #    heavy-debris charge note (Tillie lesson).
     debris_relevant = any(prop.get("services", {}).get(k)
                           for k in ("gutters", "roof", "moss"))
+    # the RAW canopy read persists regardless (a fact for the record —
+    # lets the add-to-quote menu price gutters with real debris later)
+    if not stale:
+        _c = reading.get("canopy_over_roof", {})
+        if _c.get("confidence") in ("high", "medium") and _c.get("level"):
+            fields["canopy_level"] = _c["level"]
     if not debris_relevant:
         pass
     elif stale:
