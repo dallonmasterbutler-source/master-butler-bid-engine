@@ -153,6 +153,25 @@ def build_profiles(bids, threads):
         by_email.setdefault(e, key)
         p["last"] = max(p["last"], meta.get("last") or "")
 
+    # clients the office created DIRECTLY in Jobber (hourly blob) —
+    # they get a file here even before any email/bid exists
+    for c in _blob("jobber_new_clients", []):
+        e = (c.get("email") or "").lower() or None
+        key = ((by_email.get(e) if e else None)
+               or (slug(c["address"]) if c.get("address") else None)
+               or e or f"jc:{c.get('id')}")
+        p = get(key)
+        _add_person(p, c.get("name"), e)
+        if e:
+            by_email.setdefault(e, key)
+        if c.get("address") and not p["addr"]:
+            p["addr"] = c["address"]
+        if c.get("phone") and c["phone"] not in p["phones"]:
+            p["phones"].append(c["phone"])
+        if c.get("url") and not p["jobber_url"]:
+            p["jobber_url"] = c["url"]
+        p["last"] = max(p["last"], (c.get("created") or "") + "T00:00:00")
+
     return profiles, by_email
 
 

@@ -166,6 +166,20 @@ def poll_once():
                 autoreview.run(verbose=False)   # matches review themselves
             except Exception:
                 pass
+            # clients the office creates DIRECTLY in Jobber appear on
+            # the Customers tab too (Dallon, Jul 9 pm) — hourly pull
+            try:
+                import jobber_client as _jcc
+                recent = _jcc.recent_clients(days=21)
+                if recent:
+                    import clouddb as _cdb
+                    if _cdb.available():
+                        _cdb.put_blob("jobber_new_clients", recent)
+                    else:
+                        from cloudpush import push as _cp
+                        _cp(blobs={"jobber_new_clients": recent})
+            except Exception:
+                pass
             try:
                 sb = json.loads((BASE / "data" / "scoreboard.json").read_text())
                 import clouddb

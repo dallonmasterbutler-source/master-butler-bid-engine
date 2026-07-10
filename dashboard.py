@@ -3435,6 +3435,8 @@ def customers_tab_page(sel=None, q="", user=None, draft=""):
                 f"{len(roster)-250} more — narrow the search.</div>")
 
     # ── right: one customer's whole file ──
+    if sel and sel not in profiles:
+        sel = by_email.get((sel or "").lower()) or sel   # email deep-link
     if not sel or sel not in profiles:
         detail = ("<div style='display:flex;align-items:center;"
                   "justify-content:center;min-height:420px;flex:1;"
@@ -3462,6 +3464,38 @@ def customers_tab_page(sel=None, q="", user=None, draft=""):
               f"href='{esc(p['jobber_url'])}' target='_blank' "
               f"rel='noopener'>👤 Jobber ↗</a>" if p.get("jobber_url")
               else "")
+        # ONE CLICK from the file to the money (Dallon, Jul 9 pm:
+        # 'if you search in customers, and then want to bust over to
+        # the bid, you can do it in a click')
+        quotes = quote_numbers()
+        oq_ = next((recs[s].get("open_quote_ctx")
+                    for s in sorted(p["stamps"], reverse=True)
+                    if s in recs and recs[s].get("open_quote_ctx")), None)
+        qno_ = next((quotes.get(s)
+                     for s in sorted(p["stamps"], reverse=True)
+                     if quotes.get(s)), None)
+        if oq_:
+            st_ = (oq_.get("status") or "").replace("_", " ")
+            jb += (f" <a class='chip win' style='text-decoration:none' "
+                   + (f"href='{esc(oq_['url'])}' target='_blank' "
+                      f"rel='noopener'" if oq_.get("url") else "")
+                   + f">📋 Open quote #{esc(oq_['number'])} · {esc(st_)}"
+                   f" · ${oq_['total']} ↗</a>")
+        elif qno_:
+            jb += " " + quote_chip(qno_, quote_urls())
+        if newest:
+            _lead = newest.get("lead") or {}
+            if p["emails"]:
+                bidkey = p["emails"][0]
+            elif _lead or newest.get("phone"):
+                bidkey = ("vm:" + (_lead.get("caller")
+                                   or newest.get("phone") or "?")
+                          + "|" + (_lead.get("when") or newest["stamp"]))
+            else:
+                bidkey = "stamp:" + newest["stamp"]
+            jb += (f" <a class='chip blue' style='text-decoration:none' "
+                   f"href='/?c={urllib.parse.quote(bidkey)}'>📥 Open on "
+                   f"Bids</a>")
         facts = ""
         _pi = ((newest or {}).get("draft") or {}).get("prop_info") or {}
         for f_ in (f"{_pi['sqft']:,} sqft" if _pi.get("sqft") else None,
@@ -3533,7 +3567,6 @@ def customers_tab_page(sel=None, q="", user=None, draft=""):
             if body_ and body_[:80] not in seen_bodies:
                 seen_bodies.add(body_[:80])
                 add_msg(_stamp_utc(s), "in", body_, b.get("subject"))
-        quotes = quote_numbers()
         for s in p["stamps"]:
             b = recs.get(s)
             if not b:

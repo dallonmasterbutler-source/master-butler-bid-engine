@@ -799,6 +799,48 @@ mutation Note($clientId: EncodedId!, $input: ClientCreateNoteInput!) {
 """
 
 
+RECENT_CLIENTS = """
+query Recent($since: ISO8601DateTime!) {
+  clients(first: 60, filter: {createdAt: {after: $since}}) {
+    nodes { id name createdAt jobberWebUri
+      emails { address } phones { number }
+      properties { address { street city postalCode } } } }
+}
+"""
+
+
+def recent_clients(days=14):
+    """Clients CREATED in Jobber in the last N days — so people the
+    office adds directly in Jobber appear on the Customers tab too
+    (Dallon, Jul 9 pm). READ-ONLY."""
+    from datetime import datetime, timedelta, timezone
+    global DRY_RUN
+    since = (datetime.now(timezone.utc)
+             - timedelta(days=days)).isoformat(timespec="seconds")
+    was, DRY_RUN = DRY_RUN, False
+    try:
+        d = _post(RECENT_CLIENTS, {"since": since}, "recent clients")
+    finally:
+        DRY_RUN = was
+    if d.get("dry_run") or d.get("error"):
+        return []
+    out = []
+    for n in (d.get("clients") or {}).get("nodes", []):
+        props = n.get("properties") or []
+        a = (props[0].get("address") or {}) if props else {}
+        addr = ", ".join(x for x in (a.get("street"), a.get("city"),
+                                     a.get("postalCode")) if x)
+        out.append({"id": n["id"], "name": n["name"],
+                    "created": (n.get("createdAt") or "")[:10],
+                    "url": n.get("jobberWebUri"),
+                    "email": ((n.get("emails") or [{}])[0]
+                              .get("address") or "").lower() or None,
+                    "phone": ((n.get("phones") or [{}])[0]
+                              .get("number")) or None,
+                    "address": addr or None})
+    return out
+
+
 CLIENT_PHOTOS = """
 query ClientPhotos($id: EncodedId!) {
   client(id: $id) {
