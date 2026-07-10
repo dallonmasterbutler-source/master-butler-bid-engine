@@ -6006,6 +6006,66 @@ class Handler(BaseHTTPRequestHandler):
             u = urllib.parse.unquote(cm.group(1)) if cm else None
             return self._send(inbox_page(q.get("c", [None])[0], user=u,
                                          pushed=q.get("pushed", [None])[0]))
+        if self.path.startswith("/newbid"):
+            # NEW-DESIGN PREVIEW (Dallon's Stitch 'Unified Command
+            # Center', Jul 10) — parallel route; office pages untouched
+            # until the evening flip.
+            m = re.match(r"^/newbid(?:/([\w-]+))?", self.path)
+            want = m.group(1) if m else None
+            recs = dict(_shadow_source())
+            rec = recs.get(want)
+            if not rec:                        # newest priced record
+                for s_, r_ in sorted(recs.items(), reverse=True):
+                    if ((r_.get("draft") or {}).get("total")
+                            and not r_.get("merged_into")
+                            and not r_.get("spam_auto")):
+                        want, rec = s_, r_
+                        break
+            if not rec:
+                return self._send(b"no records", 404)
+            import command_center
+            hero, purls = None, []
+            try:
+                idx = clouddb.photos_index(
+                    _photo_refs(want, rec.get("address")))
+                by_kind = {}
+                for ref, kind, i_ in idx:
+                    if kind == "eml":
+                        continue
+                    by_kind.setdefault(kind, []).append((ref, i_))
+                # hero preference: the real house from the street, then sky
+                for kind in ("street", "aerial", "customer", "jobber"):
+                    for ref, i_ in by_kind.get(kind, []):
+                        purls.append(f"/img/{ref}/{kind}/{i_}")
+                hero = purls[0] if purls else None
+            except Exception:
+                pass
+            hist = None
+            try:
+                hist = _history_entry(
+                    rec.get("address"),
+                    (rec.get("from") or "").split("<")[0].strip())
+            except Exception:
+                pass
+            links = []
+            try:
+                if rec.get("address"):
+                    from aerial_view import listing_links
+                    links = [("🎥 3D flyover",
+                              f"/flyover?addr="
+                              f"{urllib.parse.quote(rec['address'])}")]
+                    links += [(f"🏠 {n} ↗", u) for n, u in
+                              listing_links(rec["address"])]
+            except Exception:
+                pass
+            mk = ""
+            try:
+                mk = get_must_know(rec.get("address")) or ""
+            except Exception:
+                pass
+            return self._send(command_center.render(
+                rec, want, hero_url=hero, hist=hist, must_know=mk,
+                photo_urls=purls, links=links).encode())
         if self.path == "/queue":              # the pre-Inbox layout,
             return self._send(home_page())     # kept during transition
         if self.path == "/scoreboard":
