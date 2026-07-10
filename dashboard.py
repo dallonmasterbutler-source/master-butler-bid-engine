@@ -3600,9 +3600,12 @@ _is.onchange = function(){{
    <input type='hidden' name='sender' value='{esc(nb.get("from") or "")}'>
    <button class='gray'>🚫 Spam</button></form>""")
    if not c.get('vm') else ''}
-  <a href='/bid/{stamp}' class='chip' style='text-decoration:none'>
-   open the classic bid page →</a>"""
-        folds += fold("More", "photo request · spam · classic view", more)
+"""
+        # classic /bid link RETIRED from the UI (LaRee, Jul 10: 'there
+        # should not be a classic customer page — combine them'); the
+        # route still answers for old deep links, but nothing points
+        # there anymore.
+        folds += fold("More", "photo request · spam", more)
 
     scripts = """
 <script>
@@ -5022,6 +5025,12 @@ def _canned_payload():
     matching the name cookie and marks those entries ★."""
     shared = _blob_rw("canned_replies", {})
     personal = _blob_rw("canned_replies_personal", {})
+    # MOST-USED FIRST (LaRee, Jul 10: 'organize them to the top for most
+    # used, least used at bottom') — every pick bumps a counter; the
+    # dropdowns re-order themselves to how the office actually works.
+    usage = _blob_rw("qr_usage", {})
+    shared = dict(sorted(shared.items(),
+                         key=lambda kv: -usage.get(kv[0], 0)))
     return json.dumps({"shared": shared,
                        "personal": personal}).replace("</", "<\\/")
 
@@ -5051,6 +5060,16 @@ if (!window.__qrHotkeys) {
       }
     });
   }, 400);
+  // usage beacon — every pick bumps its counter so dropdowns re-order
+  // to most-used first (LaRee, Jul 10)
+  document.addEventListener('change', function(e){
+    var t = e.target;
+    if (!t.matches || !t.matches("select[id$='canned']") || !t.value) return;
+    var nm = t.value.replace(/^\\u2605 /, '');
+    try { navigator.sendBeacon('/qr_used',
+      new Blob(['name=' + encodeURIComponent(nm)],
+               {type:'application/x-www-form-urlencoded'})); } catch(x) {}
+  }, true);
   document.addEventListener('keydown', function(e){
     if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
     var n = parseInt(e.key);
@@ -6540,8 +6559,13 @@ class Handler(BaseHTTPRequestHandler):
                     phone=get("phone"), email=get("email"),
                     services=form.get("svc", []), extra=get("extra"),
                     entered_by="office")
+                # land on the INBOX card, not the classic page (LaRee:
+                # 'there should not be a classic customer page')
+                _k = (get("email") or "").strip().lower() \
+                    or f"stamp:{stamp}"
                 self.send_response(303)
-                self.send_header("Location", f"/bid/{stamp}")
+                self.send_header("Location",
+                                 f"/?c={urllib.parse.quote(_k)}")
                 self.end_headers()
                 return
             except Exception:
@@ -6863,6 +6887,14 @@ class Handler(BaseHTTPRequestHandler):
                              urllib.parse.quote("Saved."))
             self.end_headers()
             return
+        elif self.path == "/qr_used":
+            # usage counter → dropdowns re-order most-used-first (LaRee)
+            nm = get("name").strip()
+            if nm:
+                u = _blob_rw("qr_usage", {})
+                u[nm] = (u.get(nm) or 0) + 1
+                _blob_save("qr_usage", u)
+            return self._send(b"ok")
         elif self.path == "/mark_spam":
             import re as _r
             m = _r.search(r"([\w.+-]+)@([\w.-]+)", get("sender"))
