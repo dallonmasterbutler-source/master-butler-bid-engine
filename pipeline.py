@@ -97,7 +97,7 @@ SERVICE_TO_ENGINE = {
 
 # Services the engine can't price yet — always office review
 OFFICE_ONLY = {"moss_removal", "holiday_lights", "permanent_lights",
-               "bird_control",
+               "bird_control", "solar_panels",
                "exterior_gutter_cleaning", "pressure_washing"}
 
 

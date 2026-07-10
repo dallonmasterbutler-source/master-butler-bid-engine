@@ -949,6 +949,25 @@ def esc(s):
             .replace(">", "&gt;"))
 
 
+def _num(v):
+    """A record's number, or None if it's junk — so one corrupted
+    confidence/total can't crash a page for the whole office (Jul 10
+    shadow-test finding: a string confidence took down the Inbox)."""
+    if isinstance(v, (int, float)):
+        return v
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _money(v):
+    """'$1,234' from any record value; '$?' if it's not a number — a
+    corrupt line-item price never crashes a card (Jul 10)."""
+    n = _num(v)
+    return f"${n:,.0f}" if n is not None else "$?"
+
+
 def age_html(h):
     cls = "late" if h >= SLA_HOURS else ("warn" if h >= SLA_HOURS * 0.75 else "")
     if h < 1:
@@ -2454,9 +2473,9 @@ def _status_word(nb, holds, flags_open, sbs, claims):
         return "done", ""
     if nb.get("kind") == "phone_lead":
         return "listen / review", "color:var(--green2);font-weight:800"
-    c = nb.get("confidence")
-    if c is not None and c >= 75 and ((nb.get("draft") or {}).get("total")
-                                      or 0) > 0:
+    c = _num(nb.get("confidence"))       # str/garbage → None, never crash
+    if c is not None and c >= 75 and (_num((nb.get("draft") or {})
+                                           .get("total")) or 0) > 0:
         return "ready to approve", "color:var(--green2);font-weight:800"
     return "review", "color:var(--green2)"
 
@@ -2670,7 +2689,7 @@ def inbox_page(sel=None, draft="", user=None):
                "irow unread" if r["unread"] else
                "irow" if r["grp"] == 0 else "irow readq")
         # quiet price on the row (Jessica: 'I liked seeing that')
-        rp = ((nb.get("draft") or {}).get("total") if nb else None)
+        rp = _num((nb.get("draft") or {}).get("total") if nb else None)
         price = (f"<span style='float:right;font-weight:700;"
                  f"color:var(--mut);font-size:12.5px'>${rp:,.0f}</span>"
                  if rp else "")
@@ -2862,11 +2881,13 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                 f"assign or schedule other techs on this roof.</span></div>")
 
     # pinned card pieces
-    conf = nb.get("confidence") if nb else None
+    conf = _num(nb.get("confidence") if nb else None)
     cc = ("#1e8449" if (conf or 0) >= 75 else
           "#c77700" if (conf or 0) >= 50 else "#b03a2e")
     total_html = "<div class='subtext'>no priced draft</div>"
-    if d.get("total"):
+    _total = _num(d.get("total"))
+    if _total:
+        d = dict(d, total=_total)     # numeric for the format calls below
         rng = ""
         if conf is not None and conf < 50:
             from bid_engine import round_to_5 as _r5
@@ -3115,6 +3136,12 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
         editable = actionable
         lines = ""
         for i, s in enumerate(bid_d["services"]):
+            # sanitize this line's numbers once so a corrupt price
+            # (string/None) can't crash the format calls below (Jul 10)
+            s = dict(s, price=(_num(s.get("price")) or 0))
+            for _k in ("low", "high", "orig_price"):
+                if s.get(_k) is not None:
+                    s[_k] = _num(s[_k])
             past = hist.get(_service_key(s["name"]) or "") or []
             recent = sorted(past, reverse=True)[:2]
             cells = " · ".join(f"{dt[:7]} ${p:,.0f}" for dt, p in recent)
@@ -4403,7 +4430,11 @@ def routes_page(date_str=None, kind="visits", fresh=False):
     import routing
     from datetime import date as _date
     date_str = date_str or _date.today().isoformat()
-    if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
+    # must be a REAL calendar date — '2026-13-45' matches the shape but
+    # crashes the date math downstream (Jul 10 shadow-test)
+    try:
+        _date.fromisoformat((date_str or "")[:10])
+    except (ValueError, TypeError):
         date_str = _date.today().isoformat()
     kind = "tasks" if kind == "tasks" else "visits"
     day = routing.build_day(date_str, kind,

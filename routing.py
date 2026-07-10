@@ -100,9 +100,15 @@ def fetch_day(date_str, kind="visits"):
         while True:
             d = jc._post(q, {"start": start, "end": end, "after": cursor},
                          f"route {kind}")
-            if d.get("error"):
-                return {"error": str(d)[:200], "stops": []}
-            page = d[kind]
+            if d.get("error") or d.get("dry_run"):
+                return {"error": "Couldn't reach Jobber right now — the "
+                        "login may have expired. Try ↻ refresh in a "
+                        "moment.", "stops": []}
+            page = d.get(kind)               # token expiry/outage → no
+            if not page:                     # kind key → graceful, not 500
+                return {"error": "Jobber returned nothing for that day "
+                        "(possible connection hiccup) — try ↻ refresh.",
+                        "stops": []}
             for n in page["nodes"]:
                 a = (n.get("property") or {}).get("address") or {}
                 addr = ", ".join(x for x in (a.get("street"), a.get("city"),

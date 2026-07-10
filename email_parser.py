@@ -37,6 +37,9 @@ SERVICE_KEYWORDS = [
     ("white powder on the roof",   "moss_treatment"),   # real customer phrasing (Vadim)
     ("white powder",               "moss_treatment"),
     ("moss",                       "moss_treatment"),
+    ("solar panel",                "solar_panels"),   # office prices per panel/side
+    ("solar cleaning",             "solar_panels"),
+    ("clean my solar",             "solar_panels"),
     ("gutter guard",               "roof_blow_off_guards"),  # blow-off over installed guards
     ("gutter blowout",             "roof_blow_off"),
     ("gutter cleaning",            "gutter_cleaning"),
@@ -153,6 +156,9 @@ ADDRESS_RE = re.compile(
     r"\b(\d{2,6}\s+(?:[NSEW]{1,2}\s+)?[\w\s\.]{2,30}?"
     r"(?:St|Street|Ave|Avenue|Pl|Place|Rd|Road|Dr|Drive|Way|Ln|Lane|Blvd|Ct|Court)\b"
     r"(?:\s*(?:SE|SW|NE|NW|S|N|E|W))?"
+    # optional apartment/unit/suite designator — condos & townhomes
+    # were losing their whole address without this (Jul 10 shadow test)
+    r"(?:[,\s]+(?:#\s*\w{1,6}|(?:Apt|Apartment|Unit|Ste|Suite|Bldg|Building|Lot)\.?\s*\w{1,6}))?"
     r"[,\s]+[\w\s]{2,25}?,?\s*(?:WA|Washington)\.?\s*\d{5})",
     re.IGNORECASE,
 )

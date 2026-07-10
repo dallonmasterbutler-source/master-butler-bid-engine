@@ -83,9 +83,14 @@ def clean_body(text, limit=1200):
     if m:
         text = text[:m.start()]
     # flattened mail loses its newlines — cut on the date-anchored
-    # header mid-line ("… On Jul 9, 2026, at 12:17 PM, Master Butler…")
+    # header ("… On Jul 9, 2026, at 12:17 PM, Master Butler … wrote:").
+    # ONLY when a reply marker (wrote:/an email address/sender) follows,
+    # so a customer's own sentence survives (Jul 10 shadow-test: "Can
+    # you come on July 15, 2026 at 10am?" was being cut to "Can you
+    # come").
     m = re.search(r"\bOn (?:[A-Z][a-z]{2,8},? )?[A-Z][a-z]{2,8} "
-                  r"\d{1,2}, \d{4},? at ", text)
+                  r"\d{1,2}, \d{4},? at .{0,80}?"
+                  r"(?:wrote:|<[^>]+@[^>]+>|Master Butler)", text)
     if m:
         text = text[:m.start()]
     text = re.sub(r"\s*Sent from my [A-Za-z ]{2,24}", " ", text)
