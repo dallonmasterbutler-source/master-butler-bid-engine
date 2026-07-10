@@ -697,6 +697,20 @@ footer{margin:8px 0 28px;padding:0 24px;
 .irow .nm{font-size:14.5px;font-weight:600}
 .irow.unread .nm{font-weight:800}
 .irow.readq{opacity:.62}
+.irowwrap{display:flex;align-items:flex-start;gap:0}
+.irowwrap .irow{flex:1;min-width:0}
+.rowsel{flex:none;width:16px;height:16px;margin:14px 4px 0 4px;cursor:pointer;
+  accent-color:var(--green2)}
+.bulkbar{display:none;position:sticky;top:0;z-index:6;align-items:center;
+  gap:12px;flex-wrap:wrap;background:var(--goldbg);border:1px solid var(--gold);
+  border-radius:10px;padding:8px 12px;margin:0 0 10px}
+.bulkbar.show{display:flex}
+#bulkcount{font-weight:800;color:var(--goldink);font-size:12.5px}
+.bulkbar .bulkgo{background:var(--green);color:#fff;border:none;border-radius:8px;
+  padding:6px 14px;font-weight:800;cursor:pointer;font-size:12.5px}
+.bulkbar .bulklink{background:none;border:none;color:var(--green2);
+  font-weight:700;cursor:pointer;font-size:12.5px;text-decoration:underline;
+  padding:0}
 .irow .pv{color:var(--mut);font-size:12.5px;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis;margin-top:1px}
 .irow .meta{display:flex;justify-content:space-between;margin-top:3px}
@@ -2582,8 +2596,26 @@ def inbox_page(sel=None, draft="", user=None):
                 pass
         new_msg = bool(c["msgs"]) and c["msgs"][-1]["dir"] == "in" \
             and c["msgs"][-1]["at"] > read_marks.get(key, "")
+        # the customer's Jobber quote may live on an EARLIER record
+        # (the Mia lesson): look across all their bids, newest first
+        oq = next((b2.get("open_quote_ctx") for b2 in reversed(c["bids"])
+                   if b2.get("open_quote_ctx")), None)
+        qno = next((quotes.get(b2["stamp"]) for b2 in reversed(c["bids"])
+                    if quotes.get(b2["stamp"])), None)
+        won = any((sbs.get(b2["stamp"]) or "").lower() in
+                  ("approved", "converted")
+                  or (b2.get("jobber_event") or {}).get("event")
+                  == "quote_approved" for b2 in c["bids"])
         if nb and nb.get("dns_match"):
             grp = 0
+        # already-quoted + someone marked it seen = handled → Done & quiet
+        # (Dallon, Jul 10: clean up the ones already worked). A WON quote
+        # still needs scheduling, and a new customer reply always
+        # resurfaces, so both are excluded — nothing real gets buried.
+        elif ((oq or qno) and not won and not unread and not new_msg
+              and nb and nb["stamp"] not in live_holds
+              and nb["stamp"] not in flags_open):
+            grp = 3
         elif new_msg or needs or (nb and (nb.get("office_alert")
                                   or nb["stamp"] in bid_status._sl)):
             grp = 0                                # new — needs a person
@@ -2606,16 +2638,6 @@ def inbox_page(sel=None, draft="", user=None):
                 age_h = (_dtm.now(_tz.utc) - t0).total_seconds() / 3600
             except Exception:
                 age_h = 0
-        # the customer's Jobber quote may live on an EARLIER record
-        # (the Mia lesson): look across all their bids, newest first
-        oq = next((b2.get("open_quote_ctx") for b2 in reversed(c["bids"])
-                   if b2.get("open_quote_ctx")), None)
-        qno = next((quotes.get(b2["stamp"]) for b2 in reversed(c["bids"])
-                    if quotes.get(b2["stamp"])), None)
-        won = any((sbs.get(b2["stamp"]) or "").lower() in
-                  ("approved", "converted")
-                  or (b2.get("jobber_event") or {}).get("event")
-                  == "quote_approved" for b2 in c["bids"])
         if won and grp == 0:
             word, wstyle = ("won — schedule it",
                             "color:var(--green2);font-weight:800")
@@ -2693,7 +2715,14 @@ def inbox_page(sel=None, draft="", user=None):
         price = (f"<span style='float:right;font-weight:700;"
                  f"color:var(--mut);font-size:12.5px'>${rp:,.0f}</span>"
                  if rp else "")
+        # already-worked signal: the office has a Jobber quote out for
+        # them (sent / won / on an earlier record) — safe to bulk-clear
+        quoted = "1" if (r.get("oq") or r.get("qno") or r.get("won")) else "0"
         return (
+            f"<div class='irowwrap'>"
+            f"<input type='checkbox' class='rowsel' name='keys' "
+            f"value='{esc(r['key'])}' data-quoted='{quoted}' "
+            f"onclick='bulkSync(event)'>"
             f"<a href='/?c={urllib.parse.quote(r['key'])}' class='{cls}'>"
             f"<div class='nm'>{dot}"
             f"{esc(c['name'] or c['email'] or '(no name)')[:30]}{price}</div>"
@@ -2701,7 +2730,7 @@ def inbox_page(sel=None, draft="", user=None):
             f"<div class='meta'><span class='word' style='{r['wstyle']}'>"
             f"{esc(r['word'])}</span>"
             f"<span class='iage{' alarm' if alarm else ''}'>{age}</span>"
-            f"</div></a>")
+            f"</div></a></div>")
 
     sec_names = {0: "New — needs a person", 1: "In someone's hands",
                  2: "Waiting on customers"}
@@ -2725,7 +2754,7 @@ document.addEventListener('DOMContentLoaded', function(){
   if (!s) return;
   s.addEventListener('input', function(){
     var q = s.value.trim().toLowerCase();
-    document.querySelectorAll('.irow').forEach(function(r){
+    document.querySelectorAll('.irowwrap').forEach(function(r){
       r.style.display = (!q || r.textContent.toLowerCase()
                          .indexOf(q) >= 0) ? '' : 'none';
     });
@@ -2735,6 +2764,19 @@ document.addEventListener('DOMContentLoaded', function(){
   });
 });
 </script>""")
+    # ── bulk "mark seen" (Dallon, Jul 10: 'mark many complete at a
+    #    time, like email... cross-reference which ones are already
+    #    worked'). Checking a row shows this bar. It ONLY sets the grey
+    #    seen flag (reversible, office-wide) — never a decision, so it
+    #    can't touch the scoreboard, the learning loop, or Jobber.
+    lst += ("<form id='bulkform' method='POST' action='/mark_seen_bulk'>"
+            "<div class='bulkbar' id='bulkbar'>"
+            "<span id='bulkcount'>0 selected</span>"
+            "<button type='submit' class='bulkgo'>✓ Mark seen</button>"
+            "<button type='button' class='bulklink' onclick='bulkQuoted()'>"
+            "Select all already-quoted (<span id='bulkqn'>0</span>)</button>"
+            "<button type='button' class='bulklink' onclick='bulkClear()'>"
+            "Clear</button></div>")
     for g in (0, 1, 2):
         rows_g = [r for r in roster if r["grp"] == g]
         if not rows_g:
@@ -2751,6 +2793,35 @@ document.addEventListener('DOMContentLoaded', function(){
             f"<a href='/queue'>old queue</a> · <a href='/history'>history"
             f"</a></summary>"
             + "".join(row(r) for r in done_rows[:30]) + "</details>")
+    lst += "</form>"
+    lst += """<script>
+(function(){
+  function boxes(){return [].slice.call(document.querySelectorAll('.rowsel'));}
+  window.bulkSync = function(e){
+    if (e) e.stopPropagation();
+    var n = boxes().filter(function(x){return x.checked;}).length;
+    var bar = document.getElementById('bulkbar');
+    var lbl = document.getElementById('bulkcount');
+    if (lbl) lbl.textContent = n + ' selected';
+    if (bar) bar.classList.toggle('show', n > 0);
+  };
+  window.bulkQuoted = function(){
+    boxes().forEach(function(x){
+      if (x.getAttribute('data-quoted') === '1') x.checked = true; });
+    window.bulkSync();
+  };
+  window.bulkClear = function(){
+    boxes().forEach(function(x){ x.checked = false; });
+    window.bulkSync();
+  };
+  document.addEventListener('DOMContentLoaded', function(){
+    var q = boxes().filter(function(x){
+      return x.getAttribute('data-quoted') === '1'; }).length;
+    var el = document.getElementById('bulkqn');
+    if (el) el.textContent = q;
+  });
+})();
+</script>"""
 
     # ── right: pinned card + folds ──
     if not cur:
@@ -6727,6 +6798,23 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(303)
             self.send_header("Location", back if back.startswith("/")
                              else "/")
+            self.end_headers()
+            return
+        elif self.path == "/mark_seen_bulk":
+            # bulk 'seen it' (Dallon: mark many complete like email).
+            # Same grey flag as the ✓ Done button, applied to every
+            # checked row at once — reversible, office-wide, and it
+            # records NO decision, so the scoreboard/learning are untouched.
+            keys = [k for k in form.get("keys", []) if k]
+            if keys:
+                d = _msg_read()
+                from datetime import timezone as _tzb
+                now = datetime.now(_tzb.utc).isoformat(timespec="seconds")
+                for k in keys:
+                    d[k] = now
+                _msg_read_save(d)
+            self.send_response(303)
+            self.send_header("Location", "/")
             self.end_headers()
             return
         elif self.path == "/msg_read_all":
