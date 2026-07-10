@@ -135,6 +135,21 @@ def build_data():
     if glance:
         sec("👀", "At a glance", "", glance)
 
+    try:                       # tomorrow's day sheets, precomputed
+        from datetime import timedelta
+        tmr = (datetime.now() + timedelta(days=1)).date().isoformat()
+        import routing
+        rd = routing.build_day(tmr, "visits", max_age_min=12 * 60)
+        if rd.get("techs"):
+            sec("🚐", f"Tomorrow's routes ({tmr})",
+                "open the Routes tab for maps + printed order",
+                [f"{tech}: {len(t['stops'])} stop(s), "
+                 f"{t['drive_min']} min / {t['drive_mi']} mi driving, "
+                 f"back {t['back_at']}"
+                 for tech, t in rd["techs"].items()])
+    except Exception:
+        pass
+
     try:
         ar = db._blob_rw("auto_reviews", {})
         recent_ar = [v for v in ar.values() if v.get("summary")][-3:]

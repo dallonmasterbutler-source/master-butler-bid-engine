@@ -4367,6 +4367,22 @@ GUIDE_FAQ = [
   "The exact sales-tax rate for that address, straight from the WA "
   "Department of Revenue — the same rate the quote will charge. If it "
   "ever looks wrong for the area, tell Dallon."),
+ ("👥 The Customers tab",
+  "One file per household. Search ANY name, address, email, or phone "
+  "(formatting doesn't matter) — spouses share a file and either name "
+  "finds it. The conversation reads oldest-to-newest like texting, "
+  "with a year of history. The 📋 chip opens their quote in Jobber; "
+  "📥 jumps to their live entry on Bids."),
+ ("🚐 The Routes tab",
+  "Pick a date → each tech's real day from the Jobber schedule, stops "
+  "in the best driving order with arrival estimates and total miles. "
+  "Switch the dropdown to <b>Tasks</b> for takedown days in January. "
+  "It's READ-ONLY — it never changes the schedule; it just shows the "
+  "smart order. ↻ refresh re-reads Jobber right now."),
+ ("📋 The Brief tab",
+  "The morning brief, live: the pinned notes for the office, the "
+  "queue count, scoreboard, and standing flags. The same brief lands "
+  "in Dallon's email every night at 9."),
 ]
 
 
