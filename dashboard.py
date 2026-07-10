@@ -4974,6 +4974,29 @@ def settings_page(msg="", user=None):
                    "the top bar to build your own set.</div></div>")
     qr_card += my_card
 
+    # ---- quote line descriptions (gap noted Jul 9; office-editable
+    # Jul 10) — the exact text under each service on PUSHED quotes ----
+    sd = _blob_rw("service_descriptions", {})
+    sdrows = ""
+    for name, text in sorted(sd.items()):
+        sdrows += f"""
+<details style='border-bottom:1px solid var(--line);padding:8px 0'>
+ <summary style='cursor:pointer;font-weight:700;color:var(--heading)'>
+  {esc(name)}</summary>
+ <form method='POST' action='/svcdesc_save' style='margin-top:8px'>
+  <input type='hidden' name='name' value='{esc(name)}'>
+  <textarea name='text' rows='4'>{esc(text)}</textarea>
+  <div style='margin-top:6px'><button>Save</button></div>
+ </form></details>"""
+    sd_card = f"""
+<div class='card'><h2 style='margin-top:0'>Quote line descriptions</h2>
+ <div class='subtext' style='margin-bottom:6px'>The exact wording that
+ appears under each service on quotes the system creates in Jobber.
+ Edits apply to the NEXT quote pushed — customers see this text, so
+ read it twice.</div>
+ {sdrows or "<div class='subtext'>None loaded yet.</div>"}</div>"""
+    qr_card += sd_card
+
     # ---- discount policy (Jessica, Jul 9: 'discounts need to be in
     # the settings') — feeds the ✨ drafter's house rules + the Guide ----
     dp = _blob_rw("discount_policy", {})
@@ -5071,6 +5094,37 @@ def winback_page(showall=False):
         dns_removed = 0
     done = _winback_done()
     remaining = sum(1 for r in rows if r["name"] not in done)
+
+    # ☎ TODAY'S TEN (Jul 10 cycle): phones are on the list now — the
+    # ten best uncontacted calls, no scrolling, no picking
+    todays = [r for r in rows
+              if r["name"] not in done and r.get("phone")][:10]
+    today_card = ""
+    if todays:
+        trs = "".join(
+            f"<tr><td><b>{esc(r['name'])[:28]}</b></td>"
+            f"<td style='font-variant-numeric:tabular-nums'>"
+            f"<b>{esc(r['phone'])}</b></td>"
+            f"<td class='num'>${r['lifetime']:,.0f}</td>"
+            f"<td>{esc((r.get('last') or '')[:7])}</td>"
+            f"<td><form method='POST' action='/winback_done' "
+            f"style='margin:0;white-space:nowrap'>"
+            f"<input type='hidden' name='name' value='{esc(r['name'])}'>"
+            f"<button name='outcome' value='rebooked' "
+            f"style='padding:3px 10px;font-size:11px'>rebooked 🎉</button> "
+            f"<button name='outcome' value='no answer' class='gray' "
+            f"style='padding:3px 10px;font-size:11px'>no answer</button>"
+            f"</form></td></tr>"
+            for r in todays)
+        today_card = f"""
+<div class='card' style='border-left:4px solid var(--gold)'>
+ <h2 style='margin-top:0'>☎ Today's ten calls</h2>
+ <div class='subtext' style='margin-bottom:8px'>Highest lifetime value,
+ not yet contacted, phone on file. The whole script: “we miss you —
+ want your usual {datetime.now():%B} cleaning?”</div>
+ <table><tr><th>Customer</th><th>Phone</th><th class='num'>Lifetime</th>
+ <th>Last</th><th></th></tr>{trs}</table></div>"""
+
     body_rows = ""
     for r in (rows if showall else rows[:200]):
         key = r["name"]
@@ -5170,6 +5224,7 @@ def winback_page(showall=False):
  {f"<div class='subtext' style='margin-top:8px'>top 100 of {len(due)} shown — highest lifetime first</div>" if len(due) > 100 else ""}
 </div>"""
         body = due_card + body
+    body = today_card + body
     return page("Win-back", body)
 
 
@@ -6168,6 +6223,28 @@ class Handler(BaseHTTPRequestHandler):
                     save_review({"stamp": "", "action": "settings_change",
                                  "customer": "QUICK RESPONSES",
                                  "note": act})
+            self.send_response(303)
+            self.send_header("Location", "/settings?msg=" +
+                             urllib.parse.quote("Saved."))
+            self.end_headers()
+            return
+        elif self.path == "/svcdesc_save":
+            # customer-visible quote text — name tag required, logged
+            if not _user:
+                self.send_response(303)
+                self.send_header("Location", "/settings?msg=" +
+                                 urllib.parse.quote("Pick your name in the "
+                                                    "top bar first."))
+                self.end_headers()
+                return
+            sd = _blob_rw("service_descriptions", {})
+            name = get("name").strip()
+            if name in sd and get("text").strip():
+                sd[name] = get("text").strip()
+                _blob_save("service_descriptions", sd)
+                save_review({"stamp": "", "action": "settings_change",
+                             "customer": "QUOTE DESCRIPTIONS",
+                             "note": f"'{name}' description edited"})
             self.send_response(303)
             self.send_header("Location", "/settings?msg=" +
                              urllib.parse.quote("Saved."))

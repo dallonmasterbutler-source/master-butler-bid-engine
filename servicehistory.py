@@ -109,5 +109,35 @@ def sweep(limit=100000):
     return out
 
 
+def refresh(recent=120):
+    """Nightly incremental (Jul 10 cycle): sweep only the newest
+    invoices and MERGE into the existing history so the 'Past here'
+    column and LaRee's per-service card stay current without the
+    2-3 hour full sweep."""
+    path = Path("data") / "service_history.json"
+    if not path.exists():
+        return sweep(limit=recent)
+    old = json.loads(path.read_text())
+    sweep(limit=recent)                # writes a recent-only file
+    new = json.loads(path.read_text())
+    for side in ("by_property", "by_client"):
+        merged = old.get(side, {})
+        for k, svcs in new.get(side, {}).items():
+            slot = merged.setdefault(k, {})
+            for svc, visits in svcs.items():
+                have = {tuple(v) for v in slot.get(svc, [])}
+                slot.setdefault(svc, []).extend(
+                    [d, p] for d, p in visits if (d, p) not in have)
+        old[side] = merged
+    path.write_text(json.dumps(old, indent=0))
+    try:
+        from cloudpush import push
+        push(blobs={"service_history": old})
+    except Exception:
+        pass
+    print(f"service history merged (+recent {recent} invoices)")
+    return old
+
+
 if __name__ == "__main__":
     sweep()

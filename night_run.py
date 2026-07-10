@@ -205,6 +205,11 @@ try:
 except Exception as e:
     print(f"   due-soon refresh skipped ({e})")
 try:
+    import servicehistory
+    servicehistory.refresh(recent=120)     # keep 'Past here' current
+except Exception as e:
+    print(f"   service-history refresh skipped ({e})")
+try:
     from datetime import date as _date
     if _date.today().weekday() == 6:       # Sundays: refresh DNS list
         import dns_sweep
