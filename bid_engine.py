@@ -294,7 +294,7 @@ def pw_concrete_price(sqft, buildup="clean", material="concrete"):
     first = min(sqft, PW_CONCRETE["first_block_sqft"]) * PW_CONCRETE["first_block_rate"]
     rest = max(0, sqft - PW_CONCRETE["first_block_sqft"]) * PW_CONCRETE["remainder_rate"]
     raw = max(PW_CONCRETE["minimum"], first + rest)
-    factor = max(PW_BUILDUP[buildup], PW_MATERIAL.get(material, 1.0))
+    factor = max(PW_BUILDUP.get(buildup, 1.0), PW_MATERIAL.get(material, 1.0))
     return raw * factor
 
 
@@ -398,9 +398,51 @@ def factory_defaults():
     return _DEFAULTS
 
 
+def _norm_stories(raw):
+    """A house's story count → a key STORIES knows. Real county records
+    say '1.5', '2.5' etc. (8,455 1.5-story homes in Snohomish alone) —
+    those used to CRASH the engine. Half-stories round to the taller
+    adjacent floor for access safety; 2.5+ is treated as 3-story (which
+    always flags for office review). Junk → assume 2 (the common case).
+    Returns (key, note_or_None)."""
+    s = str(raw).strip()
+    if s in STORIES:
+        return s, None
+    try:
+        n = float(s)
+    except (TypeError, ValueError):
+        return "2", (f"Story count '{raw}' wasn't understood — assumed "
+                     "2-story. Verify before quoting a tall home.")
+    if n >= 2.5:
+        return "3", (f"{raw}-story home treated as 3-story (office "
+                     "review — it reaches 3-story working height).")
+    # 1 and 1.5 and 2 all price the same (STORIES 1==2==1.0); safe
+    return ("2" if n >= 1.5 else "1"), None
+
+
+def _mult(table, raw, label, notes, default_key):
+    """Multiplier lookup that NEVER crashes: a value the table doesn't
+    know snaps to the sensible default and tells the office it guessed
+    (Jul 10 shadow-test finding — the engine used to KeyError on any
+    unexpected stories/pitch/debris/roof/window value)."""
+    if raw in table:
+        return table[raw]
+    notes.append(f"{label} '{raw}' wasn't recognized — used the standard "
+                 f"value. Double-check this home.")
+    return table[default_key]
+
+
 def calculate_bid(prop):
     apply_overrides()          # office Settings take effect instantly
     sqft = prop["sqft"]
+    # size unknown or garbage → treat as 0 rather than crash (Jul 10
+    # fix); minimums/floors still apply, confidence note is added below
+    try:
+        sqft = float(sqft) if sqft is not None else 0
+        if sqft < 0:
+            sqft = 0
+    except (TypeError, ValueError):
+        sqft = 0
 
     # Dry season (Tom's roof weather): June-July-August. Roof-lane rules
     # below only bite in dry season. Uses the request date if given.
@@ -408,13 +450,20 @@ def calculate_bid(prop):
     _when = prop.get("request_date") or _dt.date.today()
     is_dry_season = _when.month in (6, 7, 8)
 
-    # Look up each multiplier from the tables above
-    stories_mult = STORIES[prop["stories"]]
-    pitch_mult = PITCH[prop["pitch"]]
-    debris_mult = DEBRIS[prop["debris"]]
-    gutter_mult = GUTTER_TYPE[prop["gutter_type"]]
-    roof_mult = ROOF_MATERIAL[prop["roof_material"]]
-    access_mult = ACCESS[prop["access"]]
+    # collect any "we had to assume" notes from resilient lookups
+    assume = []
+    # Look up each multiplier — resilient to unknown values (Jul 10 fix)
+    _sk, _snote = _norm_stories(prop["stories"])
+    if _snote:
+        assume.append(_snote)
+    stories_mult = STORIES[_sk]
+    pitch_mult = _mult(PITCH, prop["pitch"], "Roof pitch", assume, "moderate")
+    debris_mult = _mult(DEBRIS, prop["debris"], "Debris", assume, "moderate")
+    gutter_mult = _mult(GUTTER_TYPE, prop["gutter_type"], "Gutter type",
+                        assume, "standard")
+    roof_mult = _mult(ROOF_MATERIAL, prop["roof_material"], "Roof material",
+                      assume, "standard")
+    access_mult = _mult(ACCESS, prop["access"], "Access", assume, "normal")
 
     # The "base" stack applies to gutters/roof/moss work
     base = stories_mult * pitch_mult * debris_mult * access_mult
@@ -423,15 +472,19 @@ def calculate_bid(prop):
 
     # Windows get their OWN stack — stories & access, plus the window knobs.
     # Notice: NO pitch, NO debris here. That's the fix.
-    window_style_mult = WINDOW_STYLE[prop["window_style"]]
-    window_condition_mult = WINDOW_CONDITION[prop["window_condition"]]
-    window_access_mult = WINDOW_ACCESS[prop["window_access"]]
-    french_mult = FRENCH_PANE[prop["french_pane"]]
+    window_style_mult = _mult(WINDOW_STYLE, prop["window_style"],
+                              "Window style", assume, "standard")
+    window_condition_mult = _mult(WINDOW_CONDITION, prop["window_condition"],
+                                  "Window condition", assume, "normal")
+    window_access_mult = _mult(WINDOW_ACCESS, prop["window_access"],
+                               "Window access", assume, "standard")
+    french_mult = _mult(FRENCH_PANE, prop["french_pane"],
+                        "French panes", assume, "none")
     window_mult = (stories_mult * window_style_mult
                    * window_condition_mult * window_access_mult * access_mult)
 
     results = []   # we'll collect each service's price here
-    notes = []     # and any warnings the office should see
+    notes = list(assume)   # start with any "we assumed X" lookup notes
 
     def add(name, price, hourly_key):
         """Record one service line with its ±range and estimated hours."""
@@ -554,10 +607,11 @@ def calculate_bid(prop):
         for key, area in areas.items():
             mat = materials.get(key, "concrete")
             mat_mult = PW_MATERIAL.get(mat, 1.0)
-            factor = max(PW_BUILDUP[buildup], mat_mult)
-            if mat == "pavers" and mat_mult >= PW_BUILDUP[buildup]:
+            _bmult = PW_BUILDUP.get(buildup, 1.0)
+            factor = max(_bmult, mat_mult)
+            if mat == "pavers" and mat_mult >= _bmult:
                 pavers_used = True
-            if buildup == "heavy" and PW_BUILDUP[buildup] > mat_mult:
+            if buildup == "heavy" and _bmult > mat_mult:
                 heavy_applied = True
             share = round_to_5(base_combined * area / total_area * factor)
             label = f"{surface_names[key]} (~{area} sqft"

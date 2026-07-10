@@ -644,12 +644,28 @@ _OFFICE_LINE = {
 }
 
 
+# specialty-roof KEYWORDS — matched as substrings, because the county
+# assessor spells them a dozen ways ("Shake shingles-med", "Cement
+# tile", "Clay tile", "Masonite Shake", "Cedar shingles"…). Exact-match
+# used to miss all of these → shake/tile roofs priced for regular techs
+# (Jul 10 shadow-test safety finding).
+_TOM_ONLY_ROOFS = ("shake", "cedar", "tile", "metal", "slate", "wood")
+
+
 def _is_tom_only(prop_info):
     pi = prop_info or {}
-    return (str(pi.get("pitch")) == "tom_only"
-            or str(pi.get("roof_material")).lower() in
-            ("metal", "shake", "cedar shake", "tile", "concrete tile")
-            or str(pi.get("stories")) == "3")
+    if str(pi.get("pitch")) == "tom_only":
+        return True
+    rm = str(pi.get("roof_material") or "").lower()
+    # "comp"/"composition"/"asphalt"/"built-up" are the SAFE common roofs —
+    # 'built-up' contains no keyword, and comp shingle is standard
+    if any(w in rm for w in _TOM_ONLY_ROOFS):
+        return True
+    st = str(pi.get("stories") or "")
+    try:
+        return float(st) >= 3        # 3, 3.0, 3.5 all Tom-tier height
+    except ValueError:
+        return st == "3"
 
 
 def create_draft_quote(client_id, property_id, bid, prop_info=None,
