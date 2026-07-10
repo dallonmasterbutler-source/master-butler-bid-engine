@@ -3225,9 +3225,13 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
 
     addr_line = ""
     if nb and nb.get("address"):
+        _tax_svcs = ([s.get("name") for s in
+                      (((nb.get("draft") or {}).get("bid") or {})
+                       .get("services") or [])]
+                     or (nb.get("services") or []))
         addr_line = (f"<a href='/property/{_slug(nb['address'])}'>"
                      f"{esc(nb['address'])}</a> "
-                     + _tax_glance(nb["address"]))
+                     + _tax_glance(nb["address"], _tax_svcs))
     elif c["email"]:
         addr_line = esc(c["email"])
     pinned = (f"<div class='pinned'>{banners}"
@@ -4913,13 +4917,27 @@ function mergeCanned(payload){
 """
 
 
-def _tax_glance(address):
+def _tax_glance(address, services=None):
     """Small at-a-glance sales-tax chip by the address (Jessica, Jul 9:
     'verify the tax situation... a small at a glance by the address').
     Rate comes from WA DOR's own per-address API; cached forever per
-    address in the tax_glance blob so pages stay fast."""
+    address in the tax_glance blob so pages stay fast.
+
+    Window cleaning is tax-exempt (Dallon, Jul 10): a windows-only job
+    shows 'Tax Exempt', a mixed job notes windows are excluded — so the
+    chip matches what the quote will actually charge."""
     if not address:
         return ""
+    # is this job windows only / windows-inclusive?
+    def _is_win(n):
+        n = str(n or "").lower()
+        return "window" in n or n.startswith("windows_")
+    wins = [s for s in (services or []) if _is_win(s)]
+    all_windows = bool(services) and len(wins) == len(services)
+    if all_windows:
+        return ("<span class='chip' style='font-size:11.5px' title='Window "
+                "cleaning is a non-taxable service — this quote is tax "
+                "exempt'>🧾 Tax Exempt</span>")
     slug = _slug(address)
     cache = _blob_rw("tax_glance", {})
     hit = cache.get(slug)
@@ -4939,10 +4957,12 @@ def _tax_glance(address):
         _blob_save("tax_glance", cache)
     if not hit.get("code"):
         return ""
+    excl = " · windows exempt" if wins else ""
     return (f"<span class='chip' style='font-size:11.5px' title='Sales tax "
             f"straight from the WA Dept of Revenue for this exact address "
             f"(location code {esc(hit['code'])}) — what the quote will "
-            f"charge'>🧾 tax {hit['rate']*100:.2f}%</span>")
+            f"charge{'; window cleaning is non-taxable and is excluded' if wins else ''}'>"
+            f"🧾 tax {hit['rate']*100:.2f}%{excl}</span>")
 
 
 def _photo_refs(stamp, address):
