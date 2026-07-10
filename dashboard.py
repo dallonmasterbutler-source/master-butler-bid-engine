@@ -3555,19 +3555,32 @@ def customers_tab_page(sel=None, q="", user=None, draft=""):
         thread_html = "".join(h for _, h in tl) or \
             ("<div class='subtext'>No conversation on file yet.</div>")
 
-        # compact reply (locked send, same rails as everywhere)
+        # compact reply (locked send, same rails as everywhere) — with
+        # the ✨ drafter + quick responses the office lives on
         reply_html = ""
         if p["emails"]:
             e0 = p["emails"][0]
+            _cnp = _canned_payload()
             reply_html = f"""
  <div style='border-top:1px solid var(--line);margin-top:10px;
       padding-top:10px'>
+  <div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px'>
+   <form method='POST' action='/msg_draft' style='display:inline'>
+    <input type='hidden' name='to' value='{esc(e0)}'>
+    <input type='hidden' name='back'
+     value='custtab:{esc(sel)}'>
+    <button class='gray' style='border-color:var(--gold);
+     color:var(--goldink)'>✨ Draft a reply for me</button>
+   </form>
+   <select id='custcanned' style='max-width:280px'>
+    <option value=''>Quick responses…</option></select>
+  </div>
   <form method='POST' action='/msg_send'>
    <input type='hidden' name='to' value='{esc(e0)}'>
    <input type='hidden' name='subject' value='Master Butler'>
    <input type='hidden' name='back'
     value='/customers?c={urllib.parse.quote(sel)}'>
-   <textarea name='body' rows='2' style='min-height:56px'
+   <textarea id='custreply' name='body' rows='2' style='min-height:56px'
     placeholder='Reply to {esc(e0)} — copy into Gmail while sending is
  off'>{esc(draft)}</textarea>
    <div style='display:flex;justify-content:space-between;
@@ -3575,7 +3588,22 @@ def customers_tab_page(sel=None, q="", user=None, draft=""):
     <span class='subtext'>Sending stays locked until Dallon flips it.</span>
     <button class='big' type='button' onclick="alert('Sending is OFF —
  copy the text into Gmail for now.')">Send</button>
-   </div></form></div>"""
+   </div></form></div>
+<script>
+{_CANNED_MERGE_JS}
+var CC = mergeCanned({_cnp});
+var _ccs = document.getElementById('custcanned');
+Object.keys(CC).forEach(function(k){{
+  var o = document.createElement('option'); o.value = k; o.textContent = k;
+  _ccs.appendChild(o);
+}});
+_ccs.onchange = function(){{
+  if (!_ccs.value) return;
+  var t = document.getElementById('custreply');
+  t.value = CC[_ccs.value]; t.style.height = 'auto';
+  t.style.height = Math.min(t.scrollHeight + 6, 420) + 'px'; t.focus();
+}};
+</script>"""
 
         detail = (
             f"<div class='pinned'>"
@@ -5504,6 +5532,11 @@ class Handler(BaseHTTPRequestHandler):
             _back = get("back")
             if _back == "customers":
                 _page = customers_page
+            elif _back.startswith("custtab:"):
+                _ckey = _back[8:]
+                def _page(sel, draft=""):
+                    return customers_tab_page(_ckey, draft=draft,
+                                              user=_user)
             elif _back.startswith("bid:"):
                 _bstamp = _back[4:]
                 def _page(sel, draft=""):
