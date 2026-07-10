@@ -822,6 +822,23 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     else:
         print("     → no bid needed (question/scheduling/other)")
 
+    # LEARN FROM RETURNING CUSTOMERS (Dallon, Jul 10 — the Kevin Pham
+    # gap): a sparse ask from someone with a past quote never got a
+    # system bid, so we couldn't compare our number to the office's.
+    # Rebuild a shadow bid from that quote's services → the scoreboard
+    # can learn like any other bid.
+    if record.get("open_quote_ctx") and record.get("address") \
+            and not (((record.get("draft") or {}).get("bid") or {})
+                     .get("services")):
+        try:
+            import shadow_from_quote
+            shadow_from_quote.from_open_quote(record)
+            if ((record.get("draft") or {}).get("bid") or {}).get("services"):
+                print("     → shadow bid rebuilt from their last quote "
+                      "(for scoreboard learning)")
+        except Exception as e:
+            print(f"     → shadow-from-quote skipped: {e}")
+
     out = SHADOW_DIR / f"{stamp}.json"
     out.write_text(json.dumps(record, indent=1))
 

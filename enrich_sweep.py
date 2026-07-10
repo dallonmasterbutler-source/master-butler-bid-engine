@@ -164,6 +164,23 @@ def run(limit=None):
             except Exception:
                 pass
 
+        # shadow bid from a returning customer's quote so the scoreboard
+        # can learn (Kevin Pham gap, Jul 10)
+        if rec.get("open_quote_ctx") and rec.get("address") \
+                and not (((rec.get("draft") or {}).get("bid") or {})
+                         .get("services")):
+            try:
+                import shadow_from_quote
+                before = bool((rec.get("draft") or {}).get("bid"))
+                shadow_from_quote.from_open_quote(rec)
+                if (((rec.get("draft") or {}).get("bid") or {})
+                        .get("services")) and not before:
+                    stats.setdefault("shadow_bids", 0)
+                    stats["shadow_bids"] += 1
+                    changed = True
+            except Exception:
+                pass
+
         if changed:
             clouddb.ingest_shadow(stamp, rec)
             print(f"  ✓ {stamp} {(rec.get('from') or '')[:40]}", flush=True)
