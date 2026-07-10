@@ -58,6 +58,10 @@ SERVICE_KEYWORDS = [
     ("inside/outside window",      "windows_in_out"),
     ("in/out window",              "windows_in_out"),
     ("interior and exterior window", "windows_in_out"),
+    ("interior/exterior window",   "windows_in_out"),  # Squarespace form
+    ("interior / exterior window", "windows_in_out"),
+    ("int/ext window",             "windows_in_out"),
+    ("exterior/interior window",   "windows_in_out"),
     ("window cleaning in & out",   "windows_in_out"),
     # the Becky phrasing (Jul 9): 'windows inside & out' — plus kin
     ("windows inside & out",       "windows_in_out"),
@@ -153,8 +157,11 @@ def newest_message_only(body: str) -> str:
 
 # US street address like "24323 SE 42nd Pl, Sammamish WA 98029"
 ADDRESS_RE = re.compile(
-    r"\b(\d{2,6}\s+(?:[NSEW]{1,2}\s+)?[\w\s\.]{2,30}?"
-    r"(?:St|Street|Ave|Avenue|Pl|Place|Rd|Road|Dr|Drive|Way|Ln|Lane|Blvd|Ct|Court)\b"
+    # house number may be GLUED to the directional ("23032ne 127th wy" —
+    # Rozi Mesaros, Jul 10), so allow \s* not just \s+ before it
+    r"\b(\d{2,6}\s*(?:[NSEW]{1,2}\s+)?[\w\s\.]{2,30}?"
+    r"(?:St|Street|Ave|Avenue|Pl|Place|Rd|Road|Dr|Drive|Way|Wy|Ln|Lane|"
+    r"Blvd|Ct|Court|Cir|Circle|Ter|Terrace|Pkwy|Hwy|Trl|Loop|Pt)\b"
     r"(?:\s*(?:SE|SW|NE|NW|S|N|E|W))?"
     # optional apartment/unit/suite designator — condos & townhomes
     # were losing their whole address without this (Jul 10 shadow test)
@@ -176,6 +183,33 @@ def find_phone(text: str):
     return m.group(0).strip() if m else None
 
 
+# Labels that can follow a field, so a blank field (which renders as the
+# next label) is never mistaken for a value.
+_FORM_LABELS = (r"PREFERRED VENDOR|How did you hear|Additional information|"
+                r"Email Address|Address|Phone|Name|IN-HOUSE|Service")
+
+
+def form_field(text: str, *labels):
+    """Value of a labeled form field from a Squarespace/Jotform relay,
+    e.g. form_field(body, 'Address') -> '23032ne 127th wy, Redmond...'.
+
+    The whole reason Rozi Mesaros held with 'no address' (Jul 10): a form
+    submission LABELS its fields, so we should read the label instead of
+    running a fuzzy street-regex over it. The label is anchored to the
+    start of its line so 'Address' never matches inside 'Email Address',
+    and a blank field (which shows up as the next label) returns None."""
+    for lab in labels:
+        m = re.search(r"(?:^|\n)\s*" + re.escape(lab) +
+                      r"\s*:\s*(?:\n\s*)?([^\n]*\S)", text, re.I)
+        if m:
+            v = m.group(1).strip()
+            if (v and re.search(r"[A-Za-z0-9]", v)
+                    and not re.match(r"(?:" + _FORM_LABELS + r")\s*:?\s*$",
+                                     v, re.I)):
+                return v
+    return None
+
+
 # ─────────────────────────────────────────────────────────────
 # STEP 4: WHICH SERVICES ARE THEY ASKING FOR?
 # ─────────────────────────────────────────────────────────────
@@ -195,6 +229,11 @@ def find_services(text: str):
         "windows_exterior" in found or "windows_in_out" in found
     ):
         found.remove("windows_unspecified")
+    # "in & out" supersedes "exterior only" — a phrase like
+    # "interior/exterior window cleaning" trips BOTH keywords, and the
+    # customer wants both sides done, not just the outside
+    if "windows_in_out" in found and "windows_exterior" in found:
+        found.remove("windows_exterior")
     # generic "pressure_washing" is redundant if a specific surface matched
     if "pressure_washing" in found and any(
         s.startswith("pw_") for s in found
@@ -327,6 +366,7 @@ def parse_eml(path) -> dict:
 
     fresh = newest_message_only(body)
     services = find_services(fresh)
+    form_addr = None
 
     # ── FORM RELAYS: the envelope says 'Squarespace', the CUSTOMER is
     # in the body ("Name: Tamara Jett / Email Address: tammy@...").
@@ -343,6 +383,22 @@ def parse_eml(path) -> dict:
             cand = nm.group(1).strip()
             if cand and "@" not in cand:
                 sender_name = cand
+        # TRUST THE LABELED FIELDS (Rozi Mesaros, Jul 10: the form gave a
+        # clear address + service that the freeform regex missed and
+        # nothing got ported). Read the label, don't guess.
+        form_addr = form_field(body, "Address")
+        if form_addr:
+            form_addr = re.sub(r",?\s*United States\.?\s*$", "",
+                               form_addr, flags=re.I).strip()
+        svc_field = form_field(body, "IN-HOUSE SERVICES",
+                               "Service Requested", "Services", "Service")
+        if svc_field:
+            for s in find_services(svc_field):
+                if s not in services:
+                    services.append(s)
+            # re-run the in&out-supersedes-exterior cleanup on the merge
+            if "windows_in_out" in services and "windows_exterior" in services:
+                services.remove("windows_exterior")
 
     # ── JOBBER EVENTS: 'quote approved' etc. — never noise ──
     if "txn.getjobber.com" in sender_email.lower():
@@ -396,8 +452,9 @@ def parse_eml(path) -> dict:
         "sender_email": sender_email,
         "subject": msg.get("Subject", "").strip(),
         "newest_message": fresh[:300],   # preview
-        "address": find_address(fresh) or find_address(body),
-        "phone": find_phone(fresh),
+        # labeled form address wins; fall back to the freeform regex
+        "address": form_addr or find_address(fresh) or find_address(body),
+        "phone": find_phone(fresh) or find_phone(body),
         "services": services,
         "kind": classify(fresh, services),
         "sched_pref": find_sched_pref(fresh),
