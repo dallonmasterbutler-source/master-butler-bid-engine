@@ -324,10 +324,25 @@ def _transcribe_voicemail(record, parsed, raw_bytes, stamp, who):
         (vdir / f"{stamp}-{(fn or 'vm.wav')}").write_bytes(audio)
         text = transcribe.transcribe(audio, fn or "")
         if not text:
+            # LOUD, never silent (Terry Brower lesson, Jul 10: a 1:58
+            # message read as 'no audio' and only Dallon's own ears
+            # caught it). Card says audio EXISTS + flag in the review
+            # feed; the hourly complete_sweep retries automatically.
             record["office_alert"] = (
-                f"VOICEMAIL AUDIO from {who} attached but transcription "
-                "unavailable — audio saved to data/voicemail; dial in or "
-                "enable Speech-to-Text (one click, ask Claude).")
+                f"⚠ VOICEMAIL AUDIO from {who} IS ATTACHED "
+                f"({(record.get('lead') or {}).get('duration', '?')}) but "
+                "transcription failed — it will RETRY automatically within "
+                "the hour; if this note persists, LISTEN BY PHONE.")
+            try:
+                import clouddb as _cdb
+                if _cdb.available():
+                    _cdb.add_review({
+                        "stamp": stamp, "action": "flag_review",
+                        "customer": record.get("from"), "by": "auto",
+                        "note": f"voicemail transcription failed for {who} "
+                                "— audio IS attached; auto-retry queued"})
+            except Exception:
+                pass
             return False
         record["newest_message"] = f"🎙 VOICEMAIL: “{text}”"
         record["kind"] = "new_request"

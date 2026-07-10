@@ -43,10 +43,14 @@ def _recognize(payload_cfg, content_b64, key):
         data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json"})
     r = json.load(urllib.request.urlopen(req, timeout=60))
+    # some result segments carry no 'transcript' (silence gaps on longer
+    # audio) — skip them instead of KeyError-ing the whole call, which
+    # silently threw away chunk 0 of Suzanne Vaughan's message (Jul 10)
     return " ".join(
         alt["transcript"].strip()
         for res in r.get("results", [])
-        for alt in res.get("alternatives", [])[:1]).strip()
+        for alt in res.get("alternatives", [])[:1]
+        if alt.get("transcript")).strip()
 
 
 def _wav_rate(b):

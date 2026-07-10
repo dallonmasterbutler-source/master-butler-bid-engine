@@ -164,6 +164,65 @@ def run(recent_hours=None):
             except Exception:
                 pass
 
+        # 6) VOICEMAIL SELF-HEAL (Dallon, Jul 10: Terry Brower's 1:58
+        #    message showed 'no audio' while the WAV sat in the email —
+        #    'we can't allow that to keep happening, be proactive').
+        #    Any voicemail record without a transcript gets its raw email
+        #    pulled from the archive and transcription RETRIED here,
+        #    hourly, so a one-time failure can never become a permanent
+        #    'nothing to hear'.
+        if (rec.get("lead") and "🎙" not in (rec.get("newest_message") or "")
+                and rec.get("kind") in ("phone_lead", "new_request")
+                and (rec.get("lead") or {}).get("duration")
+                not in ("0:00", "0:01", "0:02", None)):
+            try:
+                import email as _em
+                import transcribe as _tr
+                raw = clouddb.get_photo(stamp, "eml", 0)
+                if raw:
+                    msg_o = _em.message_from_bytes(
+                        bytes(raw), policy=_em.policy.default)
+                    fn, audio = _tr.extract_audio(msg_o)
+                    text = _tr.transcribe(audio, fn or "") if audio else ""
+                    if text:
+                        who = ((rec.get("caller_id") or {}).get("name")
+                               or (rec.get("lead") or {}).get("caller")
+                               or "caller")
+                        rec["newest_message"] = f"🎙 VOICEMAIL: “{text}”"
+                        rec["kind"] = "new_request"
+                        from email_parser import find_services, find_address
+                        rec["services"] = (find_services(text)
+                                           or rec.get("services"))
+                        rec["address"] = rec.get("address") \
+                            or find_address(text)
+                        rec["office_alert"] = (
+                            f"🎙 Voicemail from {who} — transcribed on "
+                            "retry; their words are below.")
+                        stats.setdefault("vm_retried", 0)
+                        stats["vm_retried"] += 1
+                        changed = True
+                    elif audio and "transcription" not in \
+                            (rec.get("office_alert") or "").lower():
+                        # STILL failing → say so LOUDLY on the card and in
+                        # the review feed (never a silent 'no audio' again)
+                        rec["office_alert"] = ((rec.get("office_alert") or "")
+                            + " ⚠ AUDIO IS ATTACHED but transcription keeps "
+                            "failing — LISTEN BY PHONE (dial the mailbox); "
+                            "Dallon has been flagged.").strip()
+                        try:
+                            clouddb.add_review({
+                                "stamp": stamp, "action": "flag_review",
+                                "customer": rec.get("from"), "by": "auto",
+                                "note": "voicemail transcription failing "
+                                        "repeatedly — audio IS attached"})
+                        except Exception:
+                            pass
+                        stats.setdefault("vm_failing", 0)
+                        stats["vm_failing"] += 1
+                        changed = True
+            except Exception:
+                pass
+
         if changed:
             clouddb.ingest_shadow(stamp, rec)
             print(f"  ✓ {stamp} {(rec.get('from') or '')[:40]}", flush=True)
