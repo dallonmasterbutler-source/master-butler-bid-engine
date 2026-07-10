@@ -811,6 +811,7 @@ def _chrome_bar(active=""):
                                # Dallon Jul 9pm: the file cabinet lives
                                # on its OWN tab, not inside Bids
                                ("/customers", "👥 Customers", "Customers"),
+                               ("/routes", "🚐 Routes", "Routes"),
                                ("/scoreboard", "📊 Scoreboard", "Scoreboard"),
                                ("/winback", "📞 Win-back", "Win-back"),
                                ("/settings", "⚙️ Settings", "Settings"),
@@ -4368,6 +4369,124 @@ GUIDE_FAQ = [
 ]
 
 
+def routes_page(date_str=None, kind="visits", fresh=False):
+    """🚐 LIVE ROUTES (Dallon, Jul 9 pm: 'build the live route system…
+    and the takedown schedule the same way'). Reads the REAL Jobber
+    schedule for any day — visits, or TASKS for takedown season —
+    groups by assigned tech, and orders each day from the shop with
+    the Google Routes API. Read-only; the schedule is untouched."""
+    import routing
+    from datetime import date as _date
+    date_str = date_str or _date.today().isoformat()
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
+        date_str = _date.today().isoformat()
+    kind = "tasks" if kind == "tasks" else "visits"
+    day = routing.build_day(date_str, kind,
+                            max_age_min=0 if fresh else 15)
+
+    picker = f"""
+<div style='display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+     margin-bottom:14px'>
+ <form method='GET' action='/routes' style='display:flex;gap:8px;
+      align-items:center'>
+  <input type='date' name='d' value='{esc(date_str)}'
+   style='padding:7px 10px;border-radius:9px;border:1px solid
+   var(--line);background:var(--card);color:var(--ink)'>
+  <select name='k' style='max-width:180px'>
+   <option value='visits' {'selected' if kind == 'visits' else ''}>
+    Jobs on the schedule</option>
+   <option value='tasks' {'selected' if kind == 'tasks' else ''}>
+    Tasks (takedowns)</option>
+  </select>
+  <button>Show routes</button>
+  <button name='fresh' value='1' class='gray'
+   title='Recompute from Jobber right now'>↻ refresh</button>
+ </form>
+ <span class='subtext'>computed
+  {esc(_pt(day.get("computed_at") or ""))} · order optimized from the
+  Monroe shop · read-only</span>
+</div>"""
+
+    if day.get("error"):
+        return page("Routes", f"<div class='mock'>{_chrome_bar('Routes')}"
+                    f"<div style='padding:20px 26px'>{picker}"
+                    f"<div class='card'>Jobber said: "
+                    f"{esc(day['error'][:160])}</div></div></div>",
+                    chrome="bare")
+    if not day["techs"]:
+        return page("Routes", f"<div class='mock'>{_chrome_bar('Routes')}"
+                    f"<div style='padding:20px 26px'>{picker}"
+                    "<div class='card'>Nothing with an address on the "
+                    "schedule that day.</div></div></div>", chrome="bare")
+
+    sections, mapjs = "", ""
+    for ti, (tech, t) in enumerate(day["techs"].items()):
+        rows = "".join(
+            f"<tr{' style=opacity:.55' if s['done'] else ''}>"
+            f"<td><b>#{s['n']}</b></td><td>{esc(s['arrive'])}</td>"
+            f"<td>{esc((s['title'] or '')[:44])}<div class='subtext'>"
+            f"{esc((s['address'] or '')[:52])}</div></td>"
+            f"<td class='subtext'>{('+' + str(s['drive_min']) + 'm') if s['drive_min'] else '·'}</td>"
+            f"<td>{'✓' if s['done'] else ''}</td></tr>"
+            for s in t["stops"])
+        sections += f"""
+<div class='card'>
+ <h2 style='margin-top:0'>👷 {esc(tech)}
+  <span class='subtext' style='font-weight:400'>· {len(t['stops'])}
+  stop(s) · {t['drive_min']} min / {t['drive_mi']} mi driving ·
+  back {esc(t['back_at'])}</span></h2>
+ <div style='display:grid;grid-template-columns:1fr 1fr;gap:14px'
+      class='routegrid'>
+  <div id='map{ti}' style='height:420px;border-radius:12px'></div>
+  <div style='overflow-x:auto;max-height:420px;overflow-y:auto'>
+   <table><tr><th></th><th>Est.</th><th>Stop</th><th>Drive</th><th></th>
+   </tr>{rows}</table></div>
+ </div></div>"""
+        mapjs += f"""
+(function(){{
+ var m = L.map('map{ti}');
+ L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png',
+  {{maxZoom: 18, attribution: '© OpenStreetMap'}}).addTo(m);
+ var poly = {json.dumps(t["poly"])};
+ if (poly.length) L.polyline(poly, {{color: '#177245', weight: 4,
+  opacity: .75}}).addTo(m);
+ var stops = {json.dumps([[s["lat"], s["lng"], s["n"],
+                           (s["title"] or "")[:40], s["arrive"]]
+                          for s in t["stops"]])};
+ var bounds = [];
+ stops.forEach(function(s){{
+  bounds.push([s[0], s[1]]);
+  L.marker([s[0], s[1]], {{icon: L.divIcon({{className: '',
+   html: "<div style='background:#0b3d2e;color:#fff;border-radius:50%;"
+     + "width:24px;height:24px;line-height:24px;text-align:center;"
+     + "font-weight:800;font-size:12px;border:2px solid #fff;"
+     + "box-shadow:0 1px 4px rgba(0,0,0,.4)'>" + s[2] + "</div>",
+   iconSize: [24, 24]}})}}).addTo(m)
+   .bindPopup('#' + s[2] + ' ' + s[4] + ' — ' + s[3]);
+ }});
+ if (bounds.length) m.fitBounds(bounds, {{padding: [16, 16]}});
+}})();"""
+
+    note = (f"<div class='subtext' style='margin:4px 0 10px'>"
+            f"{day['skipped_no_address']} schedule item(s) had no "
+            f"property address (office reminders) — not routed.</div>"
+            if day.get("skipped_no_address") else "")
+    body = (f"<div class='mock'>{_chrome_bar('Routes')}"
+            f"<div style='padding:20px 26px;max-width:1150px'>"
+            f"<h2 style='margin:2px 0 6px'>🚐 Routes — "
+            f"{'takedown tasks' if kind == 'tasks' else 'the day’s jobs'}"
+            f", {esc(date_str)}</h2>{picker}{note}{sections}</div></div>"
+            "<link rel='stylesheet' "
+            "href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'>"
+            "<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'>"
+            "</script>"
+            "<style>@media(max-width:900px){.routegrid{"
+            "grid-template-columns:1fr}}"
+            ".leaflet-container{background:#dde5dd}</style>"
+            f"<script>{mapjs}</script>")
+    return page("Routes", body, chrome="bare")
+
+
 def route_demo_page():
     """🚐 ROUTE MOCKUP (Dallon, Jul 9 pm: 'a mock up for jessica and
     tom what a route would look like based on the geomapping and
@@ -5340,6 +5459,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(guide_page())
         if self.path == "/route_demo":
             return self._send(route_demo_page())
+        if self.path.startswith("/routes"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            return self._send(routes_page(
+                (q.get("d") or [None])[0],
+                (q.get("k") or ["visits"])[0],
+                fresh=bool((q.get("fresh") or [""])[0])))
         if self.path.startswith("/flyover"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             return self._send(flyover_page(q.get("addr", [""])[0]))
