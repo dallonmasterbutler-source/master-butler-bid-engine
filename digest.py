@@ -129,6 +129,18 @@ def build_data():
                  f"#{r['office_quote']} · {age}d since request"
                  for age, r in nudge[:8]])
 
+    try:                     # the churn counterpunch (Jul 10 cycle)
+        due = (db._blob_rw("due_soon", []) or [])
+        if due:
+            sec("📅", f"Due for their annual: {len(due)} customers",
+                f"${sum(r['lifetime'] for r in due):,} lifetime value "
+                "inside their own service window — see Win-back",
+                [f"{r['name'][:28]} — last {r['last']} "
+                 f"(${r['last_total']:,}), ${r['lifetime']:,} lifetime"
+                 for r in due[:5]])
+    except Exception:
+        pass
+
     glance = []
     try:
         sbs = db.scoreboard_status()

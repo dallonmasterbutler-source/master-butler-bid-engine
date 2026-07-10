@@ -5138,6 +5138,38 @@ def winback_page(showall=False):
   f"<a href='/winback?all=1' class='btn' style='display:inline-block;"
   f"margin-top:10px'>Show all {len(rows)} (top 200 shown)</a>"}
  </div>"""
+
+    # DUE FOR THEIR ANNUAL (Jul 10 cycle — the churn counterpunch):
+    # loyal ACTIVE customers whose own yearly window is open right now.
+    # Reach them BEFORE they drift into the win-back list.
+    due = _blob_rw("due_soon", [])
+    if due:
+        drows = "".join(
+            f"<tr data-n='{esc(r['name']).lower()}'>"
+            f"<td><b>{esc(r['name'])[:30]}</b></td>"
+            f"<td class='num'>{r['visits']}</td>"
+            f"<td>{r['years']} yr</td><td>{esc(r['last'])}"
+            f"<div class='subtext'>${r['last_total']:,} last time</div></td>"
+            f"<td class='num'>{r['days_since']}d ago "
+            f"<span class='subtext'>(their rhythm: "
+            f"{r['cadence_days']}d)</span></td>"
+            f"<td class='num'><b>${r['lifetime']:,}</b></td></tr>"
+            for r in due[:100])
+        due_card = f"""
+<div class='card' style='border-left:4px solid var(--green2)'>
+ <h2 style='margin-top:0'>📅 Due for their annual — book them BEFORE
+  they drift</h2>
+ <div class='subtext' style='margin-bottom:8px'>{len(due)} loyal
+  customers are inside their own yearly service window right now
+  (${sum(r['lifetime'] for r in due):,} lifetime value). These are
+  ACTIVE customers — a 'ready for your usual visit?' email books most
+  of them. Find them by name on the 👥 Customers tab.</div>
+ <table><tr><th>Customer</th><th class='num'>Jobs</th><th>Years</th>
+  <th>Last visit</th><th class='num'>Due</th>
+  <th class='num'>Lifetime</th></tr>{drows}</table>
+ {f"<div class='subtext' style='margin-top:8px'>top 100 of {len(due)} shown — highest lifetime first</div>" if len(due) > 100 else ""}
+</div>"""
+        body = due_card + body
     return page("Win-back", body)
 
 

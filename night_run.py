@@ -197,6 +197,22 @@ try:
 except Exception as e:
     print(f"   QA check skipped ({e})")
 
+# 5b ── refresh the due-for-annual list (books itself out of date as
+# customers schedule) + rerun the DNS sweep periodically
+try:
+    import due_soon
+    due_soon.run()
+except Exception as e:
+    print(f"   due-soon refresh skipped ({e})")
+try:
+    from datetime import date as _date
+    if _date.today().weekday() == 6:       # Sundays: refresh DNS list
+        import dns_sweep
+        dns_sweep.sweep()
+        print("   DNS sweep refreshed (weekly)")
+except Exception as e:
+    print(f"   DNS sweep skipped ({e})")
+
 # 6 ── mirror display data to the cloud dashboard
 print("\n[6/6] Cloud mirror…")
 try:
