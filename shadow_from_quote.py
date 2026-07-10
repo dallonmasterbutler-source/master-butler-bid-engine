@@ -63,10 +63,11 @@ def services_from_lines(lines):
     return out
 
 
-def build(address, services, customer, notes_prefix=""):
+def build(address, services, customer, notes_prefix="", source=None):
     """Price a known service list at a known address through our own
     engine → a draft dict (same shape the pipeline produces). Returns
-    None if we can't get a size to price from."""
+    None if we can't get a size to price from. source overrides the
+    provenance note (default: rebuilt-from-their-last-quote)."""
     if not (address and services):
         return None
     from pipeline import lookup, build_property
@@ -99,9 +100,10 @@ def build(address, services, customer, notes_prefix=""):
     pw_missing = [s for s in services if s.startswith("pw_")
                   and not any("pressure wash" in p or "house wash" in p
                               for p in priced)]
-    note = (notes_prefix + "Shadow bid rebuilt from the customer's last "
-            "quote (their request was too brief to price directly) — "
-            "so the scoreboard can compare our number to the office's.")
+    note = notes_prefix + (source or
+           ("Shadow bid rebuilt from the customer's last quote (their "
+            "request was too brief to price directly) — so the "
+            "scoreboard can compare our number to the office's."))
     extra = ([f"NOTE: {', '.join(pw_missing)} on their last quote — not "
               "in this shadow bid (pressure washing needs surfaces "
               "measured; use 📐 Measure to add it)."] if pw_missing else [])

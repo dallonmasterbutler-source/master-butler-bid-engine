@@ -34,6 +34,11 @@ def _email(r):
 
 
 def _skip(r, e):
+    # a VOICEMAIL record wears copycall's sender but the CALLER is the
+    # customer — never skip those (Terry Brower stayed an empty shell
+    # because 'copycall' in the from-address skipped him, Jul 10)
+    if r.get("lead") and not (r.get("merged_into") or r.get("spam_auto")):
+        return False
     return (r.get("merged_into") or r.get("spam_auto")
             or r.get("tech_sender")
             or (e and (tech_for(e) or any(x in e for x in
@@ -220,6 +225,20 @@ def run(recent_hours=None):
                         stats.setdefault("vm_failing", 0)
                         stats["vm_failing"] += 1
                         changed = True
+            except Exception:
+                pass
+
+        # 7) VOICEMAIL FULL CARD (Terry Brower, Jul 10: 'an empty shell
+        #    with a name and the voicemail — it needs everything else'):
+        #    any transcribed voicemail missing its profile link, status,
+        #    priced draft, or photos gets them filled here, hourly.
+        if rec.get("lead") and "🎙" in (rec.get("newest_message") or ""):
+            try:
+                import vm_enrich
+                if vm_enrich.enrich(rec, stamp):
+                    stats.setdefault("vm_enriched", 0)
+                    stats["vm_enriched"] += 1
+                    changed = True
             except Exception:
                 pass
 

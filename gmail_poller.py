@@ -351,6 +351,13 @@ def _transcribe_voicemail(record, parsed, raw_bytes, stamp, who):
         record["address"] = record.get("address") or find_address(text)
         record["office_alert"] = (f"🎙 Voicemail from {who} — transcribed "
                                   "automatically; their words are below.")
+        # FULL CARD, not an empty shell (Dallon, Jul 10 — Terry Brower):
+        # profile link, returning status, address, priced draft, photos
+        try:
+            import vm_enrich
+            vm_enrich.enrich(record, stamp)
+        except Exception as e:
+            print(f"  (voicemail enrichment skipped: {e})")
         try:
             import msglog
             msglog.record("in", parsed.get("sender_email") or "",
