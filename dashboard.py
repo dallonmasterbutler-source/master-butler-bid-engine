@@ -2577,6 +2577,14 @@ def inbox_page(sel=None, draft="", user=None):
         last_at = max(c["msgs"][-1]["at"] if c["msgs"] else "",
                       _stamp_utc(nb["stamp"]) if nb else "")
         unread = last_at > read_marks.get(key, "")
+        # ACKNOWLEDGED = someone explicitly marked it seen and nothing
+        # newer has come in since. The walk-away net below may still
+        # re-bold it for attention, but an acknowledged item must NOT
+        # scream 'urgent' again (Charlotte Hingle, Jul 10: a voicemail
+        # opening with the word 'Urgent' rocketed back to the top every
+        # 30 min after being marked done). A genuinely NEW message
+        # clears this — last_at then beats the mark, so unread is True.
+        acknowledged = bool(read_marks.get(key)) and not unread
         word, wstyle = _status_word(nb, live_holds, flags_open, sbs, claims)
         needs = (nb and not nb["reviewed"] and not sbs.get(nb["stamp"])
                  and nb["stamp"] not in live_holds
@@ -2647,7 +2655,7 @@ def inbox_page(sel=None, draft="", user=None):
         # 'a customer worried about their tech not showing up on time
         # needs to be brought to the top')
         urgent = None
-        if grp == 0 and unread:
+        if grp == 0 and unread and not acknowledged:
             _lastin = next((m for m in reversed(c["msgs"])
                             if m["dir"] == "in"), None) if c["msgs"] else None
             urgent = _sounds_urgent(
