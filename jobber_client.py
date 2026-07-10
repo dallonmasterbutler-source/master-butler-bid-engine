@@ -741,30 +741,63 @@ query Recent($first: Int!) {
 
 OPEN_STATUSES = ("draft", "awaiting_response", "changes_requested")
 
+CLIENT_QUOTES = """
+query ClientQuotes($term: String!) {
+  clients(searchTerm: $term, first: 3) {
+    nodes { emails { address }
+      quotes(first: 20) { nodes {
+        id quoteNumber quoteStatus createdAt jobberWebUri
+        amounts { total }
+        lineItems(first: 8) { nodes { name totalPrice } } } } } }
+}
+"""
 
-def find_open_quote(email_addr, scan=40):
-    """Newest OPEN (unconverted) quote for this exact client email."""
+
+def find_open_quote(email_addr, scan=None):
+    """The customer's LIVE quote context, looked up PER CLIENT — no
+    more recency-window scan (Kevin Pham lesson, Jul 10: his archived
+    June quote was invisible to the 80-quote scan, so a 15-year
+    customer arrived looking like a stranger).
+
+    Returns, in priority order:
+      1. newest truly OPEN quote (draft / awaiting / changes)
+      2. newest APPROVED quote (bought, likely unscheduled — Nithya)
+      3. newest quote of ANY status from the last 13 months —
+         an ARCHIVED quote usually means a postponement the office
+         must read about before quoting fresh.
+    scan is accepted for backward compatibility and ignored."""
     if not email_addr:
         return None
     global DRY_RUN
     was, DRY_RUN = DRY_RUN, False          # read-only; dry-run guards writes
     try:
-        data = _post(OPEN_QUOTES, {"first": scan}, "find open quote")
+        data = _post(CLIENT_QUOTES, {"term": email_addr}, "client quotes")
     finally:
         DRY_RUN = was
-    if data.get("error"):
+    if data.get("error") or data.get("dry_run"):
         return None
-    approved_recent = None
-    for q in data.get("quotes", {}).get("nodes", []):
-        addrs = [e["address"].lower() for e in (q.get("client") or {})
-                 .get("emails", [])]
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc)
+              - timedelta(days=400)).isoformat()
+    quotes = []
+    for n in data.get("clients", {}).get("nodes", []):
+        addrs = [e["address"].lower() for e in n.get("emails", [])]
         if email_addr.lower() not in addrs:
             continue
+        quotes = sorted((n.get("quotes") or {}).get("nodes", []),
+                        key=lambda q: q.get("createdAt") or "",
+                        reverse=True)
+        break
+    for q in quotes:
         if q.get("quoteStatus") in OPEN_STATUSES:
-            return q                       # truly open beats everything
-        if q.get("quoteStatus") == "approved" and approved_recent is None:
-            approved_recent = q            # Nithya case: bought, unscheduled
-    return approved_recent
+            return q
+    for q in quotes:
+        if q.get("quoteStatus") == "approved":
+            return q
+    for q in quotes:                       # postponements live here
+        if (q.get("createdAt") or "") >= cutoff:
+            return q
+    return None
 
 
 ADD_LINES = """

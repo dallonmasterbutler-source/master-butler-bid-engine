@@ -498,6 +498,18 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
                     f"{(oq.get('createdAt') or '')[:10]}: {lines}). This "
                     "email is likely about scheduling that work — not a "
                     "new request.")
+            elif oq["quoteStatus"] in ("archived", "converted"):
+                # the Kevin Pham case: a recent quote was archived
+                # (postponed) or done — the ask is a REVIVAL, and the
+                # story is in their conversation, not this email
+                record["office_alert"] = (
+                    f"📎 THEY HAVE RECENT HISTORY: quote "
+                    f"#{oq['quoteNumber']} (${oq['amounts']['total']}, "
+                    f"{oq['quoteStatus']} "
+                    f"{(oq.get('createdAt') or '')[:10]}: {lines}). "
+                    "READ THEIR FILE on the Customers tab before "
+                    "quoting fresh — an archived quote usually means a "
+                    "postponement (surgery, travel, weather).")
             else:
                 record["office_alert"] = (
                     f"📎 EXISTING OPEN QUOTE #{oq['quoteNumber']} "
@@ -507,7 +519,11 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
                     "a second one.")
 
     # NEW-or-RETURNING (techs' ask): first job = say so, exactly once.
-    if parsed["kind"] == "new_request" and parsed.get("sender_email"):
+    # Kevin Pham lesson (Jul 10): a returning customer writing "please
+    # send me a quote" parses as kind OTHER — they must STILL get
+    # recognized, so the check runs for every real-customer kind.
+    if parsed["kind"] in ("new_request", "scheduling", "other") \
+            and parsed.get("sender_email"):
         try:
             import jobber_client as jc
             cs = jc.client_summary(parsed["sender_email"])
@@ -530,6 +546,19 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
                     _port_jobber_photos(cs["id"], record, stamp)
                 except Exception:
                     pass
+            # SPARSE ASK FROM A KNOWN CUSTOMER (Kevin Pham, Jul 10):
+            # "Please send me a quote" with no services/address isn't
+            # missing info — it means WE already have the info.
+            if (cs.get("known") and cs.get("invoices", 0) > 0
+                    and not record.get("services")
+                    and not record.get("address")
+                    and not record.get("office_alert")):
+                record["office_alert"] = (
+                    f"🗂 RETURNING CUSTOMER ({cs['invoices']} past jobs) "
+                    "left the request nearly blank — they expect us to "
+                    "know them. Read their file on the Customers tab and "
+                    "their last quote before replying; don't ask them to "
+                    "re-explain.")
     if parsed.get("jobber_event"):
         ev = parsed["jobber_event"]
         record["jobber_event"] = ev
@@ -659,6 +688,32 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
                 "received": _rcv,
             })
         m = _re.search(r"<([^>]+)>", record["from"])
+        # IDENTICAL RESEND, NO ADDRESS (Kevin Pham sent 'Please send me
+        # a quote' twice, 20 min apart — identity dedup needs an
+        # address, so neither folded): same sender + same words within
+        # 48h is one email, period.
+        _mytext = (record.get("newest_message") or "").strip()[:120]
+        if m and _mytext:
+            for _ps, _pr in _shadow_sources_for_dedupe():
+                if _ps == stamp or _pr.get("merged_into"):
+                    continue
+                _pm = _re.search(r"<([^>]+)>", _pr.get("from") or "")
+                if not _pm or _pm.group(1).lower() != m.group(1).lower():
+                    continue
+                if (_pr.get("newest_message") or "").strip()[:120] \
+                        != _mytext:
+                    continue
+                try:
+                    _age_h = abs((datetime.strptime(stamp, "%Y%m%d-%H%M%S")
+                                  - datetime.strptime(_ps,
+                                                      "%Y%m%d-%H%M%S"))
+                                 .total_seconds()) / 3600
+                except ValueError:
+                    continue
+                if _age_h <= 48:
+                    record["merged_into"] = _ps
+                    print(f"     → identical resend folded into {_ps}")
+                    break
         verdict = check_duplicate(
             {"sender_email": m.group(1) if m else "",
              "phone": record.get("phone"),

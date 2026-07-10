@@ -3054,9 +3054,16 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                f"rel='noopener'>open ↗</a>" if oq.get("url") else "")
             + f"</b><span style='font-weight:800;color:{stc}'>"
             f"{esc(st)} · ${oq['total']}</span></div>{qlines}"
-            f"<div class='subtext' style='margin-top:4px'>Work from THIS "
-            f"quote — don't make a second one. Add lines in Jobber if "
-            f"they asked for more.</div></div>")
+            f"<div class='subtext' style='margin-top:4px'>"
+            + ("This quote was ARCHIVED — usually a postponement "
+               "(read their conversation). Revive it in Jobber rather "
+               "than quoting blind."
+               if oq.get("status") == "archived" else
+               "Their last job — context for whatever they're asking now."
+               if oq.get("status") == "converted" else
+               "Work from THIS quote — don't make a second one. Add "
+               "lines in Jobber if they asked for more.")
+            + "</div></div>")
     elif qno:
         quote_panel = (
             f"<div style='background:var(--goldbg);border:1px solid "
@@ -5865,7 +5872,12 @@ class Handler(BaseHTTPRequestHandler):
                     or get("stamp") in _blob_rw("push_allow", [])):
                 _rec_g = dict(_shadow_source()).get(get("stamp")) or {}
                 _oqg = _rec_g.get("open_quote_ctx") or {}
-                if _oqg and _oqg.get("status") != "archived":
+                # block a second quote only when one is genuinely LIVE
+                # (open or approved) — archived/converted quotes are
+                # history context (Kevin Pham), not a conflict
+                if _oqg and _oqg.get("status") in (
+                        "draft", "awaiting_response",
+                        "changes_requested", "approved"):
                     entry["note"] = (f"NOT pushed — customer already has "
                                      f"quote #{_oqg.get('number')} "
                                      f"({_oqg.get('status')}). Work from "
