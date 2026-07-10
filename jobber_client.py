@@ -660,14 +660,6 @@ def _is_window_line(name):
     return "window" in (name or "").lower()
 
 
-def _tax_exempt_rate(rates):
-    """The office's 'Tax Exempt' (0%) rate, matched by name (id-stable)."""
-    for r in rates or []:
-        if (r.get("name") or "").strip().lower() == "tax exempt":
-            return r
-    return None
-
-
 def _is_tom_only(prop_info):
     pi = prop_info or {}
     if str(pi.get("pitch")) == "tom_only":
@@ -730,37 +722,26 @@ def create_draft_quote(client_id, property_id, bid, prop_info=None,
     note_lines += [f"⚠ {n}" for n in bid["notes"]
                    if not n.startswith("CUSTOMER:")]
 
-    # ── TAX (Dallon, Jul 10: windows are tax-exempt) ──
-    #   • windows-ONLY quote  → attach the office's 'Tax Exempt' rate so
-    #     the code shows plainly (line stays taxable so the 0% displays)
-    #   • mixed quote         → the city rate, but the window lines above
-    #     are already taxable:false, so tax lands only on the rest
+    # ── TAX (Dallon's ruling, Jul 10 pm): the ADDRESS is always charged
+    # its city rate — window LINES are individually non-taxable (WA
+    # doesn't tax window cleaning). A windows-only quote therefore shows
+    # $0 tax naturally, but the rate stays attached so anything the
+    # office adds later is taxed correctly. (The earlier whole-quote
+    # 'Tax Exempt' rate was a trap: add gutters to that quote in Jobber
+    # and they'd ride untaxed — LaRee's 'erases the tax completely'.)
     tax_rate_id = None
-    window_names = [li["name"] for li in line_items if _is_window_line(li["name"])]
-    taxable_names = [li["name"] for li in line_items
-                     if not _is_window_line(li["name"])]
-    if window_names and not taxable_names:
-        rates = fetch_tax_rates()
-        exempt = _tax_exempt_rate(rates)
-        if exempt:
-            tax_rate_id = exempt["id"]
-            for li in line_items:            # show the 0% Tax Exempt code
-                li["taxable"] = True
-            note_lines.append("Tax Exempt — windows are a non-taxable "
-                              "service (windows-only quote).")
-        else:
-            note_lines.append("⚠ TAX: windows-only quote is tax-exempt — "
-                              "set the 'Tax Exempt' rate (no such rate "
-                              "found in Jobber).")
-    elif address:
+    window_names = [li["name"] for li in line_items
+                    if _is_window_line(li["name"])]
+    if address:
         addr = split_address(address)
         rate, tax_note = match_tax_rate(addr["city"], addr["postalCode"],
                                         street=addr["street1"])
         if rate:
             tax_rate_id = rate["id"]
-            note_lines.append(f"Tax auto-attached: {rate['label']}"
-                              + (" (windows excluded — non-taxable)"
-                                 if window_names else ""))
+            note_lines.append(
+                f"Tax auto-attached: {rate['label']}"
+                + (" — window lines are non-taxable (WA), so tax applies "
+                   "only to any other services" if window_names else ""))
         else:
             note_lines.append(tax_note)
 

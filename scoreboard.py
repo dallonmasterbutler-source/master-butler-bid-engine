@@ -31,6 +31,7 @@ query Recent($first: Int!, $after: String) {
   quotes(first: $first, after: $after, sort: {key: CREATED_AT, direction: DESCENDING}) {
     pageInfo { hasNextPage endCursor }
     nodes { quoteNumber quoteStatus createdAt jobberWebUri
+            salesperson { name { full } }
             client { name emails { address } }
             property { address { street city } }
             amounts { total }

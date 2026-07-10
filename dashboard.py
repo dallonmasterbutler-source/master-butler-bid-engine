@@ -5000,10 +5000,6 @@ def _tax_glance(address, services=None):
         return "window" in n or n.startswith("windows_")
     wins = [s for s in (services or []) if _is_win(s)]
     all_windows = bool(services) and len(wins) == len(services)
-    if all_windows:
-        return ("<span class='chip' style='font-size:11.5px' title='Window "
-                "cleaning is a non-taxable service — this quote is tax "
-                "exempt'>🧾 Tax Exempt</span>")
     slug = _slug(address)
     cache = _blob_rw("tax_glance", {})
     hit = cache.get(slug)
@@ -5023,11 +5019,15 @@ def _tax_glance(address, services=None):
         _blob_save("tax_glance", cache)
     if not hit.get("code"):
         return ""
-    excl = " · windows exempt" if wins else ""
+    # Dallon's ruling (Jul 10 pm): the ADDRESS is always charged its city
+    # rate — window lines are just non-taxable. So the chip always shows
+    # the rate; windows-only adds '$0 — windows exempt' for clarity.
+    excl = (" · $0 — windows exempt" if all_windows
+            else " · windows exempt" if wins else "")
     return (f"<span class='chip' style='font-size:11.5px' title='Sales tax "
             f"straight from the WA Dept of Revenue for this exact address "
             f"(location code {esc(hit['code'])}) — what the quote will "
-            f"charge{'; window cleaning is non-taxable and is excluded' if wins else ''}'>"
+            f"charge{'; window cleaning is non-taxable in WA, tax applies to any other services' if wins else ''}'>"
             f"🧾 tax {hit['rate']*100:.2f}%{excl}</span>")
 
 
@@ -5266,7 +5266,8 @@ def settings_page(msg="", user=None):
    margin-top:8px'>Friends &amp; family (internal — never told to
    customers)</label>
   <textarea name='fnf' rows='2'>{esc(dp.get("fnf",
-      "50% — September and February"))}</textarea>
+      "50% — September, February or March, when the schedule is slow "
+      "(Dallon, Jul 10)"))}</textarea>
   <button style='margin-top:8px'>Save discounts</button>
  </form></div>"""
     qr_card += disc_card

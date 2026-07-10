@@ -1,12 +1,13 @@
-"""Windows are tax-exempt (Dallon, Jul 10). Lock the quote-tax behavior:
-  - mixed quote  → window lines taxable:false, city rate on the rest
-  - windows-only → the office's 'Tax Exempt' rate, lines shown at 0%
+"""Windows are tax-exempt (Dallon's ruling, Jul 10 pm): the ADDRESS is
+always charged its city rate; window LINES are individually non-taxable.
+  - mixed quote  → window lines taxable:false, city rate taxes the rest
+  - windows-only → SAME: city rate attached ($0 tax falls out naturally,
+    and anything the office adds later is taxed) — never a whole-quote
+    'Tax Exempt' rate (that erased tax on added services)
   - no windows   → unchanged (city rate, everything taxable)
 Run: python3 test_tax.py
 """
 import jobber_client as jc
-
-_EXEMPT = "Z2lkOi8vSm9iYmVyL1RheFJhdGUvMzIyODc="   # office 'Tax Exempt' id
 
 
 def _build(services, address="123 Main St, Monroe, WA 98272"):
@@ -47,15 +48,16 @@ def run():
           "mixed: gutter line should be taxable:true")
     check(a.get("taxRateId") == "CITY", "mixed: city rate should attach")
 
-    # standalone in&out → Tax Exempt rate
+    # standalone in&out → CITY rate stays on the address, window line
+    # non-taxable ($0 tax falls out; add-ons later get taxed correctly)
     a = _build([_tax("Windows In & Out", 300)])
-    check(a.get("taxRateId") == _EXEMPT, "in&out only: Tax Exempt rate")
-    check(all(x.get("taxable") for x in a["lineItems"]),
-          "in&out only: lines taxable:true so 0% code shows")
+    check(a.get("taxRateId") == "CITY", "in&out only: city rate on address")
+    check(all(x.get("taxable") is False for x in a["lineItems"]),
+          "in&out only: window line non-taxable")
 
-    # standalone exterior → Tax Exempt rate
+    # standalone exterior → same
     a = _build([_tax("Window Cleaning (Exterior Only)", 250)])
-    check(a.get("taxRateId") == _EXEMPT, "exterior only: Tax Exempt rate")
+    check(a.get("taxRateId") == "CITY", "exterior only: city rate on address")
 
     # no windows → unchanged city rate, all taxable
     a = _build([_tax("Gutter Cleaning", 180), _tax("Moss Treatment", 150)])

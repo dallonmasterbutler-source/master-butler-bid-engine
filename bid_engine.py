@@ -734,7 +734,7 @@ def calculate_bid(prop):
     # The $400 dry-season floor is about TOM'S roll-outs — he does
     # high-risk roofs only now (tom_only pitch). Scoped there so it
     # doesn't nag every small summer gutter job a regular tech handles.
-    # (INTERPRETATION — confirm with Dallon: Tom-tier only, or all jobs?)
+    # (RULED by Dallon Jul 10: "Only Tom's jobs" — this scope is final.)
     if (is_dry_season and prop.get("pitch") == "tom_only"
             and lane_lines and 0 < lane_total < DRY_SEASON_ROOF_FLOOR):
         notes.append(f"DRY SEASON: Tom-tier roof-lane visit is only "
