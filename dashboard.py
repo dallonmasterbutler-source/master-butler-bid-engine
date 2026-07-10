@@ -1126,9 +1126,9 @@ def home_page():
             badge += (f"<div class='subtext'>+{len(extra_links[b['stamp']])} "
                       f"earlier message(s): {links}</div>")
         total = f"${b['total_guess']}" if b.get("total_guess") else "—"
-        c = b.get("confidence")
+        c = _num(b.get("confidence"))    # str/garbage → None, no crash
         conf = ("—" if c is None else
-                f"<b style='color:{'#1e8449' if c >= 75 else '#c77700' if c >= 50 else '#c0392b'}'>{c}%</b>")
+                f"<b style='color:{'#1e8449' if c >= 75 else '#c77700' if c >= 50 else '#c0392b'}'>{c:.0f}%</b>")
         q = quotes.get(b["stamp"])
         name = esc(b["from"]).split("&lt;")[0].strip() or esc(b["from"])
         sub = (quote_chip(q, qurls) if q else
@@ -5614,11 +5614,92 @@ def _password():
     return os.environ.get("DASHBOARD_PASSWORD", "")
 
 
+def _auth_token(pw):
+    """The signed session-cookie value for a valid login. It's an HMAC
+    of the password, so it proves 'this browser knew the password'
+    without ever storing the password in the cookie. Only someone who
+    knows the password can produce it."""
+    import hashlib
+    import hmac as _hmac
+    return _hmac.new(pw.encode(), b"mb-office-authed",
+                     hashlib.sha256).hexdigest()
+
+
+def login_page(error=False, nexturl="/"):
+    """A real sign-in page (Dallon Jul 10: 'see password at sign in').
+    Replaces the browser's native popup so we can offer a 👁 show-
+    password toggle — typing a shared password blind on a phone was
+    error-prone."""
+    err = ("<div style='background:#8a1f13;color:#ffd9d2;padding:8px 12px;"
+           "border-radius:8px;margin-bottom:12px;font-size:13.5px'>"
+           "That password didn't match — try again.</div>"
+           if error else "")
+    return ("<!doctype html><html><head><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width,"
+            "initial-scale=1'><title>Master Butler — Sign in</title>"
+            "<style>"
+            "body{margin:0;min-height:100vh;display:flex;align-items:"
+            "center;justify-content:center;background:#12211a;"
+            "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',"
+            "Roboto,sans-serif;color:#eaf2ec}"
+            ".box{background:#1a2f25;border:1px solid #2f4a3c;"
+            "border-radius:16px;padding:30px 28px;width:min(360px,90vw);"
+            "box-shadow:0 8px 30px rgba(0,0,0,.4)}"
+            "h1{margin:0 0 4px;font-size:22px;color:#8fd8b0}"
+            ".sub{color:#a3bcae;font-size:13px;margin-bottom:18px}"
+            "label{display:block;font-size:12px;color:#a3bcae;"
+            "margin:12px 0 4px;font-weight:700;text-transform:uppercase;"
+            "letter-spacing:.5px}"
+            "input{width:100%;box-sizing:border-box;padding:11px 12px;"
+            "border-radius:9px;border:1px solid #2f4a3c;background:#12211a;"
+            "color:#eaf2ec;font-size:16px}"
+            ".pw{position:relative}"
+            ".eye{position:absolute;right:6px;top:50%;"
+            "transform:translateY(-50%);background:none;border:0;"
+            "color:#a3bcae;cursor:pointer;font-size:18px;padding:6px 8px}"
+            ".show{display:flex;align-items:center;gap:8px;margin-top:12px;"
+            "font-size:13.5px;color:#a3bcae;cursor:pointer}"
+            ".show input{width:auto}"
+            "button.go{width:100%;margin-top:18px;padding:12px;"
+            "border:0;border-radius:10px;background:#177245;color:#fff;"
+            "font-weight:800;font-size:15px;cursor:pointer}"
+            "</style></head><body><form class='box' method='POST' "
+            f"action='/login'><input type='hidden' name='next' "
+            f"value='{esc(nexturl)}'>"
+            "<h1>🎩 Master Butler</h1>"
+            "<div class='sub'>Office sign-in</div>"
+            f"{err}"
+            "<label>Name (optional)</label>"
+            "<input name='who' placeholder='LaRee, Martha, Jessica…' "
+            "autocomplete='username'>"
+            "<label>Password</label>"
+            "<div class='pw'><input id='pw' name='password' "
+            "type='password' autocomplete='current-password' autofocus>"
+            "<button type='button' class='eye' id='eye' "
+            "title='Show password' onclick=\"var p=document."
+            "getElementById('pw');var e=document.getElementById('eye');"
+            "if(p.type==='password'){p.type='text';e.textContent='🙈';}"
+            "else{p.type='password';e.textContent='👁';}\">👁</button></div>"
+            "<label class='show'><input type='checkbox' onclick=\""
+            "document.getElementById('pw').type=this.checked?'text':"
+            "'password';\"> Show password</label>"
+            "<button class='go' type='submit'>Sign in</button>"
+            "</form></body></html>").encode()
+
+
 class Handler(BaseHTTPRequestHandler):
     def _authed(self):
         pw = _password()
         if not pw:
             return HOST in ("127.0.0.1", "localhost")   # no pw = local only
+        # 1) the session cookie from the login form (the normal path)
+        import hmac as _hmac
+        m = re.search(r"mb_auth=([0-9a-f]{64})",
+                      self.headers.get("Cookie") or "")
+        if m and _hmac.compare_digest(m.group(1), _auth_token(pw)):
+            return True
+        # 2) HTTP Basic still accepted — the poller's /api calls, old
+        # bookmarks, and anything scripted keep working unchanged
         import base64
         hdr = self.headers.get("Authorization", "")
         if hdr.startswith("Basic "):
@@ -5630,6 +5711,16 @@ class Handler(BaseHTTPRequestHandler):
         return False
 
     def _require_auth(self):
+        # browsers viewing a page → the friendly login form (with the
+        # show-password toggle); API/tools → plain 401
+        accept = self.headers.get("Accept", "")
+        if "text/html" in accept and self.command == "GET":
+            nxt = self.path if self.path.startswith("/") else "/"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(login_page(nexturl=nxt))
+            return
         self.send_response(401)
         self.send_header("WWW-Authenticate",
                          'Basic realm="Master Butler office"')
@@ -5645,6 +5736,15 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/health":          # no auth, no data — lets the
             return self._send(b"ok")        # poller keep the service warm
+        if self.path.startswith("/login"):  # the sign-in page (no auth)
+            return self._send(login_page())
+        if self.path == "/logout":
+            self.send_response(303)
+            self.send_header("Set-Cookie",
+                             "mb_auth=; Path=/; Max-Age=0")
+            self.send_header("Location", "/login")
+            self.end_headers()
+            return
         # SIGNED photo links (no session auth — Jobber's fetcher uses
         # these to pull bid photos onto the client profile). The HMAC
         # token makes each URL unguessable; nothing is listable.
@@ -5832,6 +5932,37 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
             return self._send(b"ok")
+
+        # ── sign-in form POST (must run BEFORE the auth gate) ──
+        if self.path == "/login":
+            form = urllib.parse.parse_qs(body.decode())
+            pw = _password()
+            given = form.get("password", [""])[0]
+            nxt = form.get("next", ["/"])[0]
+            if not nxt.startswith("/"):
+                nxt = "/"
+            import hmac as _hmac
+            if pw and _hmac.compare_digest(given, pw):
+                self.send_response(303)
+                # 1-year session cookie; the name tag rides along too
+                self.send_header("Set-Cookie",
+                                 f"mb_auth={_auth_token(pw)}; Path=/; "
+                                 "Max-Age=31536000; SameSite=Lax")
+                who = form.get("who", [""])[0].strip()
+                if who:
+                    self.send_header(
+                        "Set-Cookie",
+                        f"office_user={urllib.parse.quote(who)}; Path=/; "
+                        "Max-Age=31536000")
+                self.send_header("Location", nxt)
+                self.end_headers()
+                return
+            # wrong password → re-show the form with the error
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(login_page(error=True, nexturl=nxt))
+            return
 
         if not self._authed():
             return self._require_auth()
@@ -6353,10 +6484,11 @@ class Handler(BaseHTTPRequestHandler):
                         new = round(float(raw))
                     except ValueError:
                         continue
-                    if new != round(s["price"]):
-                        s.setdefault("orig_price", s["price"])
+                    cur = _num(s.get("price")) or 0   # corrupt price safe
+                    if new != round(cur):
+                        s.setdefault("orig_price", cur)
                         changes.append(f"{s['name']}: "
-                                       f"${s['price']:,.0f}→${new:,.0f}")
+                                       f"${cur:,.0f}→${new:,.0f}")
                         s["price"] = new
                 if changes:
                     rec["draft"]["total"] = sum(s["price"] for s in svcs)
