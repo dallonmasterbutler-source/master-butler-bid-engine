@@ -157,12 +157,15 @@ def build():
 
     lines += ["", "STANDING FLAGS FOR DALLON:",
               "  · Jobber portal: add Users-read scope (salesperson labels)",
-              "  · Jobber: archive test quotes #36577/78, #36582-87, #36593",
-              "  · Voicemail transcription LIVE — next real CopyCall email "
-              "with audio is the proof",
+              "  · Jobber: archive TEST quotes #36600/01/02 + tech tests "
+              "#36577/78, #36582-87, #36593; then client 'TEST - Carl "
+              "Fullrun (TEST)'",
+              "  · QUOTING IS LIVE for everyone (PUSH_ON_APPROVE on; "
+              "drafts only — a human sends from Jobber)",
               "  · Martha: roof-blow-off-solo policy · Techs: grades #36582-87",
               "  · Messages send stays OFF (REPLIES_ENABLED) until you rule",
-              "  · PUSH_ON_APPROVE stays OFF until you flip it", ""]
+              "  · Lights labor evidence: data/lights_calibration.json "
+              "(overnight mining) — set the anchor with Tom", ""]
     return "\n".join(lines)
 
 

@@ -249,7 +249,8 @@ def find_client_address(email_addr):
 FIND_CLIENT_BY_PHONE = """
 query FindByPhone($term: String!) {
   clients(searchTerm: $term, first: 3) {
-    nodes { name jobberWebUri
+    nodes { id name jobberWebUri
+            emails { address }
             invoices(first: 1) { totalCount }
             quotes(first: 1) { totalCount }
             properties { address { street city } } }
@@ -286,7 +287,10 @@ def caller_id(phone):
                         "invoices": n["invoices"]["totalCount"],
                         "quotes": n["quotes"]["totalCount"],
                         "address": addr,
-                        "url": n.get("jobberWebUri")}
+                        "url": n.get("jobberWebUri"),
+                        "id": n.get("id"),
+                        "email": ((n.get("emails") or [{}])[0]
+                                  .get("address") or "").lower() or None}
     finally:
         DRY_RUN = was
     return None
@@ -807,11 +811,15 @@ query ClientPhotos($id: EncodedId!) {
 
 
 def client_photos(client_id, limit=8):
-    """Images already on the client's Jobber profile — on-site photos
-    the office/techs uploaded (Jessica, Jul 9: 'port over pictures from
+    """Images on the client's Jobber profile — on-site photos the
+    office/techs uploaded (Jessica, Jul 9: 'port over pictures from
     jobber during the info gathering phase — easier for bids').
-    READ-ONLY; returns [(fileName, url)], skips our own bid-system
-    uploads (they came FROM us — porting them back is a loop)."""
+    READ-ONLY; returns [(fileName, url)]. EVERY image comes over —
+    including our own past uploads (Dallon, Jul 9 pm: satellite shots
+    are sometimes the wrong house, so the office needs to see exactly
+    what Jobber holds). The no-loop guard lives on the PUSH side:
+    kind-'jobber' photos never re-upload, new aerial/street/customer
+    photos always do."""
     global DRY_RUN
     was = DRY_RUN
     DRY_RUN = False
@@ -825,12 +833,9 @@ def client_photos(client_id, limit=8):
     for note in ((data.get("client") or {}).get("notes") or {}) \
             .get("nodes", []):
         for a in (note.get("fileAttachments") or {}).get("nodes", []):
-            fn = a.get("fileName") or ""
             if not (a.get("contentType") or "").startswith("image/"):
                 continue
-            if fn.startswith(("aerial-", "street-", "customer-")):
-                continue                    # our own uploads — skip
-            out.append((fn, a.get("url")))
+            out.append((a.get("fileName") or "", a.get("url")))
             if len(out) >= limit:
                 return out
     return out
