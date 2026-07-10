@@ -78,6 +78,19 @@ def build(address, services, customer, notes_prefix=""):
         return None
     results, engine_notes, confidence = calculate_bid(
         dict(prop, request_date=__import__("datetime").date.today()))
+    engine_notes = list(engine_notes)
+    # returning customer BY DEFINITION — ratchet to their last invoice
+    # (Martha's Robert Lin catch) and ride the moss product along
+    try:
+        import lastpaid
+        engine_notes += lastpaid.apply(results, address=address,
+                                       client_name=(customer or {}).get("name"))
+    except Exception:
+        pass
+    if any("moss" in (s.get("name") or "").lower() for s in results) \
+            and not any("product" in (s.get("name") or "").lower()
+                        for s in results):
+        results.append({"name": "Moss Treatment Product", "price": 14.50})
     total = sum(s["price"] for s in results)
     # pressure-wash services can't be priced without measured surfaces —
     # say so plainly so the office/scoreboard know the comparison is

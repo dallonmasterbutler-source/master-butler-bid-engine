@@ -124,6 +124,27 @@ def process_manual(name, address, phone="", email="", services=None,
                     confidence = min(confidence, 45)
             except Exception:
                 pass
+            # never quote a returning customer less than their last
+            # invoice (Martha's Robert Lin catch, Jul 10)
+            try:
+                import lastpaid
+                lnotes = lastpaid.apply(results, address=addr,
+                                        client_name=name)
+                notes += lnotes
+                if any("REVIEW" in n for n in lnotes):
+                    confidence = min(confidence, 45)
+            except Exception:
+                pass
+            # moss product rides with moss labor (Martha, Jul 10)
+            if any("moss" in (s.get("name") or "").lower()
+                   for s in results) \
+                    and not any("product" in (s.get("name") or "").lower()
+                                for s in results):
+                results.append({"name": "Moss Treatment Product",
+                                "price": 14.50})
+                notes.append("Moss Treatment Product $14.50 added "
+                             "automatically (1-3 canisters typical — "
+                             "tech confirms on-site).")
             total = sum(s["price"] for s in results)
             record["draft"] = {
                 "customer": {"name": name, "email": email, "phone": phone,

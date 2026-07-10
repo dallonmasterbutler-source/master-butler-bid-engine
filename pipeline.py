@@ -325,6 +325,29 @@ def process(eml_path):
     except Exception:
         pass
 
+    # NEVER LESS THAN LAST TIME (Martha's Robert Lin catch, Jul 10):
+    # a returning customer's line ratchets up to their last invoice.
+    try:
+        import lastpaid
+        lnotes = lastpaid.apply(results,
+                                address=parsed.get("address"),
+                                client_name=parsed.get("sender_name"))
+        notes += lnotes
+        if any("REVIEW" in n for n in lnotes):
+            confidence = min(confidence, 45)
+    except Exception:
+        pass
+
+    # MOSS PRODUCT RIDES WITH MOSS LABOR (Martha, Jul 10: 'every time
+    # someone requests moss treatment, the product has to be added') —
+    # the office bills them together on every real invoice.
+    if any("moss" in (s.get("name") or "").lower() for s in results) \
+            and not any("product" in (s.get("name") or "").lower()
+                        for s in results):
+        results.append({"name": "Moss Treatment Product", "price": 14.50})
+        notes.append("Moss Treatment Product $14.50 added automatically "
+                     "(1-3 canisters typical — tech confirms on-site).")
+
     print(f"\n    DRAFT BID  (confidence {confidence}%)")
     total = 0
     for s in results:
