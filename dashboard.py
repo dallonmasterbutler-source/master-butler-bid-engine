@@ -2772,6 +2772,51 @@ document.addEventListener('DOMContentLoaded', function(){
             f"</div></div>")
     body += """
 <script>
+// KEEP MY PLACE ACROSS AUTO-REFRESH (Dallon Jul 10: 'working at the
+// bottom and it refreshes and pulls me to the top'). Save where the
+// list + detail panes are scrolled, restore after the reload.
+(function(){
+  var KEY = 'scroll:' + location.pathname + location.search;
+  function panes(){ return {
+    list: document.querySelector('.ilist'),
+    detail: document.querySelector('.idetail')}; }
+  function save(){
+    var p = panes();
+    try { sessionStorage.setItem(KEY, JSON.stringify({
+      w: window.scrollY,
+      list: p.list ? p.list.scrollTop : 0,
+      detail: p.detail ? p.detail.scrollTop : 0})); } catch(e) {}
+  }
+  window.__saveScroll = save;
+  // restore on load — RETRY until the panes have laid out, because
+  // setting scrollTop before the list has its full height silently
+  // clamps to 0 (that was the 'jumps to top' bug, Jul 10)
+  try {
+    var s = JSON.parse(sessionStorage.getItem(KEY) || 'null');
+    if (s) {
+      sessionStorage.removeItem(KEY);
+      var tries = 0;
+      (function apply(){
+        var p = panes();
+        if (p.list) p.list.scrollTop = s.list;
+        if (p.detail) p.detail.scrollTop = s.detail;
+        window.scrollTo(0, s.w);
+        // if the target didn't stick (content not tall enough yet),
+        // try again for up to ~1s
+        var ok = (!p.list || Math.abs(p.list.scrollTop - s.list) < 3
+                  || p.list.scrollHeight - p.list.clientHeight
+                     <= s.list + 3);
+        if (!ok && tries++ < 12) setTimeout(apply, 80);
+      })();
+    }
+  } catch(e) {}
+  // also save on every scroll, so a manual reload keeps the place too
+  var t; ['scroll'].forEach(function(ev){
+    document.addEventListener(ev, function(){
+      clearTimeout(t); t = setTimeout(save, 150);
+    }, true);
+  });
+})();
 (function(){
   var last = null;
   function bump(){
@@ -2779,7 +2824,10 @@ document.addEventListener('DOMContentLoaded', function(){
       if (last === null) { last = d.t; return; }
       var rb = document.getElementById('bidreply') ||
                document.getElementById('inboxreply');
-      if (d.t !== last && (!rb || !rb.value.trim())) location.reload();
+      if (d.t !== last && (!rb || !rb.value.trim())) {
+        if (window.__saveScroll) window.__saveScroll();
+        location.reload();
+      }
       last = d.t;
     }).catch(function(){});
   }
