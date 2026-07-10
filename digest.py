@@ -2,7 +2,10 @@
 MASTER BUTLER — MORNING BRIEF
 
 One page, plain English: what came in, what's waiting, how the shadow
-system scored, what needs Dallon. Written to data/briefs/ and printed.
+system scored, what needs Dallon. build_data() makes the STRUCTURE;
+build() renders it as text (nightly email + data/briefs/ file) and the
+dashboard's 📋 Brief tab renders the same structure as readable cards
+(Dallon, Jul 9 pm: "it looks like a block of text").
 
 Run:  python3 digest.py        (night_run also generates it)
 """
@@ -15,18 +18,47 @@ BASE = Path(__file__).parent
 BRIEFS = BASE / "data" / "briefs"
 
 
-def build():
+def build_data():
+    """The brief as structure: {'date', 'pin': [bullets],
+    'sections': [{'icon','title','sub','items':[str]}]}."""
     import dashboard as db
 
-    lines = [f"MASTER BUTLER — MORNING BRIEF · {datetime.now():%A, %B %d, %Y}",
-             "=" * 56, ""]
+    data = {"date": f"{datetime.now():%A, %B %d, %Y}",
+            "pin": [], "sections": []}
 
     pin = BASE / "data" / "brief_pin.txt"
-    if pin.exists() and pin.read_text().strip():
-        lines.append(pin.read_text().rstrip())
-        lines.append("")
-        lines.append("=" * 56)
-        lines.append("")
+    txt = ""
+    if pin.exists():
+        txt = pin.read_text()
+    else:
+        try:                       # the cloud has no files — blob copy
+            import clouddb
+            if clouddb.available():
+                txt = clouddb.get_blob("brief_pin") or ""
+        except Exception:
+            pass
+    if txt.strip():
+        # the pin file is hand-written with '· ' bullets over wrapped
+        # lines — reflow into one string per bullet
+        cur = []
+        for ln in txt.splitlines():
+            s = ln.strip()
+            if not s or s.startswith("📌"):
+                continue
+            if s.startswith("·"):
+                if cur:
+                    data["pin"].append(" ".join(cur))
+                cur = [s.lstrip("· ")]
+            else:
+                cur.append(s)
+        if cur:
+            data["pin"].append(" ".join(cur))
+
+    def sec(icon, title, sub="", items=None):
+        if items is not None and not items:
+            return
+        data["sections"].append({"icon": icon, "title": title,
+                                 "sub": sub, "items": items or []})
 
     bids = db.load_bids()
     live_holds, resurfaced = db.active_holds()
@@ -34,59 +66,59 @@ def build():
              and b["stamp"] not in live_holds]
     new_requests = [b for b in queue if b.get("kind") == "new_request"]
     oldest = max((b["age_hours"] for b in queue), default=0)
-
-    lines.append(f"QUEUE: {len(queue)} item(s) waiting "
-                 f"({len(new_requests)} real requests) — oldest has waited "
-                 f"{oldest:.0f}h" + ("  ⚠ past 24h SLA" if oldest >= 24 else ""))
-    for b in queue[:8]:
-        mark = " [SPAM-FOUND]" if b.get("office_alert") else ""
-        dup = " [DUP?]" if b.get("duplicate_of") else ""
-        lines.append(f"  · {b['from'][:44]} — {b.get('kind')}"
-                     f"{mark}{dup} ({b['age_hours']:.0f}h)")
+    sec("📥", f"Queue: {len(queue)} waiting",
+        f"{len(new_requests)} real requests · oldest {oldest:.0f}h"
+        + ("  ⚠ past 24h SLA" if oldest >= 24 else ""),
+        [f"{(b['from'] or '')[:44]} — {b.get('kind')}"
+         + (" ⚠ alert" if b.get("office_alert") else "")
+         + (" [dup?]" if b.get("duplicate_of") else "")
+         + f" ({b['age_hours']:.0f}h)" for b in queue[:8]])
 
     if resurfaced:
-        lines.append("")
-        lines.append("BACK FROM HOLD (answer these first):")
-        for s, h in resurfaced.items():
-            lines.append(f"  ⏰ {h.get('customer', s)} — {h.get('hold_reason')}")
+        sec("⏰", "Back from hold — answer these first", "",
+            [f"{h.get('customer', s)} — {h.get('hold_reason')}"
+             for s, h in resurfaced.items()])
 
-    sb_path = BASE / "data" / "scoreboard.json"
-    if sb_path.exists():
-        sb = json.loads(sb_path.read_text())
+    try:
+        sb = (db.clouddb.get_blob("scoreboard")
+              if db.clouddb.available() else None)
+        if not sb:
+            p = BASE / "data" / "scoreboard.json"
+            sb = json.loads(p.read_text()) if p.exists() else None
+    except Exception:
+        sb = None
+    if sb:
         matched = [r for r in sb["rows"] if r.get("office_quote")]
-        lines.append("")
         if matched:
             close = sum(1 for r in matched
                         if r.get("gap_pct") is not None
                         and abs(r["gap_pct"]) <= 10)
-            lines.append(f"SCOREBOARD: {len(matched)} compared — "
-                         f"{close} within 10% of the office.")
-            for r in matched[:6]:
-                lines.append(f"  · {(r.get('customer') or '?')[:34]}: "
-                             f"sys ${r['system_total']:.0f} vs office "
-                             f"${r['office_total']:.0f} ({r['gap_pct']:+.0f}%)")
+            sec("📊", f"Scoreboard: {len(matched)} compared",
+                f"{close} within 10% of the office",
+                [f"{(r.get('customer') or '?')[:34]}: system "
+                 f"${r['system_total']:,.0f} vs office "
+                 f"${r['office_total']:,.0f} ({r['gap_pct']:+.0f}%)"
+                 for r in matched[:6]])
         else:
             waiting = sum(1 for r in sb["rows"] if not r.get("office_quote"))
-            lines.append(f"SCOREBOARD: {waiting} shadow draft(s) still "
-                         "waiting for office quotes.")
+            sec("📊", "Scoreboard",
+                f"{waiting} shadow draft(s) waiting for office quotes")
 
-    # WINS + campaign + conversation glance (all from shared blobs)
+    glance = []
     try:
         sbs = db.scoreboard_status()
         wins = [s for s, st in sbs.items()
                 if (st or "").lower() in ("approved", "converted")]
         if wins:
-            lines.append("")
-            lines.append(f"🏆 WON: {len(wins)} quote(s) approved by "
-                         "customers — see the scoreboard.")
+            glance.append(f"🏆 {len(wins)} quote(s) WON — see the scoreboard")
     except Exception:
         pass
     try:
         wb = db._winback_done()
         reb = sum(1 for v in wb.values() if v.get("outcome") == "rebooked")
         if wb:
-            lines.append(f"📞 Win-back: {len(wb)} contacted, "
-                         f"{reb} REBOOKED so far.")
+            glance.append(f"📞 Win-back: {len(wb)} contacted, "
+                          f"{reb} rebooked")
     except Exception:
         pass
     try:
@@ -95,18 +127,18 @@ def build():
         unread = sum(1 for a, n, ms in msglog.threads()
                      if ms[-1]["at"] > marks.get(a, ""))
         if unread:
-            lines.append(f"💬 {unread} conversation(s) waiting on the "
-                         "Messages tab.")
+            glance.append(f"💬 {unread} conversation(s) unread")
     except Exception:
         pass
+    if glance:
+        sec("👀", "At a glance", "", glance)
+
     try:
         ar = db._blob_rw("auto_reviews", {})
         recent_ar = [v for v in ar.values() if v.get("summary")][-3:]
         if recent_ar:
-            lines.append("")
-            lines.append("📖 WHAT THE SYSTEM LEARNED (auto-reviews):")
-            for v in recent_ar:
-                lines.append(f"  · {v['summary'][:90]}")
+            sec("📖", "What the system learned (auto-reviews)", "",
+                [v["summary"][:110] for v in recent_ar])
     except Exception:
         pass
 
@@ -114,58 +146,58 @@ def build():
     today = datetime.now().date().isoformat()
     recent = [r for r in reviews if (r.get("at") or "").startswith(today)]
     if recent:
-        lines.append("")
-        lines.append(f"DECISIONS LOGGED TODAY: {len(recent)}")
         taught = [r for r in recent if r.get("reason") or r.get("note")]
-        if taught:
-            lines.append(f"  ({len(taught)} came with a teaching reason/note)")
+        sec("✅", f"Decisions logged today: {len(recent)}",
+            f"{len(taught)} came with a teaching reason" if taught else "")
 
     try:
         flagged = db.flagged_for_review()
         if flagged:
-            lines.append("")
-            lines.append(f"🚩 SENT TO TOM & DALLON ({len(flagged)} waiting):")
-            for f in flagged[:6]:
-                lines.append(f"  · {f.get('customer', f.get('stamp'))}")
+            sec("🚩", f"With Tom & Dallon ({len(flagged)} waiting)", "",
+                [f.get("customer", f.get("stamp")) for f in flagged[:6]])
     except Exception:
         pass
 
     try:
         ideas = [x for x in db.load_ideas() if x.get("status") == "open"]
         if ideas:
-            lines.append("")
-            lines.append(f"💡 IDEAS FROM THE OFFICE ({len(ideas)} open) "
-                         "— Claude pre-plans these overnight:")
-            for x in ideas[:8]:
-                lines.append(f"  · {x['who']} ({x.get('at', '')[:10]}): "
-                             f"{x['text'][:90]}")
+            sec("💡", f"Ideas from the office ({len(ideas)} open)",
+                "Claude pre-plans these overnight",
+                [f"{x['who']} ({x.get('at', '')[:10]}): {x['text'][:100]}"
+                 for x in ideas[:8]])
     except Exception:
         pass
 
-    try:                    # idea E: is 'Similar homes' earning its spot?
-        import clouddb
-        if clouddb.available():
-            fc = (clouddb.get_blob("fold_clicks") or {}).get("similar_homes")
-            lines += ["", "SIMILAR-HOMES FOLD (watching for a week): "
-                      + (f"opened {fc['count']}× (last {fc['last'][:10]}"
-                         + (f" by {fc['last_by']}" if fc.get("last_by")
-                            else "") + ")" if fc
-                         else "never opened yet — deleting it if this "
-                              "stays zero")]
-    except Exception:
-        pass
+    sec("📌", "Standing flags for Dallon", "", [
+        "Jobber: archive TEST quotes #36600/01/02 + tech tests "
+        "#36577/78, #36582-87, #36593; then client "
+        "'TEST - Carl Fullrun (TEST)'",
+        "QUOTING IS LIVE for everyone (drafts only — a human sends "
+        "from Jobber)",
+        "Martha: roof-blow-off-solo policy · Techs: grades #36582-87",
+        "Messages send stays OFF (REPLIES_ENABLED) until you rule",
+        "Lights labor evidence: data/lights_calibration.json — set the "
+        "anchor with Tom"])
+    return data
 
-    lines += ["", "STANDING FLAGS FOR DALLON:",
-              "  · Jobber portal: add Users-read scope (salesperson labels)",
-              "  · Jobber: archive TEST quotes #36600/01/02 + tech tests "
-              "#36577/78, #36582-87, #36593; then client 'TEST - Carl "
-              "Fullrun (TEST)'",
-              "  · QUOTING IS LIVE for everyone (PUSH_ON_APPROVE on; "
-              "drafts only — a human sends from Jobber)",
-              "  · Martha: roof-blow-off-solo policy · Techs: grades #36582-87",
-              "  · Messages send stays OFF (REPLIES_ENABLED) until you rule",
-              "  · Lights labor evidence: data/lights_calibration.json "
-              "(overnight mining) — set the anchor with Tom", ""]
+
+def build():
+    """Text render — the nightly email + data/briefs/ file."""
+    d = build_data()
+    lines = [f"MASTER BUTLER — MORNING BRIEF · {d['date']}", "=" * 56, ""]
+    if d["pin"]:
+        lines.append("📌 FOR THE OFFICE THIS MORNING:")
+        for b in d["pin"]:
+            lines.append(f"  · {b}")
+        lines += ["", "=" * 56, ""]
+    for s in d["sections"]:
+        head = f"{s['icon']} {s['title'].upper()}"
+        if s["sub"]:
+            head += f" — {s['sub']}"
+        lines.append(head)
+        for it in s["items"]:
+            lines.append(f"  · {it}")
+        lines.append("")
     return "\n".join(lines)
 
 

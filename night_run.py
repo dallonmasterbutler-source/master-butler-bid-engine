@@ -213,6 +213,9 @@ try:
             blobs[key] = json.loads(f.read_text())
     if brief_text:
         blobs["brief"] = brief_text
+    pin = Path("data") / "brief_pin.txt"
+    if pin.exists():                # the 📋 Brief tab builds live in the
+        blobs["brief_pin"] = pin.read_text()   # cloud — it needs the pin
     senders = Path("data") / "internal_senders.txt"
     if senders.exists():
         blobs["internal_senders"] = [

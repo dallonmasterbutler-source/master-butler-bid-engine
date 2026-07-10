@@ -812,6 +812,7 @@ def _chrome_bar(active=""):
                                # on its OWN tab, not inside Bids
                                ("/customers", "👥 Customers", "Customers"),
                                ("/routes", "🚐 Routes", "Routes"),
+                               ("/brief", "📋 Brief", "Brief"),
                                ("/scoreboard", "📊 Scoreboard", "Scoreboard"),
                                ("/winback", "📞 Win-back", "Win-back"),
                                ("/settings", "⚙️ Settings", "Settings"),
@@ -5351,19 +5352,52 @@ def property_page(slug):
 
 
 def brief_page():
-    """Latest morning brief — cloud blob first, local file fallback."""
-    text = None
-    if clouddb.available():
-        text = clouddb.get_blob("brief")
-    if not text:
-        briefs = sorted((BASE / "data" / "briefs").glob("brief-*.txt")) \
-            if (BASE / "data" / "briefs").exists() else []
-        text = briefs[-1].read_text() if briefs else None
-    body = (f"<div class='card'><pre style='font-size:14px'>{esc(text)}</pre>"
-            "</div>" if text else
-            "<div class='card'>No brief yet — the night run writes one "
-            "each evening.</div>")
-    return page("Morning brief", body)
+    """📋 THE MORNING BRIEF, readable (Dallon, Jul 9 pm: 'it looks like
+    a block of text') — built LIVE from the same sources as the nightly
+    email, rendered as cards instead of a wall."""
+    try:
+        import digest
+        d = digest.build_data()
+    except Exception as e:
+        # never a blank page: fall back to the last saved text
+        text = clouddb.get_blob("brief") if clouddb.available() else None
+        if not text:
+            briefs = sorted((BASE / "data" / "briefs").glob("brief-*.txt")) \
+                if (BASE / "data" / "briefs").exists() else []
+            text = briefs[-1].read_text() if briefs else f"(no brief: {e})"
+        return page("Morning brief",
+                    f"<div class='card'><pre style='font-size:14px;"
+                    f"white-space:pre-wrap'>{esc(text)}</pre></div>")
+
+    cards = ""
+    if d["pin"]:
+        cards += ("<div class='card' style='border-left:4px solid "
+                  "var(--gold);background:var(--goldbg)'>"
+                  "<h2 style='margin-top:0;color:var(--goldink)'>"
+                  "📌 For the office this morning</h2>"
+                  "<ul style='margin:0;padding-left:20px;line-height:1.75;"
+                  "font-size:14.5px'>"
+                  + "".join(f"<li>{esc(b)}</li>" for b in d["pin"])
+                  + "</ul></div>")
+    for s in d["sections"]:
+        items = ("<ul style='margin:6px 0 0;padding-left:20px;"
+                 "line-height:1.7;font-size:14px'>"
+                 + "".join(f"<li>{esc(i)}</li>" for i in s["items"])
+                 + "</ul>") if s["items"] else ""
+        cards += (f"<div class='card'><h2 style='margin:0'>"
+                  f"{s['icon']} {esc(s['title'])}</h2>"
+                  + (f"<div class='subtext' style='margin-top:2px'>"
+                     f"{esc(s['sub'])}</div>" if s["sub"] else "")
+                  + items + "</div>")
+
+    body = (f"<div class='mock'>{_chrome_bar('Brief')}"
+            f"<div style='padding:20px 26px;max-width:860px'>"
+            f"<h2 style='margin:2px 0 2px'>📋 Morning brief</h2>"
+            f"<div class='subtext' style='margin-bottom:14px'>"
+            f"{esc(d['date'])} · built fresh just now · the same brief "
+            f"lands in Dallon's email every night at 9</div>"
+            + cards + "</div></div>")
+    return page("Morning brief", body, chrome="bare")
 
 
 # ── server ───────────────────────────────────────────────────
