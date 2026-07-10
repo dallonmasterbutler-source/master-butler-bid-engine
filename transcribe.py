@@ -108,6 +108,28 @@ def _to_pcm(audio_bytes):
     return None, None
 
 
+def _recognize_pcm(pcm, rate, key, base_cfg):
+    """Raw PCM -> transcript, CHUNKED under the sync endpoint's ~60s
+    ceiling (Terry Brower's 1:58 voicemail came back 'no audio', Jul 10 —
+    the API refuses long clips; anything over 55s is split and the piece
+    transcripts joined)."""
+    bytes_per_sec = rate * 2                  # 16-bit mono
+    chunk = 55 * bytes_per_sec
+    parts = []
+    for i in range(0, len(pcm), chunk):
+        seg = pcm[i:i + chunk]
+        if len(seg) < bytes_per_sec // 4:     # <0.25s tail — skip
+            continue
+        cfg = dict(base_cfg, encoding="LINEAR16", sampleRateHertz=rate)
+        try:
+            t = _recognize(cfg, base64.b64encode(seg).decode(), key)
+            if t:
+                parts.append(t)
+        except Exception:
+            continue
+    return " ".join(parts)
+
+
 def transcribe(audio_bytes, filename=""):
     """Audio bytes -> transcript text, or '' if not possible."""
     key = _key()
@@ -128,13 +150,20 @@ def transcribe(audio_bytes, filename=""):
         # parse the header and say it explicitly (verified Jul 8: header-
         # less config 400s; LINEAR16 @ parsed rate transcribes perfectly)
         code, wrate = _wav_format(audio_bytes)
+        # FIRST CHOICE for any WAV: decode to raw PCM (handles plain PCM
+        # and CopyCall's GSM alike) and go through the chunker, so long
+        # messages transcribe instead of silently failing at ~60s
+        pcm, prate = _to_pcm(audio_bytes)
+        if pcm and prate:
+            text = _recognize_pcm(pcm, prate, key, base_cfg)
+            if text:
+                return text
         if code == 1 and wrate:                    # plain PCM
             attempts.append(dict(base_cfg, encoding="LINEAR16",
                                  sampleRateHertz=wrate))
         elif code not in (None, 1):
             # compressed telephone WAV (CopyCall = GSM 6.10): decode
             # to raw PCM first — Google doesn't speak GSM
-            pcm, prate = _to_pcm(audio_bytes)
             if pcm:
                 content = base64.b64encode(pcm).decode()
                 attempts.append(dict(base_cfg, encoding="LINEAR16",
