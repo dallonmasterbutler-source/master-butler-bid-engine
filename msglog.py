@@ -54,7 +54,7 @@ def _save(log, channel):
             pass
 
 
-def clean_body(text, limit=1200):
+def clean_body(text, limit=4000):
     """Strip quoted history, signatures, and form skeletons down to the
     words a human actually typed."""
     if not text:
@@ -66,7 +66,7 @@ def clean_body(text, limit=1200):
         svc = re.search(r"(?:IN-HOUSE )?SERVICES[^\n]*:\s*\n?\s*([^\n]{3,90})",
                         text, re.I)
         adr = re.search(r"\bAddress[^\n:]{0,20}:\s*\n?\s*([^\n]{6,80})", text)
-        msg = re.search(r"(?:MESSAGE|Comments?)\s*:?\s*\n\s*(.{10,400})",
+        msg = re.search(r"(?:MESSAGE|Comments?)\s*:?\s*\n\s*(.{10,2500})",
                         text, re.S | re.I)
         if svc:
             parts.append("Services: " + svc.group(1).strip())
@@ -74,7 +74,7 @@ def clean_body(text, limit=1200):
             parts.append("Address: " + adr.group(1).strip())
         if msg:
             words = re.sub(r"\s+", " ", msg.group(1)).strip()
-            parts.append("“" + words[:300] + "”")
+            parts.append("“" + words[:2000] + "”")
         return "\n".join(parts)
     # reply headers WRAP across lines in real mail ("On Thu, Jul 9 …
     # <address\n…> wrote:") — cut at the header's START, dot spanning

@@ -721,6 +721,12 @@ footer{margin:8px 0 28px;padding:0 24px;
 .word.act{color:var(--green2)}
 .iage{color:var(--mut);font-variant-numeric:tabular-nums;font-size:12.5px}
 .iage.alarm{color:var(--alarm);font-weight:700}
+.msgbody{white-space:pre-wrap;overflow:hidden;display:-webkit-box;
+  -webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3}
+.msgbody.open{-webkit-line-clamp:unset;line-clamp:unset;display:block}
+.msgmore{background:none;border:none;padding:3px 0 0;margin:0;font:inherit;
+  font-size:11px;font-weight:700;cursor:pointer;color:inherit;opacity:.72;
+  text-decoration:underline}
 .pinned{padding:20px 26px 16px;border-bottom:2px solid var(--line);
   background:var(--card)}
 .pin-top{display:flex;justify-content:space-between;gap:18px;
@@ -2935,6 +2941,27 @@ document.addEventListener('DOMContentLoaded', function(){
     return page("Bids", body, chrome="bare")
 
 
+_MSG_MORE_JS = """<script>
+window.mbToggle=function(b){var x=b.previousElementSibling;
+ var o=x.classList.toggle('open');b.textContent=o?'Show less':'Show more';};
+(function(){function w(){document.querySelectorAll('.msgbody').forEach(function(b){
+ if(b.dataset.mb)return;b.dataset.mb='1';var t=b.nextElementSibling;
+ if(t&&t.classList.contains('msgmore')&&b.scrollHeight-b.clientHeight>2)
+  t.style.display='inline-block';});}
+ if(document.readyState!=='loading')w();else document.addEventListener('DOMContentLoaded',w);})();
+</script>"""
+
+
+def _expandable(text):
+    """Full message body, clamped to ~3 lines with a Show-more toggle when
+    it overflows (Dallon, Jul 10: 'we need all info… if it's more than 3
+    lines make it expandable'). Nothing is truncated — the whole message
+    is in the DOM, just visually collapsed until opened."""
+    return (f"<div class='msgbody'>{esc(text or '')}</div>"
+            f"<button type='button' class='msgmore' style='display:none' "
+            f"onclick='mbToggle(this)'>Show more</button>")
+
+
 def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                   claims, draft, convo_open, user):
     """Pinned critical card + the big folds for one Inbox entry."""
@@ -3400,10 +3427,32 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                       (gallery or "<div class='subtext'>no photos yet"
                        "</div>") + extra)
 
-    # conversation & reply
+    # conversation & reply — emails AND voicemails in one thread (LaRee,
+    # Jul 10: 'voicemails belong in the conversation history just like
+    # emails — that's critical customer info'). Full message, expandable.
+    convo = []
+    for m_ in (c["msgs"] or []):
+        convo.append((m_["at"], m_["dir"],
+                      (m_.get("name") or c["name"] or "Customer"),
+                      m_.get("by"),
+                      msglog.clean_body(m_.get("body") or "")
+                      or m_.get("subject") or ""))
+    seen_bodies = {(b or "")[:80] for _, _, _, _, b in convo}
+    for b2 in c["bids"]:
+        nm = b2.get("newest_message") or ""
+        is_vm = bool(b2.get("lead")) or b2.get("kind") == "phone_lead" \
+            or "🎙" in nm
+        if is_vm and nm[:80] not in seen_bodies:
+            seen_bodies.add(nm[:80])
+            convo.append((_stamp_utc(b2["stamp"]), "in",
+                          "☎ " + (c["name"] or "Voicemail"), None,
+                          nm or "☎ Voicemail — dial in to hear it"))
+    convo.sort(key=lambda x: x[0])
     bubbles = ""
-    for m_ in (c["msgs"] or [])[-8:]:
-        inn = m_["dir"] == "in"
+    for at, dr, who_, by_, body_ in convo[-12:]:
+        inn = dr == "in"
+        who = esc(who_) if inn else \
+            ("Master Butler" + ((" · " + esc(by_)) if by_ else ""))
         bubbles += (
             f"<div style='display:flex;justify-content:"
             f"{'flex-start' if inn else 'flex-end'};margin:5px 0'>"
@@ -3411,10 +3460,11 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
             f"font-size:13px;"
             f"{'background:var(--soft)' if inn else 'background:#0b3d2e;color:#eef4f0'}'>"
             f"<div style='font-size:10px;font-weight:700;opacity:.6'>"
-            f"{esc((m_.get('name') or c['name'] or 'Customer') if inn else 'Master Butler' + ((' · ' + m_['by']) if m_.get('by') else ''))}"
-            f" · {esc(_pt(m_['at']))}</div>"
-            f"{esc(msglog.clean_body(m_.get('body') or '')[:400] or m_.get('subject') or '')}"
+            f"{who} · {esc(_pt(at))}</div>"
+            f"{_expandable(body_)}"
             f"</div></div>")
+    if bubbles:
+        bubbles += _MSG_MORE_JS
     reply_ui = ""
     if c["email"]:
         _cn_json = _canned_payload()
@@ -3466,7 +3516,7 @@ _is.onchange = function(){{
                   "quick responses · ✨ draft",
                   (bubbles or "<div class='subtext'>No messages logged — "
                    "replying starts the thread.</div>") + reply_ui,
-                  open_=convo_open, count=len(c["msgs"] or []) or None)
+                  open_=convo_open, count=len(convo) or None)
 
     # history & must-know
     if nb and nb.get("address"):
@@ -3714,7 +3764,7 @@ def customers_tab_page(sel=None, q="", user=None, draft=""):
                 f"<div style='font-size:10px;font-weight:700;opacity:.65'>"
                 f"{'Customer' if inn else 'Master Butler'} · "
                 f"{esc(_pt(at))}</div>"
-                f"{esc((body or subject)[:900])}</div></div>")))
+                f"{_expandable(body or subject)}</div></div>")))
 
         for e in p["emails"]:
             for m in cst.hist_msgs(e):
@@ -3753,7 +3803,7 @@ def customers_tab_page(sel=None, q="", user=None, draft=""):
                            f"margin:8px 0'>— 📋 Jobber "
                            f"{quote_chip(quotes[s], quote_urls())} —</div>"))
         tl.sort(key=lambda x: x[0])
-        thread_html = "".join(h for _, h in tl) or \
+        thread_html = ("".join(h for _, h in tl) + _MSG_MORE_JS) if tl else \
             ("<div class='subtext'>No conversation on file yet.</div>")
 
         # compact reply (locked send, same rails as everywhere) — with
