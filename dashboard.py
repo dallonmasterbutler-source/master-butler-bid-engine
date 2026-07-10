@@ -4368,6 +4368,124 @@ GUIDE_FAQ = [
 ]
 
 
+def route_demo_page():
+    """🚐 ROUTE MOCKUP (Dallon, Jul 9 pm: 'a mock up for jessica and
+    tom what a route would look like based on the geomapping and
+    driver apis we have already installed' — his 2025 Iron Man route).
+    Data is precomputed into the route_demo blob; the page just draws.
+    """
+    demo = _blob_rw("route_demo", None)
+    if not demo:
+        return page("Route mockup", "<div class='card'>Route demo data "
+                    "isn't loaded yet — tell Dallon.</div>")
+    t = demo["territory"]
+    d = demo["day"]
+    chips = " ".join(
+        f"<span class='chip'>{esc(c)}: <b>{n}</b></span>"
+        for c, n in t["by_city"])
+    months = " · ".join(f"{m}: {n}" for m, n in t["by_month"])
+    rows = "".join(
+        f"<tr><td><b>#{s['n']}</b></td><td>{esc(s['arrive'])}</td>"
+        f"<td>{esc(s['name'])[:30]}<div class='subtext'>"
+        f"{esc(s['address'])[:48]}</div></td>"
+        f"<td class='num'>${s['price']:,.0f}</td>"
+        f"<td class='subtext'>{'+' + str(s['drive_min']) + ' min' if s['drive_min'] else 'next door'}</td></tr>"
+        for s in d["stops"])
+    body = f"""
+<div class='mock'>{_chrome_bar('')}
+<div style='padding:20px 26px;max-width:1150px'>
+ <h2 style='margin:2px 0 4px'>🚐 Holiday-lights routing — what the
+  mapping can already do</h2>
+ <div class='subtext' style='margin-bottom:14px'>MOCKUP for Jessica &amp;
+  Tom, built from REAL data: every 2025-season install invoice in the
+  Iron Man territory + Google's route optimizer. Nothing here touches
+  the schedule — it's a picture of what we could automate.</div>
+
+ <div class='card'>
+  <h2 style='margin-top:0'>The territory — Iron Man, 2025 season</h2>
+  <div style='margin-bottom:8px'>{chips}
+   <span class='chip win'>{t['homes']} homes</span>
+   <span class='chip win'>${t['labor']:,.0f} labor invoiced</span></div>
+  <div class='subtext' style='margin-bottom:8px'>Installs by month:
+   {esc(months)}. Includes the handful Tom covered and Gavin's Mainvue
+   pocket — postal cities, not payroll.</div>
+  <div id='map_all' style='height:430px;border-radius:12px'></div>
+ </div>
+
+ <div class='card'>
+  <h2 style='margin-top:0'>One printed day — Bothell, 8 installs
+   (the morning sheet this could generate)</h2>
+  <div class='subtext' style='margin-bottom:8px'>Order computed by the
+   Google Routes API from the shop in Monroe and back. Assumes
+   {d['install_min']} min per install. Total driving:
+   <b>{d['drive_total_min']} min · {d['drive_total_mi']} mi</b> —
+   leave 8:00 AM, back at the shop {esc(d['back_at'])}.</div>
+  <div style='display:grid;grid-template-columns:1fr 1fr;gap:14px'
+       class='routegrid'>
+   <div id='map_day' style='height:460px;border-radius:12px'></div>
+   <div style='overflow-x:auto'><table>
+    <tr><th></th><th>Arrive</th><th>Customer</th>
+        <th class='num'>2025 $</th><th>Drive</th></tr>
+    {rows}
+    <tr><td></td><td><b>{esc(d['back_at'])}</b></td>
+        <td colspan=3><b>back at the shop</b></td></tr>
+   </table></div>
+  </div>
+ </div>
+
+ <div class='card'><h3>If we build it for real</h3>
+  <div style='font-size:14px;line-height:1.7'>
+   · Every morning in season: a sheet like this per tech — optimized
+     stop order, times, addresses, light type, gate codes.<br>
+   · Zip-day clustering (Jessica's ask): under-full days pull the
+     nearest confirmed homes from the neighboring zip automatically.<br>
+   · Capacity math live: confirmed installs ÷ 8-per-day against the
+     calendar, so October overload shows up in September.<br>
+   · New-build bookings drop onto the right day by geography instead
+     of by memory.</div></div>
+</div></div>
+<link rel='stylesheet'
+ href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'>
+<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>
+<style>@media(max-width:900px){{.routegrid{{grid-template-columns:1fr}}}}
+.leaflet-container{{background:#dde5dd}}</style>
+<script>
+var T = {json.dumps(t["points"])};
+var CITYCOLOR = {{"monroe":"#c0392b","sultan":"#c0392b",
+ "snohomish":"#8e44ad","bothell":"#1a6b3c","woodinville":"#b8860b"}};
+var m1 = L.map('map_all');
+L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png',
+ {{maxZoom: 18, attribution: '© OpenStreetMap'}}).addTo(m1);
+var bounds = [];
+T.forEach(function(p){{
+  bounds.push([p[0], p[1]]);
+  L.circleMarker([p[0], p[1]], {{radius: 4, weight: 1, color: '#fff',
+    fillColor: CITYCOLOR[p[2]] || '#333', fillOpacity: .85}}).addTo(m1);
+}});
+m1.fitBounds(bounds, {{padding: [18, 18]}});
+
+var D = {json.dumps({"stops": [[s["lat"], s["lng"], s["n"],
+                                s["name"], s["arrive"]]
+                               for s in d["stops"]],
+                     "poly": d["poly"]})};
+var m2 = L.map('map_day');
+L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png',
+ {{maxZoom: 18, attribution: '© OpenStreetMap'}}).addTo(m2);
+L.polyline(D.poly, {{color: '#177245', weight: 4, opacity: .75}}).addTo(m2);
+D.stops.forEach(function(s){{
+  L.marker([s[0], s[1]], {{icon: L.divIcon({{className: '',
+    html: "<div style='background:#0b3d2e;color:#fff;border-radius:50%;"
+      + "width:24px;height:24px;line-height:24px;text-align:center;"
+      + "font-weight:800;font-size:12px;border:2px solid #fff;"
+      + "box-shadow:0 1px 4px rgba(0,0,0,.4)'>" + s[2] + "</div>",
+    iconSize: [24, 24]}})}}).addTo(m2)
+   .bindPopup('#' + s[2] + ' ' + s[4] + ' — ' + s[3]);
+}});
+m2.fitBounds(L.polyline(D.poly).getBounds(), {{padding: [16, 16]}});
+</script>"""
+    return page("Route mockup", body, chrome="bare")
+
+
 def guide_page():
     """The office manual, living where the office lives (Dallon Jul 9:
     'a tab that instructs... a FAQ type of situation')."""
@@ -5220,6 +5338,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(history_page())
         if self.path == "/guide":
             return self._send(guide_page())
+        if self.path == "/route_demo":
+            return self._send(route_demo_page())
         if self.path.startswith("/flyover"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             return self._send(flyover_page(q.get("addr", [""])[0]))
