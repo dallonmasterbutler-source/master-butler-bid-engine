@@ -63,7 +63,9 @@ def build_data():
     bids = db.load_bids()
     live_holds, resurfaced = db.active_holds()
     queue = [b for b in bids if not b["reviewed"]
-             and b["stamp"] not in live_holds]
+             and b["stamp"] not in live_holds
+             and db.classify_row(b)[0] == "main"]  # office work only —
+    # robots/internal/spam sit in the drawer, not the morning number
     new_requests = [b for b in queue if b.get("kind") == "new_request"]
     oldest = max((b["age_hours"] for b in queue), default=0)
     sec("📥", f"Queue: {len(queue)} waiting",
