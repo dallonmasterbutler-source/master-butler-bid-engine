@@ -230,13 +230,29 @@ def sync():
 
 SERVICE_WORDS = {          # fuzzy bridge: our line names ↔ office catalog names
     "gutter": "gutter", "blow": "roof blow", "roof blow": "roof blow",
-    "moss": "moss", "window": "window", "driveway": "driveway",
+    "moss": "moss", "driveway": "driveway",
     "patio": "patio", "sidewalk": "sidewalk", "house wash": "house wash",
 }
 
 
+def _window_key(n):
+    """Exterior vs in-&-out windows are DIFFERENT services with different
+    prices — keep their history in separate buckets so they never
+    cross-match (Kimberly Vidos, Jul 10: an exterior quote showed the
+    price of her past in-&-out job). Unqualified 'window cleaning' keeps
+    the generic key."""
+    if ("interior" in n or "in & out" in n or "in and out" in n
+            or "in&out" in n or "in/out" in n or "inside" in n):
+        return "window_inout"
+    if "exterior" in n or "ext only" in n or "outside" in n:
+        return "window_exterior"
+    return "window"
+
+
 def _service_key(name):
     n = (name or "").lower()
+    if "window" in n:
+        return _window_key(n)
     for w, key in SERVICE_WORDS.items():
         if w in n:
             return key
