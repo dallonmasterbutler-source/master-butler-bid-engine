@@ -808,6 +808,9 @@ def _chrome_bar(active=""):
     navr = "".join(
         f"<a href='{href}' class='{'on' if t == active else ''}'>{label}</a>"
         for href, label, t in (("/", "📥 Bids", "Bids"),
+                               # Dallon Jul 9pm: the file cabinet lives
+                               # on its OWN tab, not inside Bids
+                               ("/customers", "👥 Customers", "Customers"),
                                ("/scoreboard", "📊 Scoreboard", "Scoreboard"),
                                ("/winback", "📞 Win-back", "Win-back"),
                                ("/settings", "⚙️ Settings", "Settings"),
@@ -3366,6 +3369,241 @@ function qh(d){
     return f"{pinned}<div class='ifolds'>{folds}</div>{scripts}"
 
 
+def customers_tab_page(sel=None, q="", user=None, draft=""):
+    """👥 CUSTOMERS — the office's file cabinet (Dallon's spec, Jul 9pm:
+    separate tab; profiles matched like quoting — address + names +
+    emails; several people at one address SHARE a profile and either
+    name finds it; everything reads like a text thread, oldest at top,
+    newest at bottom; photos + info up top)."""
+    import customers as cst
+    import msglog
+
+    # bids that describe real customers (no spam/robots/internal/techs)
+    _skip = (list(_internal_senders()) + list(_learned_spam())
+             + list(NOISE_SENDERS))
+    rows = []
+    for b in load_bids():
+        if b.get("spam_auto") or b.get("tech_sender"):
+            continue
+        sender = (b.get("from") or "").lower()
+        if any(s and s in sender for s in _skip):
+            continue
+        rows.append(b)
+    import spam_filter
+    threads = [(a, n, ms) for a, n, ms in msglog.threads()
+               if not any(s and s in a for s in
+                          _skip + list(spam_filter.KNOWN_SPAM_DOMAINS))]
+    profiles, by_email = cst.build_profiles(rows, threads)
+
+    # freshest activity per profile (records give stamps; threads/hist
+    # already set 'last')
+    for p in profiles.values():
+        for s in p["stamps"]:
+            p["last"] = max(p["last"], _stamp_utc(s))
+    roster = sorted((p for p in profiles.values() if cst.matches(p, q)),
+                    key=lambda p: p["last"], reverse=True)
+
+    # ── left: search + roster ──
+    lst = (f"<form method='GET' action='/customers' style='padding:2px "
+           f"4px 10px'><input name='q' value='{esc(q)}' placeholder='🔎 "
+           f"Search any name, address, email, phone…' style='width:100%;"
+           f"padding:8px 12px;border-radius:9px;border:1px solid "
+           f"var(--line);background:var(--card);color:var(--ink);"
+           f"font-size:13.5px'></form>"
+           f"<div class='subtext' style='padding:0 6px 8px'>"
+           f"{len(roster)} customer file(s)"
+           + (f" matching “{esc(q)}”" if q else "") + "</div>")
+    for p in roster[:250]:
+        active = p["key"] == sel
+        nm = (" & ".join(p["names"][:3])
+              or (p["emails"][0] if p["emails"] else "")
+              or ("☎ " + p["phones"][0] if p["phones"] else "(no name)"))
+        box = "background:var(--soft);outline:2px solid var(--green2);" \
+            if active else ""
+        lst += (
+            f"<a href='/customers?c={urllib.parse.quote(p['key'])}"
+            + (f"&q={urllib.parse.quote(q)}" if q else "") + "' "
+            f"class='irow' style='{box}'>"
+            f"<div class='nm' style='font-weight:700'>{esc(nm)[:38]}</div>"
+            f"<div class='pv'>{esc(p.get('addr') or p['emails'][0] if p['emails'] else '')[:52]}</div>"
+            f"<div class='meta'><span class='word'>"
+            f"{len(p['stamps'])} request(s)</span>"
+            f"<span class='iage'>{esc(_pt(p['last'])[:12]) if p['last'] else ''}</span>"
+            f"</div></a>")
+    if len(roster) > 250:
+        lst += (f"<div class='subtext' style='padding:8px'>…and "
+                f"{len(roster)-250} more — narrow the search.</div>")
+
+    # ── right: one customer's whole file ──
+    if not sel or sel not in profiles:
+        detail = ("<div style='display:flex;align-items:center;"
+                  "justify-content:center;min-height:420px;flex:1;"
+                  "color:var(--mut)'><div style='text-align:center'>"
+                  "<div style='font-size:36px'>👥</div><b>Pick a customer "
+                  "file</b><div class='subtext'>Search works on any name "
+                  "at the address — spouses share one file.</div>"
+                  "</div></div>")
+    else:
+        p = profiles[sel]
+        recs = {b["stamp"]: b for b in rows}
+        newest = next((recs[s] for s in sorted(p["stamps"], reverse=True)
+                       if s in recs), None)
+
+        # header: names, address, contacts, house facts, must-know
+        names_h = " &amp; ".join(esc(n) for n in p["names"][:4]) \
+            or esc(p["emails"][0] if p["emails"] else sel)
+        addr_h = ""
+        if p.get("addr"):
+            addr_h = (f"<a href='/property/{_slug(p['addr'])}'>"
+                      f"{esc(p['addr'])}</a> " + _tax_glance(p["addr"]))
+        contacts = " · ".join(esc(x) for x in (p["emails"][:3]
+                                               + p["phones"][:2]))
+        jb = (f" <a class='chip win' style='text-decoration:none' "
+              f"href='{esc(p['jobber_url'])}' target='_blank' "
+              f"rel='noopener'>👤 Jobber ↗</a>" if p.get("jobber_url")
+              else "")
+        facts = ""
+        _pi = ((newest or {}).get("draft") or {}).get("prop_info") or {}
+        for f_ in (f"{_pi['sqft']:,} sqft" if _pi.get("sqft") else None,
+                   f"{_pi['stories']} story" if _pi.get("stories") else None,
+                   f"{_pi['roof_material']} roof"
+                   if _pi.get("roof_material") not in (None, "standard")
+                   else None):
+            if f_:
+                facts += f"<span class='chip blue'>🏠 {esc(f_)}</span> "
+        mk = get_must_know(p.get("addr")) if p.get("addr") else None
+
+        # photos strip — every ref this profile owns
+        gallery = ""
+        if clouddb.available():
+            refs = list(dict.fromkeys(
+                (_photo_refs(None, p.get("addr")) if p.get("addr") else [])
+                + p["stamps"]))
+            for ref, kind, idx in clouddb.photos_index(refs):
+                if kind == "eml":
+                    continue
+                gallery += (f"<a href='/img/{ref}/{kind}/{idx}' "
+                            f"target='_blank'><img src='/img/{ref}/{kind}/"
+                            f"{idx}' style='width:120px;height:78px;"
+                            f"object-fit:cover;border-radius:8px;margin:3px;"
+                            f"border:1px solid var(--line)' "
+                            f"title='{esc(kind)}'></a>")
+
+        # THE THREAD — history port + live log + bid milestones, merged,
+        # oldest at top (Dallon: 'like reading a text message')
+        tl = []
+        seen_m = set()
+
+        def add_msg(at, dr, body, subject=""):
+            k = ((at or "")[:16], dr, (body or "")[:80])
+            if k in seen_m or not (body or subject):
+                return
+            seen_m.add(k)
+            inn = dr == "in"
+            tl.append((at, (
+                f"<div style='display:flex;justify-content:"
+                f"{'flex-start' if inn else 'flex-end'}'>"
+                f"<div style='max-width:74%;margin:3px 0;padding:8px 13px;"
+                f"border-radius:14px;font-size:13.5px;white-space:pre-wrap;"
+                + ("background:var(--soft);border:1px solid var(--line)"
+                   if inn else
+                   "background:var(--green);color:#eef4f0")
+                + "'>"
+                f"<div style='font-size:10px;font-weight:700;opacity:.65'>"
+                f"{'Customer' if inn else 'Master Butler'} · "
+                f"{esc(_pt(at))}</div>"
+                f"{esc((body or subject)[:900])}</div></div>")))
+
+        for e in p["emails"]:
+            for m in cst.hist_msgs(e):
+                add_msg(m["at"], m["dir"], m.get("body"), m.get("subject"))
+        tmap = {a: ms for a, n, ms in threads}
+        for e in p["emails"]:
+            for m in tmap.get(e, []):
+                add_msg(m["at"], m["dir"],
+                        msglog.clean_body(m.get("body") or ""),
+                        m.get("subject"))
+        # what the record itself heard — voicemail transcripts + the
+        # original email when it predates the live log (dedup by body)
+        seen_bodies = {k[2] for k in seen_m}
+        for s in p["stamps"]:
+            b = recs.get(s)
+            nm_ = (b or {}).get("newest_message") or ""
+            body_ = msglog.clean_body(nm_)
+            if body_ and body_[:80] not in seen_bodies:
+                seen_bodies.add(body_[:80])
+                add_msg(_stamp_utc(s), "in", body_, b.get("subject"))
+        quotes = quote_numbers()
+        for s in p["stamps"]:
+            b = recs.get(s)
+            if not b:
+                continue
+            d_ = (b.get("draft") or {})
+            if d_.get("total"):
+                tl.append((_stamp_utc(s),
+                           f"<div class='subtext' style='text-align:center;"
+                           f"margin:8px 0'>— 🤖 system drafted "
+                           f"${d_['total']:,.0f} · <a href='/?c="
+                           f"{urllib.parse.quote(by_email.get(p['emails'][0], '') if p['emails'] else '')}'>"
+                           f"open the bid</a> —</div>"))
+            if quotes.get(s):
+                tl.append((_stamp_utc(s) + "~",
+                           f"<div class='subtext' style='text-align:center;"
+                           f"margin:8px 0'>— 📋 Jobber "
+                           f"{quote_chip(quotes[s], quote_urls())} —</div>"))
+        tl.sort(key=lambda x: x[0])
+        thread_html = "".join(h for _, h in tl) or \
+            ("<div class='subtext'>No conversation on file yet.</div>")
+
+        # compact reply (locked send, same rails as everywhere)
+        reply_html = ""
+        if p["emails"]:
+            e0 = p["emails"][0]
+            reply_html = f"""
+ <div style='border-top:1px solid var(--line);margin-top:10px;
+      padding-top:10px'>
+  <form method='POST' action='/msg_send'>
+   <input type='hidden' name='to' value='{esc(e0)}'>
+   <input type='hidden' name='subject' value='Master Butler'>
+   <input type='hidden' name='back'
+    value='/customers?c={urllib.parse.quote(sel)}'>
+   <textarea name='body' rows='2' style='min-height:56px'
+    placeholder='Reply to {esc(e0)} — copy into Gmail while sending is
+ off'>{esc(draft)}</textarea>
+   <div style='display:flex;justify-content:space-between;
+        align-items:center;margin-top:6px'>
+    <span class='subtext'>Sending stays locked until Dallon flips it.</span>
+    <button class='big' type='button' onclick="alert('Sending is OFF —
+ copy the text into Gmail for now.')">Send</button>
+   </div></form></div>"""
+
+        detail = (
+            f"<div class='pinned'>"
+            f"<div class='pin-top'><div><h2>{names_h}</h2>"
+            f"<div class='paddr'>{addr_h}{jb}</div>"
+            f"<div class='subtext' style='margin-top:3px'>{contacts}</div>"
+            f"</div></div>"
+            + (f"<div class='pchips'>{facts}</div>" if facts else "")
+            + (f"<div class='notes' style='margin-top:8px'><b>📌 MUST "
+               f"KNOW:</b> {esc(mk)}</div>" if mk else "")
+            + (f"<div style='margin-top:8px'>{gallery}</div>"
+               if gallery else "")
+            + "</div>"
+            f"<div id='custthread' style='max-height:520px;overflow-y:auto;"
+            f"padding:10px 4px'>{thread_html}</div>" + reply_html
+            + """<script>
+var t = document.getElementById('custthread');
+if (t) t.scrollTop = t.scrollHeight;
+</script>""")
+
+    body = (f"<div class='mock'>{_chrome_bar('Customers')}"
+            f"<div class='inboxgrid'>"
+            f"<div class='ilist'>{lst}</div>"
+            f"<div class='idetail'>{detail}</div>"
+            f"</div></div>")
+    return page("Customers", body, chrome="bare")
+
+
 def customers_page(sel=None, draft=""):
     """FEATURE D (Dallon, Jul 8): Messages + Queue merged into ONE
     customer view — pick a person once and see the conversation, the
@@ -4926,7 +5164,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(flyover_page(q.get("addr", [""])[0]))
         if self.path.startswith("/customers"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-            return self._send(customers_page(q.get("c", [None])[0]))
+            return self._send(customers_tab_page(
+                q.get("c", [None])[0], (q.get("q") or [""])[0]))
         if self.path.startswith("/messages"):
             q = urllib.parse.urlparse(self.path).query
             sel = urllib.parse.parse_qs(q).get("t", [None])[0]
