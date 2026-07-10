@@ -338,6 +338,25 @@ def process(eml_path):
     except Exception:
         pass
 
+    # EXTERIOR → IN&OUT UPSELL (LaRee, Jul 10: 'when someone asks for
+    # exterior windows, quote them ALSO for in and out — capture higher
+    # revenue'). A note with the ready number — the office offers it;
+    # the total never changes on its own.
+    try:
+        import bid_engine as _be
+        _names = [(s.get("name") or "").lower() for s in results]
+        if any("exterior" in n and "window" in n for n in _names) \
+                and not any("in & out" in n or "in&out" in n
+                            for n in _names) and prop.get("sqft"):
+            _est = max(_be.round_to_5(prop["sqft"]
+                                      * _be.RATES["windows_in_out"]),
+                       _be.WINDOWS_INOUT_MINIMUM)
+            notes.append(f"💡 UPSELL: they asked exterior-only — also "
+                         f"offer Windows In & Out at ≈${_est:,.0f} "
+                         "(LaRee's capture-higher-revenue rule).")
+    except Exception:
+        pass
+
     # MOSS PRODUCT RIDES WITH MOSS LABOR (Martha, Jul 10: 'every time
     # someone requests moss treatment, the product has to be added') —
     # the office bills them together on every real invoice.

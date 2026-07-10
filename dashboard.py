@@ -5035,6 +5035,35 @@ function mergeCanned(payload){
   Object.keys(mine).forEach(function(k){out['\\u2605 '+k]=mine[k];});
   return out;
 }
+// HOT-KEYS (LaRee, Jul 10): Ctrl/Cmd + 1..9 drops in that numbered
+// quick response — works in every reply box that has the dropdown.
+// The dropdown labels show their number so there's nothing to memorize.
+if (!window.__qrHotkeys) {
+  window.__qrHotkeys = true;
+  function __qrSelects(){
+    return [].slice.call(document.querySelectorAll("select[id$='canned']"));
+  }
+  setTimeout(function number(){
+    __qrSelects().forEach(function(s){
+      for (var i = 1; i < s.options.length && i <= 9; i++) {
+        if (!/^\\d \\u00b7 /.test(s.options[i].textContent))
+          s.options[i].textContent = i + ' \\u00b7 ' + s.options[i].textContent;
+      }
+    });
+  }, 400);
+  document.addEventListener('keydown', function(e){
+    if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+    var n = parseInt(e.key);
+    if (!(n >= 1 && n <= 9)) return;
+    var sels = __qrSelects();
+    if (!sels.length) return;
+    var s = sels[0];
+    if (n >= s.options.length) return;
+    e.preventDefault();
+    s.selectedIndex = n;
+    s.dispatchEvent(new Event('change'));
+  });
+}
 """
 
 
@@ -5330,6 +5359,12 @@ def settings_page(msg="", user=None):
   <textarea name='fnf' rows='2'>{esc(dp.get("fnf",
       "50% — September, February or March, when the schedule is slow "
       "(Dallon, Jul 10)"))}</textarea>
+  <label style='font-weight:700;font-size:13px;display:block;
+   margin-top:8px'>Other discount rules (one per line — veterans,
+   seniors, multi-property, whatever the office runs)</label>
+  <textarea name='extra' rows='3' placeholder='e.g. Veterans / first
+ responders — 10%&#10;Bi-annual service contract — 15%'>{esc(
+      dp.get("extra", ""))}</textarea>
   <button style='margin-top:8px'>Save discounts</button>
  </form></div>"""
     qr_card += disc_card
@@ -6637,6 +6672,11 @@ class Handler(BaseHTTPRequestHandler):
                         "customer",
                         "15% off services booked in the second half of "
                         "August or September")
+                    + (("; other discount rules: "
+                        + _blob_rw("discount_policy", {}).get("extra", "")
+                        .replace("\n", "; "))
+                       if _blob_rw("discount_policy", {}).get("extra")
+                       else "")
                     + "; moss product: a commercial Dalco "
                     "product we call Moss Off, billed per canister "
                     "($14.50, 1-3 typical, technician determines "
@@ -6810,7 +6850,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 return
             dp = {"customer": get("customer").strip(),
-                  "fnf": get("fnf").strip()}
+                  "fnf": get("fnf").strip(),
+                  "extra": get("extra").strip()}
             _blob_save("discount_policy", dp)
             save_review({"stamp": "", "action": "settings_change",
                          "customer": "DISCOUNTS",

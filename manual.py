@@ -135,6 +135,21 @@ def process_manual(name, address, phone="", email="", services=None,
                     confidence = min(confidence, 45)
             except Exception:
                 pass
+            # exterior → in&out upsell note (LaRee, Jul 10)
+            try:
+                import bid_engine as _be
+                _names = [(s.get("name") or "").lower() for s in results]
+                if any("exterior" in n and "window" in n for n in _names) \
+                        and not any("in & out" in n for n in _names) \
+                        and prop.get("sqft"):
+                    _est = max(_be.round_to_5(
+                        prop["sqft"] * _be.RATES["windows_in_out"]),
+                        _be.WINDOWS_INOUT_MINIMUM)
+                    notes.append(f"💡 UPSELL: they asked exterior-only — "
+                                 f"also offer Windows In & Out at "
+                                 f"≈${_est:,.0f}.")
+            except Exception:
+                pass
             # moss product rides with moss labor (Martha, Jul 10)
             if any("moss" in (s.get("name") or "").lower()
                    for s in results) \
