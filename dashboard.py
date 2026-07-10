@@ -3226,7 +3226,7 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
    <form method='POST' action='/idea_send' style='margin-top:10px;
         border-top:1px dashed var(--line);padding-top:10px'>
     <input type='hidden' name='context'
-     value='while working {esc((nb.get("from") or "").split("<")[0].strip())} ({stamp})'>
+     value='while working on {esc((nb.get("from") or "").split("<")[0].strip())} — open them: https://masterbutler-dashboard.onrender.com/?c={urllib.parse.quote(key)}'>
     <input type='hidden' name='back' value='{esc(back)}'>
     <input type='text' name='text' placeholder='💡 Idea to make this better? Tell Dallon &amp; Claude — one line is plenty'>
     <button class='gray'>💡 Send the idea</button>
@@ -3870,7 +3870,15 @@ def customers_tab_page(sel=None, q="", user=None, draft=""):
     <span class='subtext'>Sending stays locked until Dallon flips it.</span>
     <button class='big' type='button' onclick="alert('Sending is OFF —
  copy the text into Gmail for now.')">Send</button>
-   </div></form></div>
+   </div></form>
+  <form method='POST' action='/idea_send' style='margin-top:10px;
+       border-top:1px dashed var(--line);padding-top:10px'>
+   <input type='hidden' name='context'
+    value='while working on {esc(", ".join(p["names"][:2]) or sel)} — open them: https://masterbutler-dashboard.onrender.com/customers?c={urllib.parse.quote(sel)}'>
+   <input type='hidden' name='back' value='/customers?c={urllib.parse.quote(sel)}'>
+   <input type='text' name='text' placeholder='💡 Need help / have an idea? Dallon gets it instantly — tagged with this customer'>
+   <button class='gray'>💡 Send</button>
+  </form></div>
 <script>
 {_CANNED_MERGE_JS}
 var CC = mergeCanned({_cnp});
