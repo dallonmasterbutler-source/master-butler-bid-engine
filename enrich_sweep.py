@@ -65,7 +65,7 @@ def _port_photos(client_id, rec, stamp):
     have = {(r, k, i) for r, k, i in clouddb.photos_index([ref])}
     n = 0
     import urllib.request
-    from imgprep import prep_jpeg_bytes
+    from imgprep import prep_jpeg_from_bytes
     for i, (_fn, url) in enumerate(photos):
         if (ref, "jobber", i) in have:
             continue
@@ -74,7 +74,7 @@ def _port_photos(client_id, rec, stamp):
             if len(data) > 4_000_000:
                 continue
             clouddb.put_photo(ref, "jobber", i,
-                              prep_jpeg_bytes(data, 1000, 72))
+                              prep_jpeg_from_bytes(data, 1000, 72))
             n += 1
         except Exception:
             continue

@@ -180,6 +180,16 @@ def poll_once():
                         _cp(blobs={"jobber_new_clients": recent})
             except Exception:
                 pass
+            # COMPLETENESS SELF-HEAL (Dallon, Jul 10: 'they don't have
+            # to do any research'): recent records missing address/
+            # facts/photos/badge/PW-surfaces get them filled hourly
+            try:
+                import clouddb as _cdb2
+                if _cdb2.available():
+                    import complete_sweep
+                    complete_sweep.run(recent_hours=48)
+            except Exception:
+                pass
             try:
                 sb = json.loads((BASE / "data" / "scoreboard.json").read_text())
                 import clouddb
@@ -859,8 +869,8 @@ def _port_jobber_photos(client_id, record, stamp, cap=6):
             data = _ur.urlopen(url, timeout=25).read()
             if len(data) > 4_000_000:
                 continue
-            from imgprep import prep_jpeg_bytes
-            data = prep_jpeg_bytes(data, 1000, 72)
+            from imgprep import prep_jpeg_from_bytes
+            data = prep_jpeg_from_bytes(data, 1000, 72)
         except Exception:
             continue
         try:

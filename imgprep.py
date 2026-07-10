@@ -36,3 +36,18 @@ def prep_jpeg_bytes(path, max_px=1400, quality=78):
 def prep_jpeg_b64(path, max_px=1400, quality=78):
     return base64.standard_b64encode(
         prep_jpeg_bytes(path, max_px, quality)).decode()
+
+
+def prep_jpeg_from_bytes(data, max_px=1400, quality=78):
+    """Raw image BYTES → resized/compressed JPEG bytes (downloads from
+    Jobber etc. arrive as bytes, not files — Jul 10 fix: two call
+    sites were passing bytes into the path-based prep and silently
+    failing)."""
+    import tempfile
+    with tempfile.NamedTemporaryFile(suffix=".img", delete=False) as f:
+        f.write(data)
+        tmp = f.name
+    try:
+        return prep_jpeg_bytes(tmp, max_px, quality)
+    finally:
+        Path(tmp).unlink(missing_ok=True)

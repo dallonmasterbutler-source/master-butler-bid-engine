@@ -162,7 +162,8 @@ NOISE_SENDERS = ["no-reply", "noreply", "donotreply", "marketing@",
                  "accounts.google.com", "notifications@", "newsletter",
                  "invoice+statements", "@stripe.com", "receipts@",
                  # Jessica, Jul 9: "Facebook should always be removed"
-                 "facebookmail.com", "@facebook.com", "@instagram.com"]
+                 "facebookmail.com", "@facebook.com", "@instagram.com",
+                 "nicejob", "paystone"]     # review-platform marketing
 
 
 _SENDERS_CACHE = {"at": 0.0, "list": None}
