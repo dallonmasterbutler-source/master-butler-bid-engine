@@ -5003,7 +5003,13 @@ def _tax_glance(address, services=None):
     slug = _slug(address)
     cache = _blob_rw("tax_glance", {})
     hit = cache.get(slug)
-    if hit is None:
+    # a FAILED lookup is retried after 6h, not cached forever (Terry
+    # Brower's zip-less caller-ID address failed once and the chip
+    # vanished permanently, Jul 10)
+    import time as _t
+    stale_fail = (hit is not None and not hit.get("code")
+                  and _t.time() - (hit.get("at") or 0) > 6 * 3600)
+    if hit is None or stale_fail:
         try:
             import jobber_client as jc
             a = jc.split_address(address)
@@ -5015,6 +5021,7 @@ def _tax_glance(address, services=None):
                 hit = {"code": code, "rate": rate}
         except Exception:
             hit = {"code": None, "rate": None}
+        hit["at"] = _t.time()
         cache[slug] = hit
         _blob_save("tax_glance", cache)
     if not hit.get("code"):
