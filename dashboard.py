@@ -2500,7 +2500,7 @@ def _status_word(nb, holds, flags_open, sbs, claims):
     return "review", "color:var(--green2)"
 
 
-def inbox_page(sel=None, draft="", user=None):
+def inbox_page(sel=None, draft="", user=None, pushed=None):
     """THE INBOX (Dallon picked direction A, Jul 9): bids + messages,
     one list, read/unread shared office-wide, pinned critical info,
     big folds. Scoreboard/Win-back/Settings live top-right."""
@@ -2749,7 +2749,23 @@ def inbox_page(sel=None, draft="", user=None):
     sec_names = {0: "New — needs a person", 1: "In someone's hands",
                  2: "Waiting on customers"}
     counts = {g: sum(1 for r in roster if r["grp"] == g) for g in range(4)}
-    lst = (f"<div style='display:flex;gap:8px;align-items:center;"
+    # after an office approve pushed a Jobber quote, show a clickable
+    # confirmation right away (LaRee, Jul 10: 'when you click approved the
+    # page should refresh so you can click the Jobber quote')
+    push_banner = ""
+    if pushed:
+        _pn = quote_numbers().get(pushed)
+        _pu = quote_urls().get(pushed)
+        if _pn:
+            _lk = (f" — <a href='{esc(_pu)}' target='_blank' rel='noopener' "
+                   f"style='color:#fff;text-decoration:underline;"
+                   f"font-weight:800'>open in Jobber ↗</a>" if _pu else "")
+            push_banner = (f"<div style='background:var(--green);color:#fff;"
+                           f"border-radius:10px;padding:11px 14px;"
+                           f"margin:0 0 10px;font-weight:700'>✅ Quote "
+                           f"#{esc(str(_pn))} created{_lk}</div>")
+    lst = (push_banner
+           + f"<div style='display:flex;gap:8px;align-items:center;"
            f"padding:2px 4px 10px'>"
            f"<a href='/new' style='background:var(--green);color:#fff;"
            f"border-radius:9px;padding:7px 14px;text-decoration:none;"
@@ -5590,8 +5606,20 @@ def scoreboard_page():
         "<th class='num'>Waiting</th><th></th></tr>" + nrows
         + "</table></div>" if nrows else "")
 
-    return page("Scoreboard", hero + nudge_card + matched_card
-                + waiting_card)
+    # auto-refresh through the day so approvals show up without a manual
+    # reload (LaRee, Jul 10). Scroll-preserving, every 2 min; the board
+    # itself is regenerated server-side on the hourly Jobber sync.
+    gen = (sb.get("generated") or "")[:16].replace("T", " ")
+    fresh = (f"<div class='subtext' style='margin:-2px 0 12px'>Updated "
+             f"{esc(gen)} · refreshes automatically</div>") if gen else ""
+    refresh_js = """<script>
+(function(){var K='sb_scroll';try{var y=sessionStorage.getItem(K);
+ if(y!==null){sessionStorage.removeItem(K);window.scrollTo(0,+y);}}catch(e){}
+ setTimeout(function(){try{sessionStorage.setItem(K,window.scrollY);}catch(e){}
+  location.reload();},120000);})();
+</script>"""
+    return page("Scoreboard", hero + fresh + nudge_card + matched_card
+                + waiting_card + refresh_js)
 
 
 _ABBR = {"se": "southeast", "sw": "southwest", "ne": "northeast",
@@ -5968,7 +5996,8 @@ class Handler(BaseHTTPRequestHandler):
             cm = re.search(r"office_user=([^;]+)",
                            self.headers.get("Cookie") or "")
             u = urllib.parse.unquote(cm.group(1)) if cm else None
-            return self._send(inbox_page(q.get("c", [None])[0], user=u))
+            return self._send(inbox_page(q.get("c", [None])[0], user=u,
+                                         pushed=q.get("pushed", [None])[0]))
         if self.path == "/queue":              # the pre-Inbox layout,
             return self._send(home_page())     # kept during transition
         if self.path == "/scoreboard":
@@ -6300,6 +6329,18 @@ class Handler(BaseHTTPRequestHandler):
                                              "record — re-run needed")
             save_review(entry)
             _mark_done_for(get("customer"))    # a decision = seen it
+            # a quote was just created → land back on the card with a
+            # clickable 'open in Jobber' banner (LaRee's approve refresh)
+            _jq = entry.get("jobber_quote")
+            if isinstance(_jq, int) or (isinstance(_jq, str) and _jq.isdigit()):
+                _bk = get("back")
+                _bk = _bk if _bk.startswith("/") else "/"
+                _sep = "&" if "?" in _bk else "?"
+                self.send_response(303)
+                self.send_header("Location",
+                                 f"{_bk}{_sep}pushed={get('stamp')}")
+                self.end_headers()
+                return
         elif self.path == "/repeat_welcome":
             name = get("customer").split("<")[0].strip()
             promise = ""

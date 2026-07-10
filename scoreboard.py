@@ -44,6 +44,23 @@ def _norm_words(s):
     return set(re.sub(r"[^a-z0-9 ]", " ", (s or "").lower()).split())
 
 
+# staff / manager test entries are not real customers — never score
+# them (LaRee, Jul 10: 'remove Jessica Jensen's job, she's our manager').
+# Office-editable via the scoreboard_exclude blob.
+SCOREBOARD_EXCLUDE = ("jessica jensen",)
+
+
+def _excluded(rec):
+    frm = (rec.get("from") or "").lower()
+    names = list(SCOREBOARD_EXCLUDE)
+    try:
+        import clouddb
+        names += [n.lower() for n in (clouddb.get_blob("scoreboard_exclude") or [])]
+    except Exception:
+        pass
+    return any(n and n in frm for n in names)
+
+
 def load_shadows():
     """Shadow records that actually produced a priced draft — local files
     PLUS the cloud's records (manual entries never touch this Mac)."""
@@ -55,7 +72,7 @@ def load_shadows():
         # folded duplicates and filtered spam never make scoreboard rows
         # (Dallon Jul 9: 'there are duplicates in the scoreboard')
         if rec.get("merged_into") or rec.get("spam_auto") \
-                or rec.get("tech_sender"):
+                or rec.get("tech_sender") or _excluded(rec):
             return
         try:                    # pre-gate spam records never score
             import spam_filter
