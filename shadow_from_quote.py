@@ -131,6 +131,30 @@ def from_open_quote(rec):
     d = rec.get("draft") or {}
     if d.get("bid", {}).get("services"):     # already has a real bid
         return rec
+    # GUARD (Wendy Sklar, Jul 10): this rebuild exists for SPARSE asks
+    # ('please send me a quote'). If their message actually DESCRIBES
+    # work, it may be a DIFFERENT service — never assume last-quote
+    # services onto it. Two tripwires:
+    #   1. handyman-class content (drywall/painting/…) = office bids
+    #      per job, never automated;
+    #   2. a long, substantive message = they said what they want;
+    #      rebuilding from an old quote would put words in their mouth.
+    msg = rec.get("newest_message") or ""
+    try:
+        from email_parser import find_services
+        asked = find_services(msg)
+    except Exception:
+        asked = []
+    if "handyman" in asked:
+        rec["office_alert"] = ((rec.get("office_alert") or "") +
+            " 🔧 HANDYMAN work described — office bids this PER JOB; "
+            "no automated price (their past quote is context only)."
+            ).strip()
+        return rec
+    body = re.sub(r"\s+", " ", msg).strip()
+    if len(body) > 240 and not asked:
+        return rec       # substantive message, unrecognized work — flag
+                         # path handles it; don't guess from an old quote
     services = services_from_lines(oq.get("lines"))
     if not services:
         return rec

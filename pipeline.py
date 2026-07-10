@@ -112,6 +112,11 @@ def build_property(parsed, facts):
                 services["gutters"] = True   # guards line includes blow-off
             else:
                 services[key] = val
+        elif svc == "handyman":
+            office_flags.append(
+                "🔧 HANDYMAN SERVICE requested — NEW service, bid PER JOB "
+                "by the office; the engine never prices this (Dallon's "
+                "rule, Jul 10 — the Wendy Sklar drywall/painting case).")
         elif svc == "permanent_lights":
             office_flags.append(
                 "PERMANENT LIGHT INSTALL requested — price ≈3× a seasonal "

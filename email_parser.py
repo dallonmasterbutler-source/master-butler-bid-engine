@@ -86,6 +86,19 @@ SERVICE_KEYWORDS = [
     ("walkway",                    "pw_sidewalk"),
     ("deck",                       "pw_deck"),
     ("dryer vent",                 "dryer_vent"),
+    # HANDYMAN (Dallon, Jul 10 — Wendy Sklar): a NEW service, bid PER
+    # JOB by the office, never automated. Detect it so the engine knows
+    # to stand down instead of guessing.
+    ("handyman",                   "handyman"),
+    ("handy man",                  "handyman"),
+    ("drywall",                    "handyman"),
+    ("sheetrock",                  "handyman"),
+    ("texture spray",              "handyman"),
+    ("caulking",                   "handyman"),
+    ("paint touch",                "handyman"),
+    ("painting touch",             "handyman"),
+    ("touch ups",                  "handyman"),
+    ("touch-up",                   "handyman"),
     ("permanent light",            "permanent_lights"),
     ("permanent holiday",          "permanent_lights"),
     ("trimlight",                  "permanent_lights"),
