@@ -6895,6 +6895,37 @@ class Handler(BaseHTTPRequestHandler):
                 u[nm] = (u.get(nm) or 0) + 1
                 _blob_save("qr_usage", u)
             return self._send(b"ok")
+        elif self.path == "/edit_facts":
+            # EDITABLE 'HOW IT WAS PRICED' (LaRee, Jul 10): office
+            # corrects pitch/stories/debris/roof → draft reprices AND
+            # the house remembers the correction forever (facts_edit).
+            stamp_ = get("stamp")
+            rec_ = dict(_shadow_source()).get(stamp_)
+            if not rec_:
+                return self._send(b"record not found", 404)
+            edits = {k: get(k) for k in
+                     ("pitch", "stories", "debris", "roof_material")
+                     if get(k)}
+            import facts_edit
+            rec_, summary_ = facts_edit.reprice(
+                rec_, edits, by=_user or "office")
+            try:
+                if clouddb.available():
+                    clouddb.ingest_shadow(stamp_, rec_)
+                else:
+                    (BASE / "data" / "shadow_bids" / f"{stamp_}.json"
+                     ).write_text(json.dumps(rec_, indent=1))
+            except Exception:
+                pass
+            save_review({"stamp": stamp_, "action": "fact_edit",
+                         "customer": rec_.get("from"),
+                         "note": summary_[:280]})
+            back_f = get("back")
+            self.send_response(303)
+            self.send_header("Location", back_f if
+                             back_f.startswith("/") else "/")
+            self.end_headers()
+            return
         elif self.path == "/mark_spam":
             import re as _r
             m = _r.search(r"([\w.+-]+)@([\w.-]+)", get("sender"))

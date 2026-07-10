@@ -105,6 +105,16 @@ def build_property(parsed, facts):
     """Assemble the bid-engine input from parsed email + property facts."""
     services = {}
     office_flags = []
+    # THE LEARNING HOOK (LaRee, Jul 10): office corrections to a house's
+    # facts (pitch/stories/debris/roof) are remembered per address and
+    # merged here — so EVERY intake path (email, manual, voicemail,
+    # rebuild) prices from the office's truth, forever.
+    try:
+        import facts_edit
+        office_flags += facts_edit.apply_overrides(
+            facts, parsed.get("address"))
+    except Exception:
+        pass
     for svc in parsed["services"]:
         if svc in SERVICE_TO_ENGINE:
             key, val = SERVICE_TO_ENGINE[svc]

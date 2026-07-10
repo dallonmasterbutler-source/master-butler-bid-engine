@@ -190,6 +190,14 @@ def poll_once():
                     complete_sweep.run(recent_hours=48)
             except Exception:
                 pass
+            # JOBBER PULSE (Dallon, Jul 10 — read-both no write-back):
+            # today's appointments + overdue/active/remaining, hourly,
+            # for the Today strip + the Handled-in-Jobber lane
+            try:
+                import jobber_sync
+                jobber_sync.pulse()
+            except Exception as _e:
+                print(f"  (jobber pulse skipped: {_e})")
             try:
                 sb = json.loads((BASE / "data" / "scoreboard.json").read_text())
                 import clouddb
