@@ -3148,9 +3148,22 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                 f"<button class='readbtn' style='background:var(--goldbg);"
                 f"border-color:var(--gold);color:var(--goldink);font-weight:800'>"
                 f"✓ Done — seen it</button></form>"
+                # LaRee, Jul 10: a Spam button ON the inbox that the
+                # program learns from (email senders only — voicemail/
+                # form pipes are refused by the handler too)
+                + ((f"<form method='POST' action='/mark_spam' "
+                    f"style='display:inline;margin-left:6px' "
+                    f"onsubmit=\"return confirm('File this sender as spam"
+                    f" — never show them again?')\">"
+                    f"<input type='hidden' name='stamp' value='{stamp or ''}'>"
+                    f"<input type='hidden' name='sender' "
+                    f"value='{esc(nb.get('from') if nb else c['email'] or '')}'>"
+                    f"<button class='readbtn' style='color:var(--alarm)'>"
+                    f"🚫 Spam</button></form>")
+                   if (c.get('email') and not c.get('vm')) else "")
                 # Jessica, Jul 9: an explicit way to hand it back when
                 # you have to step away mid-review — stays bold for all
-                f"<form method='POST' action='/step_away' "
+                + f"<form method='POST' action='/step_away' "
                 f"style='display:inline;margin-left:6px'>"
                 f"<input type='hidden' name='addr' value='{esc(key)}'>"
                 f"<input type='hidden' name='stamp' "
@@ -3891,10 +3904,42 @@ var t = document.getElementById('custthread');
 if (t) t.scrollTop = t.scrollHeight;
 </script>""")
 
+    # KEEP THE LIST'S PLACE (LaRee, Jul 10: 'scrolling down and clicking
+    # on someone resets the list to the top — we have to scroll all the
+    # way down again'). Keyed by PATH only, so picking a different
+    # customer keeps the roster where it was; the detail pane still
+    # starts at the top for each new person, as it should. Restore
+    # RETRIES until layout (same lesson as the inbox fix).
+    keep_js = """<script>
+(function(){
+  var KEY='scroll:/customers:list';
+  function pane(){return document.querySelector('.ilist');}
+  try{
+    var y=parseInt(sessionStorage.getItem(KEY)||'');
+    if(!isNaN(y)&&y>0){
+      var tries=0;
+      (function apply(){
+        var p=pane(); if(p)p.scrollTop=y;
+        var ok=(p&&(Math.abs(p.scrollTop-y)<3
+                 ||p.scrollHeight-p.clientHeight<=y+3));
+        if(!ok&&tries++<12)setTimeout(apply,80);
+      })();
+    }
+  }catch(e){}
+  var t;
+  document.addEventListener('scroll',function(e){
+    if(!pane()||e.target!==pane())return;
+    clearTimeout(t);
+    t=setTimeout(function(){
+      try{sessionStorage.setItem(KEY,pane().scrollTop);}catch(e){}
+    },120);
+  },true);
+})();
+</script>"""
     body = (f"<div class='mock'>{_chrome_bar('Customers')}"
             f"<div class='inboxgrid'>"
             f"<div class='ilist'>{lst}</div>"
-            f"<div class='idetail'>{detail}</div>"
+            f"<div class='idetail'>{detail}{keep_js}</div>"
             f"</div></div>")
     return page("Customers", body, chrome="bare")
 
@@ -6754,9 +6799,24 @@ class Handler(BaseHTTPRequestHandler):
             return
         elif self.path == "/mark_spam":
             import re as _r
-            m = _r.search(r"@([\w.-]+)", get("sender"))
-            sender_key = (m.group(1).lower() if m
-                          else get("sender").lower()[:40])
+            m = _r.search(r"([\w.+-]+)@([\w.-]+)", get("sender"))
+            addr = (m.group(0).lower() if m else "")
+            dom = (m.group(2).lower() if m else "")
+            # NEVER learn the pipes the business runs on — one click
+            # would file every voicemail/form/Jobber event as spam
+            PROTECTED = ("copycall", "squarespace", "getjobber",
+                         "masterbutlerinc", "google.com")
+            # freemail domains key by FULL ADDRESS — learning 'gmail.com'
+            # would hide every Gmail customer (LaRee's spam button, Jul 10)
+            FREEMAIL = ("gmail.", "yahoo.", "hotmail.", "outlook.",
+                        "comcast.", "icloud.", "aol.", "msn.", "live.",
+                        "me.com", "att.net", "frontier.")
+            if any(p in dom for p in PROTECTED):
+                sender_key = None      # refuse quietly, log below
+            elif any(dom.startswith(f) or f in dom for f in FREEMAIL):
+                sender_key = addr      # this one person only
+            else:
+                sender_key = dom or get("sender").lower()[:40]
             spam = _blob_rw("learned_spam", [])
             if sender_key and sender_key not in spam:
                 spam.append(sender_key)
@@ -6764,8 +6824,10 @@ class Handler(BaseHTTPRequestHandler):
                 _SPAM_CACHE["at"] = 0
             save_review({"stamp": get("stamp"), "action": "learned_spam",
                          "customer": get("sender"),
-                         "note": f"sender '{sender_key}' will be filed as "
-                                 "spam from now on"})
+                         "note": (f"sender '{sender_key}' will be filed as "
+                                  "spam from now on" if sender_key else
+                                  "REFUSED — protected sender (voicemail/"
+                                  "form/Jobber pipe), never spam-learnable")})
             self.send_response(303)
             self.send_header("Location", "/")
             self.end_headers()
