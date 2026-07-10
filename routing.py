@@ -59,7 +59,8 @@ query Day($start: ISO8601DateTime!, $end: ISO8601DateTime!, $after: String) {
   visits(first: 60, after: $after,
          filter: {startAt: {after: $start, before: $end}}) {
     pageInfo { hasNextPage endCursor }
-    nodes { title startAt endAt
+    nodes { title startAt endAt duration instructions
+      clientConfirmed isComplete
       assignedUsers(first: 3) { nodes { name { full } } }
       client { name }
       property { address { street city postalCode } } }
@@ -72,7 +73,7 @@ query Day($start: ISO8601DateTime!, $end: ISO8601DateTime!, $after: String) {
   tasks(first: 60, after: $after,
         filter: {startAt: {after: $start, before: $end}}) {
     pageInfo { hasNextPage endCursor }
-    nodes { title startAt isComplete duration
+    nodes { title startAt isComplete duration instructions
       assignedUsers(first: 3) { nodes { name { full } } }
       client { name }
       property { address { street city postalCode } } }
@@ -112,7 +113,7 @@ def fetch_day(date_str, kind="visits"):
                          (n.get("assignedUsers") or {}).get("nodes", [])]
                 st, en = n.get("startAt"), n.get("endAt")
                 mins = DEFAULT_MIN
-                if kind == "tasks" and n.get("duration"):
+                if n.get("duration"):
                     mins = max(10, int(n["duration"]) // 60)
                 elif st and en:
                     try:
@@ -129,8 +130,11 @@ def fetch_day(date_str, kind="visits"):
                             "address": addr, "city": a.get("city"),
                             "tech": techs[0] if techs else "Unassigned",
                             "techs": techs, "mins": mins,
-                            "done": bool(n.get("isComplete"))
-                            if kind == "tasks" else False})
+                            # gate codes / special asks live here
+                            "instructions":
+                            (n.get("instructions") or "").strip()[:200],
+                            "confirmed": bool(n.get("clientConfirmed")),
+                            "done": bool(n.get("isComplete"))})
             if not page["pageInfo"]["hasNextPage"]:
                 break
             cursor = page["pageInfo"]["endCursor"]
@@ -273,9 +277,10 @@ def build_day(date_str, kind="visits", max_age_min=15):
         day = []
         for i, p in enumerate(pts):
             t += (legs[i]["secs"] // 60) if i < len(legs) else 0
-            day.append({**{k: p[k] for k in
+            day.append({**{k: p.get(k) for k in
                            ("title", "client", "address", "city", "lat",
-                            "lng", "mins", "done")},
+                            "lng", "mins", "done", "instructions",
+                            "confirmed")},
                         "n": i + 1, "arrive": f"{t//60}:{t%60:02d}",
                         "drive_min": (legs[i]["secs"] // 60)
                         if i < len(legs) else 0})

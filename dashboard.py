@@ -4419,6 +4419,9 @@ def routes_page(date_str=None, kind="visits", fresh=False):
   <button name='fresh' value='1' class='gray'
    title='Recompute from Jobber right now'>↻ refresh</button>
  </form>
+ <button class='gray' onclick='window.print()'
+  title='Prints one clean page per tech — no maps, no buttons'>
+  🖨 Print day sheets</button>
  <span class='subtext'>computed
   {esc(_pt(day.get("computed_at") or ""))} · order optimized from the
   Monroe shop · read-only</span>
@@ -4441,8 +4444,15 @@ def routes_page(date_str=None, kind="visits", fresh=False):
         rows = "".join(
             f"<tr{' style=opacity:.55' if s['done'] else ''}>"
             f"<td><b>#{s['n']}</b></td><td>{esc(s['arrive'])}</td>"
-            f"<td>{esc((s['title'] or '')[:44])}<div class='subtext'>"
-            f"{esc((s['address'] or '')[:52])}</div></td>"
+            f"<td>{esc((s['title'] or '')[:44])}"
+            + (" <span title='customer confirmed' style='color:"
+               "var(--green2);font-weight:800'>CCC</span>"
+               if s.get("confirmed") else "")
+            + f"<div class='subtext'>{esc((s['address'] or '')[:52])}</div>"
+            + (f"<div class='subtext' style='color:var(--goldink)'>📝 "
+               f"{esc(s['instructions'][:110])}</div>"
+               if s.get("instructions") else "")
+            + f"</td>"
             f"<td class='subtext'>{('+' + str(s['drive_min']) + 'm') if s['drive_min'] else '·'}</td>"
             f"<td>{'✓' if s['done'] else ''}</td></tr>"
             for s in t["stops"])
@@ -4499,7 +4509,22 @@ def routes_page(date_str=None, kind="visits", fresh=False):
             "</script>"
             "<style>@media(max-width:900px){.routegrid{"
             "grid-template-columns:1fr}}"
-            ".leaflet-container{background:#dde5dd}</style>"
+            ".leaflet-container{background:#dde5dd}"
+            # 🖨 one clean page per tech: no chrome, no maps, no buttons,
+            # black on white, the table full-width
+            "@media print{.chrome,form,button,.leaflet-container,"
+            ".subtext a{display:none !important}"
+            "body,.mock{background:#fff !important;color:#000 !important}"
+            ".mock{border:0 !important;box-shadow:none !important}"
+            ".card{page-break-after:always;border:0 !important;"
+            "box-shadow:none !important;background:#fff !important}"
+            ".card h2{color:#000 !important}"
+            ".routegrid{grid-template-columns:1fr !important}"
+            "td,th{color:#000 !important;border-bottom:1px solid #999}"
+            ".subtext{color:#333 !important}"
+            "div[style*='max-height']{max-height:none !important;"
+            "overflow:visible !important}}"
+            "</style>"
             f"<script>{mapjs}</script>")
     return page("Routes", body, chrome="bare")
 
