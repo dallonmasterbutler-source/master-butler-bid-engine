@@ -76,6 +76,19 @@ def clean_body(text, limit=1200):
             words = re.sub(r"\s+", " ", msg.group(1)).strip()
             parts.append("“" + words[:300] + "”")
         return "\n".join(parts)
+    # reply headers WRAP across lines in real mail ("On Thu, Jul 9 …
+    # <address\n…> wrote:") — cut at the header's START, dot spanning
+    # newlines (Dallon's 'say quotes carry reply tails', fixed Jul 10)
+    m = re.search(r"(?:^|\n)\s*On .{5,220}?wrote:", text, re.S)
+    if m:
+        text = text[:m.start()]
+    # flattened mail loses its newlines — cut on the date-anchored
+    # header mid-line ("… On Jul 9, 2026, at 12:17 PM, Master Butler…")
+    m = re.search(r"\bOn (?:[A-Z][a-z]{2,8},? )?[A-Z][a-z]{2,8} "
+                  r"\d{1,2}, \d{4},? at ", text)
+    if m:
+        text = text[:m.start()]
+    text = re.sub(r"\s*Sent from my [A-Za-z ]{2,24}", " ", text)
     out = []
     for ln in text.splitlines():
         s = ln.strip()
@@ -83,6 +96,8 @@ def clean_body(text, limit=1200):
             break
         if re.match(r"^-+\s*(Original|Forwarded) message", s, re.I):
             break
+        if re.match(r"^Sent from (my|Yahoo|Outlook|Gmail)", s, re.I):
+            continue                          # phone signatures
         out.append(ln)
     body = "\n".join(out)
     body = re.sub(r"\n{3,}", "\n\n", body).strip()

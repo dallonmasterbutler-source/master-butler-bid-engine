@@ -106,6 +106,29 @@ def build_data():
             sec("📊", "Scoreboard",
                 f"{waiting} shadow draft(s) waiting for office quotes")
 
+    # quotes out but quiet — the follow-up money (pre-lights ops, Jul 10)
+    if sb:
+        from datetime import datetime as _dt
+        nudge = []
+        for r in sb["rows"]:
+            if (r.get("office_status") or "").lower() != "awaiting_response":
+                continue
+            try:
+                age = (datetime.now() - _dt.strptime(
+                    r["stamp"][:8], "%Y%m%d")).days
+            except (KeyError, ValueError):
+                continue
+            if age >= 5:
+                nudge.append((age, r))
+        if nudge:
+            nudge.sort(reverse=True, key=lambda x: x[0])
+            sec("📤", f"Quotes gone quiet ({len(nudge)}) — worth a nudge",
+                "sent, no customer response, 5+ days",
+                [f"{(r.get('customer') or '?')[:32]} — "
+                 f"${r['office_total']:,.0f} · quote "
+                 f"#{r['office_quote']} · {age}d since request"
+                 for age, r in nudge[:8]])
+
     glance = []
     try:
         sbs = db.scoreboard_status()

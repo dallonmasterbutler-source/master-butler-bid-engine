@@ -5236,7 +5236,39 @@ def scoreboard_page():
         "<th class='num'>Our draft</th></tr>" + wrows + "</table></div>"
         if wrows else "")
 
-    return page("Scoreboard", hero + matched_card + waiting_card)
+    # QUOTES GONE QUIET (Jul 10 cycle): sent, no reply, 5+ days —
+    # follow-up is free money; the office nudges from here
+    nrows = ""
+    for r in matched:
+        if (r.get("office_status") or "").lower() != "awaiting_response":
+            continue
+        try:
+            age = (datetime.now()
+                   - datetime.strptime(r["stamp"][:8], "%Y%m%d")).days
+        except (KeyError, ValueError):
+            continue
+        if age < 5:
+            continue
+        qb = (f"<a class='btn' style='padding:4px 10px;font-size:11.5px;"
+              f"background:var(--card);color:var(--green2);border:1px "
+              f"solid var(--line)' href='{esc(r['jobber_url'])}' "
+              f"target='_blank' rel='noopener'>#{r['office_quote']} ↗</a>"
+              if r.get("jobber_url") else f"#{r['office_quote']}")
+        nrows += (f"<tr><td><b>{cname(r)}</b></td>"
+                  f"<td class='num'>${r['office_total']:,.0f}</td>"
+                  f"<td class='num'>{age}d</td><td>{qb}</td></tr>")
+    nudge_card = (
+        "<div class='card' style='border-left:4px solid var(--gold)'>"
+        "<h2 style='margin-top:0'>📤 Quotes gone quiet — worth a nudge"
+        "</h2><div class='subtext' style='margin-bottom:8px'>Sent, no "
+        "customer response, 5+ days since the request. A friendly "
+        "follow-up closes a surprising number of these.</div>"
+        "<table><tr><th>Customer</th><th class='num'>Quoted</th>"
+        "<th class='num'>Waiting</th><th></th></tr>" + nrows
+        + "</table></div>" if nrows else "")
+
+    return page("Scoreboard", hero + nudge_card + matched_card
+                + waiting_card)
 
 
 _ABBR = {"se": "southeast", "sw": "southwest", "ne": "northeast",
@@ -5331,11 +5363,11 @@ def service_history_card(address, client_name=None):
     for svc in sorted(entry):
         visits = sorted(entry[svc], reverse=True)
         last_d, last_p = visits[0]
+        # LaRee's idea (Jul 9, closed Jul 10): EVERY visit, not just the
+        # last — the chips wrap, nothing hides
         older = "".join(
             f"<span class='chip' style='font-variant-numeric:tabular-nums'>"
-            f"{d[:7]} · <b>${pr:,.0f}</b></span>" for d, pr in visits[1:5])
-        more = (f"<span class='subtext'> +{len(visits)-5} earlier</span>"
-                if len(visits) > 5 else "")
+            f"{d[:7]} · <b>${pr:,.0f}</b></span>" for d, pr in visits[1:])
         rows += (
             f"<div style='display:flex;align-items:center;gap:14px;"
             f"padding:10px 2px;border-bottom:1px solid var(--line)'>"
@@ -5344,7 +5376,8 @@ def service_history_card(address, client_name=None):
             f"<div style='min-width:120px'><b style='font-size:17px;"
             f"font-variant-numeric:tabular-nums'>${last_p:,.0f}</b>"
             f"<div class='subtext'>{last_d[:7]} (latest)</div></div>"
-            f"<div>{older}{more}</div></div>")
+            f"<div style='display:flex;gap:4px;flex-wrap:wrap'>{older}"
+            f"</div></div>")
     return (f"<div class='card'><h3>Service history at this property"
             f"</h3>{rows}</div>")
 
