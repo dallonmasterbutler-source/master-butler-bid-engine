@@ -3594,10 +3594,12 @@ _is.onchange = function(){{
    <input type='hidden' name='services' value='{','.join(nb.get('services') or [])}'>
    <input type='hidden' name='back' value='/'>
    <button class='gray'>Draft photo-request</button></form>
-  <form method='POST' action='/mark_spam' style='display:inline'>
+  {(f"""<form method='POST' action='/mark_spam' style='display:inline'
+    onsubmit="return confirm('File this sender as spam — never show them again?')">
    <input type='hidden' name='stamp' value='{stamp}'>
    <input type='hidden' name='sender' value='{esc(nb.get("from") or "")}'>
-   <button class='gray'>🚫 Spam</button></form>
+   <button class='gray'>🚫 Spam</button></form>""")
+   if not c.get('vm') else ''}
   <a href='/bid/{stamp}' class='chip' style='text-decoration:none'>
    open the classic bid page →</a>"""
         folds += fold("More", "photo request · spam · classic view", more)
