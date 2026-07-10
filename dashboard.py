@@ -6088,9 +6088,24 @@ class Handler(BaseHTTPRequestHandler):
                     if kind == "eml":
                         continue
                     by_kind.setdefault(kind, []).append((ref, i_))
-                # hero preference: the real house from the street, then sky
-                for kind in ("street", "aerial", "customer", "jobber"):
-                    for ref, i_ in by_kind.get(kind, []):
+                # HERO (Dallon's confirmation, Jul 10): the street photo
+                # we grab, OR the BEST photo from a tech's notes — tech/
+                # customer shots outrank the aerial. 'Best' = largest
+                # file (most detail), by real byte size from the DB.
+                for kind in ("street", "jobber", "customer", "aerial"):
+                    rows = by_kind.get(kind, [])
+                    if kind in ("jobber", "customer") and len(rows) > 1:
+                        try:
+                            sizes = {(r_[0], r_[1], r_[2]): r_[3]
+                                     for r_ in clouddb._exec(
+                                "SELECT ref, kind, idx, octet_length(data) "
+                                "FROM photos WHERE kind = %s AND ref = ANY(%s)",
+                                (kind, [r for r, _ in rows]), fetch="all")}
+                            rows = sorted(rows, key=lambda t: -sizes.get(
+                                (t[0], kind, t[1]), 0))
+                        except Exception:
+                            pass
+                    for ref, i_ in rows:
                         purls.append(f"/img/{ref}/{kind}/{i_}")
                 hero = purls[0] if purls else None
             except Exception:
