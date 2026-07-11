@@ -2995,7 +2995,12 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                   ("approved", "converted")
                   or (b2.get("jobber_event") or {}).get("event")
                   == "quote_approved" for b2 in c["bids"])
-        if nb and nb.get("dns_match"):
+        # TECHS get their own lane ABOVE New (Dallon, Jul 10 pm: 'a
+        # tech tab above New with a notification when tech messages
+        # come through') — field mail never mixes with customer bids
+        if nb and nb.get("tech_sender"):
+            grp = -1
+        elif nb and nb.get("dns_match"):
             grp = 0
         # HANDLED IN JOBBER (proven: booked today / recent quote / won):
         # its own lane with the reason — unless the customer wrote back
@@ -3130,10 +3135,13 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             f"<span class='iage{' alarm' if alarm else ''}'>{age}</span>"
             f"</div></a></div>")
 
-    sec_names = {0: "New — needs a person", 1: "In someone's hands",
+    sec_names = {-1: "👷 Techs — from the field",
+                 0: "New — needs a person", 1: "In someone's hands",
                  2: "Waiting on customers",
                  3: "Handled in Jobber — verified"}
-    counts = {g: sum(1 for r in roster if r["grp"] == g) for g in range(5)}
+    counts = {g: sum(1 for r in roster if r["grp"] == g)
+              for g in (-1, 0, 1, 2, 3, 4)}
+    tech_new = sum(1 for r in roster if r["grp"] == -1 and r["unread"])
     # after an office approve pushed a Jobber quote, show a clickable
     # confirmation right away (LaRee, Jul 10: 'when you click approved the
     # page should refresh so you can click the Jobber quote')
@@ -3192,11 +3200,17 @@ document.addEventListener('DOMContentLoaded', function(){
             "Select all already-quoted (<span id='bulkqn'>0</span>)</button>"
             "<button type='button' class='bulklink' onclick='bulkClear()'>"
             "Clear</button></div>")
-    for g in (0, 1, 2, 3):
+    for g in (-1, 0, 1, 2, 3):
         rows_g = [r for r in roster if r["grp"] == g]
         if not rows_g:
             continue
-        lst += f"<div class='ihead'>{sec_names[g]} ({len(rows_g)})</div>"
+        badge = ""
+        if g == -1 and tech_new:
+            badge = (f" <span style='background:#c9a227;color:#0b3d2e;"
+                     f"border-radius:999px;padding:1px 10px;font-size:10px;"
+                     f"font-weight:800;vertical-align:1px'>{tech_new} NEW"
+                     f"</span>")
+        lst += f"<div class='ihead'>{sec_names[g]} ({len(rows_g)}){badge}</div>"
         # NO CAP on work sections — a truncated list once hid Mia
         # Coffman entirely (read entries sort last; she fell off #41).
         # Hiding a customer is the unforgivable failure.
