@@ -918,6 +918,7 @@ CLIENT_PHOTOS = """
 query ClientPhotos($id: EncodedId!) {
   client(id: $id) {
     notes(first: 20) { nodes { ... on ClientNote {
+      message
       fileAttachments(first: 8) {
         nodes { fileName contentType url } } } } }
   }
@@ -947,10 +948,13 @@ def client_photos(client_id, limit=8):
     out = []
     for note in ((data.get("client") or {}).get("notes") or {}) \
             .get("nodes", []):
+        # the tech's NOTE TEXT rides along as the photo's caption
+        # (LaRee, Jul 10: 'photo notes need to port WITH the photos')
+        cap = (note.get("message") or "").strip()
         for a in (note.get("fileAttachments") or {}).get("nodes", []):
             if not (a.get("contentType") or "").startswith("image/"):
                 continue
-            out.append((a.get("fileName") or "", a.get("url")))
+            out.append((a.get("fileName") or "", a.get("url"), cap))
             if len(out) >= limit:
                 return out
     return out

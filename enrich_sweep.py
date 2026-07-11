@@ -66,7 +66,10 @@ def _port_photos(client_id, rec, stamp):
     n = 0
     import urllib.request
     from imgprep import prep_jpeg_from_bytes
-    for i, (_fn, url) in enumerate(photos):
+    caps = {}
+    for i, (_fn, url, _cap) in enumerate(photos):
+        if _cap:
+            caps[str(i)] = _cap[:300]     # the tech's words (LaRee)
         if (ref, "jobber", i) in have:
             continue
         try:
@@ -78,6 +81,14 @@ def _port_photos(client_id, rec, stamp):
             n += 1
         except Exception:
             continue
+    if caps:
+        try:
+            allc = clouddb.get_blob("photo_captions") or {}
+            if allc.get(ref) != caps:
+                allc[ref] = caps
+                clouddb.put_blob("photo_captions", allc)
+        except Exception:
+            pass
     return n
 
 

@@ -3983,6 +3983,12 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
     if nb:
         gallery = ""
         if clouddb.available():
+            # tech note text rides under Jobber photos (LaRee, Jul 10:
+            # 'photo notes need to port WITH the photos')
+            try:
+                _pcaps = clouddb.get_blob("photo_captions") or {}
+            except Exception:
+                _pcaps = {}
             for ref, kind, idx in clouddb.photos_index(
                     _photo_refs(stamp, nb.get("address"))):
                 if kind == "eml":
@@ -3991,16 +3997,26 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                        "street": ("Street", "#1d4ed8"),
                        "customer": ("Customer", "#8a5a00")}.get(
                            kind, (kind.title(), "#6b7280"))
+                _cap = ""
+                if kind == "jobber":
+                    _ct = (_pcaps.get(ref) or {}).get(str(idx))
+                    if _ct:
+                        _cap = (f"<span style='display:block;width:170px;"
+                                f"font-size:10.5px;color:var(--mut);"
+                                f"line-height:1.4;padding:3px 2px 0;"
+                                f"white-space:normal'>📝 "
+                                f"{esc(_ct)[:120]}</span>")
                 gallery += (
                     f"<a href='/img/{ref}/{kind}/{idx}' target='_blank' "
                     f"style='position:relative;display:inline-block;"
-                    f"margin:4px'><img src='/img/{ref}/{kind}/{idx}' "
+                    f"margin:4px;vertical-align:top;text-decoration:none'>"
+                    f"<img src='/img/{ref}/{kind}/{idx}' "
                     f"style='width:170px;height:108px;object-fit:cover;"
                     f"border-radius:10px;border:2px solid {lbl[1]}55'>"
                     f"<span style='position:absolute;top:6px;left:6px;"
                     f"background:{lbl[1]};color:#fff;font-size:9px;"
                     f"font-weight:800;padding:2px 7px;border-radius:6px'>"
-                    f"{lbl[0]}</span></a>")
+                    f"{lbl[0]}</span>{_cap}</a>")
         extra = ""
         if nb.get("address"):
             try:

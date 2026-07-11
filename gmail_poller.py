@@ -921,7 +921,10 @@ def _port_jobber_photos(client_id, record, stamp, cap=6):
                    (record.get("address") or "").lower()).strip("-")[:60]
            or stamp)
     saved = 0
-    for i, (_fn, url) in enumerate(photos):
+    caps = {}
+    for i, (_fn, url, _cap) in enumerate(photos):
+        if _cap:
+            caps[str(i)] = _cap[:300]     # the tech's words (LaRee)
         try:
             data = _ur.urlopen(url, timeout=25).read()
             if len(data) > 4_000_000:
@@ -942,6 +945,16 @@ def _port_jobber_photos(client_id, record, stamp, cap=6):
             saved += 1
         except Exception:
             continue
+    if caps:
+        try:
+            import clouddb
+            if clouddb.available():
+                allc = clouddb.get_blob("photo_captions") or {}
+                if allc.get(ref) != caps:
+                    allc[ref] = caps
+                    clouddb.put_blob("photo_captions", allc)
+        except Exception:
+            pass
     if saved:
         print(f"     → ported {saved} on-site photo(s) from Jobber")
 
