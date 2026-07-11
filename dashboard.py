@@ -3214,15 +3214,10 @@ document.addEventListener('DOMContentLoaded', function(){
     # the DARK EMERALD ROOM — glass cards, gold accents, slim icon rail
     # as the ONLY nav, logo + user pill up top. Scoped overrides keep
     # every existing class/behavior intact (trials stay green).
-    strip = ""
-    try:
-        import jobber_sync as _js
-        strip = _js.today_strip_html()
-    except Exception:
-        pass
+    # Today strip REMOVED (Dallon, Jul 10 pm: "this whole thing just
+    # needs to go away… it's not a scheduling app"). The pulse data
+    # still feeds the Handled-in-Jobber lane — only the chips line died.
     body = (_DARKROOM_CSS + f"<div class='mock dkroom'>{_chrome_dark()}"
-            + (f"<div style='padding:12px 16px 0'>{strip}</div>" if strip
-               else "")
             + f"<div class='inboxgrid'>"
             f"<div class='ilist'>{lst}</div>"
             f"<div class='idetail'>{detail}</div>"
