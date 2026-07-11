@@ -302,7 +302,7 @@ def caller_id(phone):
 CLIENT_SUMMARY = """
 query Summary($term: String!) {
   clients(searchTerm: $term, first: 5) {
-    nodes { id emails { address } jobberWebUri
+    nodes { id name emails { address } jobberWebUri
             invoices(first: 1) { totalCount } }
   }
 }
@@ -329,7 +329,8 @@ def client_summary(email_addr):
             return {"known": True,
                     "invoices": node["invoices"]["totalCount"],
                     "url": node.get("jobberWebUri"),
-                    "id": node.get("id")}
+                    "id": node.get("id"),
+                    "name": node.get("name")}
     return {"known": False, "invoices": 0}
 
 

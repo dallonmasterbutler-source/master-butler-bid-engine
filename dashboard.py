@@ -3205,6 +3205,11 @@ document.addEventListener('DOMContentLoaded', function(){
 // list + detail panes are scrolled, restore after the reload.
 (function(){
   var KEY = 'scroll:' + location.pathname + location.search;
+  // the LIST keeps its place across DIFFERENT selections too (Dallon,
+  // Jul 10 pm: 'clicking on a name snaps the scroll to the top') —
+  // /?c=alice and /?c=bob are different URLs but the same list, so
+  // the list pane gets its own key WITHOUT the query string
+  var LKEY = 'scroll-list:' + location.pathname;
   function panes(){ return {
     list: document.querySelector('.ilist'),
     detail: document.querySelector('.idetail')}; }
@@ -3214,8 +3219,30 @@ document.addEventListener('DOMContentLoaded', function(){
       w: window.scrollY,
       list: p.list ? p.list.scrollTop : 0,
       detail: p.detail ? p.detail.scrollTop : 0})); } catch(e) {}
+    try { if (p.list)
+      sessionStorage.setItem(LKEY, String(p.list.scrollTop)); } catch(e) {}
   }
   window.__saveScroll = save;
+  // save the moment a row is clicked, before the browser navigates
+  document.addEventListener('click', function(ev){
+    if (ev.target.closest && ev.target.closest('.irow')) save();
+  }, true);
+  // restore the list position on EVERY load (retry until laid out)
+  try {
+    var lv = parseInt(sessionStorage.getItem(LKEY) || '', 10);
+    if (!isNaN(lv) && lv > 0) {
+      var ltries = 0;
+      (function lapply(){
+        var p = panes();
+        if (p.list) {
+          p.list.scrollTop = lv;
+          var lok = Math.abs(p.list.scrollTop - lv) < 3
+                    || p.list.scrollHeight - p.list.clientHeight <= lv + 3;
+          if (!lok && ltries++ < 12) setTimeout(lapply, 80);
+        } else if (ltries++ < 12) setTimeout(lapply, 80);
+      })();
+    }
+  } catch(e) {}
   // restore on load — RETRY until the panes have laid out, because
   // setting scrollTop before the list has its full height silently
   // clamps to 0 (that was the 'jumps to top' bug, Jul 10)
