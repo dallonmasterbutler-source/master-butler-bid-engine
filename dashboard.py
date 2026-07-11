@@ -843,7 +843,7 @@ def _svg_icon(name):
          "help": '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.6 '
                  '2.6 0 1 1 3.6 2.4c-.9.4-1.2 1-1.2 1.9"/>'
                  '<circle cx="12" cy="17" r=".4"/>'}
-    return ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" '
+    return ('<svg width="22" height="22" viewBox="0 0 24 24" fill="none" '
             'stroke="currentColor" stroke-width="1.8" stroke-linecap="round"'
             ' stroke-linejoin="round">' + d.get(name, "") + "</svg>")
 
@@ -919,22 +919,22 @@ body{background:#f8f7f2!important}
 </style>'''
 
 _GLOBAL_RAIL_CSS = """<style>
-.gr{position:fixed;left:0;top:0;bottom:0;width:56px;z-index:80;
+.gr{position:fixed;left:0;top:0;bottom:0;width:68px;z-index:80;
  background:#082d22;border-right:1px solid rgba(201,162,39,.25);
  display:flex;flex-direction:column;align-items:center;gap:6px;
  padding:14px 0}
-.gr a{width:38px;height:38px;flex:none;display:flex;align-items:center;
+.gr a{width:46px;height:46px;flex:none;display:flex;align-items:center;
  justify-content:center;border-radius:10px;color:#9db3a7;
  border:1px solid transparent}
 .gr a.on{background:#c9a227;color:#123527}
 .gr a:hover{border-color:rgba(201,162,39,.35)}
 .gr .sp{flex:1}
-body{padding-left:70px!important}
+body{padding-left:84px!important}
 .chrome .navr a{display:none}
 .chrome .whobox{background:#c9a227;color:#123527;border-radius:99px;
  padding:4px 12px;font-weight:800}
-@media(max-width:700px){.gr{width:46px}.gr a{width:34px;height:34px}
- body{padding-left:56px!important}}
+@media(max-width:700px){.gr{width:52px}.gr a{width:38px;height:38px}
+ body{padding-left:62px!important}}
 </style>"""
 
 
@@ -5836,12 +5836,26 @@ def scoreboard_page():
     close = sum(1 for r in matched
                 if r.get("gap_pct") is not None and abs(r["gap_pct"]) <= 10)
 
+    # THE DOLLAR TRACKER (Dallon, Jul 10: 'add the dollar tracker we
+    # had before — that was awesome'): money at a glance, not just counts
+    won_d = sum((r.get("office_total") or 0) for r in matched
+                if (r.get("office_status") or "").lower()
+                in ("approved", "converted"))
+    out_d = sum((r.get("office_total") or 0) for r in matched
+                if (r.get("office_status") or "").lower()
+                == "awaiting_response")
+    wait_d = sum((r.get("system_total") or 0) for r in waiting)
     hero = (
         "<div class='stats'>"
+        f"<div class='stat'><b style='color:var(--green2)' class='tab'>"
+        f"${won_d:,.0f}</b><span>WON 🎉</span></div>"
+        f"<div class='stat'><b class='tab'>${out_d:,.0f}</b>"
+        f"<span>quotes out</span></div>"
+        f"<div class='stat'><b class='tab'>${wait_d:,.0f}</b>"
+        f"<span>drafts awaiting office</span></div>"
         f"<div class='stat'><b>{len(matched)}</b><span>compared</span></div>"
         f"<div class='stat'><b>{close}</b><span>within 10%</span></div>"
-        f"<div class='stat'><b>{len(waiting)}</b>"
-        f"<span>awaiting office</span></div></div>")
+        f"</div>")
 
     auto = None
     if clouddb.available():
