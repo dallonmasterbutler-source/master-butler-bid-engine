@@ -3769,6 +3769,14 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                     break
             d_ = (nb.get("draft") or {})
             tt = _num(d_.get("total"))
+            hero_lbl = "Estimated total"
+            if not tt:
+                # no engine draft — the office's live Jobber quote still
+                # belongs ON the picture (Dallon, Jul 10 pm: 'put the
+                # total price over the picture like in the stitch')
+                tt = _num((nb.get("open_quote_ctx") or {}).get("total"))
+                if tt:
+                    hero_lbl = "Quote total — in Jobber"
             cf = _num(nb.get("confidence"))
             # the HOUSE always shows when we have its picture (Dallon,
             # Jul 10 pm: 'the home isn't coming up on top' — it was
@@ -3778,10 +3786,11 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                 foot = ""
                 if tt:
                     foot = (f"<div class='foot'><div class='lbl'>"
-                            f"Estimated total</div>"
+                            f"{hero_lbl}</div>"
                             f"<span class='pr tab'>${tt:,.0f}</span>"
                             + (f"<span class='cf'>● {cf:.0f}% confident"
-                               f"</span>" if cf is not None else "")
+                               f"</span>" if cf is not None
+                               and hero_lbl == "Estimated total" else "")
                             + "</div>")
                 elif nb.get("address"):
                     foot = (f"<div class='foot'><div class='lbl'>"
