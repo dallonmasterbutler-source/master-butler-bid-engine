@@ -85,6 +85,19 @@ def run(recent_hours=None):
         if t and r.get("address") and t not in kin_addr:
             kin_addr[t] = r["address"]
 
+    # best display name per email, from the customer's OWN emails —
+    # beats a broken Jobber name ('(null) Saveliev' stayed on the
+    # queue while his replies arrived signed Vadim Tank Saveliev)
+    best_name = {}
+    for s, r in rows:
+        f = r.get("from") or ""
+        e2 = _email(r)
+        disp = f.split("<")[0].strip()
+        if (e2 and disp and "@" not in disp and "null" not in disp.lower()
+                and "jobber" != disp.lower()
+                and len(disp) > len(best_name.get(e2, ""))):
+            best_name[e2] = disp
+
     for stamp, rec in rows:
         if floor and stamp < floor:
             continue
@@ -92,8 +105,8 @@ def run(recent_hours=None):
         if _skip(rec, e):
             continue
         try:
-            changed = _fill(stamp, rec, e, kin_addr, photo_refs,
-                            stats, geocode, assessor, key)
+            changed = _fill(stamp, rec, e, kin_addr, best_name,
+                            photo_refs, stats, geocode, assessor, key)
         except Exception as ex:
             # isolate: the NEXT record still gets its sweep
             print(f"  ✗ {stamp} sweep error: {ex}", flush=True)
@@ -114,9 +127,20 @@ def run(recent_hours=None):
     print("COMPLETE SWEEP DONE:", json.dumps(stats), flush=True)
 
 
-def _fill(stamp, rec, e, kin_addr, photo_refs, stats,
+def _fill(stamp, rec, e, kin_addr, best_name, photo_refs, stats,
           geocode, assessor, key):
     changed = False
+
+    # 0a) a broken/missing display name heals from the customer's own
+    # best-known name ('(null) Saveliev' → 'Vadim Tank Saveliev')
+    disp0 = (rec.get("from") or "").split("<")[0].strip()
+    broken = (not disp0 or "@" in disp0 or "null" in disp0.lower())
+    if e and broken and best_name.get(e) \
+            and best_name[e] != disp0:
+        rec["from"] = f"{best_name[e]} <{e}>"
+        stats.setdefault("named", 0)
+        stats["named"] += 1
+        changed = True
 
     # 0) address from a merged sibling (ground truth from the family)
     if not rec.get("address") and kin_addr.get(stamp):
@@ -207,12 +231,17 @@ def _fill(stamp, rec, e, kin_addr, photo_refs, stats,
                 rec["jobber_client_url"] = cs["url"]
             stats["status"] += 1
             changed = True
-        if cs and cs.get("name") and needs_name \
-                and cs["name"].strip().lower() != e:
-            rec["from"] = f"{cs['name'].strip()} <{e}>"
-            stats.setdefault("named", 0)
-            stats["named"] += 1
-            changed = True
+        if cs and cs.get("name") and needs_name:
+            # Jobber names can carry '(null)' where a first name
+            # should be — scrub before wearing
+            import re as _r2
+            nm2 = _r2.sub(r"\(?\bnull\b\)?", "",
+                          cs["name"], flags=_r2.I).strip()
+            if nm2 and nm2.lower() != e:
+                rec["from"] = f"{nm2} <{e}>"
+                stats.setdefault("named", 0)
+                stats["named"] += 1
+                changed = True
 
     # 5) PW asks get their surfaces measured from the sky
     svcs = rec.get("services") or []

@@ -186,8 +186,20 @@ def editor_html(rec, stamp, back="/"):
                 f"<select name='{name}' style='width:100%;margin-top:6px;"
                 f"background:rgba(0,0,0,.35);border:1px solid "
                 f"rgba(201,162,39,.3);border-radius:11px;color:#e2e8f0;"
-                f"padding:14px 14px;font:inherit;font-size:16px;"
-                f"font-weight:700;cursor:pointer'>{opts}</select></label>")
+                f"padding:0 44px 0 14px;font:inherit;font-size:17px;"
+                f"font-weight:700;cursor:pointer;height:54px;"
+                # Safari draws native selects and IGNORES padding/height
+                # (Dallon: 'still small on my end') — appearance:none
+                # makes every browser honor the size; arrow drawn back on
+                f"-webkit-appearance:none;appearance:none;"
+                f"background-image:url(\"data:image/svg+xml,%3Csvg "
+                f"xmlns='http://www.w3.org/2000/svg' width='16' "
+                f"height='16' viewBox='0 0 24 24' fill='none' "
+                f"stroke='%23c9a227' stroke-width='2.5' "
+                f"stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/"
+                f"%3E%3C/svg%3E\");background-repeat:no-repeat;"
+                f"background-position:right 14px center'>"
+                f"{opts}</select></label>")
 
     fixed = ("<div style='font-size:12px;color:#e8c56a;margin-top:10px'>"
              "🏠 corrections on file: "
