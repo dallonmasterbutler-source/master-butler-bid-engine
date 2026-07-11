@@ -907,6 +907,26 @@ body{background:#05140f!important}
 </style>"""
 
 
+_GLOBAL_RAIL_CSS = """<style>
+.gr{position:fixed;left:0;top:0;bottom:0;width:56px;z-index:80;
+ background:#082d22;border-right:1px solid rgba(201,162,39,.25);
+ display:flex;flex-direction:column;align-items:center;gap:6px;
+ padding:14px 0}
+.gr a{width:38px;height:38px;flex:none;display:flex;align-items:center;
+ justify-content:center;border-radius:10px;color:#9db3a7;
+ border:1px solid transparent}
+.gr a.on{background:#c9a227;color:#123527}
+.gr a:hover{border-color:rgba(201,162,39,.35)}
+.gr .sp{flex:1}
+body{padding-left:70px!important}
+.chrome .navr a{display:none}
+.chrome .whobox{background:#c9a227;color:#123527;border-radius:99px;
+ padding:4px 12px;font-weight:800}
+@media(max-width:700px){.gr{width:46px}.gr a{width:34px;height:34px}
+ body{padding-left:56px!important}}
+</style>"""
+
+
 def _rail_html(active="/"):
     links = [("/", "queue", "Bid Queue"), ("/customers", "people",
               "Customers"), ("/routes", "van", "Routes"),
@@ -973,13 +993,21 @@ def page(title, body, refresh=None, chrome="rail"):
     auto = (f"<meta http-equiv='refresh' content='{refresh}'>"
             if refresh else "")
     if chrome == "bare":
-        # the Inbox draws its own framed app window (mockup-exact) —
-        # this shell is just <html> + tokens + footer
+        # PERSISTENT ICON RAIL (Dallon, Jul 10 pm: 'the bar on the left
+        # needs to be persistent through the whole site') — injected
+        # here so every framed page carries it; it is the ONE nav.
+        railmap = {"Bids": "/", "Customers": "/customers",
+                   "Routes": "/routes", "Scoreboard": "/scoreboard",
+                   "Win-back": "/winback", "Settings": "/settings",
+                   "Guide": "/guide", "Brief": "/brief"}
+        rail_css = _GLOBAL_RAIL_CSS
+        active = railmap.get(title, "")
+        rail = _rail_html(active).replace("class='dkrail'", "class='gr'")
         return (f"<!doctype html><html><head><meta charset='utf-8'>"
                 f"<meta name='viewport' content='width=device-width,"
                 f"initial-scale=1'>{auto}{FAVICON}"
-                f"<title>{title}</title>{STYLE}</head>"
-                f"<body style='padding:14px 16px 0'>"
+                f"<title>{title}</title>{STYLE}{rail_css}</head>"
+                f"<body style='padding:14px 16px 0'>{rail}"
                 f"<div style='max-width:1280px;margin:0 auto'>{body}"
                 f"<footer style='padding:10px 4px'>Every quote is a draft "
                 f"until a human sends it · bold = nobody's seen it · "
@@ -1040,11 +1068,17 @@ border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
     active = title if title in ("Scoreboard", "Win-back", "Settings",
                                 "Guide") \
         else ("Bids" if title in inbox_titles else "")
+    railmap2 = {"Bids": "/", "Bid queue": "/", "Customers": "/customers",
+                "Messages": "/customers", "Routes": "/routes",
+                "Scoreboard": "/scoreboard", "Win-back": "/winback",
+                "Settings": "/settings", "Guide": "/guide"}
+    rail2 = _rail_html(railmap2.get(title, "")).replace(
+        "class='dkrail'", "class='gr'")
     return (f"<!doctype html><html><head><meta charset='utf-8'>"
             f"<meta name='viewport' content='width=device-width,"
             f"initial-scale=1'>{auto}{FAVICON}"
-            f"<title>{title}</title>{STYLE}</head>"
-            f"<body style='padding:14px 16px 0'>"
+            f"<title>{title}</title>{STYLE}{_GLOBAL_RAIL_CSS}</head>"
+            f"<body style='padding:14px 16px 0'>{rail2}"
             f"<div style='max-width:1280px;margin:0 auto'>"
             f"<div class='mock'>{_chrome_bar(active)}"
             f"<div style='padding:18px 22px'>"
@@ -3001,14 +3035,12 @@ document.addEventListener('DOMContentLoaded', function(){
     except Exception:
         pass
     body = (_DARKROOM_CSS + f"<div class='mock dkroom'>{_chrome_dark()}"
-            f"<div class='dkshell'>{_rail_html('/')}"
-            f"<div style='flex:1;min-width:0'>"
             + (f"<div style='padding:12px 16px 0'>{strip}</div>" if strip
                else "")
             + f"<div class='inboxgrid'>"
             f"<div class='ilist'>{lst}</div>"
             f"<div class='idetail'>{detail}</div>"
-            f"</div></div></div></div>")
+            f"</div></div>")
     body += """
 <script>
 // KEEP MY PLACE ACROSS AUTO-REFRESH (Dallon Jul 10: 'working at the
