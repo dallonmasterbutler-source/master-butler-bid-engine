@@ -122,9 +122,14 @@ def load_pulse():
 
 
 def _t12(iso):
+    """Jobber returns UTC ('…T16:00:00Z' = 9:00 AM in Monroe) — show
+    the OFFICE's clock, always (Dallon, Jul 10 pm: every visit on the
+    Today strip said 4:00 PM; those were 16:00 UTC morning jobs)."""
     try:
+        from zoneinfo import ZoneInfo
         t = datetime.datetime.fromisoformat(iso.replace("Z", "+00:00"))
-        return t.strftime("%-I:%M %p")
+        return t.astimezone(ZoneInfo("America/Los_Angeles")) \
+                .strftime("%-I:%M %p")
     except Exception:
         return ""
 
