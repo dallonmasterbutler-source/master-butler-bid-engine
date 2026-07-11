@@ -824,6 +824,110 @@ def _rail_counts():
 
 
 
+def _svg_icon(name):
+    d = {"queue": '<path d="M3 5h18v14H3z"/><path d="M3 13h5l2 3h4l2-3h5"/>',
+         "people": '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 '
+                   '2.8-4.5 5.5-4.5S13.9 16 14.5 19"/><circle cx="17" '
+                   'cy="9" r="2.6"/><path d="M15.5 14.8c2.4.2 4.2 1.6 '
+                   '4.9 4.2"/>',
+         "van": '<path d="M2 7h11v9H2z"/><path d="M13 10h4l3 3v3h-7"/>'
+                '<circle cx="6.5" cy="17.5" r="1.7"/>'
+                '<circle cx="16.5" cy="17.5" r="1.7"/>',
+         "chart": '<path d="M4 20V10"/><path d="M10 20V4"/>'
+                  '<path d="M16 20v-7"/><path d="M21 20H3"/>',
+         "gear": '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 '
+                 '18.8v2.4M4.2 12H1.8M22.2 12h-2.4M5.4 5.4l1.7 1.7M16.9 '
+                 '16.9l1.7 1.7M18.6 5.4l-1.7 1.7M7.1 16.9l-1.7 1.7"/>',
+         "phone": '<path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 '
+                  '2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+         "help": '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.6 '
+                 '2.6 0 1 1 3.6 2.4c-.9.4-1.2 1-1.2 1.9"/>'
+                 '<circle cx="12" cy="17" r=".4"/>'}
+    return ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" '
+            'stroke="currentColor" stroke-width="1.8" stroke-linecap="round"'
+            ' stroke-linejoin="round">' + d.get(name, "") + "</svg>")
+
+
+_DARKROOM_CSS = """<style>
+body{background:#05140f!important}
+.mock.dkroom{--bg:#05140f;--card:rgba(17,41,33,.72);--soft:#112921;
+ --line:rgba(201,162,39,.18);--ink:#e2e8f0;--mut:#a3adab;
+ --gold:#c9a227;--goldbg:rgba(201,162,39,.13);--goldink:#e8c56a;
+ --heading:#e8c56a;--alarm:#fca5a5;--green2:#5fbd85;
+ background:#05140f;border-color:rgba(201,162,39,.2)}
+.mock.dkroom .chrome{background:#082d22;border-bottom:1px solid
+ rgba(201,162,39,.18)}
+.mock.dkroom .chrome .navr a{display:none}
+.mock.dkroom .chrome .whobox{background:#c9a227;color:#123527;
+ border-radius:99px;padding:4px 12px;font-weight:800}
+.dkshell{display:flex;min-height:70vh}
+.dkrail{width:56px;flex:none;background:#082d22;border-right:1px solid
+ rgba(201,162,39,.18);display:flex;flex-direction:column;align-items:center;
+ gap:6px;padding:14px 0}
+.dkrail a{width:38px;height:38px;flex:none;display:flex;align-items:center;
+ justify-content:center;border-radius:10px;color:#9db3a7;
+ border:1px solid transparent}
+.dkrail a.on{background:#c9a227;color:#123527}
+.dkrail a:hover{border-color:rgba(201,162,39,.3)}
+.dkrail .sp{flex:1}
+.mock.dkroom .irow{background:rgba(17,41,33,.5);border:1px solid
+ rgba(201,162,39,.10);border-radius:12px;margin:4px 0}
+.mock.dkroom .irow:hover{border-color:rgba(201,162,39,.4);
+ background:rgba(17,41,33,.8)}
+.mock.dkroom .irow.sel{outline:none;border-left:3px solid #c9a227;
+ background:rgba(17,41,33,.95)}
+.mock.dkroom .irow .nm{color:#fff}
+.mock.dkroom .dot{box-shadow:0 0 8px rgba(201,162,39,.7);
+ background:#c9a227}
+.mock.dkroom .ihead{color:#a3adab;letter-spacing:1.6px}
+.mock.dkroom .pinned,.mock.dkroom .card{background:rgba(17,41,33,.72);
+ border:1px solid rgba(201,162,39,.18);border-radius:14px}
+.mock.dkroom .money{color:#c9a227;
+ text-shadow:0 0 12px rgba(201,162,39,.4)}
+.mock.dkroom .big{background:#c9a227;color:#0b3d2e;font-weight:800}
+.mock.dkroom input[type=text],.mock.dkroom textarea,.mock.dkroom select{
+ background:rgba(0,0,0,.35);border:1px solid rgba(201,162,39,.18);
+ color:#e2e8f0}
+.mock.dkroom .bulkbar{background:rgba(201,162,39,.12);
+ border-color:rgba(201,162,39,.45)}
+.mock.dkroom .qhero{position:relative;border-radius:14px;overflow:hidden;
+ border:1px solid rgba(201,162,39,.2);min-height:210px;margin-bottom:12px;
+ background:linear-gradient(150deg,#14402f,#0a2b1f 60%,#07231a)}
+.mock.dkroom .qhero img{position:absolute;inset:0;width:100%;height:100%;
+ object-fit:cover}
+.mock.dkroom .qhero .shade{position:absolute;inset:0;background:
+ linear-gradient(to top,rgba(5,20,15,.92),rgba(5,20,15,.18) 55%)}
+.mock.dkroom .qhero .foot{position:absolute;left:16px;right:16px;bottom:12px}
+.mock.dkroom .qhero .lbl{font-size:9px;font-weight:800;letter-spacing:2px;
+ text-transform:uppercase;color:rgba(255,255,255,.72)}
+.mock.dkroom .qhero .pr{font-size:38px;font-weight:800;color:#c9a227;
+ text-shadow:0 0 14px rgba(201,162,39,.45);line-height:1.05}
+.mock.dkroom .qhero .cf{margin-left:12px;font-size:12.5px;color:#9fdcb9;
+ font-weight:800;vertical-align:10px}
+</style>"""
+
+
+def _rail_html(active="/"):
+    links = [("/", "queue", "Bid Queue"), ("/customers", "people",
+              "Customers"), ("/routes", "van", "Routes"),
+             ("/scoreboard", "chart", "Scoreboard"),
+             ("/winback", "phone", "Win-back")]
+    out = "<div class='dkrail'>"
+    for href, ic, title in links:
+        cls = " class='on'" if href == active else ""
+        out += (f"<a href='{href}'{cls} title='{title}'>"
+                f"{_svg_icon(ic)}</a>")
+    out += ("<div class='sp'></div>"
+            f"<a href='/settings' title='Settings'>{_svg_icon('gear')}</a>"
+            f"<a href='/guide' title='Guide'>{_svg_icon('help')}</a></div>")
+    return out
+
+
+def _chrome_dark():
+    """Dark-room top bar: logo + who pill ONLY (one nav = the rail)."""
+    return _chrome_bar("Bids")   # nav links hidden by dkroom CSS
+
+
 def _chrome_bar(active=""):
     """The framed window's green top bar — one for every page."""
     navr = "".join(
@@ -2514,6 +2618,16 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
     sbs = scoreboard_status()
     bid_status._sl = second_looks()
     read_marks = _msg_read()
+    # HANDLED IN JOBBER (Dallon's ruling: read-both, no write-back) —
+    # rows provably handled (booked today / recent quote out / won)
+    # move to their own lane with the reason shown
+    handled_jb = {}
+    try:
+        import jobber_sync
+        handled_jb = jobber_sync.reconcile(
+            [(b["stamp"], b) for b in bids])
+    except Exception:
+        pass
 
     # ── merge: one entry per customer (same engine as Customers view) ──
     cust, order = {}, []
@@ -2622,6 +2736,12 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                   == "quote_approved" for b2 in c["bids"])
         if nb and nb.get("dns_match"):
             grp = 0
+        # HANDLED IN JOBBER (proven: booked today / recent quote / won):
+        # its own lane with the reason — unless the customer wrote back
+        elif (nb and nb["stamp"] in handled_jb and not new_msg
+              and not unread and nb["stamp"] not in live_holds
+              and nb["stamp"] not in flags_open):
+            grp = 3
         # already-quoted + someone marked it seen = handled → Done & quiet
         # (Dallon, Jul 10: clean up the ones already worked). A WON quote
         # still needs scheduling, and a new customer reply always
@@ -2629,7 +2749,7 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         elif ((oq or qno) and not won and not unread and not new_msg
               and nb and nb["stamp"] not in live_holds
               and nb["stamp"] not in flags_open):
-            grp = 3
+            grp = 4
         elif new_msg or needs or (nb and (nb.get("office_alert")
                                   or nb["stamp"] in bid_status._sl)):
             grp = 0                                # new — needs a person
@@ -2641,7 +2761,10 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                 == "awaiting_response":
             grp = 2                                # waiting on customers
         else:
-            grp = 3                                # done / quiet
+            grp = 4                                # done / quiet
+        if grp == 3 and nb:
+            word = "📋 " + handled_jb[nb["stamp"]]
+            wstyle = "color:var(--goldink)"
         age_h = nb["age_hours"] if nb else None
         if age_h is None and c["msgs"]:
             try:
@@ -2747,8 +2870,9 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             f"</div></a></div>")
 
     sec_names = {0: "New — needs a person", 1: "In someone's hands",
-                 2: "Waiting on customers"}
-    counts = {g: sum(1 for r in roster if r["grp"] == g) for g in range(4)}
+                 2: "Waiting on customers",
+                 3: "Handled in Jobber — verified"}
+    counts = {g: sum(1 for r in roster if r["grp"] == g) for g in range(5)}
     # after an office approve pushed a Jobber quote, show a clickable
     # confirmation right away (LaRee, Jul 10: 'when you click approved the
     # page should refresh so you can click the Jobber quote')
@@ -2807,7 +2931,7 @@ document.addEventListener('DOMContentLoaded', function(){
             "Select all already-quoted (<span id='bulkqn'>0</span>)</button>"
             "<button type='button' class='bulklink' onclick='bulkClear()'>"
             "Clear</button></div>")
-    for g in (0, 1, 2):
+    for g in (0, 1, 2, 3):
         rows_g = [r for r in roster if r["grp"] == g]
         if not rows_g:
             continue
@@ -2816,7 +2940,7 @@ document.addEventListener('DOMContentLoaded', function(){
         # Coffman entirely (read entries sort last; she fell off #41).
         # Hiding a customer is the unforgivable failure.
         lst += "".join(row(r) for r in rows_g)
-    done_rows = [r for r in roster if r["grp"] == 3]
+    done_rows = [r for r in roster if r["grp"] == 4]
     lst += (f"<details style='margin-top:12px'><summary style='cursor:"
             f"pointer;color:var(--mut);font-size:12.5px;font-weight:700;"
             f"padding:0 8px'>Done &amp; quiet ({len(done_rows)}) · "
@@ -2866,11 +2990,25 @@ document.addEventListener('DOMContentLoaded', function(){
         detail = _inbox_detail(cur, quotes, qurls, live_holds, flags_open,
                                sbs, claims, draft, convo_open, user)
 
-    body = (f"<div class='mock'>{_chrome_bar('Bids')}"
-            f"<div class='inboxgrid'>"
+    # ── NEW DESIGN (Dallon's Stitch system, Jul 10): the Bid Queue is
+    # the DARK EMERALD ROOM — glass cards, gold accents, slim icon rail
+    # as the ONLY nav, logo + user pill up top. Scoped overrides keep
+    # every existing class/behavior intact (trials stay green).
+    strip = ""
+    try:
+        import jobber_sync as _js
+        strip = _js.today_strip_html()
+    except Exception:
+        pass
+    body = (_DARKROOM_CSS + f"<div class='mock dkroom'>{_chrome_dark()}"
+            f"<div class='dkshell'>{_rail_html('/')}"
+            f"<div style='flex:1;min-width:0'>"
+            + (f"<div style='padding:12px 16px 0'>{strip}</div>" if strip
+               else "")
+            + f"<div class='inboxgrid'>"
             f"<div class='ilist'>{lst}</div>"
             f"<div class='idetail'>{detail}</div>"
-            f"</div></div>")
+            f"</div></div></div></div>")
     body += """
 <script>
 // KEEP MY PLACE ACROSS AUTO-REFRESH (Dallon Jul 10: 'working at the
@@ -3290,7 +3428,36 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                      + _tax_glance(nb["address"], _tax_svcs))
     elif c["email"]:
         addr_line = esc(c["email"])
-    pinned = (f"<div class='pinned'>{banners}"
+    # HERO (Dallon's design + his photo rule): the house photo with the
+    # price + confidence ON it — street view → best tech photo → aerial
+    hero_html = ""
+    try:
+        if nb and (nb.get("address") or stamp):
+            by_kind = {}
+            for ref_, kind_, i_ in clouddb.photos_index(
+                    _photo_refs(stamp, nb.get("address"))):
+                if kind_ != "eml":
+                    by_kind.setdefault(kind_, []).append((ref_, i_))
+            hurl = None
+            for kind_ in ("street", "jobber", "customer", "aerial"):
+                if by_kind.get(kind_):
+                    r0, i0 = by_kind[kind_][0]
+                    hurl = f"/img/{r0}/{kind_}/{i0}"
+                    break
+            d_ = (nb.get("draft") or {})
+            tt = _num(d_.get("total"))
+            cf = _num(nb.get("confidence"))
+            if hurl and tt:
+                hero_html = (
+                    f"<div class='qhero'><img src='{esc(hurl)}' "
+                    f"loading='lazy'><div class='shade'></div>"
+                    f"<div class='foot'><div class='lbl'>Estimated total"
+                    f"</div><span class='pr tab'>${tt:,.0f}</span>"
+                    + (f"<span class='cf'>● {cf:.0f}% confident</span>"
+                       if cf is not None else "") + "</div></div>")
+    except Exception:
+        pass
+    pinned = (f"<div class='pinned'>{banners}{hero_html}"
               f"<div class='pin-top'><div>"
               f"<h2>{esc(c['name'] or c['email'] or '')}{mark_unread}</h2>"
               f"<div class='paddr'>{addr_line}{jobber_bits}{ident_links}"
@@ -3408,8 +3575,15 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                                  f"{k} ~{v:,.0f} sqft"
                                  for k, v in surf.items()) + "</div>")
         if priced_inner:
+            # EDITABLE FACTS THAT LEARN (LaRee ×2, Jul 10): correct
+            # pitch/stories/debris/roof → reprice + remembered forever
+            try:
+                import facts_edit
+                priced_inner += facts_edit.editor_html(nb, stamp, back)
+            except Exception:
+                pass
             folds += fold("How it was priced",
-                          "size · multipliers · measurements",
+                          "size · multipliers · fix the facts",
                           priced_inner)
 
     # photos & flyover
