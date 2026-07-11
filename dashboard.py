@@ -968,7 +968,19 @@ def _svg_icon(name):
                    '<path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
          "trend": '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>',
          "check": '<circle cx="12" cy="12" r="9"/>'
-                  '<path d="M8.5 12.5l2.5 2.5 4.5-5"/>'}
+                  '<path d="M8.5 12.5l2.5 2.5 4.5-5"/>',
+         # site-specifications rail icons (Stitch Bid Review, Jul 10 pm)
+         "sq": '<rect x="4" y="4" width="16" height="16" rx="2"/>'
+               '<path d="M9 4v3M14 4v3M4 9h3M4 14h3"/>',
+         "height": '<path d="M12 4v16M8.5 7.5L12 4l3.5 3.5'
+                   'M8.5 16.5L12 20l3.5-3.5"/>',
+         "pitch": '<path d="M4 19h16M4 19L16 7l4 4"/>',
+         "home": '<path d="M3 11l9-7 9 7"/><path d="M6 9.5V19h12V9.5"/>',
+         "leaf": '<path d="M5 19C5 11 11 5 19 5c0 8-6 14-14 14z"/>'
+                 '<path d="M5 19c3-5 6-8 10-10"/>',
+         "info": '<circle cx="12" cy="12" r="9"/>'
+                 '<path d="M12 11v5"/><circle cx="12" cy="8" r="1.1" '
+                 'fill="currentColor" stroke="none"/>'}
     return ('<svg width="22" height="22" viewBox="0 0 24 24" fill="none" '
             'stroke="currentColor" stroke-width="1.8" stroke-linecap="round"'
             ' stroke-linejoin="round">' + d.get(name, "") + "</svg>")
@@ -1030,6 +1042,35 @@ body{background:#05140f!important}
  text-shadow:0 0 14px rgba(201,162,39,.45);line-height:1.05}
 .mock.dkroom .qhero .cf{margin-left:12px;font-size:12.5px;color:#9fdcb9;
  font-weight:800;vertical-align:10px}
+/* SITE SPECIFICATIONS rail beside the hero (Stitch Bid Review) */
+.mock.dkroom .pingrid{display:grid;grid-template-columns:1fr 290px;
+ gap:16px;align-items:start}
+@media(max-width:1080px){.mock.dkroom .pingrid{grid-template-columns:1fr}}
+.mock.dkroom .specrail{background:rgba(17,41,33,.55);
+ border:1px solid rgba(201,162,39,.16);border-radius:13px;
+ padding:14px 16px}
+.mock.dkroom .specrail .sptitle{display:flex;align-items:center;gap:8px;
+ font-size:11px;font-weight:800;letter-spacing:1.8px;
+ text-transform:uppercase;color:#e8c56a;border-bottom:1px solid
+ rgba(201,162,39,.14);padding-bottom:9px;margin-bottom:4px}
+.mock.dkroom .specrail .sptitle svg{width:16px;height:16px;
+ color:#c9a227}
+.mock.dkroom .sprow{display:flex;justify-content:space-between;
+ align-items:center;gap:10px;padding:8px 0;
+ border-bottom:1px dashed rgba(201,162,39,.1)}
+.mock.dkroom .sprow:last-of-type{border-bottom:0}
+.mock.dkroom .sprow .sl{display:flex;align-items:center;gap:9px;
+ color:#a3adab;font-size:12.5px;font-weight:600}
+.mock.dkroom .sprow .sl svg{width:15px;height:15px;color:#c9a227;
+ flex:none}
+.mock.dkroom .sprow .sv{font-weight:800;color:#c9a227;font-size:17px;
+ font-variant-numeric:tabular-nums;text-align:right}
+.mock.dkroom .sprow .sv small{font-size:9px;font-weight:800;
+ letter-spacing:1px;color:#a3adab;margin-left:4px}
+.mock.dkroom .spnote{margin-top:10px;padding:10px 12px;border-radius:10px;
+ background:rgba(201,162,39,.07);border-left:3px solid
+ rgba(201,162,39,.4);font-size:11px;color:#a3adab;font-style:italic;
+ line-height:1.5}
 </style>"""
 
 
@@ -3472,25 +3513,67 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
         cut = 2000 if (c.get("vm") and "🎙" in say_txt) else 260
         say = f"<div class='say'>“{esc(say_txt[:cut])}”</div>"
     chips = ""
+    specs_html = ""
     if nb:
-        # HOUSE FACTS up top (Jessica, Jul 9: 'info about the house on
-        # top of client page should be there. Sqft, 2 story/split, etc')
+        # SITE SPECIFICATIONS rail (Stitch Bid Review — Dallon, Jul 10
+        # pm: 'all the stats on the right of the picture — what
+        # happened to those'; supersedes Jessica's house-fact chips)
         _pih = (nb.get("draft") or {}).get("prop_info") or {}
-        for _fact in (
-                f"{_pih['sqft']:,} sqft" if _pih.get("sqft") else None,
-                f"{_pih['stories']} story" if _pih.get("stories") else None,
-                {"mild": "mild pitch", "moderate": "moderate pitch",
-                 "steep": "STEEP pitch",
-                 "tom_only": "TOM-ONLY pitch"}.get(_pih.get("pitch")),
-                f"{_pih['roof_material']} roof"
-                if _pih.get("roof_material") not in (None, "standard")
-                else None,
-                f"walkout bsmt {_pih['basement_sqft']:,} sqft"
-                if _pih.get("basement_sqft") else None,
-                f"garage {_pih['garage_sqft']:,} sqft"
-                if _pih.get("garage_sqft") else None):
-            if _fact:
-                chips += f"<span class='chip blue'>🏠 {esc(_fact)}</span> "
+
+        def _sprow(icon, label, val, unit=""):
+            u = f"<small>{unit}</small>" if unit else ""
+            return (f"<div class='sprow'><span class='sl'>"
+                    f"{_svg_icon(icon)}{label}</span>"
+                    f"<span class='sv'>{val}{u}</span></div>")
+
+        _rows = ""
+        if _pih.get("sqft"):
+            _rows += _sprow("sq", "Total area", f"{_pih['sqft']:,}",
+                            "SQFT")
+        if _pih.get("stories"):
+            _rows += _sprow("height", "Stories",
+                            esc(str(_pih["stories"]).replace("_", " ")))
+        if _pih.get("pitch"):
+            _rows += _sprow("pitch", "Pitch of roof",
+                            {"mild": "Mild", "moderate": "Moderate",
+                             "steep": "STEEP",
+                             "tom_only": "TOM ONLY"}.get(
+                                _pih["pitch"], esc(str(_pih["pitch"]))))
+        if _pih.get("roof_material"):
+            _rows += _sprow("home", "Roof type",
+                            esc(str(_pih["roof_material"]).title()))
+        _deb = _pih.get("debris_read") or _pih.get("debris")
+        if _deb:
+            _rows += _sprow("leaf", "Debris level",
+                            esc(str(_deb).title()))
+        if _pih.get("basement_sqft"):
+            _rows += _sprow("home", "Walkout bsmt",
+                            f"{_pih['basement_sqft']:,}", "SQFT")
+        if _pih.get("garage_sqft"):
+            _rows += _sprow("home", "Garage",
+                            f"{_pih['garage_sqft']:,}", "SQFT")
+        _note = ""
+        if _pih.get("sqft_source"):
+            _note = esc(_pih["sqft_source"])
+        try:
+            import facts_edit as _fe
+            _ov = _fe.overrides_for(nb.get("address"))
+            _ovs = ", ".join(f"{k} = {v}" for k, v in _ov.items()
+                             if not k.startswith("_"))
+            if _ovs:
+                _note += ((" · " if _note else "")
+                          + f"office corrections on file: {_ovs}")
+            _editor = _fe.editor_html(nb, stamp, back)
+        except Exception:
+            _editor = ""
+        if _rows or _editor:
+            specs_html = (
+                f"<aside class='specrail'><div class='sptitle'>"
+                f"{_svg_icon('info')}Site Specifications</div>"
+                + (_rows or "<div class='subtext'>No house facts yet — "
+                            "corrections welcome below.</div>")
+                + (f"<div class='spnote'>{_note}</div>" if _note else "")
+                + _editor + "</aside>")
         if nb.get("sched_pref"):
             chips += (f"<span class='chip blue'>📅 "
                       f"{esc(nb['sched_pref'][:60])}</span> ")
@@ -3709,15 +3792,21 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                     f"{foot}</div>")
     except Exception:
         pass
-    pinned = (f"<div class='pinned'>{banners}{hero_html}"
-              f"<div class='pin-top'><div>"
-              f"<h2>{esc(c['name'] or c['email'] or '')}{mark_unread}</h2>"
-              f"<div class='paddr'>{addr_line}{jobber_bits}{ident_links}"
-              f"</div></div>"
-              f"<div class='money'>{total_html}</div></div>"
-              f"{say}{quote_panel}"
-              + (f"<div class='pchips'>{chips}</div>" if chips else "")
-              + actions + "</div>")
+    pin_main = (f"{hero_html}"
+                f"<div class='pin-top'><div>"
+                f"<h2>{esc(c['name'] or c['email'] or '')}{mark_unread}</h2>"
+                f"<div class='paddr'>{addr_line}{jobber_bits}{ident_links}"
+                f"</div></div>"
+                f"<div class='money'>{total_html}</div></div>"
+                f"{say}{quote_panel}"
+                + (f"<div class='pchips'>{chips}</div>" if chips else "")
+                + actions)
+    # picture + facts side by side (Stitch: specs live NEXT TO the
+    # photo, not buried in a fold)
+    pinned = (f"<div class='pinned'>{banners}"
+              + (f"<div class='pingrid'><div>{pin_main}</div>"
+                 f"{specs_html}</div>" if specs_html else pin_main)
+              + "</div>")
 
     # ── folds ──
     def fold(title, peek, inner, open_=False, count=None):
@@ -3827,15 +3916,10 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                                  f"{k} ~{v:,.0f} sqft"
                                  for k, v in surf.items()) + "</div>")
         if priced_inner:
-            # EDITABLE FACTS THAT LEARN (LaRee ×2, Jul 10): correct
-            # pitch/stories/debris/roof → reprice + remembered forever
-            try:
-                import facts_edit
-                priced_inner += facts_edit.editor_html(nb, stamp, back)
-            except Exception:
-                pass
+            # (the fix-the-facts editor moved UP into the Site
+            # Specifications rail beside the photo, Jul 10 pm)
             folds += fold("How it was priced",
-                          "size · multipliers · fix the facts",
+                          "size · multipliers · two prices",
                           priced_inner)
 
     # photos & flyover
