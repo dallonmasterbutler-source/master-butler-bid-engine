@@ -164,3 +164,49 @@ def reprice(rec, edits, by="office"):
                        "stories", "basement_sqft", "garage_sqft")}
     d["total"] = total
     return rec, summary
+
+
+# ── UI: the editor (drops into the Site Specifications rail) ──
+def editor_html(rec, stamp, back="/"):
+    """Compact correction form. Self-contained inline styles on the
+    design tokens; POSTs to /edit_facts."""
+    import html as _h
+    pi = ((rec.get("draft") or {}).get("prop_info") or {})
+    ov = overrides_for(rec.get("address"))
+
+    def sel(name, label, current):
+        opts = "<option value=''>—</option>" + "".join(
+            f"<option value='{v}'{' selected' if str(current) == v else ''}>"
+            f"{v.replace('_', ' ')}</option>" for v in EDITABLE[name])
+        return (f"<label style='display:block;font-size:9.5px;"
+                f"font-weight:800;letter-spacing:1px;text-transform:"
+                f"uppercase;color:#a3adab;margin-top:8px'>{label}"
+                f"<select name='{name}' style='width:100%;margin-top:3px;"
+                f"background:rgba(0,0,0,.35);border:1px solid "
+                f"rgba(201,162,39,.18);border-radius:8px;color:#e2e8f0;"
+                f"padding:7px 10px;font:inherit'>{opts}</select></label>")
+
+    fixed = ("<div style='font-size:10.5px;color:#e8c56a;margin-top:6px'>"
+             "🏠 corrections on file: "
+             + ", ".join(f"{k}={v}" for k, v in ov.items()
+                         if not k.startswith("_")) + "</div>") if ov else ""
+    return (
+        f"<form method='POST' action='/edit_facts' style='margin-top:12px;"
+        f"border-top:1px solid rgba(201,162,39,.14);padding-top:10px'>"
+        f"<div style='font-size:9.5px;font-weight:800;letter-spacing:1.2px;"
+        f"text-transform:uppercase;color:#e8c56a'>Fix the facts — "
+        f"reprices &amp; remembered</div>"
+        f"<input type='hidden' name='stamp' value='{_h.escape(stamp)}'>"
+        f"<input type='hidden' name='back' value='{_h.escape(back)}'>"
+        + sel("pitch", "Pitch", pi.get("pitch"))
+        + sel("stories", "Stories", pi.get("stories"))
+        + sel("debris", "Debris", pi.get("debris_read") or pi.get("debris"))
+        + sel("roof_material", "Roof", pi.get("roof_material"))
+        + fixed +
+        "<button style='margin-top:10px;width:100%;border-radius:999px;"
+        "padding:9px;font-weight:800;font-size:12px;background:#c9a227;"
+        "border:1px solid #c9a227;color:#0b3d2e;cursor:pointer'>"
+        "💾 Save — reprice this bid &amp; remember the house</button>"
+        "<div style='font-size:10px;color:#a3adab;margin-top:5px'>Every "
+        "future bid at this address starts from your correction. Prices "
+        "stay locked — this edits FACTS.</div></form>")

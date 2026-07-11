@@ -187,3 +187,45 @@ def reconcile(records, pulse_data=None):
         elif st == "awaiting_response":
             out[stamp] = f"quote sent — #{oq.get('number')}"
     return out
+
+
+# ── UI: the Today strip (drops into the dark queue, above the list) ──
+def today_strip_html():
+    """Self-contained (inline styles on the design tokens) so it slots
+    into the new dark queue regardless of final class names."""
+    p = load_pulse()
+    if not p:
+        return ""
+    c = p.get("counts") or {}
+    chips = "".join(
+        f"<span style='font-size:10px;font-weight:800;letter-spacing:.8px;"
+        f"text-transform:uppercase;padding:5px 12px;border-radius:999px;"
+        f"border:1px solid rgba(201,162,39,.18);background:#112921;"
+        f"color:{color}'>{label} {c.get(key, 0)}</span>"
+        for key, label, color in (
+            ("overdue", "Overdue", "#fca5a5" if c.get("overdue") else "#a3adab"),
+            ("today", "Today", "#e8c56a"),
+            ("active", "Active", "#a3adab"),
+            ("remaining", "Remaining", "#a3adab")))
+    visits = ""
+    for v in (p.get("visits") or [])[:14]:
+        when = _t12(v.get("at") or "")
+        done = "✓ " if v.get("done") else ""
+        visits += (
+            f"<span style='flex:none;font-size:11.5px;padding:6px 12px;"
+            f"border-radius:10px;border:1px solid rgba(201,162,39,.14);"
+            f"background:rgba(17,41,33,.7);color:"
+            f"{'#5fbd85' if v.get('done') else '#e2e8f0'}'>"
+            f"{done}{when} · {(v.get('name') or '?')[:20]}</span>")
+    return (
+        "<div style='margin:0 0 14px'>"
+        "<div style='display:flex;gap:8px;align-items:center;flex-wrap:wrap;"
+        "margin-bottom:8px'>"
+        "<span style='font-size:10px;font-weight:800;letter-spacing:1.4px;"
+        "text-transform:uppercase;color:#a3adab'>Jobber · today</span>"
+        + chips +
+        f"<span style='font-size:10px;color:#a3adab;margin-left:auto'>"
+        f"as of {(p.get('at') or '')[11:16]} · read-only</span></div>"
+        "<div style='display:flex;gap:8px;overflow-x:auto;padding-bottom:4px'>"
+        + (visits or "<span style='font-size:11.5px;color:#a3adab'>no "
+           "appointments today</span>") + "</div></div>")
