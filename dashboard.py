@@ -908,15 +908,61 @@ body{background:#05140f!important}
 </style>"""
 
 
-_LIGHT_FORCE_CSS = '''<style>
-:root{--bg:#f8f7f2!important;--card:#fdfcfb!important;
- --ink:#1a241f!important;--mut:#6b7a70!important;--line:#e6e4da!important;
- --soft:#f1efe6!important;--goldbg:#f6ecd2!important;
- --goldink:#7a5c07!important;--heading:#0b3d2e!important}
-body{background:#f8f7f2!important}
-.mock{background:#fdfcfb;border-color:#e6e4da;
- box-shadow:0 1px 3px rgba(20,30,25,.06)}
-.card,.pinned{background:#fff;border:1px solid #e6e4da;border-radius:13px}
+_DARK_FORCE_CSS = '''<style>
+/* ONE DARK ROOM SITE-WIDE (Dallon, Jul 10 pm: "i dont like that the
+   other colors arent in unison. id like the darker colors to go
+   throughout") — the cream light pages are gone; every page wears the
+   Bid Queue's emerald-and-gold, regardless of machine appearance. */
+:root{--bg:#05140f!important;--card:#0d231b!important;
+ --soft:#112921!important;--line:rgba(201,162,39,.18)!important;
+ --ink:#e2e8f0!important;--mut:#a3adab!important;
+ --goldbg:rgba(201,162,39,.14)!important;--goldink:#e8c56a!important;
+ --heading:#e8c56a!important;--accent:#6cc794!important;
+ --green2:#5fbd85!important;--alarm:#fca5a5!important;
+ --bluebg:#132c46!important;--blueink:#a3c0f7!important;
+ --purplebg:#261d4b!important;--purpleink:#cdbaf5!important}
+body{background:#05140f!important}
+.mock{background:#071b14;border-color:rgba(201,162,39,.2);box-shadow:none}
+.chrome{background:#082d22;border-bottom:1px solid rgba(201,162,39,.18)}
+header{background:#082d22;color:#e8c56a;box-shadow:none;
+ border-bottom:1px solid rgba(201,162,39,.18)}
+header #who b{color:#e8c56a}
+.ring{background:var(--card)}
+td b{color:var(--accent)}
+.card,.pinned{background:rgba(17,41,33,.72);
+ border:1px solid rgba(201,162,39,.18);border-radius:13px}
+.card h2,.card h3{color:#e8c56a}
+.card.dark{background:linear-gradient(150deg,#0b3d2e,#0e4a37)}
+.headline .total,.stat b{color:#c9a227;
+ text-shadow:0 0 12px rgba(201,162,39,.35)}
+.money .ptotal{color:#c9a227;text-shadow:0 0 12px rgba(201,162,39,.4)}
+.notes{background:rgba(17,41,33,.6);border-color:rgba(201,162,39,.18)}
+.notes div{border-bottom-color:rgba(201,162,39,.14)}
+.band{background:rgba(201,162,39,.08);border-color:rgba(201,162,39,.3)}
+.band h2{color:#e8c56a}
+.win{background:#173525;color:#7fd6a2}
+.flag{background:#3a1713;color:#f1998e}
+button,.btn{background:#0b3d2e;border:1px solid rgba(201,162,39,.35)}
+button.big{background:#c9a227;color:#0b3d2e;border-color:#c9a227}
+button.gray{background:#112921;color:#e2e8f0;
+ border:1px solid rgba(201,162,39,.18)}
+.reason{background:transparent}
+input[type=text],input[type=date],select,textarea{
+ background:rgba(0,0,0,.35);border-color:rgba(201,162,39,.18);
+ color:#e2e8f0}
+pre{background:rgba(0,0,0,.3);border-color:rgba(201,162,39,.14)}
+/* hand-inlined pastel callouts → their dark-room equivalents */
+[style*="#fdf4dd"]{background:rgba(201,162,39,.14)!important;
+ color:#e8c56a!important;border-color:rgba(201,162,39,.4)!important}
+[style*="#f7dfa0"]{background:rgba(201,162,39,.2)!important;
+ color:#e8c56a!important;border-color:#c9a227!important}
+[style*="#f0e9fd"]{background:#261d4b!important;
+ color:#cdbaf5!important;border-color:#4b3a86!important}
+[style*="#fdecea"]{background:#3a1713!important;
+ color:#f1998e!important;border-color:#6e2a22!important}
+[style*="#fffbeb"],[style*="#fbfaf5"],[style*="#f3f4f1"],
+[style*="#f2f5f3"],[style*="#fffaf0"]{background:#112921!important;
+ color:#e2e8f0!important;border-color:rgba(201,162,39,.18)!important}
 </style>'''
 
 _GLOBAL_RAIL_CSS = """<style>
@@ -1015,7 +1061,7 @@ def page(title, body, refresh=None, chrome="rail"):
         rail_css = _GLOBAL_RAIL_CSS
         active = railmap.get(title, "")
         rail = _rail_html(active).replace("class='dkrail'", "class='gr'")
-        tone = "" if "dkroom" in body else _LIGHT_FORCE_CSS
+        tone = "" if "dkroom" in body else _DARK_FORCE_CSS
         return (f"<!doctype html><html><head><meta charset='utf-8'>"
                 f"<meta name='viewport' content='width=device-width,"
                 f"initial-scale=1'>{auto}{FAVICON}"
@@ -1091,7 +1137,7 @@ border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
             f"<meta name='viewport' content='width=device-width,"
             f"initial-scale=1'>{auto}{FAVICON}"
             f"<title>{title}</title>{STYLE}{_GLOBAL_RAIL_CSS}"
-            f"{_LIGHT_FORCE_CSS}</head>"
+            f"{_DARK_FORCE_CSS}</head>"
             f"<body style='padding:14px 16px 0'>{rail2}"
             f"<div style='max-width:1280px;margin:0'>"
             f"<div class='mock'>{_chrome_bar(active)}"
