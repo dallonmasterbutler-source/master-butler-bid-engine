@@ -697,8 +697,15 @@ footer{margin:8px 0 28px;padding:0 24px;
 .irow .nm{font-size:14.5px;font-weight:600}
 .irow.unread .nm{font-weight:800}
 .irow.readq{opacity:.62}
-.irowwrap{display:flex;align-items:flex-start;gap:0}
+.irowwrap{display:flex;align-items:flex-start;gap:0;position:relative}
 .irowwrap .irow{flex:1;min-width:0}
+.rowdone{position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  width:34px;height:34px;border-radius:9px;border:1px solid
+  rgba(201,162,39,.35);background:rgba(17,41,33,.9);color:#c9a227;
+  font-size:16px;font-weight:800;cursor:pointer;display:none;
+  padding:0;margin:0;line-height:1}
+.irowwrap:hover .rowdone{display:block}
+.rowdone:hover{background:#c9a227;color:#0b3d2e}
 .rowsel{flex:none;width:16px;height:16px;margin:14px 4px 0 4px;cursor:pointer;
   accent-color:var(--green2)}
 .bulkbar{display:none;position:sticky;top:0;z-index:6;align-items:center;
@@ -3155,6 +3162,12 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # already-worked signal: the office has a Jobber quote out for
         # them (sent / won / on an earlier record) — safe to bulk-clear
         quoted = "1" if (r.get("oq") or r.get("qno") or r.get("won")) else "0"
+        # one-click ✓ = Gmail's archive (Dallon GO, Jul 10 pm): clears
+        # the row for the whole office; any new message resurfaces it
+        donebtn = ("" if r["grp"] > 3 else
+                   f"<button class='rowdone' type='button' "
+                   f"data-k='{esc(r['key'])}' title='Done — clear from "
+                   f"the queue' onclick='rowDone(event,this)'>✓</button>")
         return (
             f"<div class='irowwrap'>"
             f"<input type='checkbox' class='rowsel' name='keys' "
@@ -3167,7 +3180,7 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             f"<div class='meta'><span class='word' style='{r['wstyle']}'>"
             f"{esc(r['word'])}</span>"
             f"<span class='iage{' alarm' if alarm else ''}'>{age}</span>"
-            f"</div></a></div>")
+            f"</div></a>{donebtn}</div>")
 
     sec_names = {-1: "👷 Techs",
                  0: "New — needs a person", 1: "In someone's hands",
@@ -3206,6 +3219,18 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
            "border-radius:9px;border:1px solid var(--line);"
            "background:var(--card);color:var(--ink);font-size:13.5px'>"
            """<script>
+function rowDone(ev, btn){
+  ev.stopPropagation(); ev.preventDefault();
+  var f = document.createElement('form');
+  f.method = 'POST'; f.action = '/mark_done';
+  var a = document.createElement('input');
+  a.name = 'addr'; a.value = btn.dataset.k; f.appendChild(a);
+  var b = document.createElement('input');
+  b.name = 'back'; b.value = '/'; f.appendChild(b);
+  document.body.appendChild(f);
+  if (window.__saveScroll) window.__saveScroll();
+  f.submit();
+}
 document.addEventListener('DOMContentLoaded', function(){
   var s = document.getElementById('isearch');
   if (!s) return;
@@ -3229,7 +3254,7 @@ document.addEventListener('DOMContentLoaded', function(){
     lst += ("<form id='bulkform' method='POST' action='/mark_seen_bulk'>"
             "<div class='bulkbar' id='bulkbar'>"
             "<span id='bulkcount'>0 selected</span>"
-            "<button type='submit' class='bulkgo'>✓ Mark seen</button>"
+            "<button type='submit' class='bulkgo'>✓ Done — clear</button>"
             "<button type='button' class='bulklink' onclick='bulkQuoted()'>"
             "Select all already-quoted (<span id='bulkqn'>0</span>)</button>"
             "<button type='button' class='bulklink' onclick='bulkClear()'>"
