@@ -773,6 +773,86 @@ footer{margin:8px 0 28px;padding:0 24px;
        .main{margin-left:0}
        header{font-size:15px;height:auto;padding:10px 16px;position:static}
        .headline .total{font-size:26px}}
+/* ——— STITCH PAGE PATTERN (Settings + Win-back ports, Jul 10 pm) ——— */
+.pghead{display:flex;justify-content:space-between;align-items:flex-end;
+  gap:16px;flex-wrap:wrap;border-bottom:1px solid rgba(201,162,39,.14);
+  padding-bottom:16px;margin-bottom:18px}
+.pghead h1{margin:0;font-size:30px;font-weight:900;letter-spacing:-.6px;
+  color:var(--heading)}
+.pghead .sub{color:var(--mut);font-size:14px;margin-top:3px}
+.statchips{display:flex;gap:10px;flex-wrap:wrap}
+.statchip{background:var(--card);border:1px solid rgba(201,162,39,.22);
+  border-radius:12px;padding:8px 16px;display:flex;
+  flex-direction:column;align-items:flex-end;min-width:110px}
+.statchip .l{font-size:9px;font-weight:800;text-transform:uppercase;
+  letter-spacing:1.4px;color:var(--mut)}
+.statchip .v{font-size:21px;font-weight:800;color:var(--ink);
+  font-variant-numeric:tabular-nums;line-height:1.25}
+.statchip.gold{background:#c9a227;border-color:#c9a227}
+.statchip.gold .l{color:rgba(11,61,46,.65)}
+.statchip.gold .v{color:#0b3d2e}
+.schead{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.schead svg{width:26px;height:26px;color:#c9a227;flex:none}
+.schead h2{margin:0;font-size:20px;font-weight:800;color:var(--heading)}
+.wbrow{display:flex;align-items:center;gap:14px;background:var(--card);
+  border:1px solid rgba(201,162,39,.15);border-radius:13px;
+  padding:12px 16px;margin-bottom:8px;transition:transform .12s}
+.wbrow:hover{transform:translateX(4px);
+  border-color:rgba(201,162,39,.4)}
+.avat{width:46px;height:46px;flex:none;border-radius:50%;
+  background:linear-gradient(135deg,#0b3d2e,#155e49);
+  border:1px solid rgba(201,162,39,.35);color:#e8c56a;font-weight:800;
+  display:flex;align-items:center;justify-content:center;font-size:15px}
+.wbrow .cols{flex:1;display:grid;
+  grid-template-columns:2fr 1fr 1fr auto;gap:12px;align-items:center;
+  min-width:0}
+.wbrow .klabel{font-size:9px;font-weight:800;text-transform:uppercase;
+  letter-spacing:1.2px;color:var(--mut)}
+.wbrow .kval{font-weight:800;color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.pill{border-radius:9px;padding:7px 12px;font-size:10px;font-weight:800;
+  text-transform:uppercase;letter-spacing:1.1px;cursor:pointer;
+  white-space:nowrap;margin:0}
+.pill.go{background:#173525;color:#7fd6a2;
+  border:1px solid rgba(127,214,162,.35)}
+.pill.dim{background:var(--soft);color:var(--mut);
+  border:1px solid var(--line)}
+.pill:hover{filter:brightness(1.25)}
+.renew{background:var(--card);border:1px solid rgba(201,162,39,.15);
+  border-left:4px solid var(--line);border-radius:13px;
+  padding:16px 18px;margin-bottom:10px}
+.renew.hot{border-left-color:#c9a227}
+.renew .due{border-radius:999px;padding:2px 10px;font-size:10px;
+  font-weight:800;background:var(--soft);color:var(--mut);
+  border:1px solid var(--line)}
+.renew.hot .due{background:rgba(201,162,39,.16);color:#e8c56a;
+  border-color:rgba(201,162,39,.4)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
+  margin-top:16px}
+@media(max-width:760px){.tiles{grid-template-columns:1fr}
+  .wbrow .cols{grid-template-columns:1fr auto}}
+.tile{background:rgba(17,41,33,.5);border:1px solid rgba(201,162,39,.14);
+  border-radius:16px;padding:18px;display:flex;gap:14px;
+  align-items:center}
+.tile .ticon{background:rgba(201,162,39,.16);border-radius:12px;
+  padding:10px;color:#c9a227;display:flex}
+.tile .ticon svg{width:26px;height:26px}
+.tile .tl{font-size:10px;font-weight:800;text-transform:uppercase;
+  letter-spacing:1.4px;color:var(--mut)}
+.tile .tv{font-size:23px;font-weight:900;color:var(--ink);
+  font-variant-numeric:tabular-nums;line-height:1.2}
+.tile .ts{font-size:10px;font-weight:700;color:var(--green2)}
+.bento{display:grid;grid-template-columns:2fr 1fr;gap:16px;
+  align-items:start}
+@media(max-width:960px){.bento{grid-template-columns:1fr}}
+.healthcard{background:linear-gradient(150deg,#0b3d2e,#0e4a37);
+  border:1px solid rgba(201,162,39,.25);border-radius:16px;
+  padding:20px 22px;color:#eef4f0}
+.healthcard h3{margin:0 0 14px;color:#e8c56a;font-size:15px;
+  font-weight:800}
+.hbar{width:100%;height:4px;background:rgba(255,255,255,.12);
+  border-radius:99px;overflow:hidden;margin:6px 0 12px}
+.hbar i{display:block;height:100%;background:#c9a227}
 /* dark component overrides LAST — cascade order beats the light rules */
 @media (prefers-color-scheme: dark){
   .ring{background:var(--card)}
@@ -843,7 +923,23 @@ def _svg_icon(name):
          "help": '<circle cx="12" cy="12" r="9"/><path d="M9.4 9a2.8 '
                  '2.8 0 1 1 4 2.6c-1 .5-1.4 1.1-1.4 2.1"/>'
                  '<circle cx="12" cy="16.8" r="1.15" '
-                 'fill="currentColor" stroke="none"/>'}
+                 'fill="currentColor" stroke="none"/>',
+         # card-header icons for the Stitch page pattern (Jul 10 pm)
+         "tune": '<path d="M4 7h9M19 7h1M4 17h3M13 17h7"/>'
+                 '<circle cx="16" cy="7" r="2.4"/>'
+                 '<circle cx="10" cy="17" r="2.4"/>',
+         "chat": '<path d="M4 5h16v11H10l-6 4z"/>'
+                 '<path d="M8 9h8M8 12h5"/>',
+         "percent": '<path d="M19 5 5 19"/>'
+                    '<circle cx="7.5" cy="7.5" r="2.4"/>'
+                    '<circle cx="16.5" cy="16.5" r="2.4"/>',
+         "repeat": '<path d="M17 2l4 4-4 4"/>'
+                   '<path d="M3 11V9a4 4 0 0 1 4-4h14"/>'
+                   '<path d="M7 22l-4-4 4-4"/>'
+                   '<path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+         "trend": '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>',
+         "check": '<circle cx="12" cy="12" r="9"/>'
+                  '<path d="M8.5 12.5l2.5 2.5 4.5-5"/>'}
     return ('<svg width="22" height="22" viewBox="0 0 24 24" fill="none" '
             'stroke="currentColor" stroke-width="1.8" stroke-linecap="round"'
             ' stroke-linejoin="round">' + d.get(name, "") + "</svg>")
@@ -966,22 +1062,23 @@ pre{background:rgba(0,0,0,.3);border-color:rgba(201,162,39,.14)}
 </style>'''
 
 _GLOBAL_RAIL_CSS = """<style>
-.gr{position:fixed;left:0;top:0;bottom:0;width:68px;z-index:80;
+.gr{position:fixed;left:0;top:0;bottom:0;width:86px;z-index:80;
  background:#082d22;border-right:1px solid rgba(201,162,39,.25);
- display:flex;flex-direction:column;align-items:center;gap:6px;
- padding:14px 0}
-.gr a{width:46px;height:46px;flex:none;display:flex;align-items:center;
- justify-content:center;border-radius:10px;color:#9db3a7;
+ display:flex;flex-direction:column;align-items:center;gap:8px;
+ padding:16px 0}
+.gr a{width:60px;height:60px;flex:none;display:flex;align-items:center;
+ justify-content:center;border-radius:13px;color:#9db3a7;
  border:1px solid transparent}
+.gr a svg{width:28px;height:28px}
 .gr a.on{background:#c9a227;color:#123527}
 .gr a:hover{border-color:rgba(201,162,39,.35)}
 .gr .sp{flex:1}
-body{padding-left:84px!important}
+body{padding-left:102px!important}
 .chrome .navr a{display:none}
 .chrome .whobox{background:#c9a227;color:#123527;border-radius:99px;
  padding:4px 12px;font-weight:800}
-@media(max-width:700px){.gr{width:52px}.gr a{width:38px;height:38px}
- body{padding-left:62px!important}}
+@media(max-width:700px){.gr{width:56px}.gr a{width:42px;height:42px}
+ .gr a svg{width:24px;height:24px}body{padding-left:66px!important}}
 </style>"""
 
 
@@ -5509,7 +5606,8 @@ def settings_page(msg="", user=None):
             drows += row(f"{dname}.{sub}",
                          f"{dname.replace('_', ' ').title()} — {sub}", dval)
     pricing_card = f"""
-<div class='card'><h2 style='margin-top:0'>Pricing knobs</h2>
+<div class='card'>
+ <div class='schead'>{_svg_icon('tune')}<h2>Pricing knobs</h2></div>
  <div class='subtext' style='margin-bottom:10px'>Type a number to
  override the default; clear the box to go back to default. Changes
  apply to the NEXT bid priced — nothing already on the queue moves.
@@ -5546,7 +5644,8 @@ def settings_page(msg="", user=None):
     onclick="return confirm('Delete this response?')">Delete</button>
   </div></form></details>"""
     qr_card = f"""
-<div class='card'><h2 style='margin-top:0'>Quick responses</h2>
+<div class='card'>
+ <div class='schead'>{_svg_icon('chat')}<h2>Quick responses</h2></div>
  <div class='subtext' style='margin-bottom:6px'>These are the tap-to-fill
  replies on the Messages page. Edit freely — changes are live for
  everyone immediately.</div>
@@ -5617,7 +5716,9 @@ def settings_page(msg="", user=None):
   <div style='margin-top:6px'><button>Save</button></div>
  </form></details>"""
     sd_card = f"""
-<div class='card'><h2 style='margin-top:0'>Quote line descriptions</h2>
+<div class='card'>
+ <div class='schead'>{_svg_icon('queue')}<h2>Quote line descriptions</h2>
+ </div>
  <div class='subtext' style='margin-bottom:6px'>The exact wording that
  appears under each service on quotes the system creates in Jobber.
  Edits apply to the NEXT quote pushed — customers see this text, so
@@ -5629,7 +5730,8 @@ def settings_page(msg="", user=None):
     # the settings') — feeds the ✨ drafter's house rules + the Guide ----
     dp = _blob_rw("discount_policy", {})
     disc_card = f"""
-<div class='card'><h2 style='margin-top:0'>Discounts</h2>
+<div class='card'>
+ <div class='schead'>{_svg_icon('percent')}<h2>Discounts</h2></div>
  <div class='subtext' style='margin-bottom:8px'>What the ✨ draft-a-reply
  writer is allowed to tell customers, and the internal friends-&amp;-family
  rule. Plain sentences — written exactly as you'd say them.</div>
@@ -5652,7 +5754,6 @@ def settings_page(msg="", user=None):
       dp.get("extra", ""))}</textarea>
   <button style='margin-top:8px'>Save discounts</button>
  </form></div>"""
-    qr_card += disc_card
 
     changes = [r for r in load_reviews()
                if r.get("action") == "settings_change"][-8:][::-1]
@@ -5667,7 +5768,53 @@ def settings_page(msg="", user=None):
                     + f"</span><br>{esc(c.get('note') or '')[:160]}</div>"
                     for c in changes)
                 + "</div>")
-    return page("Settings", banner + qr_card + pricing_card + hist)
+
+    # Butler Health (Stitch Office Configuration port, Jul 10 pm) —
+    # real counts only, no invented metrics
+    try:
+        import facts_edit
+        n_facts = len([k for k in facts_edit._blob()[0]
+                       if not k.startswith("_")])
+    except Exception:
+        n_facts = 0
+    n_changes = len([r for r in load_reviews()
+                     if r.get("action") == "settings_change"])
+    health = f"""
+<div class='healthcard'>
+ <h3>Butler health</h3>
+ <div style='display:flex;justify-content:space-between;font-size:13.5px'>
+  <span style='color:rgba(255,255,255,.6)'>Pricing overrides active</span>
+  <b>{len(ov)}</b></div>
+ <div class='hbar'><i style='width:{min(100, len(ov) * 10)}%'></i></div>
+ <div style='display:flex;justify-content:space-between;font-size:13.5px'>
+  <span style='color:rgba(255,255,255,.6)'>Quick responses on file</span>
+  <b>{len(canned)}</b></div>
+ <div class='hbar'><i style='width:{min(100, len(canned) * 8)}%'></i></div>
+ <div style='display:flex;justify-content:space-between;font-size:13.5px'>
+  <span style='color:rgba(255,255,255,.6)'>House-fact corrections
+  remembered</span><b>{n_facts}</b></div>
+ <div class='hbar'><i style='width:{min(100, n_facts * 8)}%'></i></div>
+ <div style='display:flex;justify-content:space-between;font-size:13.5px'>
+  <span style='color:rgba(255,255,255,.6)'>Settings changes logged</span>
+  <b>{n_changes}</b></div>
+</div>"""
+
+    header = f"""
+<div class='pghead'>
+ <div><h1>System Settings</h1>
+  <div class='sub'>The office's control room — pricing rules, responses,
+  and discounts. No code, no Dallon. Every change is logged with your
+  name.</div></div>
+ <div class='statchips'>
+  <div class='statchip'><span class='l'>Overrides</span>
+   <span class='v'>{len(ov)}</span></div>
+  <div class='statchip gold'><span class='l'>Responses</span>
+   <span class='v'>{len(canned)}</span></div>
+ </div></div>"""
+
+    return page("Settings", banner + header
+                + f"<div class='bento'><div>{pricing_card}{qr_card}</div>"
+                + f"<div>{disc_card}{health}{hist}</div></div>")
 
 
 def history_page():
@@ -5730,35 +5877,47 @@ def winback_page(showall=False):
     done = _winback_done()
     remaining = sum(1 for r in rows if r["name"] not in done)
 
-    # ☎ TODAY'S TEN (Jul 10 cycle): phones are on the list now — the
-    # ten best uncontacted calls, no scrolling, no picking
+    # ☎ TODAY'S TEN (Jul 10 cycle; Stitch Re-engagement Command Center
+    # layout ported Jul 10 pm): the ten best uncontacted calls as call
+    # cards — avatar, lifetime, last service, one-tap outcome.
+    def _initials(nm):
+        parts = [w for w in re.split(r"[\s&]+", nm or "") if w[:1].isalpha()]
+        return ("".join(w[0] for w in parts[:2]) or "•").upper()
+
     todays = [r for r in rows
               if r["name"] not in done and r.get("phone")][:10]
     today_card = ""
     if todays:
-        trs = "".join(
-            f"<tr><td><b>{esc(r['name'])[:28]}</b></td>"
-            f"<td style='font-variant-numeric:tabular-nums'>"
-            f"<b>{esc(r['phone'])}</b></td>"
-            f"<td class='num'>${r['lifetime']:,.0f}</td>"
-            f"<td>{esc((r.get('last') or '')[:7])}</td>"
-            f"<td><form method='POST' action='/winback_done' "
-            f"style='margin:0;white-space:nowrap'>"
+        crows = "".join(
+            f"<div class='wbrow'><div class='avat'>"
+            f"{esc(_initials(r['name']))}</div>"
+            f"<div class='cols'><div style='min-width:0'>"
+            f"<div style='font-weight:800;color:var(--ink);"
+            f"white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"
+            f"{esc(r['name'])[:34]}</div>"
+            f"<div style='font-size:13px;color:var(--mut);"
+            f"font-variant-numeric:tabular-nums'>{esc(r['phone'])}</div>"
+            f"</div>"
+            f"<div><div class='klabel'>Lifetime value</div>"
+            f"<div class='kval'>${r['lifetime']:,.0f}</div></div>"
+            f"<div><div class='klabel'>Last service</div>"
+            f"<div class='kval'>{esc((r.get('last') or '—')[:7])}</div></div>"
+            f"<form method='POST' action='/winback_done' style='margin:0;"
+            f"display:flex;gap:6px'>"
             f"<input type='hidden' name='name' value='{esc(r['name'])}'>"
-            f"<button name='outcome' value='rebooked' "
-            f"style='padding:3px 10px;font-size:11px'>rebooked 🎉</button> "
-            f"<button name='outcome' value='no answer' class='gray' "
-            f"style='padding:3px 10px;font-size:11px'>no answer</button>"
-            f"</form></td></tr>"
+            f"<button class='pill go' name='outcome' value='rebooked'>"
+            f"Rebooked</button>"
+            f"<button class='pill dim' name='outcome' value='no answer'>"
+            f"No answer</button></form></div></div>"
             for r in todays)
         today_card = f"""
-<div class='card' style='border-left:4px solid var(--gold)'>
- <h2 style='margin-top:0'>☎ Today's ten calls</h2>
- <div class='subtext' style='margin-bottom:8px'>Highest lifetime value,
- not yet contacted, phone on file. The whole script: “we miss you —
- want your usual {datetime.now():%B} cleaning?”</div>
- <table><tr><th>Customer</th><th>Phone</th><th class='num'>Lifetime</th>
- <th>Last</th><th></th></tr>{trs}</table></div>"""
+<div style='margin-bottom:18px'>
+ <div class='schead'>{_svg_icon('phone')}<h2>Today's ten calls</h2>
+  <span class='subtext' style='margin-left:auto'>highest lifetime value,
+  phone on file, not yet contacted</span></div>
+ <div class='subtext' style='margin-bottom:10px'>The whole script:
+ “we miss you — want your usual {datetime.now():%B} cleaning?”</div>
+ {crows}</div>"""
 
     body_rows = ""
     for r in (rows if showall else rows[:200]):
@@ -5799,19 +5958,20 @@ def winback_page(showall=False):
             f"<td class='num'>${r.get('typical') or '—'}</td>"
             f"<td class='num'><b>${r['lifetime']:,}</b></td>"
             f"<td>{jump}</td><td>{mark}</td></tr>")
-    body = f"""
+    n_rebooked = sum(1 for v in done.values()
+                     if v.get("outcome") == "rebooked")
+    won_back = sum(r["lifetime"] for r in rows
+                   if (done.get(r["name"]) or {}).get("outcome")
+                   == "rebooked")
+
+    list_card = f"""
 <div class='card'>
- <h2 style='margin-top:0'>📞 Win-back list</h2>
- <p style='font-size:15px'>Loyal customers (2+ years, 3+ jobs) we haven't
- seen in 20+ months — worth <b>${rep.get('lost_lifetime_value', 0):,}</b>
- lifetime combined. Sorted by value: start at the top.
- <b>{remaining}</b> left to contact.
+ <div class='schead'>{_svg_icon('people')}<h2>The full list</h2></div>
+ <p style='font-size:14px;margin-top:0'>Loyal customers (2+ years,
+ 3+ jobs) we haven't seen in 20+ months. Sorted by value: start at
+ the top.
  {f"<span class='subtext'>({dns_removed} do-not-service customers removed "
-  f"from this list automatically.)</span>" if dns_removed else ""}
- <b style='color:#1e6b34'>{sum(1 for v in done.values()
-                              if v.get("outcome") == "rebooked")} rebooked so
- far.</b> A friendly "we miss you — want your
- usual {datetime.now():%B} cleaning?" is the whole script.</p>
+  f"from this list automatically.)</span>" if dns_removed else ""}</p>
  <input id='wbf' type='text' placeholder='type a name to filter…'
         style='max-width:340px' oninput="
    var v=this.value.toLowerCase();
@@ -5828,38 +5988,92 @@ def winback_page(showall=False):
   f"margin-top:10px'>Show all {len(rows)} (top 200 shown)</a>"}
  </div>"""
 
-    # DUE FOR THEIR ANNUAL (Jul 10 cycle — the churn counterpunch):
-    # loyal ACTIVE customers whose own yearly window is open right now.
-    # Reach them BEFORE they drift into the win-back list.
+    # ANNUAL RENEWALS (right rail — Stitch layout): loyal ACTIVE
+    # customers inside their own yearly window right now. Reach them
+    # BEFORE they drift into the win-back list.
     due = _blob_rw("due_soon", [])
+    due_col = ""
     if due:
-        drows = "".join(
-            f"<tr data-n='{esc(r['name']).lower()}'>"
-            f"<td><b>{esc(r['name'])[:30]}</b></td>"
-            f"<td class='num'>{r['visits']}</td>"
-            f"<td>{r['years']} yr</td><td>{esc(r['last'])}"
-            f"<div class='subtext'>${r['last_total']:,} last time</div></td>"
-            f"<td class='num'>{r['days_since']}d ago "
-            f"<span class='subtext'>(their rhythm: "
-            f"{r['cadence_days']}d)</span></td>"
-            f"<td class='num'><b>${r['lifetime']:,}</b></td></tr>"
-            for r in due[:100])
-        due_card = f"""
-<div class='card' style='border-left:4px solid var(--green2)'>
- <h2 style='margin-top:0'>📅 Due for their annual — book them BEFORE
-  they drift</h2>
- <div class='subtext' style='margin-bottom:8px'>{len(due)} loyal
-  customers are inside their own yearly service window right now
-  (${sum(r['lifetime'] for r in due):,} lifetime value). These are
-  ACTIVE customers — a 'ready for your usual visit?' email books most
-  of them. Find them by name on the 👥 Customers tab.</div>
- <table><tr><th>Customer</th><th class='num'>Jobs</th><th>Years</th>
-  <th>Last visit</th><th class='num'>Due</th>
-  <th class='num'>Lifetime</th></tr>{drows}</table>
- {f"<div class='subtext' style='margin-top:8px'>top 100 of {len(due)} shown — highest lifetime first</div>" if len(due) > 100 else ""}
+        cards = ""
+        for i, r in enumerate(due[:5]):
+            over = r["days_since"] - r["cadence_days"]
+            when = (f"{over}d overdue" if over > 0 else
+                    "due now" if over > -15 else f"in {-over}d")
+            cards += f"""
+<div class='renew{" hot" if i == 0 else ""}'>
+ <div style='display:flex;justify-content:space-between;gap:10px;
+  align-items:flex-start'>
+  <div><div style='font-weight:800;color:var(--ink)'>
+   {esc(r['name'])[:30]}</div>
+   <div class='subtext' style='font-size:11.5px'>{r['years']} yr with
+   Master Butler · {r['visits']} jobs</div></div>
+  <span class='due'>{esc(when)}</span></div>
+ <div style='display:flex;justify-content:space-between;margin-top:10px'>
+  <div><div class='klabel' style='font-size:9px;font-weight:800;
+   text-transform:uppercase;letter-spacing:1.2px;color:var(--mut)'>
+   Last visit</div>
+   <div style='font-weight:800;font-variant-numeric:tabular-nums'>
+   {esc(r['last'])}</div></div>
+  <div style='text-align:right'><div style='font-size:9px;
+   font-weight:800;text-transform:uppercase;letter-spacing:1.2px;
+   color:var(--mut)'>Lifetime</div>
+   <div style='font-weight:900;color:#c9a227;
+   font-variant-numeric:tabular-nums'>${r['lifetime']:,}</div></div>
+ </div>
+ <div style='margin-top:8px;background:var(--soft);border-radius:9px;
+  padding:6px 10px;font-size:11.5px;color:var(--mut)'>their rhythm:
+  every {r['cadence_days']}d · ${r['last_total']:,} last time</div>
 </div>"""
-        body = due_card + body
-    body = today_card + body
+        drows = "".join(
+            f"<tr><td><b>{esc(r['name'])[:30]}</b></td>"
+            f"<td class='num'>{r['visits']}</td>"
+            f"<td>{esc(r['last'])}</td>"
+            f"<td class='num'>{r['days_since']}d</td>"
+            f"<td class='num'><b>${r['lifetime']:,}</b></td></tr>"
+            for r in due[5:100])
+        more = (f"<details style='margin-top:6px'><summary style='cursor:"
+                f"pointer;font-weight:700;color:var(--mut);font-size:13px'>"
+                f"all {min(len(due), 100)} due now "
+                f"(${sum(r['lifetime'] for r in due):,} lifetime)</summary>"
+                f"<table style='margin-top:8px'><tr><th>Customer</th>"
+                f"<th class='num'>Jobs</th><th>Last</th>"
+                f"<th class='num'>Ago</th><th class='num'>Lifetime</th></tr>"
+                f"{drows}</table></details>" if len(due) > 5 else "")
+        due_col = f"""
+<div class='schead'>{_svg_icon('repeat')}<h2>Annual renewals</h2></div>
+<div class='subtext' style='margin-bottom:10px'>ACTIVE customers inside
+ their own yearly window — book them BEFORE they drift onto the
+ call-back list. Find them on the 👥 Customers tab.</div>
+{cards}{more}"""
+
+    header = f"""
+<div class='pghead'>
+ <div><h1>Win-back</h1>
+  <div class='sub'>Re-engaging past customers — loyal clients from the
+  Monroe service region who went quiet.</div></div>
+ <div class='statchips'>
+  <div class='statchip'><span class='l'>Left to call</span>
+   <span class='v'>{remaining}</span></div>
+  <div class='statchip gold'><span class='l'>Lifetime at stake</span>
+   <span class='v'>${rep.get('lost_lifetime_value', 0):,}</span></div>
+ </div></div>"""
+
+    tiles = f"""
+<div class='tiles'>
+ <div class='tile'><div class='ticon'>{_svg_icon('check')}</div>
+  <div><div class='tl'>Rebooked</div><div class='tv'>{n_rebooked}</div>
+   <div class='ts'>${won_back:,} lifetime value won back</div></div></div>
+ <div class='tile'><div class='ticon'>{_svg_icon('phone')}</div>
+  <div><div class='tl'>Contacted</div><div class='tv'>{len(done)}</div>
+   <div class='ts'>every outcome logged with a name</div></div></div>
+ <div class='tile'><div class='ticon'>{_svg_icon('trend')}</div>
+  <div><div class='tl'>Still waiting</div><div class='tv'>{remaining}</div>
+   <div class='ts'>highest lifetime value first</div></div></div>
+</div>"""
+
+    body = (header
+            + f"<div class='bento'><div>{today_card}{list_card}</div>"
+            + f"<div>{due_col}</div></div>" + tiles)
     return page("Win-back", body)
 
 
