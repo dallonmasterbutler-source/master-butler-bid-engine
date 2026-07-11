@@ -609,6 +609,16 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
         if target:
             _attach_event(target, ev, stamp)
             record["merged_into"] = target
+        else:
+            # NOT one of our tracked quotes (office-direct) — the event
+            # must still wear its customer's name/address/link (Dallon,
+            # Jul 10: anonymous 'quote approved' rows, 3rd recurrence)
+            try:
+                import jobber_sync
+                jobber_sync.dress_event(record)
+                record.pop("_merge_target", None)
+            except Exception:
+                pass
         if ev["event"] == "quote_approved":
             record["office_alert"] = (
                 f"🎉 QUOTE #{ev.get('quote_number')} APPROVED"

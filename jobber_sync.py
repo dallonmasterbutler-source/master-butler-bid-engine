@@ -229,3 +229,74 @@ def today_strip_html():
         "<div style='display:flex;gap:8px;overflow-x:auto;padding-bottom:4px'>"
         + (visits or "<span style='font-size:11.5px;color:#a3adab'>no "
            "appointments today</span>") + "</div></div>")
+
+
+# ── EVENT DRESSING (Dallon, Jul 10: 'quote approved' rows with no name
+# or address, 3rd/4th recurrence). Root cause: events only attached to
+# quotes OUR system drafted; office-direct quotes had no match, so the
+# event row stayed anonymous. Now every event looks its quote up in
+# Jobber BY NUMBER and wears the client's name/address/link — and merges
+# into their customer record when one exists. ──
+def dress_event(rec, all_records=None, quotes=None):
+    """Give a jobber_event record its customer identity. Returns True
+    when anything changed. Read-only against Jobber. Pass `quotes`
+    (scoreboard.fetch_recent_quotes) when dressing many — fetch ONCE."""
+    ev = rec.get("jobber_event") or {}
+    qno = ev.get("quote_number")
+    if not qno or rec.get("merged_into"):
+        return False
+    if rec.get("address") and "<" in (rec.get("from") or ""):
+        return False                     # already dressed
+    if quotes is None:
+        try:
+            import scoreboard
+            quotes = scoreboard.fetch_recent_quotes(150)
+        except Exception:
+            return False
+    q = next((x for x in quotes
+              if str(x.get("quoteNumber")) == str(qno)), None)
+    if not q:
+        rec["office_alert"] = ((rec.get("office_alert") or "") +
+            f" (quote #{qno} is older than the recent-quote window — "
+            "open it in Jobber for the customer.)").strip()
+        return True
+    c = q.get("client") or {}
+    raw_em = c.get("emails") or []
+    if isinstance(raw_em, dict):
+        raw_em = raw_em.get("nodes") or []
+    emails = [e.get("address", "").lower() for e in raw_em
+              if isinstance(e, dict) and e.get("address")]
+    name = (c.get("name") or "").strip()
+    prop = ((q.get("property") or {}).get("address") or {})
+    addr = " ".join(filter(None, [prop.get("street"), prop.get("city")]))
+    changed = False
+    if name:
+        rec["from"] = f"{name} <{emails[0] if emails else ''}>"
+        changed = True
+    if addr and not rec.get("address"):
+        rec["address"] = addr
+        changed = True
+    if q.get("jobberWebUri") and not rec.get("open_quote_ctx"):
+        rec["open_quote_ctx"] = {
+            "number": q.get("quoteNumber"),
+            "status": q.get("quoteStatus"),
+            "total": (q.get("amounts") or {}).get("total"),
+            "url": q.get("jobberWebUri"), "lines": []}
+        changed = True
+    # merge into the customer's existing record when we track them
+    if emails and all_records:
+        for stamp2, r2 in all_records:
+            if r2 is rec or r2.get("kind") == "jobber_event" \
+                    or r2.get("merged_into"):
+                continue
+            if any(e in (r2.get("from") or "").lower() for e in emails):
+                rec["merged_into"] = stamp2
+                r2.setdefault("events", []).append(
+                    {"event": ev.get("event"), "quote": qno})
+                r2["office_alert"] = ((r2.get("office_alert") or "") +
+                    f" 🎉 quote #{qno} {ev.get('event', 'event')
+                    .replace('_', ' ')} (auto-linked).").strip()
+                rec["_merge_target"] = stamp2
+                changed = True
+                break
+    return changed

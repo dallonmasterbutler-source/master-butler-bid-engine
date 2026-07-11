@@ -63,7 +63,8 @@ def run(recent_hours=None):
         (), fetch="all")}
     stats = {"addr": 0, "facts": 0, "photos": 0, "status": 0,
              "surfaces": 0}
-    for stamp, rec in clouddb.all_shadow():
+    rows = list(clouddb.all_shadow())
+    for stamp, rec in rows:
         if floor and stamp < floor:
             continue
         e = _email(rec)
@@ -238,6 +239,31 @@ def run(recent_hours=None):
                 if vm_enrich.enrich(rec, stamp):
                     stats.setdefault("vm_enriched", 0)
                     stats["vm_enriched"] += 1
+                    changed = True
+            except Exception:
+                pass
+
+        # 8) JOBBER EVENTS wear their customer (Dallon, Jul 10: 'quote
+        #    approved' rows with no name/address — recurring). Dress
+        #    from the quote itself; merge into the customer's record.
+        if rec.get("kind") == "jobber_event" and not rec.get("merged_into"):
+            try:
+                import jobber_sync
+                global _EVQ
+                try:
+                    _EVQ
+                except NameError:
+                    import scoreboard as _sb
+                    _EVQ = _sb.fetch_recent_quotes(150)
+                if jobber_sync.dress_event(rec, all_records=rows,
+                                           quotes=_EVQ):
+                    tgt = rec.pop("_merge_target", None)
+                    if tgt:
+                        t_rec = dict(rows).get(tgt)
+                        if t_rec:
+                            clouddb.ingest_shadow(tgt, t_rec)
+                    stats.setdefault("events_dressed", 0)
+                    stats["events_dressed"] += 1
                     changed = True
             except Exception:
                 pass
