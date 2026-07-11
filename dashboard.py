@@ -6593,6 +6593,11 @@ class Handler(BaseHTTPRequestHandler):
     def _send(self, content, code=200, ctype="text/html; charset=utf-8"):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
+        if "text/html" in ctype:
+            # never let a browser show yesterday's design (Dallon,
+            # Jul 10 pm: new Settings/Win-back 'still aren't there' —
+            # they were live; his browser had the old page cached)
+            self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(content)
 

@@ -306,6 +306,28 @@ def _fill(stamp, rec, e, kin_addr, photo_refs, stats,
         except Exception:
             pass
 
+    # 7.5) HONEST GAPS (Dallon, Jul 10 pm queue audit): a voicemail
+    #    from a number Jobber doesn't know, with no address in the
+    #    message, can never auto-fill — SAY so instead of looking
+    #    broken, once, so the office asks on the call-back.
+    if (rec.get("lead") and "🎙" in (rec.get("newest_message") or "")
+            and not rec.get("address")
+            and "ask for the address" not in
+            (rec.get("office_alert") or "")):
+        try:
+            known = jc.caller_id(rec.get("phone")
+                                 or (rec.get("lead") or {}).get("phone"))
+        except Exception:
+            known = None
+        if not known:
+            rec["office_alert"] = ((rec.get("office_alert") or "")
+                + " 🆕 New caller — Jobber doesn't know this number and "
+                "they didn't say an address; ask for the address when "
+                "calling back.").strip()
+            stats.setdefault("honest_gaps", 0)
+            stats["honest_gaps"] += 1
+            changed = True
+
     # 8) JOBBER EVENTS wear their customer (Dallon, Jul 10: 'quote
     #    approved' rows with no name/address — recurring). Dress
     #    from the quote itself; merge into the customer's record.
