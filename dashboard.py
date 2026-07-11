@@ -3021,6 +3021,16 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
               and nb and nb["stamp"] not in live_holds
               and nb["stamp"] not in flags_open):
             grp = 4
+        # MARKED DONE = OFF THE QUEUE (Dallon, Jul 10 pm: 'they're used
+        # to clearing out the gmail till it's empty'). A decision
+        # (reviewed) OR an explicit ✓ from the office (acknowledged),
+        # with nothing new since → the drawer. ANY new message
+        # resurfaces them (the branch below wins) — nobody stays buried.
+        elif (nb and (nb.get("reviewed") or acknowledged)
+              and not unread and not new_msg
+              and nb["stamp"] not in live_holds
+              and nb["stamp"] not in flags_open):
+            grp = 4
         elif new_msg or needs or (nb and (nb.get("office_alert")
                                   or nb["stamp"] in bid_status._sl)):
             grp = 0                                # new — needs a person
@@ -3159,7 +3169,7 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             f"<span class='iage{' alarm' if alarm else ''}'>{age}</span>"
             f"</div></a></div>")
 
-    sec_names = {-1: "👷 Techs — from the field",
+    sec_names = {-1: "👷 Techs",
                  0: "New — needs a person", 1: "In someone's hands",
                  2: "Waiting on customers",
                  3: "Handled in Jobber — verified"}
