@@ -243,10 +243,57 @@ def dress_event(rec, all_records=None, quotes=None):
     (scoreboard.fetch_recent_quotes) when dressing many — fetch ONCE."""
     ev = rec.get("jobber_event") or {}
     qno = ev.get("quote_number")
-    if not qno or rec.get("merged_into"):
+    if rec.get("merged_into"):
         return False
-    if rec.get("address") and "<" in (rec.get("from") or ""):
+    if rec.get("address") and "jobber <" not in \
+            (rec.get("from") or "").lower():
         return False                     # already dressed
+
+    # NEW-REQUEST events carry no quote number, but the notification
+    # body labels everything (Dallon, Jul 10 pm: rows named 'You
+    # received a new request fro…' — the customer was Zina Lee, right
+    # there under 'Contact name:'). Trust the labeled fields.
+    if not qno:
+        import re as _r
+        body = rec.get("newest_message") or ""
+        def _lab(label):
+            m = _r.search(label + r":?\s*([^\n]+)", body)
+            return m.group(1).strip() if m else ""
+        name = _r.sub(r"\s+", " ", _lab("Contact name"))
+        em = _lab("Email").lower()
+        ph = _lab("Phone")
+        am = _r.search(r"Address:\s*\n([^\n]+)\n([^\n]+)", body)
+        addr = (", ".join(x.strip() for x in am.groups())
+                if am else "")
+        if not (name or em):
+            return False
+        changed = False
+        if name:
+            rec["from"] = f"{name} <{em}>"
+            changed = True
+        if ph and not rec.get("phone"):
+            rec["phone"] = ph
+            changed = True
+        if addr and not rec.get("address"):
+            rec["address"] = addr
+            changed = True
+        # fold into the customer's existing record if we track them —
+        # an EARLIER dressed copy of the same request counts too (the
+        # same notification often arrives twice)
+        if em and all_records:
+            mine = next((s for s, r in all_records if r is rec), None)
+            for stamp2, r2 in all_records:
+                if r2 is rec or r2.get("merged_into"):
+                    continue
+                if r2.get("kind") == "jobber_event" \
+                        and not (mine and stamp2 < mine):
+                    continue
+                if em in (r2.get("from") or "").lower():
+                    rec["merged_into"] = stamp2
+                    rec["_merge_target"] = stamp2
+                    changed = True
+                    break
+        return changed
     if quotes is None:
         try:
             import scoreboard
@@ -256,6 +303,9 @@ def dress_event(rec, all_records=None, quotes=None):
     q = next((x for x in quotes
               if str(x.get("quoteNumber")) == str(qno)), None)
     if not q:
+        if "older than the recent-quote window" in \
+                (rec.get("office_alert") or ""):
+            return False    # already said so — don't re-append hourly
         rec["office_alert"] = ((rec.get("office_alert") or "") +
             f" (quote #{qno} is older than the recent-quote window — "
             "open it in Jobber for the customer.)").strip()

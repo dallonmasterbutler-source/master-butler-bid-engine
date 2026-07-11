@@ -850,6 +850,35 @@ footer{margin:8px 0 28px;padding:0 24px;
   padding:20px 22px;color:#eef4f0}
 .healthcard h3{margin:0 0 14px;color:#e8c56a;font-size:15px;
   font-weight:800}
+.knobgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:700px){.knobgrid{grid-template-columns:1fr}}
+.knob{display:block;background:rgba(17,41,33,.5);
+  border:1px solid rgba(201,162,39,.14);border-radius:13px;
+  padding:12px 14px}
+.knob.set{border-color:rgba(201,162,39,.5)}
+.knob .kl{display:block;font-size:10px;font-weight:800;
+  text-transform:uppercase;letter-spacing:1.1px;color:var(--mut)}
+.knob .kv{display:block;font-size:24px;font-weight:900;
+  color:#c9a227;font-variant-numeric:tabular-nums;margin:2px 0 8px;
+  text-shadow:0 0 10px rgba(201,162,39,.25)}
+.knob .kv i{font-style:normal;font-size:9px;font-weight:800;
+  letter-spacing:1.2px;text-transform:uppercase;color:var(--mut);
+  margin-left:8px;vertical-align:4px}
+.knob.set .kv i{color:#e8c56a}
+.knob input{width:100%;text-align:right}
+.qrgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:700px){.qrgrid{grid-template-columns:1fr}}
+.qrcard{background:rgba(17,41,33,.5);border:1px solid
+  rgba(201,162,39,.14);border-radius:13px;padding:12px 14px;margin:0}
+.qrcard:hover{border-color:rgba(201,162,39,.4)}
+.qrcard summary{cursor:pointer;list-style:none}
+.qrcard summary::-webkit-details-marker{display:none}
+.qrcard summary b{display:block;color:var(--ink);margin:4px 0 3px}
+.qrcard .qtag{font-size:9px;font-weight:800;text-transform:uppercase;
+  letter-spacing:1.3px;color:#e8c56a}
+.qrcard .qpeek{display:block;font-size:12px;color:var(--mut);
+  line-height:1.45;overflow:hidden;display:-webkit-box;
+  -webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2}
 .hbar{width:100%;height:4px;background:rgba(255,255,255,.12);
   border-radius:99px;overflow:hidden;margin:6px 0 12px}
 .hbar i{display:block;height:100%;background:#c9a227}
@@ -3663,14 +3692,26 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
             d_ = (nb.get("draft") or {})
             tt = _num(d_.get("total"))
             cf = _num(nb.get("confidence"))
-            if hurl and tt:
+            # the HOUSE always shows when we have its picture (Dallon,
+            # Jul 10 pm: 'the home isn't coming up on top' — it was
+            # gated behind a priced draft); the price overlay is the
+            # optional part, not the photo
+            if hurl:
+                foot = ""
+                if tt:
+                    foot = (f"<div class='foot'><div class='lbl'>"
+                            f"Estimated total</div>"
+                            f"<span class='pr tab'>${tt:,.0f}</span>"
+                            + (f"<span class='cf'>● {cf:.0f}% confident"
+                               f"</span>" if cf is not None else "")
+                            + "</div>")
+                elif nb.get("address"):
+                    foot = (f"<div class='foot'><div class='lbl'>"
+                            f"{esc(nb['address'])[:60]}</div></div>")
                 hero_html = (
                     f"<div class='qhero'><img src='{esc(hurl)}' "
                     f"loading='lazy'><div class='shade'></div>"
-                    f"<div class='foot'><div class='lbl'>Estimated total"
-                    f"</div><span class='pr tab'>${tt:,.0f}</span>"
-                    + (f"<span class='cf'>● {cf:.0f}% confident</span>"
-                       if cf is not None else "") + "</div></div>")
+                    f"{foot}</div>")
     except Exception:
         pass
     pinned = (f"<div class='pinned'>{banners}{hero_html}"
@@ -5601,7 +5642,20 @@ def settings_page(msg="", user=None):
 
     banner = (f"<div class='band'>{esc(msg)}</div>" if msg else "")
 
-    # ---- pricing table ----
+    # ---- pricing knobs (Stitch look: big value tiles, Jul 10 pm —
+    # the first port kept the old dense table and Dallon couldn't see
+    # the redesign; the CONTENT had to change shape, not just the CSS)
+    def knob(key, label, default):
+        cur = ov.get(key, "")
+        shown = cur or default
+        return (f"<label class='knob{' set' if cur else ''}'>"
+                f"<span class='kl'>{esc(label)}</span>"
+                f"<span class='kv'>{esc(str(shown))}"
+                + ("<i>override</i>" if cur else "<i>default</i>")
+                + f"</span><input type='text' name='ov_{esc(key)}' "
+                f"value='{esc(cur)}' placeholder='{esc(str(default))}'>"
+                f"</label>")
+
     def row(key, label, default):
         cur = ov.get(key, "")
         return (f"<tr><td><b>{esc(label)}</b>"
@@ -5625,8 +5679,8 @@ def settings_page(msg="", user=None):
         "WET_DAY_GUTTER_MULT": "Wet-day gutter multiplier",
         "PW_HOUSE_WASH_RATE": "House wash rate ($/sqft)",
     }
-    rows = "".join(row(k, scalar_labels.get(k, k), defaults[k])
-                   for k in be.EDITABLE_SCALARS)
+    knobs = "".join(knob(k, scalar_labels.get(k, k), defaults[k])
+                    for k in be.EDITABLE_SCALARS)
     drows = ""
     for dname in be.EDITABLE_DICTS:
         for sub, dval in defaults[dname].items():
@@ -5635,18 +5689,21 @@ def settings_page(msg="", user=None):
     pricing_card = f"""
 <div class='card'>
  <div class='schead'>{_svg_icon('tune')}<h2>Pricing knobs</h2></div>
- <div class='subtext' style='margin-bottom:10px'>Type a number to
+ <div class='subtext' style='margin-bottom:12px'>Type a number to
  override the default; clear the box to go back to default. Changes
  apply to the NEXT bid priced — nothing already on the queue moves.
  Every change is logged with your name.</div>
  <form method='POST' action='/settings_save'>
- <table><tr><th>Setting</th><th class='num'>Default</th><th>Override</th></tr>
- {rows}
- <tr><td colspan=3 style='background:var(--soft)'><b>Rates &amp;
- multipliers</b> <span class='subtext'>(advanced — small changes move
- every price)</span></td></tr>
- {drows}</table>
- <button class='big' style='margin-top:10px'>Save pricing changes</button>
+ <div class='knobgrid'>{knobs}</div>
+ <details style='margin-top:12px'>
+  <summary style='cursor:pointer;font-weight:800;color:var(--mut)'>
+  Rates &amp; multipliers (advanced — small changes move every price)
+  </summary>
+  <table style='margin-top:8px'>
+   <tr><th>Setting</th><th class='num'>Default</th><th>Override</th></tr>
+   {drows}</table>
+ </details>
+ <button class='big' style='margin-top:12px'>Save pricing changes</button>
  </form>
  <form method='POST' action='/settings_reset' style='margin-top:8px'
   onsubmit="return confirm('Clear ALL pricing overrides and go back to '
@@ -5654,15 +5711,17 @@ def settings_page(msg="", user=None):
   <button class='gray'>↩ Reset everything to defaults</button>
  </form></div>"""
 
-    # ---- quick responses editor ----
+    # ---- quick responses: Stitch template cards, 2-up grid ----
     canned = _blob_rw("canned_replies", {})
-    qr = ""
-    for name, text in canned.items():
-        qr += f"""
-<details style='border-bottom:1px solid var(--line);padding:8px 0'>
- <summary style='cursor:pointer;font-weight:700;color:var(--heading)'>
-  {esc(name)}</summary>
+
+    def qrcard(name, text, mine=False):
+        return f"""
+<details class='qrcard'>
+ <summary><span class='qtag'>{"★ mine" if mine else "shared"}</span>
+  <b>{esc(name)}</b>
+  <span class='qpeek'>{esc(text)[:110]}…</span></summary>
  <form method='POST' action='/qr_save' style='margin-top:8px'>
+  {"<input type='hidden' name='mine' value='1'>" if mine else ""}
   <input type='hidden' name='name' value='{esc(name)}'>
   <textarea name='text' rows='5'>{esc(text)}</textarea>
   <div style='margin-top:6px'>
@@ -5670,13 +5729,15 @@ def settings_page(msg="", user=None):
    <button name='delete' value='1' class='red'
     onclick="return confirm('Delete this response?')">Delete</button>
   </div></form></details>"""
+
+    qr = "".join(qrcard(n, t) for n, t in canned.items())
     qr_card = f"""
 <div class='card'>
  <div class='schead'>{_svg_icon('chat')}<h2>Quick responses</h2></div>
- <div class='subtext' style='margin-bottom:6px'>These are the tap-to-fill
- replies on the Messages page. Edit freely — changes are live for
- everyone immediately.</div>
- {qr}
+ <div class='subtext' style='margin-bottom:10px'>The tap-to-fill
+ replies on the Messages page. Click a card to edit — changes are live
+ for everyone immediately.</div>
+ <div class='qrgrid'>{qr}</div>
  <details style='padding:10px 0'>
   <summary style='cursor:pointer;font-weight:700'>➕ Add a new response
   </summary>
@@ -5691,27 +5752,14 @@ def settings_page(msg="", user=None):
     # able to adjust their own quick responses') ----
     if user:
         mine = (_blob_rw("canned_replies_personal", {})).get(user, {})
-        mqr = ""
-        for name, text in mine.items():
-            mqr += f"""
-<details style='border-bottom:1px solid var(--line);padding:8px 0'>
- <summary style='cursor:pointer;font-weight:700;color:var(--heading)'>
-  ★ {esc(name)}</summary>
- <form method='POST' action='/qr_save' style='margin-top:8px'>
-  <input type='hidden' name='mine' value='1'>
-  <input type='hidden' name='name' value='{esc(name)}'>
-  <textarea name='text' rows='5'>{esc(text)}</textarea>
-  <div style='margin-top:6px'>
-   <button>Save</button>
-   <button name='delete' value='1' class='red'
-    onclick="return confirm('Delete this response?')">Delete</button>
-  </div></form></details>"""
+        mqr = "".join(qrcard(n, t, mine=True) for n, t in mine.items())
         my_card = f"""
 <div class='card'><h2 style='margin-top:0'>★ {esc(user)}'s quick
  responses</h2>
  <div class='subtext' style='margin-bottom:6px'>Only you see these in
  the dropdown (marked ★). The shared set above stays everyone's.</div>
- {mqr or "<div class='subtext'>None yet.</div>"}
+ <div class='qrgrid'>{mqr}</div>
+ {"" if mqr else "<div class='subtext'>None yet.</div>"}
  <details style='padding:10px 0'>
   <summary style='cursor:pointer;font-weight:700'>➕ Add one of my own
   </summary>

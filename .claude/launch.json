@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "dashboard",
-      "runtimeExecutable": "python3",
+      "runtimeExecutable": "/private/tmp/claude-501/-Users-dallonanderson-Downloads-Claude-Code/445f25e8-03d7-4a0a-ad70-3a635705be55/scratchpad/v/bin/python",
       "runtimeArgs": ["dashboard.py"],
       "port": 8765
     }

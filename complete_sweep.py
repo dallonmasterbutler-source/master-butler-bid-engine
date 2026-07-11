@@ -41,8 +41,12 @@ def _email(r):
 def _skip(r, e):
     # a VOICEMAIL record wears copycall's sender but the CALLER is the
     # customer — never skip those (Terry Brower stayed an empty shell
-    # because 'copycall' in the from-address skipped him, Jul 10)
-    if r.get("lead") and not (r.get("merged_into") or r.get("spam_auto")):
+    # because 'copycall' in the from-address skipped him, Jul 10).
+    # Same for JOBBER EVENTS: they wear noreply@getjobber until step 8
+    # dresses them as the customer (Zina Lee stayed 'You received a
+    # new request from…', Jul 10 pm)
+    if (r.get("lead") or r.get("kind") == "jobber_event") \
+            and not (r.get("merged_into") or r.get("spam_auto")):
         return False
     return (r.get("merged_into") or r.get("spam_auto")
             or r.get("tech_sender")
