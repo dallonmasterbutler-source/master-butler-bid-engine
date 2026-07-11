@@ -30,6 +30,13 @@ def push(records=None, blobs=None, photos=None, timeout=60):
     """One POST to the cloud. records = [(stamp, record_dict)];
     photos = [{"ref","kind","idx","b64"}]. Raises on failure —
     callers decide whether to queue."""
+    import os
+    if os.environ.get("MB_SANDBOX"):
+        # the acceptance trials run a file-mode server that clicks real
+        # buttons — its writes must NEVER reach production (Jul 10 pm:
+        # every trials run was overwriting the office's learned-spam
+        # list and read marks with test data through this exact path)
+        raise RuntimeError("MB_SANDBOX set — cloud push refused")
     url = _cfg("DASHBOARD_URL")
     pw = _cfg("DASHBOARD_PASSWORD")
     if not url or not pw:

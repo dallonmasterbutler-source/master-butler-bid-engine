@@ -55,8 +55,10 @@ def main():
 
     srv = subprocess.Popen(
         [sys.executable, "dashboard.py"],
+        # MB_SANDBOX: file-mode server whose button clicks must never
+        # reach production — cloudpush refuses when it's set (Jul 10 pm)
         env={"HOST": "127.0.0.1", "PORT": str(PORT), "PATH": "/usr/bin:/bin",
-             "HOME": str(Path.home())},
+             "HOME": str(Path.home()), "MB_SANDBOX": "1"},
         cwd=BASE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(4)
 
