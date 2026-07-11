@@ -140,6 +140,11 @@ def from_open_quote(rec):
     #   2. a long, substantive message = they said what they want;
     #      rebuilding from an old quote would put words in their mouth.
     msg = rec.get("newest_message") or ""
+    # 3. their quote is CONVERTED = the job is DONE (Vadim Saveliev,
+    #    Jul 10 pm: he wrote about a screen after his job was finished
+    #    — a message after conversion is a follow-up, never a new ask)
+    if (oq.get("status") or "").lower() == "converted":
+        return rec
     try:
         from email_parser import find_services
         asked = find_services(msg)

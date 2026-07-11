@@ -3046,7 +3046,26 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                 age_h = (_dtm.now(_tz.utc) - t0).total_seconds() / 3600
             except Exception:
                 age_h = 0
-        if won and grp == 0:
+        # 🔧 SERVICE FOLLOW-UP (Dallon, Jul 10 pm: Vadim wrote about a
+        # screen after his job was DONE — 'label, don't filter'): a
+        # customer with a converted/won job writing about the work
+        # itself needs a person, not a bid. Stays in New, tagged.
+        followup = False
+        # CONVERTED only — approved-but-not-done still needs its
+        # 'won — schedule it' push; follow-up means the crew already went
+        if grp == 0 and nb and (oq or {}).get("status", "") \
+                .lower() == "converted":
+            _fu_txt = (nb.get("newest_message") or "").lower()
+            followup = bool(re.search(
+                r"technician|our tech|the tech |crew|wasn'?t|was not|"
+                r"isn'?t|is not|not in place|fix (that|it|the)|redo|"
+                r"came? back|come back|missed|broken|damage|mess|"
+                r"put back|left the|excellent|great job|thank you",
+                _fu_txt))
+        if followup:
+            word = "🔧 follow-up on completed work — no bid"
+            wstyle = "color:var(--goldink);font-weight:800"
+        elif won and grp == 0:
             word, wstyle = ("won — schedule it",
                             "color:var(--green2);font-weight:800")
         elif (oq or qno) and grp == 0 and word == "review":
