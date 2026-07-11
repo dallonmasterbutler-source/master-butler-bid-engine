@@ -2906,7 +2906,12 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         e = _bid_email(b)
         if b.get("kind") == "jobber_event" and (not e or "getjobber" in e):
             c = entry("stamp:" + b["stamp"])
-            c["name"] = (b.get("subject") or "Jobber event")[:40]
+            # a dressed event knows its PERSON — the subject line is
+            # the fallback, never the name (Jessica Lundeen showed as
+            # 'Quote #34293 is approved!', Jul 10 pm)
+            _disp = (b.get("from") or "").split("<")[0].strip()
+            c["name"] = (_disp if _disp and _disp.lower() != "jobber"
+                         else (b.get("subject") or "Jobber event")[:40])
             c["bids"].append(b)
             continue
         lead = b.get("lead") or {}
@@ -4526,7 +4531,9 @@ def customers_page(sel=None, draft=""):
         if b.get("kind") == "jobber_event" and (not e or "getjobber" in e):
             key = "stamp:" + b["stamp"]
             c = entry(key)
-            c["name"] = (b.get("subject") or "Jobber event")[:40]
+            _disp = (b.get("from") or "").split("<")[0].strip()
+            c["name"] = (_disp if _disp and _disp.lower() != "jobber"
+                         else (b.get("subject") or "Jobber event")[:40])
             c["bids"].append(b)
             continue
         key = e or ("stamp:" + b["stamp"])
