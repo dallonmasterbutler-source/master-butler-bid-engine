@@ -907,6 +907,17 @@ body{background:#05140f!important}
 </style>"""
 
 
+_LIGHT_FORCE_CSS = '''<style>
+:root{--bg:#f8f7f2!important;--card:#fdfcfb!important;
+ --ink:#1a241f!important;--mut:#6b7a70!important;--line:#e6e4da!important;
+ --soft:#f1efe6!important;--goldbg:#f6ecd2!important;
+ --goldink:#7a5c07!important;--heading:#0b3d2e!important}
+body{background:#f8f7f2!important}
+.mock{background:#fdfcfb;border-color:#e6e4da;
+ box-shadow:0 1px 3px rgba(20,30,25,.06)}
+.card,.pinned{background:#fff;border:1px solid #e6e4da;border-radius:13px}
+</style>'''
+
 _GLOBAL_RAIL_CSS = """<style>
 .gr{position:fixed;left:0;top:0;bottom:0;width:56px;z-index:80;
  background:#082d22;border-right:1px solid rgba(201,162,39,.25);
@@ -1003,12 +1014,13 @@ def page(title, body, refresh=None, chrome="rail"):
         rail_css = _GLOBAL_RAIL_CSS
         active = railmap.get(title, "")
         rail = _rail_html(active).replace("class='dkrail'", "class='gr'")
+        tone = "" if "dkroom" in body else _LIGHT_FORCE_CSS
         return (f"<!doctype html><html><head><meta charset='utf-8'>"
                 f"<meta name='viewport' content='width=device-width,"
                 f"initial-scale=1'>{auto}{FAVICON}"
-                f"<title>{title}</title>{STYLE}{rail_css}</head>"
+                f"<title>{title}</title>{STYLE}{rail_css}{tone}</head>"
                 f"<body style='padding:14px 16px 0'>{rail}"
-                f"<div style='max-width:1280px;margin:0 auto'>{body}"
+                f"<div style='max-width:1280px;margin:0'>{body}"
                 f"<footer style='padding:10px 4px'>Every quote is a draft "
                 f"until a human sends it · bold = nobody's seen it · "
                 f"every price traces to a real job.</footer>"
@@ -1077,9 +1089,10 @@ border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
     return (f"<!doctype html><html><head><meta charset='utf-8'>"
             f"<meta name='viewport' content='width=device-width,"
             f"initial-scale=1'>{auto}{FAVICON}"
-            f"<title>{title}</title>{STYLE}{_GLOBAL_RAIL_CSS}</head>"
+            f"<title>{title}</title>{STYLE}{_GLOBAL_RAIL_CSS}"
+            f"{_LIGHT_FORCE_CSS}</head>"
             f"<body style='padding:14px 16px 0'>{rail2}"
-            f"<div style='max-width:1280px;margin:0 auto'>"
+            f"<div style='max-width:1280px;margin:0'>"
             f"<div class='mock'>{_chrome_bar(active)}"
             f"<div style='padding:18px 22px'>"
             + (f"<div style='font-size:11px;font-weight:800;"
