@@ -308,9 +308,40 @@ def dress_event(rec, all_records=None, quotes=None):
     q = next((x for x in quotes
               if str(x.get("quoteNumber")) == str(qno)), None)
     if not q:
+        changed = False
+        # the notification BODY still names the customer ('Jessica
+        # Lundeen just approved Quote #34293…') — wear that instead of
+        # showing 'Quote #34293 is approved!' as a name (Dallon's
+        # queue audit, Jul 10 pm)
+        import re as _r
+        m = _r.search(r"([A-Za-z][A-Za-z .'’-]+?)\s+just approved",
+                      rec.get("newest_message") or "")
+        nm = _r.sub(r"\s+", " ", m.group(1)).strip() if m else ""
+        if nm and "jobber <" in (rec.get("from") or "").lower():
+            rec["from"] = f"{nm} <>"
+            changed = True
+            # merge into the customer when their record exists — match
+            # every name token inside the stored from-address
+            toks = [t.lower() for t in nm.split() if len(t) > 2]
+            if toks and all_records:
+                for stamp2, r2 in all_records:
+                    if r2 is rec or r2.get("kind") == "jobber_event" \
+                            or r2.get("merged_into"):
+                        continue
+                    f2 = (r2.get("from") or "").lower()
+                    if all(t in f2 for t in toks):
+                        e2 = _r.search(r"<([^>]+)>", r2.get("from") or "")
+                        if e2:
+                            rec["from"] = f"{nm} <{e2.group(1)}>"
+                        rec["merged_into"] = stamp2
+                        rec["_merge_target"] = stamp2
+                        r2["office_alert"] = ((r2.get("office_alert")
+                            or "") + f" 🎉 quote #{qno} approved "
+                            "(auto-linked).").strip()
+                        break
         if "older than the recent-quote window" in \
                 (rec.get("office_alert") or ""):
-            return False    # already said so — don't re-append hourly
+            return changed    # already said so — don't re-append hourly
         rec["office_alert"] = ((rec.get("office_alert") or "") +
             f" (quote #{qno} is older than the recent-quote window — "
             "open it in Jobber for the customer.)").strip()

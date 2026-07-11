@@ -361,6 +361,52 @@ def _fill(stamp, rec, e, kin_addr, best_name, photo_refs, stats,
             stats["honest_gaps"] += 1
             changed = True
 
+    # 7.6) VOICEMAILS FOLD INTO THEIR PERSON (Dallon's queue audit,
+    #    Jul 10 pm: Jan Hudson + Suzanne Vaughan each showed twice —
+    #    caller-ID knew their email the whole time; the voicemail row
+    #    and the email row never linked)
+    if (rec.get("lead") and not rec.get("merged_into")):
+        ci_em = ((rec.get("caller_id") or {}).get("email") or "").lower()
+        if ci_em:
+            for stamp2, r2 in _ROWS_CACHE:
+                if r2 is rec or r2.get("merged_into") \
+                        or r2.get("kind") == "jobber_event" \
+                        or r2.get("lead"):
+                    continue
+                if ci_em in (r2.get("from") or "").lower():
+                    rec["merged_into"] = stamp2
+                    r2["office_alert"] = ((r2.get("office_alert") or "")
+                        + " ☎ their voicemail is folded into this "
+                        "thread (auto-linked by caller-ID).").strip()
+                    clouddb.ingest_shadow(stamp2, r2)
+                    stats.setdefault("vm_linked", 0)
+                    stats["vm_linked"] += 1
+                    changed = True
+                    break
+
+    # 7.7) SAME CALLER = ONE ROW (Suzanne Vaughan showed twice): a
+    #    newer voicemail record folds into the caller's oldest live one
+    if (rec.get("lead") and not rec.get("merged_into")
+            and rec.get("phone")):
+        ph = "".join(ch for ch in rec["phone"] if ch.isdigit())[-10:]
+        if len(ph) == 10:
+            for stamp2, r2 in _ROWS_CACHE:
+                if r2 is rec or r2.get("merged_into") \
+                        or not r2.get("lead") or stamp2 >= stamp:
+                    continue
+                ph2 = "".join(ch for ch in (r2.get("phone") or "")
+                              if ch.isdigit())[-10:]
+                if ph2 == ph:
+                    rec["merged_into"] = stamp2
+                    r2["office_alert"] = ((r2.get("office_alert") or "")
+                        + " ☎ they called again — the newer voicemail "
+                        "is folded into this thread.").strip()
+                    clouddb.ingest_shadow(stamp2, r2)
+                    stats.setdefault("vm_dedup", 0)
+                    stats["vm_dedup"] += 1
+                    changed = True
+                    break
+
     # 8) JOBBER EVENTS wear their customer (Dallon, Jul 10: 'quote
     #    approved' rows with no name/address — recurring). Dress
     #    from the quote itself; merge into the customer's record.
