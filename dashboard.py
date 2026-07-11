@@ -840,9 +840,10 @@ def _svg_icon(name):
                  '16.9l1.7 1.7M18.6 5.4l-1.7 1.7M7.1 16.9l-1.7 1.7"/>',
          "phone": '<path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 '
                   '2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
-         "help": '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.6 '
-                 '2.6 0 1 1 3.6 2.4c-.9.4-1.2 1-1.2 1.9"/>'
-                 '<circle cx="12" cy="17" r=".4"/>'}
+         "help": '<circle cx="12" cy="12" r="9"/><path d="M9.4 9a2.8 '
+                 '2.8 0 1 1 4 2.6c-1 .5-1.4 1.1-1.4 2.1"/>'
+                 '<circle cx="12" cy="16.8" r="1.15" '
+                 'fill="currentColor" stroke="none"/>'}
     return ('<svg width="22" height="22" viewBox="0 0 24 24" fill="none" '
             'stroke="currentColor" stroke-width="1.8" stroke-linecap="round"'
             ' stroke-linejoin="round">' + d.get(name, "") + "</svg>")
