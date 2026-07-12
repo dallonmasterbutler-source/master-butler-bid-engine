@@ -5567,12 +5567,10 @@ def guide_page():
         "almost everything: <b>bold means nobody's handled it</b>, and "
         "<b>nothing sends to a customer without a human</b>. The rest is "
         "detail — tap any question.</div>"
-        + folds +
-        # DISCOUNT LABELING TRAINING (Dallon, Jul 12: '$72,867 went out
-        # as just Discount — a pattern note for the office so we can
-        # find that lost money')
+        # DISCOUNT LABELING TRAINING — AT THE TOP (Dallon, Jul 12:
+        # 'anything critical shouldn't have to be searched for')
         """
-<div style='margin-top:16px;background:var(--card);border:1px solid
+<div style='margin:0 0 16px;background:var(--card);border:1px solid
  rgba(201,162,39,.3);border-left:4px solid #c9a227;border-radius:12px;
  padding:16px 18px'>
  <b style='font-size:16px'>🏷 Training: label every discount — one word
@@ -5609,6 +5607,7 @@ def guide_page():
  and makes sure discounted visits never lower anyone's future price.
  </div>
 </div>"""
+        + folds +
         # the top-bar 💡 Idea button lands here (Jessica, Jul 9)
         "<div id='idea' style='margin-top:16px;background:var(--soft);"
         "border:1px solid var(--line);border-radius:12px;padding:14px 16px'>"
