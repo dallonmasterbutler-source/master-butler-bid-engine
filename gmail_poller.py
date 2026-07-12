@@ -190,6 +190,13 @@ def poll_once():
                     complete_sweep.run(recent_hours=48)
             except Exception:
                 pass
+            # GMAIL ARCHIVE MIRROR (Dallon, Jul 12: the office's empty
+            # Gmail = caught up; the dashboard follows their archiving)
+            try:
+                import gmail_mirror
+                gmail_mirror.sync()
+            except Exception as _e:
+                print(f"  (gmail mirror skipped: {_e})")
             # JOBBER PULSE (Dallon, Jul 10 — read-both no write-back):
             # today's appointments + overdue/active/remaining, hourly,
             # for the Today strip + the Handled-in-Jobber lane
