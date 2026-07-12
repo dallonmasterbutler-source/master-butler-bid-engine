@@ -1205,6 +1205,10 @@ def _chrome_bar(active=""):
   var el=document.getElementById('who');
   function set(n){document.cookie='office_user='+encodeURIComponent(n)
     +';path=/;max-age=31536000';location.reload();}
+  if(m && /^(office|admin|masterbutler|master butler|mb|user)$/i
+        .test(decodeURIComponent(m[1]).trim())){
+    document.cookie='office_user=;path=/;max-age=0'; m=null;
+  }
   if(m){var n=decodeURIComponent(m[1]);
     el.innerHTML='👤 <b>'+n+'</b> <a href="#" style="opacity:.6;color:#cfe0d6">change</a>';
     el.querySelector('a').onclick=function(e){e.preventDefault();
@@ -1276,6 +1280,10 @@ border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
   var el=document.getElementById('who');
   function set(n){document.cookie='office_user='+encodeURIComponent(n)
     +';path=/;max-age=31536000';location.reload();}
+  if(m && /^(office|admin|masterbutler|master butler|mb|user)$/i
+        .test(decodeURIComponent(m[1]).trim())){
+    document.cookie='office_user=;path=/;max-age=0'; m=null;
+  }
   if(m){var n=decodeURIComponent(m[1]);
     el.innerHTML='👤 <b>'+n+'</b> <a href="#" style="opacity:.6;color:#cfe0d6">change</a>';
     el.querySelector('a').onclick=function(e){e.preventDefault();
@@ -6835,9 +6843,31 @@ def login_page(error=False, nexturl="/"):
             "<h1>🎩 Master Butler</h1>"
             "<div class='sub'>Office sign-in</div>"
             f"{err}"
-            "<label>Name (optional)</label>"
-            "<input name='who' placeholder='LaRee, Martha, Jessica…' "
-            "autocomplete='username'>"
+            # WHO ARE YOU = BUTTONS, not typing (Dallon, Jul 12: he
+            # typed 'Office' and every claim became 'office is
+            # working…' — real names only, one tap)
+            "<label>Who are you?</label>"
+            "<input type='hidden' name='who' id='whoval'>"
+            "<div id='whobtns' style='display:flex;flex-wrap:wrap;"
+            "gap:8px;margin-top:6px'>"
+            + "".join(
+                f"<button type='button' data-n='{n}' style='flex:1;"
+                f"min-width:30%;padding:12px 8px;border-radius:10px;"
+                f"border:1px solid #2f4a3c;background:#16281f;"
+                f"color:#cfe0d6;font-weight:800;font-size:14px;"
+                f"cursor:pointer'>{n}</button>"
+                for n in ("LaRee", "Martha", "Jessica", "Dallon", "Tom"))
+            + "</div>"
+            """<script>
+document.getElementById('whobtns').addEventListener('click',function(e){
+  var b = e.target.closest('button[data-n]');
+  if (!b) return;
+  document.getElementById('whoval').value = b.dataset.n;
+  document.querySelectorAll('#whobtns button').forEach(function(x){
+    x.style.background = '#16281f'; x.style.color = '#cfe0d6';});
+  b.style.background = '#c9a227'; b.style.color = '#0b3d2e';
+});
+</script>"""
             "<label>Password</label>"
             "<div class='pw'><input id='pw' name='password' "
             "type='password' autocomplete='current-password' autofocus>"
@@ -7196,6 +7226,10 @@ class Handler(BaseHTTPRequestHandler):
                                  f"mb_auth={_auth_token(pw)}; Path=/; "
                                  "Max-Age=31536000; SameSite=Lax")
                 who = form.get("who", [""])[0].strip()
+                # generic identities can never become the name tag
+                if who.lower() in ("office", "admin", "masterbutler",
+                                   "master butler", "mb", "user"):
+                    who = ""
                 if who:
                     self.send_header(
                         "Set-Cookie",
