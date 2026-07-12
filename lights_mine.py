@@ -44,16 +44,24 @@ query Lights($first: Int!, $after: String) {
 """
 
 
-def sweep(max_invoices=1500):
+def sweep(max_invoices=6000):
+    """Deep enough to cover the last TWO lights seasons (Oct–Jan);
+    throttle-aware — Jobber's point bucket refills, we wait for it."""
+    import time
     jc.DRY_RUN = False
-    hits, scanned, cursor = [], 0, None
+    hits, scanned, cursor, throttles = [], 0, None, 0
     while scanned < max_invoices:
-        d = jc._post(INVOICES_Q, {"first": 100, "after": cursor},
+        d = jc._post(INVOICES_Q, {"first": 50, "after": cursor},
                      "lights sweep")
         if d.get("error"):
+            if "THROTTLED" in str(d) and throttles < 40:
+                throttles += 1
+                time.sleep(15)
+                continue
             print("API error:", str(d)[:200])
             break
         page = d["invoices"]
+        time.sleep(1.5)          # stay under the refill rate
         for inv in page["nodes"]:
             scanned += 1
             for li in inv["lineItems"]["nodes"]:
