@@ -29,13 +29,45 @@ QUERY = """
 query Recent($first: Int!, $after: String) {
   invoices(first: $first, after: $after, sort: {key: CREATED_AT, direction: DESCENDING}) {
     pageInfo { hasNextPage endCursor }
-    nodes { issuedDate
+    nodes { issuedDate invoiceNumber
             client { name }
             properties(first: 1) { nodes { address { street city } } }
             lineItems(first: 25) { nodes { name totalPrice } } }
   }
 }
 """
+
+
+def _discount_factors():
+    """{invoice_number: scale} from the reconciler's discount mining —
+    the office writes discounts in the notes, and the reconciler already
+    read them all (Dallon, Jul 12: floors must be the PRE-discount
+    price). paid $850 with a $150 promo => every line scales ×1.176.
+    service_not_performed gaps are NOT discounts (work didn't happen) —
+    those invoices keep their real line prices."""
+    try:
+        import clouddb
+        if clouddb.available():
+            d = clouddb.get_blob("discount_factors")
+            if d:
+                return d
+    except Exception:
+        pass
+    factors = {}
+    for f in ("discount_reconciliation.json",
+              "discount_reconciliation_recent.json"):
+        p = Path("data") / f
+        if not p.exists():
+            continue
+        for e in json.loads(p.read_text()):
+            paid = e.get("paid_total") or 0
+            disc = sum((d.get("amount") or 0)
+                       for d in (e.get("discounts") or [])
+                       if d.get("category") != "service_not_performed")
+            if paid > 0 and disc > 0:
+                factors[str(e.get("invoice"))] = round(
+                    min((paid + disc) / paid, 2.0), 4)
+    return factors
 
 
 def _slug(street, city):
@@ -63,6 +95,8 @@ def _looks_discounted(line_name):
 def sweep(limit=100000):
     jc.DRY_RUN = False
     by_prop, by_client = {}, {}
+    factors = _discount_factors()
+    undiscounted = 0
     scanned, cursor = 0, None
     while scanned < limit:
         data = None
@@ -90,12 +124,16 @@ def sweep(limit=100000):
             addr = (props[0] if props else {}).get("address") or {}
             slug = _slug(addr.get("street"), addr.get("city"))
             ckey = _name_key((inv.get("client") or {}).get("name"))
+            fac = factors.get(str(inv.get("invoiceNumber")), 1.0)
+            if fac > 1.0:
+                undiscounted += 1
             for li in (inv.get("lineItems") or {}).get("nodes", []):
                 key = _service_key(li.get("name"))
                 price = li.get("totalPrice") or 0
                 if not key or price <= 0 \
                         or _looks_discounted(li.get("name")):
                     continue
+                price = round(price * fac, 2)   # PRE-discount floor
                 if slug:
                     by_prop.setdefault(slug, {}).setdefault(key, []) \
                         .append([date, price])
@@ -113,7 +151,8 @@ def sweep(limit=100000):
     path = Path("data") / "service_history.json"
     path.write_text(json.dumps(out, indent=0))
     print(f"scanned {scanned} invoices → {len(by_prop)} properties, "
-          f"{len(by_client)} clients → {path}")
+          f"{len(by_client)} clients → {path} "
+          f"({undiscounted} discounted invoices scaled to pre-discount)")
     try:
         from cloudpush import push
         push(blobs={"service_history": out})
