@@ -79,3 +79,23 @@ def run():
 if __name__ == "__main__":
     import sys
     sys.exit(0 if run() else 1)
+
+
+def test_discounted_lines_never_become_floors():
+    """Dallon, Jul 12: price matching must ignore discounted lines.
+    Standalone discount lines key to None; hybrids like 'Window
+    Cleaning Discount Package' are caught by the name guard."""
+    from servicehistory import _looks_discounted
+    from store import _service_key
+    assert _looks_discounted("Window Cleaning Discount Package")
+    assert _looks_discounted("Gutter Special - 15% off")
+    assert _looks_discounted("Moss Treatment PROMO")
+    assert not _looks_discounted("Gutter Cleaning - Composition")
+    assert not _looks_discounted("Window Cleaning Exterior Only")
+    for nm in ("Friends and Family Discount", "Senior Discount",
+               "15% Off August Special", "Discount"):
+        assert _service_key(nm) is None, nm
+    print("  ✓ discounted lines never become price floors")
+
+
+test_discounted_lines_never_become_floors()

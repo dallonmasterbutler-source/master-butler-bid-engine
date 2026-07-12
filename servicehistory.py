@@ -47,6 +47,19 @@ def _name_key(name):
     return re.sub(r"[^a-z ]", "", (name or "").lower()).strip()
 
 
+# a DISCOUNTED line must never become a price floor (Dallon, Jul 12:
+# 'when price matching past invoices make sure we aren't taking into
+# account the discounts they had'). Standalone discount lines already
+# key to None; this catches hybrids like 'Window Cleaning Discount
+# Package' that would otherwise anchor the customer at the deal price.
+_DISC_RX = re.compile(r"discount|coupon|%\s*off|special|promo|deal\b",
+                      re.I)
+
+
+def _looks_discounted(line_name):
+    return bool(_DISC_RX.search(line_name or ""))
+
+
 def sweep(limit=100000):
     jc.DRY_RUN = False
     by_prop, by_client = {}, {}
@@ -80,7 +93,8 @@ def sweep(limit=100000):
             for li in (inv.get("lineItems") or {}).get("nodes", []):
                 key = _service_key(li.get("name"))
                 price = li.get("totalPrice") or 0
-                if not key or price <= 0:
+                if not key or price <= 0 \
+                        or _looks_discounted(li.get("name")):
                     continue
                 if slug:
                     by_prop.setdefault(slug, {}).setdefault(key, []) \
