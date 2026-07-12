@@ -5812,6 +5812,39 @@ def _blob_save(key, val):
             pass
 
 
+def _discount_patterns_html():
+    """The discount PLAYBOOK, mined from every discount note the
+    office ever wrote (9,421 invoices — Dallon, Jul 12: 'consolidate
+    those discounts into patterns'). Read-only truth beside the rules."""
+    try:
+        dp = _blob_rw("discount_patterns", {})
+        pats = dp.get("patterns") or []
+    except Exception:
+        pats = []
+    if not pats:
+        return ""
+    rows = "".join(
+        f"<tr><td><b>{esc(p['pattern'])}</b></td>"
+        f"<td class='num'>{p['n']:,}</td>"
+        f"<td class='num'>{p['median_pct']:.0f}%</td>"
+        f"<td class='num'>${p['median_amt']:,}</td>"
+        f"<td class='num'>${p['total']:,}</td></tr>"
+        for p in pats)
+    return (f"<details style='margin-top:14px'><summary style='cursor:"
+            f"pointer;font-weight:800;color:var(--mut)'>📊 What we've "
+            f"ACTUALLY given — every discount ever written, consolidated "
+            f"(${dp.get('total_given', 0):,} all-time)</summary>"
+            f"<table style='margin-top:8px'><tr><th>Pattern</th>"
+            f"<th class='num'>Times</th><th class='num'>Typical %</th>"
+            f"<th class='num'>Typical $</th><th class='num'>All-time</th>"
+            f"</tr>{rows}</table>"
+            f"<div class='subtext' style='margin-top:6px'>Mined "
+            f"{esc(dp.get('mined', ''))} from {dp.get('invoices', 0):,} "
+            f"invoices' discount notes. Price floors already ignore all "
+            f"of these — customers are matched at PRE-discount prices."
+            f"</div></details>")
+
+
 def settings_page(msg="", user=None):
     """The office's own control room (Dallon: 'they work on this daily,
     I don't') — quick responses and pricing knobs, no code, no Dallon."""
@@ -6007,7 +6040,7 @@ def settings_page(msg="", user=None):
  responders — 10%&#10;Bi-annual service contract — 15%'>{esc(
       dp.get("extra", ""))}</textarea>
   <button style='margin-top:8px'>Save discounts</button>
- </form></div>"""
+ </form>{_discount_patterns_html()}</div>"""
 
     changes = [r for r in load_reviews()
                if r.get("action") == "settings_change"][-8:][::-1]
