@@ -7104,10 +7104,18 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(property_page(m.group(1)))
         m = re.match(r"^/bid/([\w-]+)$", self.path)
         if m:
-            cm = re.search(r"office_user=([^;]+)",
-                           self.headers.get("Cookie") or "")
-            who = urllib.parse.unquote(cm.group(1)) if cm else None
-            return self._send(bid_page(m.group(1), user=who))
+            # CLASSIC PAGE RETIRED (running list, Jul 12): every old
+            # /bid link lands on the ONE customer card in the queue
+            _bs = m.group(1)
+            _bb = next((b for b in load_bids() if b["stamp"] == _bs),
+                       None)
+            _be = _bid_email(_bb) if _bb else None
+            _key = _be or f"stamp:{_bs}"
+            self.send_response(303)
+            self.send_header("Location",
+                             f"/?c={urllib.parse.quote(_key)}")
+            self.end_headers()
+            return
         m = re.match(r"^/photo/([\w-]+)/(\d+)$", self.path)
         if m:
             photos = bid_photos(m.group(1))
