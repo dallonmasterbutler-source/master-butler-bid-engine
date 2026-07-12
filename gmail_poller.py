@@ -146,6 +146,23 @@ def poll_once():
         pass
     _keep_cloud_warm()          # heartbeat on EVERY poll, however invoked
 
+    # 2-MINUTE FRESHNESS (Dallon, Jul 12: "hourly seems almost too
+    # long") — both are one cheap call each, every ears-cycle:
+    #  · Gmail archive mirror: office archives a thread → row clears
+    #  · Jobber delta: a quote was created/sent/approved/converted →
+    #    its record's status refreshes
+    # The heavy hourly reconcile below stays as the backstop.
+    try:
+        import gmail_mirror
+        gmail_mirror.sync(verbose=False)
+    except Exception as _e:
+        print(f"  (gmail mirror skipped: {_e})")
+    try:
+        import jobber_delta
+        jobber_delta.sync()
+    except Exception as _e:
+        print(f"  (jobber delta skipped: {_e})")
+
     # QUOTE SYNC (Dallon's rule: dashboard mirrors Jobber, read-only,
     # no quote creation) — refresh which office quotes match our
     # records. Throttled to hourly: the 10-minute ears loop shouldn't
@@ -190,13 +207,6 @@ def poll_once():
                     complete_sweep.run(recent_hours=48)
             except Exception:
                 pass
-            # GMAIL ARCHIVE MIRROR (Dallon, Jul 12: the office's empty
-            # Gmail = caught up; the dashboard follows their archiving)
-            try:
-                import gmail_mirror
-                gmail_mirror.sync()
-            except Exception as _e:
-                print(f"  (gmail mirror skipped: {_e})")
             # JOBBER PULSE (Dallon, Jul 10 — read-both no write-back):
             # today's appointments + overdue/active/remaining, hourly,
             # for the Today strip + the Handled-in-Jobber lane
