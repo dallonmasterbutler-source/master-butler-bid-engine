@@ -1002,7 +1002,9 @@ body{background:#05140f!important}
  background:#05140f;border-color:rgba(201,162,39,.2)}
 .mock.dkroom .chrome{background:#082d22;border-bottom:1px solid
  rgba(201,162,39,.18)}
-.mock.dkroom .chrome .navr a{display:none}
+.mock.dkroom .chrome .navr > a{display:none}
+.mock.dkroom .chrome .whobox a{display:inline;color:#123527;
+ font-weight:800;text-decoration:underline}
 .mock.dkroom .chrome .whobox{background:#c9a227;color:#123527;
  border-radius:99px;padding:4px 12px;font-weight:800}
 .dkshell{display:flex;min-height:70vh}
@@ -1151,9 +1153,11 @@ _GLOBAL_RAIL_CSS = """<style>
 .gr a:hover{border-color:rgba(201,162,39,.35)}
 .gr .sp{flex:1}
 body{padding-left:102px!important}
-.chrome .navr a{display:none}
+.chrome .navr > a{display:none}
 .chrome .whobox{background:#c9a227;color:#123527;border-radius:99px;
  padding:4px 12px;font-weight:800}
+.chrome .whobox a{display:inline;color:#123527;font-weight:800;
+ text-decoration:underline}
 @media(max-width:700px){.gr{width:56px}.gr a{width:42px;height:42px}
  .gr a svg{width:24px;height:24px}body{padding-left:66px!important}}
 </style>"""
@@ -1217,7 +1221,8 @@ def _chrome_bar(active=""):
     el.innerHTML='Who’s working? ';
     ['LaRee','Jessica','Martha','Dallon','Tom'].forEach(function(n){
       var a=document.createElement('a');a.href='#';a.textContent=n;
-      a.style.cssText='margin:0 5px;color:#c9a227;font-weight:700';
+      a.style.cssText='margin:0 5px;color:#123527;font-weight:800;'
+        +'text-decoration:underline';
       a.onclick=function(e){e.preventDefault();set(n);};
       el.appendChild(a);});
   }
@@ -1292,7 +1297,8 @@ border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
     el.innerHTML='Who’s working? ';
     ['LaRee','Jessica','Martha','Dallon','Tom'].forEach(function(n){
       var a=document.createElement('a');a.href='#';a.textContent=n;
-      a.style.cssText='margin:0 5px;color:#c9a227;font-weight:700';
+      a.style.cssText='margin:0 5px;color:#123527;font-weight:800;'
+        +'text-decoration:underline';
       a.onclick=function(e){e.preventDefault();set(n);};
       el.appendChild(a);});
   }
