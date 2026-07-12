@@ -5568,6 +5568,47 @@ def guide_page():
         "<b>nothing sends to a customer without a human</b>. The rest is "
         "detail — tap any question.</div>"
         + folds +
+        # DISCOUNT LABELING TRAINING (Dallon, Jul 12: '$72,867 went out
+        # as just Discount — a pattern note for the office so we can
+        # find that lost money')
+        """
+<div style='margin-top:16px;background:var(--card);border:1px solid
+ rgba(201,162,39,.3);border-left:4px solid #c9a227;border-radius:12px;
+ padding:16px 18px'>
+ <b style='font-size:16px'>🏷 Training: label every discount — one word
+ of WHY</b>
+ <div style='margin:8px 0 10px;font-size:14px'>We went back through
+ every discount ever written — <b>$665,013 all-time</b>. Most notes
+ tell us why, and those turn into patterns we can steer by. But
+ <b>$72,867 went out as just the word "Discount"</b> — money nobody can
+ learn from. The fix costs one word.</div>
+ <div style='font-size:14px;font-weight:800;margin-bottom:6px'>When you
+ give a discount, start the note with the reason — pick one:</div>
+ <table style='font-size:13.5px'>
+  <tr><th>Write this…</th><th>…when it's</th></tr>
+  <tr><td><b>October</b> / <b>Early install</b></td><td>the lights
+   early-install rate</td></tr>
+  <tr><td><b>Feb/Mar bundle</b></td><td>the 15% two-service
+   Feb–March deal</td></tr>
+  <tr><td><b>Aug/Sept</b></td><td>the slow-season 15%</td></tr>
+  <tr><td><b>Bundle</b></td><td>multiple services, any season</td></tr>
+  <tr><td><b>Neighbor</b></td><td>booked with a neighbor / same
+   trip</td></tr>
+  <tr><td><b>Honor</b></td><td>honoring an old or quoted
+   price</td></tr>
+  <tr><td><b>F&amp;F</b></td><td>friends &amp; family</td></tr>
+  <tr><td><b>Senior</b> / <b>Military</b></td><td>exactly what it
+   says</td></tr>
+  <tr><td><b>Referral</b></td><td>thank-you for sending us
+   someone — name them!</td></tr>
+  <tr><td><b>Goodwill</b></td><td>making something right</td></tr>
+ </table>
+ <div class='subtext' style='margin-top:8px'>Example: “<b>Neighbor</b>
+ — booked with the Hansens next door, 10%.” That's it. The system
+ reads these notes, keeps the discount playbook current on Settings,
+ and makes sure discounted visits never lower anyone's future price.
+ </div>
+</div>"""
         # the top-bar 💡 Idea button lands here (Jessica, Jul 9)
         "<div id='idea' style='margin-top:16px;background:var(--soft);"
         "border:1px solid var(--line);border-radius:12px;padding:14px 16px'>"
@@ -5841,7 +5882,10 @@ def _discount_patterns_html():
             f"<div class='subtext' style='margin-top:6px'>Mined "
             f"{esc(dp.get('mined', ''))} from {dp.get('invoices', 0):,} "
             f"invoices' discount notes. Price floors already ignore all "
-            f"of these — customers are matched at PRE-discount prices."
+            f"of these — customers are matched at PRE-discount prices. "
+            f"'Unlabeled' is the one to shrink: the labeling guide is on "
+            f"the <a href='/guide'>Guide tab</a>. (F&amp;F runs deliberate"
+            f" — slow-season filler, not lost money — Dallon, Jul 12.)"
             f"</div></details>")
 
 
