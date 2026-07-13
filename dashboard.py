@@ -971,6 +971,24 @@ def _rail_counts():
 
 
 
+def _roof_label(raw):
+    """County assessor roof codes → plain English (Dallon, Jul 13:
+    'Comp Sh To 235#' means composition shingle, 235-lb standard
+    asphalt — show it readable). Clean categories pass through."""
+    s = (str(raw) or "").lower()
+    if s in ("standard", "composition", "comp"):
+        return "Composition (standard)"
+    if "shake" in s or "wood" in s or "cedar" in s:
+        return "Cedar shake"
+    if "tile" in s:
+        return "Tile"
+    if "metal" in s or "standing seam" in s:
+        return "Metal"
+    if s.startswith("comp") or "shingle" in s or "asphalt" in s or "#" in s:
+        return "Composition (standard)"     # 'comp sh to 235#' etc.
+    return str(raw).title()
+
+
 def _svg_icon(name):
     d = {"queue": '<path d="M3 5h18v14H3z"/><path d="M3 13h5l2 3h4l2-3h5"/>',
          "people": '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 '
@@ -3834,15 +3852,24 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
         if _pih.get("stories"):
             _rows += _sprow("height", "Stories",
                             esc(str(_pih["stories"]).replace("_", " ")))
-        if _pih.get("pitch"):
-            _rows += _sprow("pitch", "Pitch of roof",
-                            {"mild": "Mild", "moderate": "Moderate",
-                             "steep": "STEEP",
-                             "tom_only": "TOM ONLY"}.get(
-                                _pih["pitch"], esc(str(_pih["pitch"]))))
+        # PITCH always shows (Dallon, Jul 13: 'it never measured the
+        # pitch' — the row was just hidden when absent). The system
+        # can't read pitch reliably from the sky (flag-don't-guess), so
+        # a missing pitch means it's on the SAFE default until someone
+        # confirms — say so, don't leave a blank.
+        _pv = {"mild": "Mild", "moderate": "Moderate", "steep": "STEEP",
+               "tom_only": "TOM ONLY"}.get(_pih.get("pitch"))
+        if _pv:
+            _rows += _sprow("pitch", "Pitch of roof", _pv)
+        else:
+            _rows += (f"<div class='sprow'><span class='sl'>"
+                      f"{_svg_icon('pitch')}Pitch of roof</span>"
+                      f"<span class='sv' style='color:var(--mut);"
+                      f"font-size:12.5px'>assumed moderate<small>"
+                      f"SET BELOW</small></span></div>")
         if _pih.get("roof_material"):
             _rows += _sprow("home", "Roof type",
-                            esc(str(_pih["roof_material"]).title()))
+                            esc(_roof_label(_pih["roof_material"])))
         _deb = _pih.get("debris_read") or _pih.get("debris")
         if _deb:
             _rows += _sprow("leaf", "Debris level",

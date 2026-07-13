@@ -33,6 +33,25 @@ def _slug(a):
     return re.sub(r"[^a-z0-9]+", "-", (a or "").lower()).strip("-")[:60]
 
 
+def clean_roof(raw):
+    """County assessor roof code → the engine's clean category
+    (standard/shake/metal_full/tile). Dallon, Jul 13: raw strings like
+    'Comp sh to 235#' were stored verbatim, so the pricing engine
+    didn't recognize them and warned 'double-check this home' on every
+    ordinary composition roof. 235#/comp/asphalt/shingle = standard."""
+    s = (str(raw) or "").lower()
+    if s in ("standard", "shake", "metal_full", "metal_mixed", "tile"):
+        return s
+    if "shake" in s or "cedar" in s or ("wood" in s and "roof" not in s):
+        return "shake"
+    if "metal" in s or "standing seam" in s:
+        return "metal_full"
+    if "tile" in s:
+        return "tile"
+    # comp / composition / asphalt / shingle / weight codes (#) = standard
+    return "standard"
+
+
 def _email(r):
     m = re.search(r"<([^>]+)>", r.get("from") or "")
     return m.group(1).lower() if m else None
@@ -181,7 +200,8 @@ def _fill(stamp, rec, e, kin_addr, best_name, photo_refs, stats,
                 s = facts["stories"]
                 pi["stories"] = (str(int(s)) if s == int(s) else str(s))
             if facts.get("roof_material") and not pi.get("roof_material"):
-                pi["roof_material"] = facts["roof_material"]
+                pi["roof_material"] = clean_roof(facts["roof_material"])
+                pi["roof_material_raw"] = facts["roof_material"]
             for k_ in ("basement_sqft", "garage_sqft"):
                 if facts.get(k_):
                     pi[k_] = facts[k_]
