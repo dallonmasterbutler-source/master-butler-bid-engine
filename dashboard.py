@@ -6669,6 +6669,77 @@ def scoreboard_page():
     # ── 📚 WHAT THE SYSTEM IS LEARNING (Dallon, Jul 12: 'seeing the
     # reports… where things land, money we are losing') — built hourly
     # by learning_report.py ──
+    # ── extra glances mined from what we already log (Dallon, Jul 12:
+    # 'what other reports can you create — we've created tons') ──
+    # 1) engine accuracy: median |gap| vs the office
+    _gaps = sorted(abs(r["gap_pct"]) for r in matched
+                   if r.get("gap_pct") is not None)
+    med_gap = _gaps[len(_gaps) // 2] if _gaps else None
+    # 2) the office's week, from the review log
+    _wk = ""
+    try:
+        from datetime import timedelta as _td7
+        _cut = (datetime.now() - _td7(days=7)).isoformat()
+        _recent = [r for r in load_reviews() if (r.get("at") or "") >= _cut]
+        _bywho = {}
+        for r in _recent:
+            b = (r.get("by") or "").strip()
+            if b and not b.startswith("auto"):
+                _bywho[b] = _bywho.get(b, 0) + 1
+        _acts = {}
+        _nice = {"approved": "approvals", "approve": "approvals",
+                 "mark_done": "cleared", "lane_move": "filed",
+                 "learned_spam": "spam taught", "fact_edit": "facts fixed",
+                 "price_edit": "price edits", "flag_review": "flags",
+                 "settings_change": "settings"}
+        for r in _recent:
+            a = _nice.get(r.get("action"))
+            if a:
+                _acts[a] = _acts.get(a, 0) + 1
+        _who = " · ".join(f"<b>{esc(k)}</b> {v}" for k, v in
+                          sorted(_bywho.items(), key=lambda kv: -kv[1])[:5])
+        _what = " · ".join(f"{v} {k}" for k, v in
+                           sorted(_acts.items(), key=lambda kv: -kv[1])[:5])
+        if _who or _what:
+            _wk = (f"<div style='margin-top:12px;padding:10px 14px;"
+                   f"background:rgba(17,41,33,.5);border:1px solid "
+                   f"rgba(201,162,39,.14);border-radius:12px;"
+                   f"font-size:12.5px'><span style='font-size:10px;"
+                   f"font-weight:800;letter-spacing:1.3px;"
+                   f"text-transform:uppercase;color:var(--mut)'>This "
+                   f"week in the office</span><br>"
+                   + (f"{_who}" if _who else "")
+                   + (f"<span class='subtext'> — {_what}</span>"
+                      if _what else "") + "</div>")
+    except Exception:
+        pass
+    # 3) request volume, last 14 days, as mini bars
+    _vol = ""
+    try:
+        from datetime import timedelta as _tdv
+        _days = [(datetime.now() - _tdv(days=i)).strftime("%Y%m%d")
+                 for i in range(13, -1, -1)]
+        _cnt = {d: 0 for d in _days}
+        for b in load_bids():
+            d = b["stamp"][:8]
+            if d in _cnt and b.get("kind") in ("new_request",
+                                               "phone_lead"):
+                _cnt[d] += 1
+        _mx = max(_cnt.values()) or 1
+        _bars = "".join(
+            f"<div title='{d[4:6]}/{d[6:8]}: {n}' style='width:9px;"
+            f"height:{max(3, n / _mx * 30):.0f}px;background:"
+            f"{'#c9a227' if i >= 12 else 'rgba(201,162,39,.45)'};"
+            f"border-radius:2px'></div>"
+            for i, (d, n) in enumerate(_cnt.items()))
+        _vol = (f"<div style='flex:none;text-align:center'>"
+                f"<div style='display:flex;gap:3px;align-items:flex-end;"
+                f"height:34px'>{_bars}</div>"
+                f"<div class='subtext' style='font-size:10px'>new "
+                f"requests · 14 days</div></div>")
+    except Exception:
+        pass
+
     lr = (clouddb.get_blob("learning_report") or {}) \
         if clouddb.available() else {}
     learn_card = ""
@@ -6779,10 +6850,14 @@ def scoreboard_page():
  {esc((lr.get('at') or '')[:16].replace('T', ' '))} · hourly</span></div>
  <div style='display:flex;gap:22px;align-items:center;flex-wrap:wrap'>
   {ring}
-  <div style='flex:1;min-width:260px'>{funnel}</div>
+  <div style='flex:1;min-width:260px'>{funnel}
+   {f"<div class='subtext' style='margin-top:6px'>🎯 the engine lands a median <b style='color:var(--green2)'>{med_gap:.0f}%</b> from the office's own price</div>" if med_gap is not None else ""}
+  </div>
+  {_vol}
   {f"<div style='flex:none'>{spark}</div>" if spark else ""}
  </div>
  <div class='tiles five' style='margin-top:14px'>{taught}</div>
+ {_wk}
  {props}
  {f"<details style='margin-top:10px'><summary style='cursor:pointer;font-weight:700;color:var(--mut);font-size:13px'>recent hand-filings</summary>{moves}</details>" if moves else ""}
 </div>"""
@@ -6793,61 +6868,64 @@ def scoreboard_page():
     else:
         ap = BASE / "data" / "auto_reviews.json"
         auto = json.loads(ap.read_text()) if ap.exists() else {}
-    # CARD ROWS, not table walls (Dallon, Jul 12: 'blocks of text —
-    # busy to read'). Same shape as the Win-back call cards.
-    rows = ""
-    for r in matched:
+    # SLIM one-liners (Dallon, Jul 12: 'doesn't need to be that big') —
+    # name · $ours → $office · gap pill · Jobber link. First 12 visible,
+    # the rest fold.
+    def _crow(r):
         gap = r.get("gap_pct")
         ar = auto.get(r.get("stamp"))
         tip = f" title=\"{esc(ar['summary'])}\"" if ar else ""
         if gap is None:
-            gap_html = "<span class='klabel'>—</span>"
+            gap_html = "<span class='subtext'>—</span>"
         else:
             ok = abs(gap) <= 10
             gap_html = (
-                f"<span{tip} style='display:inline-block;border-radius:"
-                f"999px;padding:4px 12px;font-size:12px;font-weight:800;"
+                f"<span{tip} style='display:inline-block;min-width:52px;"
+                f"text-align:center;border-radius:999px;padding:2px 9px;"
+                f"font-size:11.5px;font-weight:800;"
                 f"background:{'#173525' if ok else '#3a1713'};"
                 f"color:{'#7fd6a2' if ok else '#f1998e'}'>"
-                f"{gap:+.0f}%{' 📖' if ar else ''}</span>")
+                f"{gap:+.0f}%{'📖' if ar else ''}</span>")
         js = (r.get("office_status") or "").lower()
-        jw, jc_ = {"approved": ("WON ✓", "var(--green2)"),
-                   "converted": ("WON ✓", "var(--green2)"),
-                   "awaiting_response": ("quote sent", "var(--mut)"),
-                   "draft": ("approved", "var(--goldink)"),
-                   "archived": ("archived", "var(--mut)")}.get(
+        jw, jc_ = {"approved": ("WON", "var(--green2)"),
+                   "converted": ("WON", "var(--green2)"),
+                   "awaiting_response": ("sent", "var(--mut)"),
+                   "draft": ("draft", "var(--goldink)"),
+                   "archived": ("arch", "var(--mut)")}.get(
                        js, ("—", "var(--mut)"))
-        qbtn = (f"<a class='pill dim' style='text-decoration:none' "
+        qbtn = (f"<a style='color:var(--green2);font-size:11.5px;"
+                f"font-weight:700;text-decoration:none;flex:none' "
                 f"href='{esc(r['jobber_url'])}' target='_blank' "
-                f"rel='noopener'>#{r['office_quote']} ↗</a>"
+                f"rel='noopener'>#{r['office_quote']}↗</a>"
                 if r.get("jobber_url") else "")
-        svcs = " · ".join(svc_label(s)
-                          for s in (r.get("services") or [])[:3])
-        sp = (f" · by {esc(r['salesperson'])}"
-              if r.get("salesperson") else "")
-        _bidlink = f"/bid/{esc(r.get('stamp') or '')}"
-        rows += (
-            f"<div class='wbrow'><div class='cols' style='grid-template-"
-            f"columns:2fr 1fr 1fr 1fr auto'>"
-            f"<div style='min-width:0'><div style='font-weight:800;"
-            f"white-space:nowrap;overflow:hidden;"
-            f"text-overflow:ellipsis'><a href='{_bidlink}' "
-            f"style='color:var(--ink)'>{cname(r)}</a></div>"
-            f"<div style='font-size:11.5px;color:var(--mut)'>"
-            f"{esc(svcs)}<span style='color:{jc_};font-weight:800'>"
-            f" · {jw}</span>{sp}</div></div>"
-            f"<div><div class='klabel'>Our draft</div>"
-            f"<div class='kval'>${r['system_total']:,.0f}</div></div>"
-            f"<div><div class='klabel'>Office</div>"
-            f"<div class='kval'>${r['office_total']:,.0f}</div></div>"
-            f"<div><div class='klabel'>Gap</div>{gap_html}</div>"
-            f"{qbtn}</div></div>")
+        _lnk = f"/bid/{esc(r.get('stamp') or '')}"
+        return (
+            f"<div style='display:flex;align-items:center;gap:10px;"
+            f"padding:7px 10px;border-bottom:1px dashed "
+            f"rgba(201,162,39,.1)'>"
+            f"<a href='{_lnk}' style='color:var(--ink);font-weight:700;"
+            f"font-size:13.5px;white-space:nowrap;overflow:hidden;"
+            f"text-overflow:ellipsis;flex:1;min-width:0'>{cname(r)}</a>"
+            f"<span style='font-size:11px;font-weight:800;color:{jc_};"
+            f"flex:none'>{jw}</span>"
+            f"<span class='tab' style='font-size:12.5px;color:var(--mut);"
+            f"flex:none'>${r['system_total']:,.0f} → "
+            f"<b style='color:var(--ink)'>${r['office_total']:,.0f}</b>"
+            f"</span>{gap_html}{qbtn}</div>")
+
+    head_rows = "".join(_crow(r) for r in matched[:12])
+    more_rows = "".join(_crow(r) for r in matched[12:])
     matched_card = (
-        f"<div style='margin-top:16px'><div class='schead'>"
+        f"<div class='card' style='margin-top:16px;padding:14px 18px'>"
+        f"<div class='schead' style='margin-bottom:6px'>"
         f"{_svg_icon('chart')}<h2>Compared with the office</h2>"
-        f"<span class='subtext' style='margin-left:auto'>green = within "
-        f"10% · minus = we were under · 📖 = hover for the why</span>"
-        f"</div>{rows}</div>" if rows else "")
+        f"<span class='subtext' style='margin-left:auto'>ours → office · "
+        f"green = within 10% · 📖 hover for why</span></div>{head_rows}"
+        + (f"<details><summary style='cursor:pointer;color:var(--mut);"
+           f"font-size:12.5px;font-weight:700;padding:8px 10px'>all "
+           f"{len(matched)} compared…</summary>{more_rows}</details>"
+           if more_rows else "")
+        + "</div>" if head_rows else "")
 
     # WAITING = a cloud of name+price chips, not rows (Dallon, Jul 12:
     # 'still looks blocky') — services on hover, click opens the card
