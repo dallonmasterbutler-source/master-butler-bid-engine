@@ -2976,6 +2976,8 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
     # human lane placements (Move ▾) — loaded once; rule 1 (a newer
     # customer message) releases them at render time
     manual_lanes = _blob_rw("manual_lanes", {})
+    # visible handoffs (🚶 stepped away) — shown until re-claimed or 24h
+    handoffs = _blob_rw("handoffs", {})
 
     for b in bids:
         if b.get("merged_into") or classify_row(b)[0] == "aside":
@@ -3236,15 +3238,29 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             lane = "drafts"          # the engine asking for a yes
         else:
             lane = "inbox"           # when in doubt, sort UP
-        # ACTIVE CLAIM ALWAYS SHOWS (Dallon, Jul 13: '"Dallon is working
-        # this" got buried') — the lane words above were clobbering it.
-        # Someone has this open right now: warn the whole office so
-        # nobody double-works, in whatever lane the item lives.
-        if nb:
-            _cl = claims.get(nb["stamp"])
-            if _cl and _cl.get("mins", 99) <= CLAIM_FRESH_MIN:
-                word = f"🔵 {_cl['by']} is working this"
-                wstyle = "color:#79aede;font-weight:800"
+        # ACTIVE CLAIM / HANDOFF ALWAYS SHOW (Dallon, Jul 13) — the lane
+        # words above were clobbering both. Claim (someone on it now)
+        # wins over handoff (someone left it for the next person).
+        _cl = claims.get(nb["stamp"]) if nb else None
+        if _cl and _cl.get("mins", 99) <= CLAIM_FRESH_MIN:
+            word = f"🔵 {_cl['by']} is working this"
+            wstyle = "color:#79aede;font-weight:800"
+        else:
+            _ho = handoffs.get(key)
+            if _ho:
+                try:
+                    from datetime import (datetime as _dh,
+                                          timezone as _tzh,
+                                          timedelta as _tdh)
+                    fresh = _dh.now(_tzh.utc) < _dh.fromisoformat(
+                        _ho["at"]) + _tdh(hours=24)
+                except Exception:
+                    fresh = False
+                if fresh and (unread or new_msg):
+                    word = f"🚶 {_ho.get('by', 'someone')} stepped away " \
+                           "— pick up"
+                    wstyle = "color:var(--goldink);font-weight:800"
+                    lane = "inbox"          # warm pick-up belongs up top
         roster.append({"key": key, "c": c, "nb": nb, "unread": unread,
                        "grp": grp, "at": last_at, "word": word,
                        "wstyle": wstyle, "age": age_h or 0,
@@ -3266,6 +3282,9 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # ✓ Done button, or automatically with any real decision.
         if cur["nb"] and not cur["nb"].get("reviewed") and user:
             claim_bid(cur["nb"]["stamp"], user)
+            # opening it IS the pick-up — clear any 'stepped away' flag
+            if handoffs.pop(cur["key"], None) is not None:
+                _blob_save("handoffs", handoffs)
 
     # ── left list ──
     def row(r):
@@ -8638,10 +8657,22 @@ class Handler(BaseHTTPRequestHandler):
             d = _msg_read()
             d.pop(get("addr"), None)
             _msg_read_save(d)
+            cm = re.search(r"office_user=([^;]+)",
+                           self.headers.get("Cookie") or "")
+            _who = urllib.parse.unquote(cm.group(1)) if cm else "office"
             if get("stamp"):
                 cl = _claims()
                 if cl.pop(get("stamp"), None) is not None:
                     _save_claims(cl)
+            # VISIBLE HANDOFF (Dallon, Jul 13: bring back the 'stepped
+            # away' marker alongside 'working this') — the row shows who
+            # left it so the next person knows it's a warm pick-up
+            from datetime import timezone as _tzs
+            ho = _blob_rw("handoffs", {})
+            ho[get("addr")] = {"by": _who,
+                               "at": datetime.now(_tzs.utc)
+                               .isoformat(timespec="seconds")}
+            _blob_save("handoffs", ho)
             self.send_response(303)
             self.send_header("Location", "/")
             self.end_headers()
