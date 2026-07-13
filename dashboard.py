@@ -3576,7 +3576,7 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                        "wstyle": wstyle, "age": age_h or 0,
                        "new_msg": new_msg, "oq": oq, "qno": qno,
                        "won": won, "urgent": bool(urgent),
-                       "lane": lane})
+                       "lane": lane, "act": _msg_latest})
     # GMAIL MIRROR (Jessica, Jul 9: office works Gmail + dashboard side
     # by side for a while) — inside each section the order is pure
     # newest-activity-first, exactly like the Gmail list; bold marks
@@ -3626,6 +3626,24 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         age = (f"{r['age']*60:.0f}m" if r["age"] < 1 else
                f"{r['age']:.0f}h" if r["age"] < 48 else
                f"{r['age']/24:.0f}d")
+        # ACTIVE vs QUIET (Dallon, Jul 13): Jobber's 'awaiting'/'won' is
+        # blunt — cross it with the real conversation. A quote out or won
+        # WITH recent back-and-forth is being worked (leave it); one gone
+        # silent needs a nudge. Shown only where it matters.
+        actchip = ""
+        if r["lane"] in ("waiting", "nudge", "won") and r.get("act"):
+            from datetime import datetime as _ad, timezone as _az
+            try:
+                _actd = ((_ad.now(_az.utc)
+                          - _ad.fromisoformat(r["act"])).total_seconds()
+                         / 86400)
+                actchip = (
+                    "<span style='color:#1e8449;font-weight:700;"
+                    "font-size:11px'>🟢 active</span> " if _actd <= 3
+                    else f"<span style='color:var(--mut);font-size:11px'>"
+                         f"🔕 quiet {_actd:.0f}d</span> ")
+            except (ValueError, TypeError):
+                pass
         cls = ("irow sel" if active else
                "irow unread" if r["unread"] else
                "irow" if r["grp"] == 0 else "irow readq")
@@ -3652,7 +3670,8 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             f"<div class='nm'>{dot}"
             f"{esc(c['name'] or c['email'] or '(no name)')[:30]}{price}</div>"
             f"<div class='pv'>{esc(pv)}</div>"
-            f"<div class='meta'><span class='word' style='{r['wstyle']}'>"
+            f"<div class='meta'>{actchip}"
+            f"<span class='word' style='{r['wstyle']}'>"
             f"{esc(r['word'])}</span>"
             f"<span class='iage{' alarm' if alarm else ''}'>{age}</span>"
             f"</div></a>{donebtn}</div>")
