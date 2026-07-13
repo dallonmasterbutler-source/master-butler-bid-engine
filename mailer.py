@@ -204,6 +204,27 @@ def drain_outbox():
         return 0
 
 
+DEFAULT_SIGNATURE = ("— {name}\n"
+                     "Master Butler, inc\n"
+                     "customercare@masterbutlerinc.com")
+
+
+def _signature(by):
+    """The block appended to every office reply. Editable in Settings
+    (Dallon, Jul 13); {name} fills with whoever's signed in. Falls back
+    to the default so a blank never ships."""
+    tmpl = DEFAULT_SIGNATURE
+    try:
+        import clouddb
+        if clouddb.available():
+            saved = (clouddb.get_blob("email_signature") or "").strip()
+            if saved:
+                tmpl = saved
+    except Exception:
+        pass
+    return tmpl.replace("{name}", by or "").strip()
+
+
 def send_reply(to_addr, subject, body, by):
     """OFFICE-DRIVEN customer reply from the dashboard Messages page.
     This is a compose tool for a HUMAN — it requires a named office
@@ -221,8 +242,7 @@ def send_reply(to_addr, subject, body, by):
     msg["From"] = f"Master Butler <{addr}>"
     msg["To"] = to_addr
     msg["Subject"] = subject
-    msg.set_content(body + f"\n\n— {by}\nMaster Butler, inc\n"
-                           "customercare@masterbutlerinc.com")
+    msg.set_content(body + "\n\n" + _signature(by))
     ok, why = _api_send(msg)
     if not ok:
         ok, why = _smtp_send(msg, addr, pw)

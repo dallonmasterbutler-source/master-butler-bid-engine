@@ -6352,6 +6352,34 @@ def settings_page(msg="", user=None):
   <button style='margin-top:8px'>Save discounts</button>
  </form>{_discount_patterns_html()}</div>"""
 
+    # ---- email signature (Dallon, Jul 13: 'making sure the signature
+    # is right — might be worth adding the option to change it') ----
+    import mailer as _ml
+    sig = _blob_rw("email_signature", "") or _ml.DEFAULT_SIGNATURE
+    sig_preview = sig.replace("{name}", user or "LaRee")
+    sig_card = f"""
+<div class='card'>
+ <div class='schead'>{_svg_icon('chat')}<h2>Email signature</h2></div>
+ <div class='subtext' style='margin-bottom:8px'>The block that ends
+ every reply the office sends from the dashboard.
+ <b>{{name}}</b> fills in automatically with whoever's signed in — so
+ the same signature works for LaRee, Martha, and Jessica.</div>
+ <form method='POST' action='/signature_save'>
+  <textarea name='signature' rows='4' style='font-family:ui-monospace,
+   Menlo,monospace;font-size:13px'>{esc(sig)}</textarea>
+  <div style='margin-top:10px;background:rgba(17,41,33,.6);
+   border:1px solid rgba(201,162,39,.16);border-radius:10px;
+   padding:12px 14px'>
+   <div style='font-size:10px;font-weight:800;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--mut);margin-bottom:6px'>
+    Preview (as {esc(user or "LaRee")})</div>
+   <div style='white-space:pre-wrap;font-size:13.5px;color:var(--ink)'
+    >{esc(sig_preview)}</div></div>
+  <button style='margin-top:10px'>Save signature</button>
+  <span class='subtext' style='margin-left:10px'>Leave the
+   <b>{{name}}</b> tag in so it stays personalized.</span>
+ </form></div>"""
+
     changes = [r for r in load_reviews()
                if r.get("action") == "settings_change"][-8:][::-1]
     hist = ""
@@ -6411,7 +6439,7 @@ def settings_page(msg="", user=None):
 
     return page("Settings", banner + header
                 + f"<div class='bento'><div>{pricing_card}{qr_card}</div>"
-                + f"<div>{disc_card}{health}{hist}</div></div>")
+                + f"<div>{sig_card}{disc_card}{health}{hist}</div></div>")
 
 
 def history_page():
@@ -8292,6 +8320,27 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(303)
             self.send_header("Location", "/settings?msg=" +
                              urllib.parse.quote("Saved."))
+            self.end_headers()
+            return
+        elif self.path == "/signature_save":
+            if not _user:
+                self.send_response(303)
+                self.send_header("Location", "/settings?msg=" +
+                                 urllib.parse.quote("Pick your name in the "
+                                                    "top bar first."))
+                self.end_headers()
+                return
+            sig = get("signature").strip()
+            # keep it personalizable — if they stripped {name}, add it
+            if sig and "{name}" not in sig:
+                sig = "— {name}\n" + sig
+            _blob_save("email_signature", sig)
+            save_review({"stamp": "", "action": "settings_change",
+                         "customer": "SIGNATURE", "by": _user,
+                         "note": f"email signature updated by {_user}"})
+            self.send_response(303)
+            self.send_header("Location", "/settings?msg=" +
+                             urllib.parse.quote("Signature saved."))
             self.end_headers()
             return
         elif self.path == "/qr_used":
