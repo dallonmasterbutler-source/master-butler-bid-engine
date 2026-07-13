@@ -3160,7 +3160,11 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                     mv = None
         oq_status = ((oq or {}).get("status") or "").lower()
         if grp == -1:
-            lane = "techs"
+            # a ✓'d tech note leaves the lane like everything else
+            # (Dallon, Jul 12: 'once read it will say just tech') —
+            # a new tech message brings it right back
+            lane = ("drawer" if (acknowledged and not unread
+                                 and not new_msg) else "techs")
         elif urgent:
             lane = "inbox"           # a worried customer outranks all
         elif mv and mv.get("lane") == "done":
