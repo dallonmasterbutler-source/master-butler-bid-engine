@@ -68,9 +68,25 @@ def _inbox_state():
     return senders, msgids
 
 
+# KILL SWITCH (Dallon, Jul 13 — URGENT): auto-clearing rows from the
+# queue because a Gmail thread was archived kept making live rows vanish
+# under the office's hands (Squarespace-form leads; and draft rows for
+# Robert Lin / Alok Tyagi disappearing mid-work on the 2-min refresh).
+# Guessing 'handled' from Gmail archive state fights the lanes and the
+# office's own workflow, so it stays OFF. The office clears items by
+# acting IN the dashboard (mark done / reply / decision) — reliable
+# signals. Flip back on ONLY after this is proven safe end-to-end.
+CLEAR_ENABLED = False
+
+
 def sync(verbose=True):
     """Mirror Gmail's archive state onto the queue. Returns #cleared."""
     import clouddb
+    if not CLEAR_ENABLED:
+        if verbose:
+            print("gmail mirror: auto-clear DISABLED (kill switch) — "
+                  "no rows cleared")
+        return 0
     if not clouddb.available():
         return 0
     senders, inbox_msgids = _inbox_state()
