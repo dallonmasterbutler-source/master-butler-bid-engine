@@ -1175,6 +1175,8 @@ body{background:#05140f!important}
  color:#0b3d2e}
 .mock.dkroom .lanechip .lnew{background:#fca5a5;color:#5c1410;
  border-radius:999px;padding:0 7px;font-size:9.5px;font-weight:800}
+.mock.dkroom .lanechip .ltot{background:#3a4a42;color:#cdd8d2;
+ border-radius:999px;padding:0 7px;font-size:9.5px;font-weight:800}
 .mock.dkroom .lanesub{color:#a3adab;font-size:11.5px;padding:0 4px 8px}
 /* SITE SPECIFICATIONS rail beside the hero (Stitch Bid Review) */
 .mock.dkroom .pingrid{display:grid;grid-template-columns:1fr 290px;
@@ -3787,6 +3789,9 @@ document.addEventListener('DOMContentLoaded', function(){
              ("drafts", "🤖 Drafts",
               "The engine's quotes waiting for a human yes. Burn down "
               "when there's time."),
+             ("officedraft", "🖊️ In Jobber",
+              "The office is drafting these quotes in Jobber right now — "
+              "out of your way, don't re-quote."),
              ("fixits", "🔧 Fix-its",
               "Completed-work customers who wrote back — answer, "
               "don't quote."),
@@ -3807,9 +3812,14 @@ document.addEventListener('DOMContentLoaded', function(){
             continue
         # ONE number per chip (Dallon, Jul 12: 'confusing seeing 2
         # numbers') — the red unseen count. All read = just the name.
-        newn = sum(1 for r in roster
-                   if r["lane"] == lid and r["unread"])
-        newb = f" <span class='lnew'>{newn}</span>" if newn else ""
+        # EXCEPT 'In Jobber': those rows are read by nature, so show the
+        # TOTAL (a muted count) or you'd never know any are in there.
+        if lid == "officedraft":
+            newb = f" <span class='ltot'>{n}</span>" if n else ""
+        else:
+            newn = sum(1 for r in roster
+                       if r["lane"] == lid and r["unread"])
+            newb = f" <span class='lnew'>{newn}</span>" if newn else ""
         chips += (f"<button type='button' class='lanechip' data-l='{lid}'"
                   f" onclick='laneSwap(this)'>{label}{newb}</button>")
     subs_json = json.dumps({lid: sub for lid, _l, sub in LANES}) \
@@ -3817,17 +3827,6 @@ document.addEventListener('DOMContentLoaded', function(){
     lst += (f"<div class='lanechips' id='lanechips'>{chips}</div>"
             f"<div class='lanesub' id='lanesub'></div>"
             + f"<script>var LANE_SUBS = {subs_json};</script>")
-    # OFFICE IS DRAFTING IN JOBBER (Dallon, Jul 13) — ALWAYS-VISIBLE, up
-    # top (not buried below the Inbox list): rows the office is quoting
-    # in Jobber right now, pulled out of Inbox/Drafts so we don't
-    # double-work or double-quote them, but never hidden.
-    od_rows = sorted((r for r in roster if r["lane"] == "officedraft"),
-                     key=lambda r: r["age"])
-    if od_rows:
-        lst += (f"<div class='ihead' style='color:#8a5a00;margin-top:4px'>"
-                f"🖊️ Office is drafting in Jobber ({len(od_rows)}) — "
-                f"quote started there; don't re-quote</div>"
-                + "".join(row(r) for r in od_rows))
     for lid, _label, _sub in LANES:
         # GMAIL ORDER inside every lane (Dallon, Jul 13: 'they're out of
         # order from Gmail, scrolling back and forth'). Sort by the
