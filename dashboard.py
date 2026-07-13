@@ -1051,13 +1051,16 @@ body{background:#05140f!important}
  text-shadow:0 0 14px rgba(201,162,39,.45);line-height:1.05}
 .mock.dkroom .qhero .cf{margin-left:12px;font-size:12.5px;color:#9fdcb9;
  font-weight:800;vertical-align:10px}
-/* THE LANES (Dallon, Jul 12) — tap-chips that swap the list */
-.mock.dkroom .lanechips{display:flex;gap:6px;flex-wrap:wrap;
- padding:2px 2px 8px}
+/* THE LANES (Dallon, Jul 12) — two per row, big and even (his 2×2
+   rule: bigger/clearer over clever) */
+.mock.dkroom .lanechips{display:grid;grid-template-columns:1fr 1fr;
+ gap:7px;padding:2px 2px 8px}
 .mock.dkroom .lanechip{border:1px solid rgba(201,162,39,.18);
- background:rgba(17,41,33,.5);color:#a3adab;border-radius:11px;
- padding:8px 11px;cursor:pointer;font-weight:800;font-size:12px;
- display:flex;align-items:center;gap:6px;font-family:inherit}
+ background:rgba(17,41,33,.5);color:#a3adab;border-radius:12px;
+ padding:12px 13px;cursor:pointer;font-weight:800;font-size:13.5px;
+ display:flex;align-items:center;gap:7px;font-family:inherit;
+ width:100%;text-align:left}
+.mock.dkroom .lanechip .ln{margin-left:auto}
 .mock.dkroom .lanechip:hover{border-color:rgba(201,162,39,.45)}
 .mock.dkroom .lanechip .ln{background:rgba(0,0,0,.35);
  border-radius:999px;padding:0 8px;font-size:11px;color:#e2e8f0;
