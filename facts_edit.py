@@ -205,12 +205,22 @@ def editor_html(rec, stamp, back="/"):
              "🏠 corrections on file: "
              + ", ".join(f"{k}={v}" for k, v in ov.items()
                          if not k.startswith("_")) + "</div>") if ov else ""
+    # COLLAPSED by default (Dallon, Jul 13: the open editor made the
+    # right rail run past the buttons). Auto-OPEN when this house
+    # already has a correction on file, so a prior edit is never
+    # hidden. id='fixfacts' lets the auto-refresh stand down while it's
+    # open — an in-progress edit can never be wiped by a reload.
+    open_attr = " open" if ov else ""
     return (
-        f"<form method='POST' action='/edit_facts' style='margin-top:14px;"
-        f"border-top:1px solid rgba(201,162,39,.14);padding-top:12px'>"
-        f"<div style='font-size:12px;font-weight:800;letter-spacing:1.2px;"
-        f"text-transform:uppercase;color:#e8c56a'>Fix the facts — "
-        f"reprices &amp; remembered</div>"
+        f"<details id='fixfacts' class='fixfacts'{open_attr} "
+        f"style='margin-top:14px;border-top:1px solid "
+        f"rgba(201,162,39,.14);padding-top:12px'>"
+        f"<summary style='cursor:pointer;list-style:none;font-size:12px;"
+        f"font-weight:800;letter-spacing:1.2px;text-transform:uppercase;"
+        f"color:#e8c56a;display:flex;align-items:center;gap:7px'>"
+        f"<span style='font-size:14px'>✎</span> Fix the facts — reprices "
+        f"&amp; remembered</summary>"
+        f"<form method='POST' action='/edit_facts' style='margin-top:6px'>"
         f"<input type='hidden' name='stamp' value='{_h.escape(stamp)}'>"
         f"<input type='hidden' name='back' value='{_h.escape(back)}'>"
         + sel("pitch", "Pitch", pi.get("pitch"))

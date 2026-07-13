@@ -1149,6 +1149,10 @@ body{background:#05140f!important}
  text-shadow:0 0 14px rgba(201,162,39,.45);line-height:1.05}
 .mock.dkroom .qhero .cf{margin-left:12px;font-size:12.5px;color:#9fdcb9;
  font-weight:800;vertical-align:10px}
+.mock.dkroom .fixfacts summary::-webkit-details-marker{display:none}
+.mock.dkroom .fixfacts summary::marker{content:''}
+.mock.dkroom .fixfacts[open] summary span:first-child{transform:
+ rotate(90deg);display:inline-block}
 /* THE LANES (Dallon, Jul 12) — two per row, big and even (his 2×2
    rule: bigger/clearer over clever) */
 .mock.dkroom .lanechips{display:grid;grid-template-columns:1fr 1fr;
@@ -3712,7 +3716,13 @@ document.addEventListener('DOMContentLoaded', function(){
       if (last === null) { last = d.t; return; }
       var rb = document.getElementById('bidreply') ||
                document.getElementById('inboxreply');
-      if (d.t !== last && (!rb || !rb.value.trim())) {
+      // NEVER reload out from under an open fact edit (Dallon, Jul 13:
+      // 'if i edit and close it, the fix doesnt go away') — an open
+      // Fix-the-facts panel counts as an active edit, same as a
+      // half-typed reply.
+      var ff = document.getElementById('fixfacts');
+      var editing = (rb && rb.value.trim()) || (ff && ff.open);
+      if (d.t !== last && !editing) {
         if (window.__saveScroll) window.__saveScroll();
         location.reload();
       }
@@ -7119,19 +7129,22 @@ function rShow(id){
             f"<b style='color:var(--ink)'>${r['office_total']:,.0f}</b>"
             f"</span>{gap_html}{qbtn}</div>")
 
-    head_rows = "".join(_crow(r) for r in matched[:12])
-    more_rows = "".join(_crow(r) for r in matched[12:])
+    # COMPACT (Dallon, Jul 13: 'make the full list compact') — the
+    # whole compared list collapses; the summary carries the headline
+    # (how many landed within 10%), so the scoreboard stays short and
+    # the full list is one tap away.
+    within = sum(1 for r in matched
+                 if r.get("gap_pct") is not None and abs(r["gap_pct"]) <= 10)
+    all_rows = "".join(_crow(r) for r in matched)
     matched_card = (
-        f"<div class='card' style='margin-top:16px;padding:14px 18px'>"
-        f"<div class='schead' style='margin-bottom:6px'>"
-        f"{_svg_icon('chart')}<h2>Compared with the office</h2>"
-        f"<span class='subtext' style='margin-left:auto'>ours → office · "
-        f"green = within 10% · 📖 hover for why</span></div>{head_rows}"
-        + (f"<details><summary style='cursor:pointer;color:var(--mut);"
-           f"font-size:12.5px;font-weight:700;padding:8px 10px'>all "
-           f"{len(matched)} compared…</summary>{more_rows}</details>"
-           if more_rows else "")
-        + "</div>" if head_rows else "")
+        f"<details class='card' style='margin-top:16px;padding:14px 18px'>"
+        f"<summary style='cursor:pointer;list-style:none;display:flex;"
+        f"align-items:center;gap:10px'>{_svg_icon('chart')}"
+        f"<b style='font-size:15px;color:var(--goldink)'>Compared with "
+        f"the office</b><span class='subtext' style='margin-left:auto'>"
+        f"{within}/{len(matched)} within 10% · tap to open</span>"
+        f"</summary><div style='margin-top:8px'>{all_rows}</div>"
+        f"</details>" if matched else "")
 
     # WAITING = a cloud of name+price chips, not rows (Dallon, Jul 12:
     # 'still looks blocky') — services on hover, click opens the card
