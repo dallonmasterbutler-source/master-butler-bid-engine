@@ -3586,12 +3586,13 @@ document.addEventListener('DOMContentLoaded', function(){
             + f"<script>var LANE_SUBS = {subs_json};</script>")
     for lid, _label, _sub in LANES:
         # GMAIL ORDER inside every lane (Dallon, Jul 13: 'they're out of
-        # order from Gmail, scrolling back and forth'). Pure newest-
-        # activity-first, exactly like the Gmail list — so the office
-        # can read the two side by side. Urgent is a red flag now, NOT a
-        # reorder (that was pulling things out of Gmail's order).
+        # order from Gmail, scrolling back and forth'). Sort by the
+        # actual LAST-MESSAGE age (newest first) — NOT last_at, which
+        # was polluted by the record's re-processing stamp and shoved
+        # freshly-swept rows to the top. age matches the label shown on
+        # each row, so the order the office reads IS the order they see.
         rows_l = sorted((r for r in roster if r["lane"] == lid),
-                        key=lambda r: r["at"], reverse=True)
+                        key=lambda r: r["age"])
         lst += (f"<div class='lanebody' id='lane-{lid}' "
                 f"style='display:none'>"
                 + ("".join(row(r) for r in rows_l)
