@@ -3243,14 +3243,24 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             wstyle = "color:var(--goldink)"
         age_h = nb["age_hours"] if nb else None
         if age_h is None and c["msgs"]:
-            try:
-                from datetime import datetime as _dtm, timezone as _tz
-                t0 = _dtm.fromisoformat(c["msgs"][-1]["at"])
-                if t0.tzinfo is None:
-                    t0 = t0.replace(tzinfo=_tz.utc)
-                age_h = (_dtm.now(_tz.utc) - t0).total_seconds() / 3600
-            except Exception:
-                age_h = 0
+            # LATEST message by REAL time, not list order or string sort —
+            # customer timestamps carry different tz offsets (Eastern
+            # customer '12:31-04:00' vs Pacific '10:46-07:00'), so a naive
+            # compare put the wrong one on top and broke Gmail-order sync
+            # (Dallon, Jul 13: Jeffrey Skall vs Anna Tang).
+            from datetime import datetime as _dtm, timezone as _tz
+            latest = None
+            for _m in c["msgs"]:
+                try:
+                    _t = _dtm.fromisoformat(_m["at"])
+                    if _t.tzinfo is None:
+                        _t = _t.replace(tzinfo=_tz.utc)
+                    if latest is None or _t > latest:
+                        latest = _t
+                except Exception:
+                    continue
+            age_h = ((_dtm.now(_tz.utc) - latest).total_seconds() / 3600
+                     if latest else 0)
         # 🔧 SERVICE FOLLOW-UP (Dallon, Jul 10 pm: Vadim wrote about a
         # screen after his job was DONE — 'label, don't filter'): a
         # customer with a converted/won job writing about the work
