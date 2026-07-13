@@ -3031,6 +3031,32 @@ def _latest_in_utc(msgs):
             if latest else "")
 
 
+def _office_drafting(oq, stamp):
+    """True when the OFFICE has a live DRAFT quote in Jobber for this
+    record — i.e. they're building the quote there RIGHT NOW, so our
+    dashboard should stop nagging for a price and must never fire a
+    second quote over theirs (Dallon, Jul 13: Kate Murray / Jessica
+    Jensen sat in our Drafts with a total to approve while the office
+    already had a Jobber draft). 'Draft' status + created within ~45
+    days of the record (a months-old draft is stale history, not
+    active work). Returns the quote number, or None."""
+    oq = oq or {}
+    if (oq.get("status") or "").lower() != "draft":
+        return None
+    created = oq.get("created") or ""
+    if not (created and len(stamp) >= 8 and stamp[:8].isdigit()):
+        return None
+    try:
+        from datetime import date as _date
+        dq = _date.fromisoformat(created)
+        dr = _date.fromisoformat(f"{stamp[:4]}-{stamp[4:6]}-{stamp[6:8]}")
+        if -3 <= (dr - dq).days <= 45:
+            return oq.get("number")
+    except ValueError:
+        pass
+    return None
+
+
 def _primary_bid(bids):
     """The record that should be a card's FACE. Normally the newest, but
     a customer often fires off several emails about ONE request in a
@@ -3418,6 +3444,9 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                 except Exception:
                     mv = None
         oq_status = ((oq or {}).get("status") or "").lower()
+        # the office is drafting THIS in Jobber right now → pull it out
+        # of our Inbox/Drafts into its own section (Dallon, Jul 13)
+        office_draft_no = _office_drafting(oq, nb["stamp"]) if nb else None
         # IS THIS A PRICED DRAFT AWAITING A YES? — judged from the FACTS,
         # not the status word. Opening a draft CLAIMS it, which rewrote
         # the word to 'working·X' and used to knock the draft clean out
@@ -3479,6 +3508,14 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             if lane == "nudge" and not (unread or new_msg):
                 word, wstyle = ("⏰ gone quiet — worth a nudge",
                                 "color:var(--goldink);font-weight:800")
+        elif office_draft_no and not (unread or new_msg):
+            # the office is building this quote in Jobber — out of our
+            # Inbox/Drafts so nobody double-works or double-quotes it,
+            # but kept VISIBLE in its own section (a new customer message
+            # still resurfaces it above). (Dallon, Jul 13)
+            lane = "officedraft"
+            word = f"🖊️ office is drafting this in Jobber · #{office_draft_no}"
+            wstyle = "color:#8a5a00;font-weight:800"
         elif grp == 4:
             lane = "drawer"
         elif ready_draft:
@@ -3752,6 +3789,16 @@ document.addEventListener('DOMContentLoaded', function(){
                       "color:var(--green2);font-weight:800'>All caught "
                       "up ✅</div>")
                 + "</div>")
+    # OFFICE IS DRAFTING IN JOBBER (Dallon, Jul 13): pulled out of
+    # Inbox/Drafts so we don't double-work them, but shown in their own
+    # always-visible group so a stale draft never gets buried.
+    od_rows = sorted((r for r in roster if r["lane"] == "officedraft"),
+                     key=lambda r: r["age"])
+    if od_rows:
+        lst += (f"<div class='ihead' style='color:#8a5a00'>🖊️ Office is "
+                f"drafting in Jobber ({len(od_rows)}) — quote started "
+                f"there; don't re-quote</div>"
+                + "".join(row(r) for r in od_rows))
     handled_rows = [r for r in roster if r["lane"] == "handled"]
     if handled_rows:
         lst += (f"<div class='ihead'>Handled in Jobber — verified "
@@ -8279,6 +8326,14 @@ class Handler(BaseHTTPRequestHandler):
                 if rec.get("dns_match"):     # HARD BLOCK, even when live
                     entry["note"] = ("REFUSED: do-not-service match — "
                                      "no quote pushed")
+                    d = None
+                _od = _office_drafting(rec.get("open_quote_ctx"),
+                                       get("stamp"))
+                if _od:                      # HARD BLOCK: office already
+                    entry["note"] = (       # has a draft — never duplicate
+                        f"REFUSED: office already has a DRAFT quote "
+                        f"(#{_od}) in Jobber — finish/send it there, no "
+                        "second quote created")
                     d = None
                 if d:
                     import jobber_client as jc
