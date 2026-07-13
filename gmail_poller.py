@@ -207,6 +207,13 @@ def poll_once():
                     complete_sweep.run(recent_hours=48)
             except Exception:
                 pass
+            # LEARNING REPORT (Dallon, Jul 12: visible learning on the
+            # Scoreboard) — money funnel + what the office taught us
+            try:
+                import learning_report
+                learning_report.build()
+            except Exception as _e:
+                print(f"  (learning report skipped: {_e})")
             # JOBBER PULSE (Dallon, Jul 10 — read-both no write-back):
             # today's appointments + overdue/active/remaining, hourly,
             # for the Today strip + the Handled-in-Jobber lane

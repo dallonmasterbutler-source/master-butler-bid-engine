@@ -1051,6 +1051,24 @@ body{background:#05140f!important}
  text-shadow:0 0 14px rgba(201,162,39,.45);line-height:1.05}
 .mock.dkroom .qhero .cf{margin-left:12px;font-size:12.5px;color:#9fdcb9;
  font-weight:800;vertical-align:10px}
+/* THE LANES (Dallon, Jul 12) — tap-chips that swap the list */
+.mock.dkroom .lanechips{display:flex;gap:6px;flex-wrap:wrap;
+ padding:2px 2px 8px}
+.mock.dkroom .lanechip{border:1px solid rgba(201,162,39,.18);
+ background:rgba(17,41,33,.5);color:#a3adab;border-radius:11px;
+ padding:8px 11px;cursor:pointer;font-weight:800;font-size:12px;
+ display:flex;align-items:center;gap:6px;font-family:inherit}
+.mock.dkroom .lanechip:hover{border-color:rgba(201,162,39,.45)}
+.mock.dkroom .lanechip .ln{background:rgba(0,0,0,.35);
+ border-radius:999px;padding:0 8px;font-size:11px;color:#e2e8f0;
+ font-variant-numeric:tabular-nums}
+.mock.dkroom .lanechip.on{background:#c9a227;color:#0b3d2e;
+ border-color:#c9a227}
+.mock.dkroom .lanechip.on .ln{background:rgba(11,61,46,.25);
+ color:#0b3d2e}
+.mock.dkroom .lanechip .lnew{background:#fca5a5;color:#5c1410;
+ border-radius:999px;padding:0 7px;font-size:9.5px;font-weight:800}
+.mock.dkroom .lanesub{color:#a3adab;font-size:11.5px;padding:0 4px 8px}
 /* SITE SPECIFICATIONS rail beside the hero (Stitch Bid Review) */
 .mock.dkroom .pingrid{display:grid;grid-template-columns:1fr 290px;
  gap:16px;align-items:start}
@@ -2921,6 +2939,10 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             order.append(key)
         return cust[key]
 
+    # human lane placements (Move ▾) — loaded once; rule 1 (a newer
+    # customer message) releases them at render time
+    manual_lanes = _blob_rw("manual_lanes", {})
+
     for b in bids:
         if b.get("merged_into") or classify_row(b)[0] == "aside":
             continue
@@ -3114,11 +3136,74 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             if urgent:
                 word = f"⚠ urgent — “{urgent}”"
                 wstyle = "color:var(--alarm);font-weight:800"
+        # ── LANE LADDER (Dallon, Jul 12): first match wins; ambiguity
+        # sorts UP to Inbox — the failure mode is 'seen twice', never
+        # 'missed'. Order: customer's new message > human placement >
+        # Jobber facts > engine draft > quiet timer. ──
+        mv = manual_lanes.get(key)
+        if mv:
+            placed = mv.get("at") or ""
+            if (unread or new_msg) and str(last_at) > placed:
+                mv = None            # rule 1: their new message wins
+            elif mv.get("lane") == "later":
+                try:
+                    from datetime import (datetime as _dl,
+                                          timezone as _tzl,
+                                          timedelta as _tdl)
+                    if _dl.now(_tzl.utc) > _dl.fromisoformat(
+                            placed) + _tdl(days=7):
+                        mv = None    # the week is up — resurface
+                except Exception:
+                    mv = None
+        oq_status = ((oq or {}).get("status") or "").lower()
+        if grp == -1:
+            lane = "techs"
+        elif urgent:
+            lane = "inbox"           # a worried customer outranks all
+        elif mv and mv.get("lane") == "done":
+            lane = "drawer"
+        elif mv and mv.get("lane") == "declined":
+            lane = "nudge"
+            word = f"🚫 declined · {mv.get('by') or 'office'}"
+            wstyle = "color:var(--alarm);font-weight:800"
+        elif mv and mv.get("lane") == "later":
+            lane = "nudge"
+            word, wstyle = ("⏰ parked — resurfaces in a week",
+                            "color:var(--goldink);font-weight:700")
+        elif mv and mv.get("lane") == "needs_reply":
+            lane = "inbox"
+            word, wstyle = ("✉️ needs reply",
+                            "color:var(--goldink);font-weight:800")
+        elif mv and mv.get("lane") == "fixits":
+            lane = "fixits"
+            word = "🔧 follow-up on completed work — no bid"
+            wstyle = "color:var(--goldink);font-weight:800"
+        elif grp == 3:
+            lane = "handled"
+        elif followup:
+            lane = "fixits"          # Jobber fact: job done + they wrote
+        elif word == "won — schedule it":
+            lane = "won"             # Jobber fact: approved
+        elif oq_status == "awaiting_response" or grp == 2:
+            # Jobber fact: quote out, ball in the customer's court —
+            # EVEN if the office archived the thread (money still
+            # waits). Quiet 10+ days = the follow-up list.
+            lane = "nudge" if (age_h or 0) >= 240 else "waiting"
+            if lane == "nudge" and not (unread or new_msg):
+                word, wstyle = ("⏰ gone quiet — worth a nudge",
+                                "color:var(--goldink);font-weight:800")
+        elif grp == 4:
+            lane = "drawer"
+        elif word == "ready to approve":
+            lane = "drafts"          # the engine asking for a yes
+        else:
+            lane = "inbox"           # when in doubt, sort UP
         roster.append({"key": key, "c": c, "nb": nb, "unread": unread,
                        "grp": grp, "at": last_at, "word": word,
                        "wstyle": wstyle, "age": age_h or 0,
                        "new_msg": new_msg, "oq": oq, "qno": qno,
-                       "won": won, "urgent": bool(urgent)})
+                       "won": won, "urgent": bool(urgent),
+                       "lane": lane})
     # GMAIL MIRROR (Jessica, Jul 9: office works Gmail + dashboard side
     # by side for a while) — inside each section the order is pure
     # newest-activity-first, exactly like the Gmail list; bold marks
@@ -3224,9 +3309,12 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
            f"<a href='/new' style='background:var(--green);color:#fff;"
            f"border-radius:9px;padding:7px 14px;text-decoration:none;"
            f"font-weight:700;font-size:13px'>➕ New lead</a>"
-           f"<span class='subtext'>{counts[0]} need a person"
-           + (f" · oldest {max((r['age'] for r in roster if r['grp'] == 0), default=0):.0f}h"
-              if counts[0] else " — all caught up ✅") + "</span></div>"
+           f"<span class='subtext'>"
+           f"{sum(1 for r in roster if r['lane'] == 'inbox')} in the "
+           f"inbox"
+           + (f" · oldest {max((r['age'] for r in roster if r['lane'] == 'inbox'), default=0):.0f}h"
+              if any(r['lane'] == 'inbox' for r in roster)
+              else " — all caught up ✅") + "</span></div>"
            # search (Jessica, Jul 9) — filters the list as you type
            "<input id='isearch' placeholder='🔎 Find a customer…' "
            "style='width:100%;margin:0 0 10px;padding:8px 12px;"
@@ -3245,11 +3333,33 @@ function rowDone(ev, btn){
   if (window.__saveScroll) window.__saveScroll();
   f.submit();
 }
+function laneShow(lid){
+  document.querySelectorAll('.lanechip').forEach(function(c){
+    c.classList.toggle('on', c.dataset.l === lid);});
+  document.querySelectorAll('.lanebody').forEach(function(b){
+    b.style.display = (b.id === 'lane-' + lid) ? '' : 'none';});
+  var sub = document.getElementById('lanesub');
+  if (sub && window.LANE_SUBS) sub.textContent = LANE_SUBS[lid] || '';
+  try { sessionStorage.setItem('lane', lid); } catch(e){}
+}
+function laneSwap(btn){ laneShow(btn.dataset.l); }
 document.addEventListener('DOMContentLoaded', function(){
+  var lid = 'inbox';
+  try { lid = sessionStorage.getItem('lane') || 'inbox'; } catch(e){}
+  if (!document.getElementById('lane-' + lid)) lid = 'inbox';
+  laneShow(lid);
   var s = document.getElementById('isearch');
   if (!s) return;
   s.addEventListener('input', function(){
     var q = s.value.trim().toLowerCase();
+    // searching looks across EVERY lane; clearing restores the tab
+    document.querySelectorAll('.lanebody').forEach(function(b){
+      b.style.display = q ? '' : 'none';});
+    if (!q) {
+      var cur = 'inbox';
+      try { cur = sessionStorage.getItem('lane') || 'inbox'; } catch(e){}
+      laneShow(cur);
+    }
     document.querySelectorAll('.irowwrap').forEach(function(r){
       r.style.display = (!q || r.textContent.toLowerCase()
                          .indexOf(q) >= 0) ? '' : 'none';
@@ -3273,22 +3383,60 @@ document.addEventListener('DOMContentLoaded', function(){
             "Select all already-quoted (<span id='bulkqn'>0</span>)</button>"
             "<button type='button' class='bulklink' onclick='bulkClear()'>"
             "Clear</button></div>")
-    for g in (-1, 0, 1, 2, 3):
-        rows_g = [r for r in roster if r["grp"] == g]
-        if not rows_g:
+    # ── THE LANES (Dallon, Jul 12; per the approved mockup): one row
+    # of tap-chips, each swapping the list below. NO CAP inside a lane
+    # — hiding a customer is the unforgivable failure. ──
+    LANES = [("inbox", "📬 Inbox",
+              "Matches the Gmail inbox — the only number that has to "
+              "hit zero. New messages, replies, voicemails."),
+             ("drafts", "🤖 Drafts",
+              "The engine's quotes waiting for a human yes. Burn down "
+              "when there's time."),
+             ("fixits", "🔧 Fix-its",
+              "Completed-work customers who wrote back — answer, "
+              "don't quote."),
+             ("won", "📅 Won",
+              "They said yes — get them on the schedule."),
+             ("waiting", "📤 Waiting",
+              "Quotes out, ball in the customer's court. Moves by "
+              "itself when they act."),
+             ("nudge", "🚫 Nudge",
+              "Declined or quiet 10+ days — the follow-up money list, "
+              "auto-filled."),
+             ("techs", "👷 Techs",
+              "Field mail from our own techs — never a bid.")]
+    chips = ""
+    for lid, label, _sub in LANES:
+        n = sum(1 for r in roster if r["lane"] == lid)
+        if lid == "techs" and n == 0:
             continue
-        badge = ""
-        if g == -1 and tech_new:
-            badge = (f" <span style='background:#c9a227;color:#0b3d2e;"
-                     f"border-radius:999px;padding:1px 10px;font-size:10px;"
-                     f"font-weight:800;vertical-align:1px'>{tech_new} NEW"
-                     f"</span>")
-        lst += f"<div class='ihead'>{sec_names[g]} ({len(rows_g)}){badge}</div>"
-        # NO CAP on work sections — a truncated list once hid Mia
-        # Coffman entirely (read entries sort last; she fell off #41).
-        # Hiding a customer is the unforgivable failure.
-        lst += "".join(row(r) for r in rows_g)
-    done_rows = [r for r in roster if r["grp"] == 4]
+        # red badge = unseen items inside that lane, whichever lane
+        newn = sum(1 for r in roster
+                   if r["lane"] == lid and r["unread"])
+        newb = f" <span class='lnew'>{newn}</span>" if newn else ""
+        chips += (f"<button type='button' class='lanechip' data-l='{lid}'"
+                  f" onclick='laneSwap(this)'>{label} "
+                  f"<span class='ln'>{n}</span>{newb}</button>")
+    subs_json = json.dumps({lid: sub for lid, _l, sub in LANES}) \
+        .replace("</", "<\\/")
+    lst += (f"<div class='lanechips' id='lanechips'>{chips}</div>"
+            f"<div class='lanesub' id='lanesub'></div>"
+            + f"<script>var LANE_SUBS = {subs_json};</script>")
+    for lid, _label, _sub in LANES:
+        rows_l = [r for r in roster if r["lane"] == lid]
+        lst += (f"<div class='lanebody' id='lane-{lid}' "
+                f"style='display:none'>"
+                + ("".join(row(r) for r in rows_l)
+                   or "<div style='padding:26px;text-align:center;"
+                      "color:var(--green2);font-weight:800'>All caught "
+                      "up ✅</div>")
+                + "</div>")
+    handled_rows = [r for r in roster if r["lane"] == "handled"]
+    if handled_rows:
+        lst += (f"<div class='ihead'>Handled in Jobber — verified "
+                f"({len(handled_rows)})</div>"
+                + "".join(row(r) for r in handled_rows))
+    done_rows = [r for r in roster if r["lane"] == "drawer"]
     lst += (f"<details style='margin-top:12px'><summary style='cursor:"
             f"pointer;color:var(--mut);font-size:12.5px;font-weight:700;"
             f"padding:0 8px'>Done &amp; quiet ({len(done_rows)}) · "
@@ -3888,9 +4036,48 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                     f"{foot}</div>")
     except Exception:
         pass
+    # MOVE ▾ (Dallon, Jul 12): the human override on the lane ladder —
+    # filing only; never touches prices, the scoreboard, or Jobber
+    move_html = (
+        f"<div style='position:relative;display:inline-block'>"
+        f"<button type='button' class='readbtn' style='font-size:12px;"
+        f"padding:6px 12px' onclick=\"var m=document.getElementById("
+        f"'movemenu');m.style.display=m.style.display==='none'?'':'none'\">"
+        f"Move ▾</button>"
+        f"<div id='movemenu' style='display:none;position:absolute;"
+        f"right:0;top:36px;z-index:9;background:#0d231b;border:1px solid "
+        f"rgba(201,162,39,.4);border-radius:12px;box-shadow:0 12px 30px "
+        f"rgba(0,0,0,.5);min-width:235px;overflow:hidden'>"
+        + "".join(
+            f"<form method='POST' action='/move_lane' style='margin:0'>"
+            f"<input type='hidden' name='key' value='{esc(key)}'>"
+            f"<input type='hidden' name='lane' value='{lv}'>"
+            f"<input type='hidden' name='back' value='{esc(back)}'>"
+            f"<button style='display:block;width:100%;text-align:left;"
+            f"background:none;border:0;border-top:1px solid "
+            f"rgba(201,162,39,.12);padding:11px 15px;font-weight:700;"
+            f"font-size:13px;color:var(--ink);cursor:pointer;margin:0;"
+            f"border-radius:0'>{lt}<span style='display:block;"
+            f"color:var(--mut);font-weight:500;font-size:10.5px'>{ls}"
+            f"</span></button></form>"
+            for lv, lt, ls in (
+                ("declined", "🚫 Declined",
+                 "they said no — the engine learns from it"),
+                ("later", "⏰ Follow up later",
+                 "parks it, resurfaces in a week"),
+                ("needs_reply", "✉️ Needs reply",
+                 "decided — still owe them words"),
+                ("fixits", "🔧 Fix-it",
+                 "it's about completed work — no bid"),
+                ("done", "✓ Done",
+                 "finished — off the queue"),
+                ("auto", "↩ Let the system sort it",
+                 "clears any manual filing")))
+        + "</div></div>")
     pin_main = (f"{hero_html}"
                 f"<div class='pin-top'><div>"
-                f"<h2>{esc(c['name'] or c['email'] or '')}{mark_unread}</h2>"
+                f"<h2>{esc(c['name'] or c['email'] or '')}{mark_unread} "
+                f"{move_html}</h2>"
                 f"<div class='paddr'>{addr_line}{jobber_bits}{ident_links}"
                 f"</div></div>"
                 f"<div class='money'>{total_html}</div></div>"
@@ -6462,6 +6649,68 @@ def scoreboard_page():
         f"<div class='stat'><b>{close}</b><span>within 10%</span></div>"
         f"</div>")
 
+    # ── 📚 WHAT THE SYSTEM IS LEARNING (Dallon, Jul 12: 'seeing the
+    # reports… where things land, money we are losing') — built hourly
+    # by learning_report.py ──
+    lr = (clouddb.get_blob("learning_report") or {}) \
+        if clouddb.available() else {}
+    learn_card = ""
+    if lr:
+        mo = lr.get("money") or {}
+        pd = lr.get("pastdue") or {}
+        le = lr.get("learning") or {}
+        so = lr.get("sorting") or {}
+        props = "".join(
+            f"<div style='background:var(--goldbg);border-left:3px solid "
+            f"var(--gold);border-radius:9px;padding:9px 13px;margin-top:8px;"
+            f"font-size:13px'><b>💡 Proposed rule:</b> {esc(p['text'])}"
+            f"</div>" for p in (so.get("proposals") or []))
+        moves = "".join(
+            f"<div class='subtext' style='padding:2px 0'>"
+            f"{esc(m.get('at', ''))} · {esc(m.get('by') or 'office')} filed "
+            f"<b>{esc(m.get('key', ''))}</b> under {esc(m.get('to', ''))}"
+            f"</div>" for m in reversed(so.get("last") or []))
+        learn_card = f"""
+<div class='card'>
+ <div class='schead'>{_svg_icon('trend')}<h2>What the system is
+ learning</h2><span class='subtext' style='margin-left:auto'>updated
+ {esc((lr.get('at') or '')[:16].replace('T', ' '))} · refreshed hourly
+ </span></div>
+ <div class='tiles' style='margin-top:2px'>
+  <div class='tile'><div class='ticon'>{_svg_icon('trend')}</div>
+   <div><div class='tl'>Win rate</div>
+    <div class='tv'>{mo.get('win_rate', '—')}%</div>
+    <div class='ts'>{mo.get('won_n', 0)} won of the last
+    {mo.get('quotes', 0)} quotes · ${mo.get('won_val', 0):,}</div></div>
+  </div>
+  <div class='tile'><div class='ticon'>{_svg_icon('phone')}</div>
+   <div><div class='tl'>Money waiting on customers</div>
+    <div class='tv'>${mo.get('awaiting_val', 0):,}</div>
+    <div class='ts'>{mo.get('awaiting_n', 0)} quotes out ·
+    ${mo.get('stale_val', 0):,} of it quiet 7+ days
+    ({mo.get('stale_n', 0)})</div></div>
+  </div>
+  <div class='tile'><div class='ticon'>{_svg_icon('percent')}</div>
+   <div><div class='tl'>Past due</div>
+    <div class='tv'>${pd.get('val', 0):,}</div>
+    <div class='ts'>{pd.get('n', 0)} invoices waiting on payment
+    </div></div>
+  </div>
+ </div>
+ <div style='display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;
+  font-size:13px'>
+  <span>🏠 <b>{le.get('fact_corrections', 0)}</b> house facts the
+   office corrected — remembered forever</span>
+  <span>🚫 <b>{le.get('spam_senders', 0)}</b> spam senders taught</span>
+  <span>📈 <b>{le.get('floors_raised', 0)}</b> prices raised to
+   last-paid floors</span>
+  <span>🗂 <b>{so.get('moves_14d', 0)}</b> lane moves by hand
+   (2 weeks)</span>
+ </div>
+ {props}
+ {f"<details style='margin-top:10px'><summary style='cursor:pointer;font-weight:700;color:var(--mut);font-size:13px'>recent hand-filings</summary>{moves}</details>" if moves else ""}
+</div>"""
+
     auto = None
     if clouddb.available():
         auto = clouddb.get_blob("auto_reviews") or {}
@@ -6573,8 +6822,8 @@ def scoreboard_page():
  setTimeout(function(){try{sessionStorage.setItem(K,window.scrollY);}catch(e){}
   location.reload();},120000);})();
 </script>"""
-    return page("Scoreboard", hero + fresh + nudge_card + matched_card
-                + waiting_card + refresh_js)
+    return page("Scoreboard", hero + learn_card + fresh + nudge_card
+                + matched_card + waiting_card + refresh_js)
 
 
 _ABBR = {"se": "southeast", "sw": "southwest", "ne": "northeast",
@@ -8039,6 +8288,44 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(303)
             self.send_header("Location", back if back.startswith("/")
                              else "/")
+            self.end_headers()
+            return
+        elif self.path == "/move_lane":
+            # THE HUMAN OVERRIDE on the lane ladder (Dallon, Jul 12).
+            # Filing only — no prices, no Jobber, no scoreboard. Every
+            # move lands in the corrections DIARY so repeated
+            # disagreements become proposed rule changes (never silent
+            # policy drift).
+            key_ = get("key")
+            lane_ = get("lane")
+            cm = re.search(r"office_user=([^;]+)",
+                           self.headers.get("Cookie") or "")
+            who_ = urllib.parse.unquote(cm.group(1)) if cm else "office"
+            from datetime import timezone as _tzm
+            now_ = datetime.now(_tzm.utc).isoformat(timespec="seconds")
+            ml = _blob_rw("manual_lanes", {})
+            if lane_ == "auto":
+                ml.pop(key_, None)
+            elif lane_ in ("declined", "later", "needs_reply",
+                           "fixits", "done"):
+                ml[key_] = {"lane": lane_, "by": who_, "at": now_}
+            _blob_save("manual_lanes", ml)
+            if lane_ == "done":            # done also clears (office-wide)
+                d_ = _msg_read()
+                d_[key_] = now_
+                _msg_read_save(d_)
+            diary = _blob_rw("lane_corrections", [])
+            diary.append({"at": now_, "by": who_, "key": key_,
+                          "to": lane_})
+            _blob_save("lane_corrections", diary[-500:])
+            save_review({"action": "lane_move", "by": who_,
+                         "customer": key_,
+                         "note": f"filed under '{lane_}' — lane ladder "
+                                 "overridden by hand"})
+            back_ = get("back")
+            self.send_response(303)
+            self.send_header("Location",
+                             back_ if back_.startswith("/") else "/")
             self.end_headers()
             return
         elif self.path == "/mark_done":

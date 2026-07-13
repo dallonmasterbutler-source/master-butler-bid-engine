@@ -104,8 +104,9 @@ def main():
               "bulkbar" in h and "already-quoted" in h.lower()
               or "bulkQuoted" in h)
         check("Search box (Jessica)", "isearch" in h)
-        check("Sections (needs person / hands / waiting)",
-              "needs a person" in h.lower())
+        check("Lanes (inbox / drafts / fix-its / won / waiting / nudge)",
+              "lanechip" in h and "lane-inbox" in h
+              and "lane-drafts" in h and "lane-nudge" in h)
         check("Scroll keeper (LaRee's jump-to-top fix)",
               "KEEP MY PLACE" in h or "__saveScroll" in h)
         check("Pulse auto-refresh wiring", "/api/pulse" in h)
