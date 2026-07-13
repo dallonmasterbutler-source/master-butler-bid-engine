@@ -572,7 +572,7 @@ header{background:#fff;color:var(--green);padding:0 26px;min-height:56px;
        position:sticky;top:0;z-index:50}
 header #who{color:var(--mut)}
 header #who b{color:var(--green)}
-.wrap{max-width:1180px;margin:0;padding:24px 24px 48px;flex:1}
+.wrap{max-width:1580px;margin:0 auto;padding:24px 24px 48px;flex:1}
 .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;
       padding:10px 16px;box-shadow:0 1px 2px rgba(16,24,40,.04);
@@ -1373,7 +1373,7 @@ def page(title, body, refresh=None, chrome="rail"):
                 f"initial-scale=1'>{auto}{FAVICON}"
                 f"<title>{title}</title>{STYLE}{rail_css}{tone}</head>"
                 f"<body style='padding:14px 16px 0'>{rail}"
-                f"<div style='max-width:1280px;margin:0'>{body}"
+                f"<div style='max-width:1580px;margin:0 auto'>{body}"
                 f"<footer style='padding:10px 4px'>Every quote is a draft "
                 f"until a human sends it · bold = nobody's seen it · "
                 f"every price traces to a real job.</footer>"
@@ -1427,7 +1427,7 @@ border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
   }
 })();
 </script></header>"""
-                f"<div class='wrap' style='max-width:1280px'>{body}</div>"
+                f"<div class='wrap' style='max-width:1580px;margin:0 auto'>{body}</div>"
                 f"<footer>Every quote is a draft until a human sends it · "
                 f"bold = unread, shared by the whole office · every price "
                 f"traces to a real job.</footer></div></body></html>"
@@ -1450,7 +1450,7 @@ border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
             f"<title>{title}</title>{STYLE}{_GLOBAL_RAIL_CSS}"
             f"{_DARK_FORCE_CSS}</head>"
             f"<body style='padding:14px 16px 0'>{rail2}"
-            f"<div style='max-width:1280px;margin:0'>"
+            f"<div style='max-width:1580px;margin:0 auto'>"
             f"<div class='mock'>{_chrome_bar(active)}"
             f"<div style='padding:18px 22px'>"
             + (f"<div style='font-size:11px;font-weight:800;"
