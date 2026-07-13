@@ -6785,67 +6785,76 @@ def scoreboard_page():
     else:
         ap = BASE / "data" / "auto_reviews.json"
         auto = json.loads(ap.read_text()) if ap.exists() else {}
+    # CARD ROWS, not table walls (Dallon, Jul 12: 'blocks of text —
+    # busy to read'). Same shape as the Win-back call cards.
     rows = ""
     for r in matched:
         gap = r.get("gap_pct")
         ar = auto.get(r.get("stamp"))
-        if ar:
-            pill = (f"<span class='chip win' style='font-size:11.5px;"
-                    f"font-weight:700' "
-                    f"title=\"{esc(ar['summary'])}\">📖 auto-reviewed"
-                    + (f" · {gap:+.0f}%" if gap is not None else "")
-                    + "</span>"
-                    f"<div class='subtext' style='max-width:260px;"
-                    f"margin-top:3px'>{esc(ar['summary'][:110])}</div>")
-        elif gap is None:
-            pill = ""
-        elif abs(gap) <= 10:
-            pill = status_pill("approved", f"{gap:+.0f}%")
+        tip = f" title=\"{esc(ar['summary'])}\"" if ar else ""
+        if gap is None:
+            gap_html = "<span class='klabel'>—</span>"
         else:
-            pill = status_pill("needs review", f"{gap:+.0f}%")
+            ok = abs(gap) <= 10
+            gap_html = (
+                f"<span{tip} style='display:inline-block;border-radius:"
+                f"999px;padding:4px 12px;font-size:12px;font-weight:800;"
+                f"background:{'#173525' if ok else '#3a1713'};"
+                f"color:{'#7fd6a2' if ok else '#f1998e'}'>"
+                f"{gap:+.0f}%{' 📖' if ar else ''}</span>")
         js = (r.get("office_status") or "").lower()
-        jlabel = {"approved": "WON ✓", "converted": "WON ✓",
-                  "awaiting_response": "quote sent",
-                  "draft": "approved", "archived": "archived"}.get(js)
-        qbtn = (f"<a class='btn' style='padding:5px 12px;font-size:12px;"
-                f"background:var(--card);color:var(--green2);"
-                f"border:1px solid var(--line)' "
+        jw, jc_ = {"approved": ("WON ✓", "var(--green2)"),
+                   "converted": ("WON ✓", "var(--green2)"),
+                   "awaiting_response": ("quote sent", "var(--mut)"),
+                   "draft": ("approved", "var(--goldink)"),
+                   "archived": ("archived", "var(--mut)")}.get(
+                       js, ("—", "var(--mut)"))
+        qbtn = (f"<a class='pill dim' style='text-decoration:none' "
                 f"href='{esc(r['jobber_url'])}' target='_blank' "
-                f"rel='noopener'>Jobber #{r['office_quote']} ↗</a>"
-                if r.get("jobber_url") else f"#{r['office_quote']}")
-        svcs = "".join(f"<span class='chip'>{esc(svc_label(s))}</span>"
-                       for s in (r.get("services") or [])[:4])
-        sp = (f"<div class='subtext'>by {esc(r['salesperson'])}</div>"
+                f"rel='noopener'>#{r['office_quote']} ↗</a>"
+                if r.get("jobber_url") else "")
+        svcs = " · ".join(svc_label(s)
+                          for s in (r.get("services") or [])[:3])
+        sp = (f" · by {esc(r['salesperson'])}"
               if r.get("salesperson") else "")
-        rows += (f"<tr><td><b>{cname(r)}</b>"
-                 f"<div style='margin-top:3px'>{svcs}</div></td>"
-                 f"<td>{status_pill(jlabel) if jlabel else '—'}{sp}</td>"
-                 f"<td class='num'>${r['system_total']:,.0f}</td>"
-                 f"<td class='num'><b>${r['office_total']:,.0f}</b></td>"
-                 f"<td>{pill}</td><td>{qbtn}</td></tr>")
+        rows += (
+            f"<div class='wbrow'><div class='cols' style='grid-template-"
+            f"columns:2fr 1fr 1fr 1fr auto'>"
+            f"<div style='min-width:0'><div style='font-weight:800;"
+            f"color:var(--ink);white-space:nowrap;overflow:hidden;"
+            f"text-overflow:ellipsis'>{cname(r)}</div>"
+            f"<div style='font-size:11.5px;color:var(--mut)'>"
+            f"{esc(svcs)}<span style='color:{jc_};font-weight:800'>"
+            f" · {jw}</span>{sp}</div></div>"
+            f"<div><div class='klabel'>Our draft</div>"
+            f"<div class='kval'>${r['system_total']:,.0f}</div></div>"
+            f"<div><div class='klabel'>Office</div>"
+            f"<div class='kval'>${r['office_total']:,.0f}</div></div>"
+            f"<div><div class='klabel'>Gap</div>{gap_html}</div>"
+            f"{qbtn}</div></div>")
     matched_card = (
-        "<div class='card'><h2 style='margin-top:0'>Compared with the "
-        "office</h2><div class='subtext' style='margin-bottom:10px'>"
-        "Gap pill: green = our draft landed within 10% of what the office "
-        "actually quoted. Minus means we were under.</div>"
-        "<table><tr><th>Customer</th><th>Quote status</th>"
-        "<th class='num'>Our draft</th><th class='num'>Office</th>"
-        "<th>Gap</th><th></th></tr>" + rows + "</table></div>"
-        if rows else "")
+        f"<div style='margin-top:16px'><div class='schead'>"
+        f"{_svg_icon('chart')}<h2>Compared with the office</h2>"
+        f"<span class='subtext' style='margin-left:auto'>green = within "
+        f"10% · minus = we were under · 📖 = hover for the why</span>"
+        f"</div>{rows}</div>" if rows else "")
 
     wrows = "".join(
-        f"<tr><td><b>{cname(r)}</b></td>"
-        f"<td>{', '.join(svc_label(s) for s in (r.get('services') or [])[:4])}</td>"
-        f"<td class='num'>${r['system_total']:,.0f}</td></tr>"
+        f"<div class='wbrow'><div class='cols' style='grid-template-"
+        f"columns:2fr 2fr 1fr'>"
+        f"<div style='font-weight:800;color:var(--ink)'>{cname(r)}</div>"
+        f"<div style='font-size:12px;color:var(--mut)'>"
+        f"{esc(' · '.join(svc_label(s) for s in (r.get('services') or [])[:4]))}</div>"
+        f"<div style='text-align:right'><div class='klabel'>Our draft"
+        f"</div><div class='kval'>${r['system_total']:,.0f}</div></div>"
+        f"</div></div>"
         for r in waiting)
     waiting_card = (
-        "<div class='card'><h2 style='margin-top:0'>Waiting for an office "
-        "quote</h2><div class='subtext' style='margin-bottom:10px'>"
-        "We drafted these; the moment the office quotes them in Jobber, "
-        "they move up automatically.</div>"
-        "<table><tr><th>Customer</th><th>Services</th>"
-        "<th class='num'>Our draft</th></tr>" + wrows + "</table></div>"
-        if wrows else "")
+        f"<div style='margin-top:16px'><div class='schead'>"
+        f"{_svg_icon('queue')}<h2>Waiting for an office quote</h2>"
+        f"<span class='subtext' style='margin-left:auto'>the moment the "
+        f"office quotes them in Jobber, they move up on their own</span>"
+        f"</div>{wrows}</div>" if wrows else "")
 
     # QUOTES GONE QUIET (Jul 10 cycle): sent, no reply, 5+ days —
     # follow-up is free money; the office nudges from here
