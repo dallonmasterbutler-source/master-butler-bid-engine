@@ -3236,6 +3236,15 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             lane = "drafts"          # the engine asking for a yes
         else:
             lane = "inbox"           # when in doubt, sort UP
+        # ACTIVE CLAIM ALWAYS SHOWS (Dallon, Jul 13: '"Dallon is working
+        # this" got buried') — the lane words above were clobbering it.
+        # Someone has this open right now: warn the whole office so
+        # nobody double-works, in whatever lane the item lives.
+        if nb:
+            _cl = claims.get(nb["stamp"])
+            if _cl and _cl.get("mins", 99) <= CLAIM_FRESH_MIN:
+                word = f"🔵 {_cl['by']} is working this"
+                wstyle = "color:#79aede;font-weight:800"
         roster.append({"key": key, "c": c, "nb": nb, "unread": unread,
                        "grp": grp, "at": last_at, "word": word,
                        "wstyle": wstyle, "age": age_h or 0,
