@@ -3382,6 +3382,25 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                 except Exception:
                     mv = None
         oq_status = ((oq or {}).get("status") or "").lower()
+        # IS THIS A PRICED DRAFT AWAITING A YES? — judged from the FACTS,
+        # not the status word. Opening a draft CLAIMS it, which rewrote
+        # the word to 'working·X' and used to knock the draft clean out
+        # of the Drafts lane into Inbox (Dallon, Jul 13: Sanjeev
+        # Balarajan vanished from Drafts on click). A claim means someone
+        # is LOOKING at it, not that it stopped being a draft — the claim
+        # still shows as the row badge below, but it no longer moves the
+        # card. Mirrors _status_word's 'ready to approve' path minus the
+        # claim check.
+        ready_draft = bool(
+            nb and not nb.get("reviewed") and not nb.get("dns_match")
+            and not nb.get("tech_sender") and nb.get("kind") != "phone_lead"
+            and nb["stamp"] not in live_holds
+            and nb["stamp"] not in flags_open
+            and nb["stamp"] not in getattr(bid_status, "_sl", {})
+            and (sbs.get(nb["stamp"]) or "").lower() not in
+            ("approved", "converted", "awaiting_response", "draft", "archived")
+            and (_num(nb.get("confidence")) or 0) >= 75
+            and (_num((nb.get("draft") or {}).get("total")) or 0) > 0)
         if grp == -1:
             # a ✓'d tech note leaves the lane like everything else
             # (Dallon, Jul 12: 'once read it will say just tech') —
@@ -3412,8 +3431,10 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             lane = "handled"
         elif followup:
             lane = "fixits"          # Jobber fact: job done + they wrote
-        elif word == "won — schedule it":
-            lane = "won"             # Jobber fact: approved
+        elif won and grp != 4:
+            lane = "won"             # Jobber fact: approved — a claim
+            # must not knock it out of Won either (same bug as Drafts);
+            # grp!=4 keeps an already-scheduled/done won in the drawer
         elif oq_status == "awaiting_response" or grp == 2:
             # Jobber fact: quote out, ball in the customer's court —
             # EVEN if the office archived the thread (money still
@@ -3424,8 +3445,9 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                                 "color:var(--goldink);font-weight:800")
         elif grp == 4:
             lane = "drawer"
-        elif word == "ready to approve":
-            lane = "drafts"          # the engine asking for a yes
+        elif ready_draft:
+            lane = "drafts"          # the engine asking for a yes —
+            # stays put even when claimed/opened (Sanjeev, Jul 13)
         else:
             lane = "inbox"           # when in doubt, sort UP
         # ACTIVE CLAIM / HANDOFF ALWAYS SHOW (Dallon, Jul 13) — the lane
