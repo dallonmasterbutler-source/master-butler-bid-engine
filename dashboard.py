@@ -3419,13 +3419,13 @@ document.addEventListener('DOMContentLoaded', function(){
         n = sum(1 for r in roster if r["lane"] == lid)
         if lid == "techs" and n == 0:
             continue
-        # red badge = unseen items inside that lane, whichever lane
+        # ONE number per chip (Dallon, Jul 12: 'confusing seeing 2
+        # numbers') — the red unseen count. All read = just the name.
         newn = sum(1 for r in roster
                    if r["lane"] == lid and r["unread"])
         newb = f" <span class='lnew'>{newn}</span>" if newn else ""
         chips += (f"<button type='button' class='lanechip' data-l='{lid}'"
-                  f" onclick='laneSwap(this)'>{label} "
-                  f"<span class='ln'>{n}</span>{newb}</button>")
+                  f" onclick='laneSwap(this)'>{label}{newb}</button>")
     subs_json = json.dumps({lid: sub for lid, _l, sub in LANES}) \
         .replace("</", "<\\/")
     lst += (f"<div class='lanechips' id='lanechips'>{chips}</div>"
