@@ -3653,6 +3653,25 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             # stays put even when claimed/opened (Sanjeev, Jul 13)
         else:
             lane = "inbox"           # when in doubt, sort UP
+        # WHAT KIND OF ASK IS THIS? (LaRee + Dallon, Jul 13: 'train the
+        # system on questions vs job requests' — a header TAG on the row,
+        # not a separate tab). Three kinds:
+        #   📅 about their visit — they're already booked (Jobber visit /
+        #      handled match) and wrote in (Kim Doolittle's 'I think we
+        #      are scheduled for this morning')
+        #   📋 bid request — services were parsed; they want a price
+        #   💬 question — they wrote words, no service ask; answer them
+        qtag = None
+        if lane in ("inbox", "drafts", "fixits"):
+            if nb and nb["stamp"] in handled_jb and (new_msg or unread):
+                qtag = ("📅 about their visit", "#79aede")
+            elif nb and nb.get("kind") == "phone_lead":
+                pass                    # voicemail rows already say it
+            elif (nb and nb.get("services")) and lane != "fixits":
+                qtag = ("📋 bid request", "#8fc7a6")
+            elif c["msgs"] and any(m.get("dir") == "in"
+                                   for m in c["msgs"]):
+                qtag = ("💬 question", "#e8c76a")
         # a retired-stale-quote note is worth showing on the row
         if stale_note:
             word, wstyle = stale_note, "color:var(--goldink);font-weight:700"
@@ -3685,7 +3704,7 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                        "new_msg": new_msg, "oq": oq, "qno": qno,
                        "won": won, "urgent": bool(urgent),
                        "lane": lane, "act": _msg_latest,
-                       "cflag": cust_flags.get(key)})
+                       "cflag": cust_flags.get(key), "qtag": qtag})
     # GMAIL MIRROR (Jessica, Jul 9: office works Gmail + dashboard side
     # by side for a while) — inside each section the order is pure
     # newest-activity-first, exactly like the Gmail list; bold marks
@@ -3740,6 +3759,9 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # WITH recent back-and-forth is being worked (leave it); one gone
         # silent needs a nudge. Shown only where it matters.
         actchip = ""
+        if r.get("qtag"):
+            actchip += (f"<span style='color:{r['qtag'][1]};font-weight:800;"
+                        f"font-size:11px'>{r['qtag'][0]}</span> ")
         _cfr = r.get("cflag")
         if _cfr:
             _cft = {"bad_payer": ("⚠️ bad payer", "#f2b8b5"),
