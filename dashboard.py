@@ -3663,7 +3663,9 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         #   💬 question — they wrote words, no service ask; answer them
         qtag = None
         if lane in ("inbox", "drafts", "fixits"):
-            if nb and nb["stamp"] in handled_jb and (new_msg or unread):
+            _hjb = handled_jb.get(nb["stamp"], "") if nb else ""
+            # a real VISIT on the schedule only — not merely a quote out
+            if ("booked" in _hjb or "done" in _hjb) and (new_msg or unread):
                 qtag = ("📅 about their visit", "#79aede")
             elif nb and nb.get("kind") == "phone_lead":
                 pass                    # voicemail rows already say it
