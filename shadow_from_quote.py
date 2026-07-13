@@ -156,12 +156,24 @@ def from_open_quote(rec):
             "no automated price (their past quote is context only)."
             ).strip()
         return rec
-    body = re.sub(r"\s+", " ", msg).strip()
-    if len(body) > 240 and not asked:
-        return rec       # substantive message, unrecognized work — flag
-                         # path handles it; don't guess from an old quote
     services = services_from_lines(oq.get("lines"))
     if not services:
+        return rec
+    body = re.sub(r"\s+", " ", msg).strip()
+    # Only skip when they DESCRIBED work that DIFFERS from the open
+    # quote AND it isn't settled yet (the real Wendy Sklar risk). A
+    # scheduling/question message with NO new ask — or an already
+    # APPROVED/won quote — is safe to price from the quote lines: we're
+    # pricing exactly what the office quoted, for the comparison (Eli
+    # DeBerry, Jul 13: approved $324 quote showed 'no priced draft'
+    # because his long scheduling note had no service words).
+    new_asks = [a for a in asked if a not in set(services)]
+    settled = (oq.get("status") or "").lower() in (
+        "approved", "won", "converted")
+    if len(body) > 240 and new_asks and not settled:
+        rec["office_alert"] = ((rec.get("office_alert") or "") +
+            " ✍ their message describes work that differs from their "
+            "open quote — office, check before pricing.").strip()
         return rec
     m = re.search(r"<([^>]+)>", rec.get("from") or "")
     customer = {"name": (rec.get("from") or "").split("<")[0].strip(),
