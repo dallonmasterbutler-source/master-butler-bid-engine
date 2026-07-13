@@ -7387,7 +7387,13 @@ class Handler(BaseHTTPRequestHandler):
         if hdr.startswith("Basic "):
             try:
                 got = base64.b64decode(hdr[6:]).decode()
-                return got.split(":", 1)[-1] == pw
+                if got.split(":", 1)[-1] == pw:
+                    # upgrade this basic-auth (old bookmark) session to a
+                    # cookie so background fetches stop 401-ing and the
+                    # native popup never returns (office iPad, Jul 13)
+                    self._basic_upgrade = _auth_token(pw)
+                    return True
+                return False
             except Exception:
                 return False
         return False
@@ -7403,15 +7409,26 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(login_page(nexturl=nxt))
             return
+        # Native-popup fix (office iPad, Jul 13): only CHALLENGE with
+        # Basic when the client already opted into it (sent an
+        # Authorization header) — i.e. the poller/scripts. A browser's
+        # background fetch/image that just lacks the cookie must NOT get
+        # WWW-Authenticate, or Safari throws its own login popup over the
+        # working page. Those get a plain 401 the page's JS swallows.
         self.send_response(401)
-        self.send_header("WWW-Authenticate",
-                         'Basic realm="Master Butler office"')
+        if self.headers.get("Authorization", "").startswith("Basic "):
+            self.send_header("WWW-Authenticate",
+                             'Basic realm="Master Butler office"')
         self.end_headers()
         self.wfile.write(b"login required")
 
     def _send(self, content, code=200, ctype="text/html; charset=utf-8"):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
+        tok = getattr(self, "_basic_upgrade", None)
+        if tok:
+            self.send_header("Set-Cookie", f"mb_auth={tok}; Path=/; "
+                             "Max-Age=31536000; SameSite=Lax")
         if "text/html" in ctype:
             # never let a browser show yesterday's design (Dallon,
             # Jul 10 pm: new Settings/Win-back 'still aren't there' —
