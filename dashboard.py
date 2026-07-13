@@ -3006,6 +3006,44 @@ def _latest_msg_utc(msgs):
             if latest else "")
 
 
+def _primary_bid(bids):
+    """The record that should be a card's FACE. Normally the newest, but
+    a customer often fires off several emails about ONE request in a
+    burst — a website form, then a photo, then 'I still need it' — and
+    the NEWEST can be a photo-only or empty follow-up that carries no
+    request. Crowning that as the headline made the card read 'no info'
+    while the real request hid a row below (Natallie Buxton, Jul 13). So
+    the face is the newest record that actually CARRIES a request: a
+    priced draft, parsed services, an address, or a real message body. A
+    hollow record (nothing parsed, empty body) never becomes the face —
+    its photos still surface through the card's pooled gallery. Falls
+    back to the plain newest when every record is hollow."""
+    if not bids:
+        return None
+    ordered = sorted(bids, key=lambda b: b.get("stamp") or "")
+
+    def hollow(b):
+        d = (b.get("draft") or {}).get("bid") or {}
+        return not (d.get("services") or b.get("services")
+                    or b.get("address")
+                    or (b.get("newest_message") or "").strip())
+
+    substantive = [b for b in ordered if not hollow(b)]
+    return (substantive or ordered)[-1]
+
+
+def _all_photo_refs(c):
+    """Photo refs pooled across ALL of a customer's records — so a photo
+    that arrived on a SEPARATE email (a photo-only follow-up) shows on
+    the combined card, not only the face record's own photos."""
+    refs = []
+    for b in (c.get("bids") or []):
+        for r in _photo_refs(b.get("stamp"), b.get("address")):
+            if r not in refs:
+                refs.append(r)
+    return refs
+
+
 SLA_WORD = {"dns": "do not service", "hold": "parked",
             "flag": "with Dallon & Tom", "sl": "question for office",
             "won": "won ✓", "sent": "quote sent", "ok": "approved"}
@@ -3183,7 +3221,8 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
     for key in order:
         c = cust[key]
         c["bids"].sort(key=lambda b: b["stamp"])
-        nb = c["bids"][-1] if c["bids"] else None
+        nb = _primary_bid(c["bids"])     # newest record that CARRIES a
+        # request — not an empty photo-only follow-up (Natallie, Jul 13)
         # ORDER BY THE EMAIL'S OWN TIME, exactly like Gmail — NOT the
         # record's poll stamp (which a re-sweep rewrites, scrambling the
         # queue against Gmail; Dallon, Jul 13). Fall back to the stamp
@@ -4272,7 +4311,7 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
         if nb and (nb.get("address") or stamp):
             by_kind = {}
             for ref_, kind_, i_ in clouddb.photos_index(
-                    _photo_refs(stamp, nb.get("address"))):
+                    _all_photo_refs(c)):
                 if kind_ != "eml":
                     by_kind.setdefault(kind_, []).append((ref_, i_))
             hurl = None
@@ -4495,7 +4534,7 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
             except Exception:
                 _pcaps = {}
             for ref, kind, idx in clouddb.photos_index(
-                    _photo_refs(stamp, nb.get("address"))):
+                    _all_photo_refs(c)):
                 if kind == "eml":
                     continue
                 lbl = {"aerial": ("Aerial", "#1e8449"),
@@ -5156,7 +5195,8 @@ def customers_page(sel=None, draft=""):
     for key in order:
         c = cust[key]
         c["bids"].sort(key=lambda b: b["stamp"])
-        nb = c["bids"][-1] if c["bids"] else None
+        nb = _primary_bid(c["bids"])     # face = newest record that
+        # carries a request, not an empty follow-up (Natallie, Jul 13)
         pill = (bid_status(nb, live_holds, flags_open, sbs, claims)
                 if nb else "")
         unread = bool(c["msgs"]) and \
