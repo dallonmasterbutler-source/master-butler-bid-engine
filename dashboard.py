@@ -2964,16 +2964,39 @@ SLA_WORD = {"dns": "do not service", "hold": "parked",
 
 def _sounds_urgent(text):
     """Customer-worry language that must float to the very top (Jessica,
-    Jul 9). Returns the matched phrase (shown to the office) or None."""
+    Jul 9). Returns the matched phrase (shown to the office) or None.
+
+    'damaged/broke' are only urgent as a COMPLAINT ABOUT US — never when
+    the customer is asking us to repair something already damaged
+    (Dallon, Jul 13: Kenneth Pai wants a quote to replace a vent 'that
+    was damaged' — a service request, not 'you damaged my property')."""
     t = (text or "").lower()
+    # unambiguous urgency — these are almost never a service request
     for p in ("urgent", "asap", "as soon as possible", "emergency",
               "no show", "no-show", "didn't show", "did not show",
               "hasn't shown", "never showed", "not here yet",
-              "still waiting", "leak", "leaking", "damage", "damaged",
-              "broke", "broken", "upset", "frustrated", "disappointed",
-              "unacceptable", "refund", "complaint", "wrong house"):
+              "still waiting", "leak", "leaking", "upset", "frustrated",
+              "disappointed", "unacceptable", "refund", "complaint",
+              "wrong house", "made a mess", "left a mess"):
         if p in t:
             return p
+    # physical-damage words: urgent ONLY when they blame us. "your tech
+    # damaged", "damaged my deck", "you broke" → complaint. "can you
+    # fix / quote to replace / help me repair … damaged" → a job.
+    if re.search(r"\b(damaged?|broke|broken|ruined|destroyed)\b", t):
+        blame = re.search(
+            r"(you|your|the tech|technician|the crew|the guys?|"
+            r"the company|master ?butler)[^.!?]{0,45}"
+            r"(damaged?|broke|broken|ruined|destroyed|mess)"
+            r"|(damaged?|broke|broken|ruined|destroyed)[^.!?]{0,45}"
+            r"(my|our)\s+(deck|driveway|yard|roof|property|home|house|"
+            r"gutter|window|lawn|car|fence|patio)", t)
+        request = re.search(
+            r"\b(quote|estimate|help me|can you|could you|would like|"
+            r"want (to|a)|replace|repair|fix|redo|install|get (a|an))\b",
+            t)
+        if blame and not request:
+            return "possible damage complaint"
     return None
 
 
@@ -3562,7 +3585,13 @@ document.addEventListener('DOMContentLoaded', function(){
             f"<div class='lanesub' id='lanesub'></div>"
             + f"<script>var LANE_SUBS = {subs_json};</script>")
     for lid, _label, _sub in LANES:
-        rows_l = [r for r in roster if r["lane"] == lid]
+        # GMAIL ORDER inside every lane (Dallon, Jul 13: 'they're out of
+        # order from Gmail, scrolling back and forth'). Pure newest-
+        # activity-first, exactly like the Gmail list — so the office
+        # can read the two side by side. Urgent is a red flag now, NOT a
+        # reorder (that was pulling things out of Gmail's order).
+        rows_l = sorted((r for r in roster if r["lane"] == lid),
+                        key=lambda r: r["at"], reverse=True)
         lst += (f"<div class='lanebody' id='lane-{lid}' "
                 f"style='display:none'>"
                 + ("".join(row(r) for r in rows_l)
