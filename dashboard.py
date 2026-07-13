@@ -834,6 +834,14 @@ footer{margin:8px 0 28px;padding:0 24px;
   border:1px solid var(--line)}
 .renew.hot .due{background:rgba(201,162,39,.16);color:#e8c56a;
   border-color:rgba(201,162,39,.4)}
+.wchips{display:flex;flex-wrap:wrap;gap:8px}
+.wchip{display:inline-flex;align-items:center;gap:9px;
+  background:rgba(17,41,33,.55);border:1px solid rgba(201,162,39,.16);
+  border-radius:999px;padding:8px 15px;font-weight:700;font-size:13px;
+  color:var(--ink);text-decoration:none}
+.wchip:hover{border-color:rgba(201,162,39,.45);text-decoration:none}
+.wchip b{color:#c9a227;font-variant-numeric:tabular-nums;
+  text-shadow:0 0 8px rgba(201,162,39,.3)}
 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
   margin-top:16px}
 .tiles.five{grid-template-columns:repeat(5,1fr);gap:10px}
@@ -6817,12 +6825,14 @@ def scoreboard_page():
                           for s in (r.get("services") or [])[:3])
         sp = (f" · by {esc(r['salesperson'])}"
               if r.get("salesperson") else "")
+        _bidlink = f"/bid/{esc(r.get('stamp') or '')}"
         rows += (
             f"<div class='wbrow'><div class='cols' style='grid-template-"
             f"columns:2fr 1fr 1fr 1fr auto'>"
             f"<div style='min-width:0'><div style='font-weight:800;"
-            f"color:var(--ink);white-space:nowrap;overflow:hidden;"
-            f"text-overflow:ellipsis'>{cname(r)}</div>"
+            f"white-space:nowrap;overflow:hidden;"
+            f"text-overflow:ellipsis'><a href='{_bidlink}' "
+            f"style='color:var(--ink)'>{cname(r)}</a></div>"
             f"<div style='font-size:11.5px;color:var(--mut)'>"
             f"{esc(svcs)}<span style='color:{jc_};font-weight:800'>"
             f" · {jw}</span>{sp}</div></div>"
@@ -6839,22 +6849,20 @@ def scoreboard_page():
         f"10% · minus = we were under · 📖 = hover for the why</span>"
         f"</div>{rows}</div>" if rows else "")
 
+    # WAITING = a cloud of name+price chips, not rows (Dallon, Jul 12:
+    # 'still looks blocky') — services on hover, click opens the card
     wrows = "".join(
-        f"<div class='wbrow'><div class='cols' style='grid-template-"
-        f"columns:2fr 2fr 1fr'>"
-        f"<div style='font-weight:800;color:var(--ink)'>{cname(r)}</div>"
-        f"<div style='font-size:12px;color:var(--mut)'>"
-        f"{esc(' · '.join(svc_label(s) for s in (r.get('services') or [])[:4]))}</div>"
-        f"<div style='text-align:right'><div class='klabel'>Our draft"
-        f"</div><div class='kval'>${r['system_total']:,.0f}</div></div>"
-        f"</div></div>"
+        f"<a class='wchip' href='/bid/{esc(r.get('stamp') or '')}' "
+        f"title=\"{esc(' · '.join(svc_label(s) for s in (r.get('services') or [])[:4]))}\">"
+        f"{cname(r)}<b>${r['system_total']:,.0f}</b></a>"
         for r in waiting)
     waiting_card = (
         f"<div style='margin-top:16px'><div class='schead'>"
         f"{_svg_icon('queue')}<h2>Waiting for an office quote</h2>"
-        f"<span class='subtext' style='margin-left:auto'>the moment the "
-        f"office quotes them in Jobber, they move up on their own</span>"
-        f"</div>{wrows}</div>" if wrows else "")
+        f"<span class='subtext' style='margin-left:auto'>tap a name to "
+        f"open them · they move up on their own once quoted</span>"
+        f"</div><div class='wchips'>{wrows}</div></div>"
+        if wrows else "")
 
     # QUOTES GONE QUIET (Jul 10 cycle): sent, no reply, 5+ days —
     # follow-up is free money; the office nudges from here
