@@ -971,6 +971,52 @@ def _rail_counts():
 
 
 
+def _my_signature_html(user):
+    """Per-person signature (Dallon, Jul 13: 'saveable for each account
+    like quick responses — some people have tags: office manager,
+    coordinator'). Overrides the shared one when set; blank = use
+    shared. {name} still auto-fills."""
+    if not user:
+        return ("<div style='margin-top:14px;border-top:1px solid "
+                "rgba(201,162,39,.14);padding-top:12px'><div class='subtext'>"
+                "★ Pick your name in the top bar to set your own signature "
+                "(with a title like Office Manager).</div></div>")
+    import mailer as _ml
+    mine = (_blob_rw("email_signatures_personal", {})).get(user, "")
+    shared = _blob_rw("email_signature", "") or _ml.DEFAULT_SIGNATURE
+    starter = mine or shared.replace(
+        "— {name}", "— {name}, Office Manager")
+    preview = starter.replace("{name}", user)
+    star = "★ using your own" if mine else "using the shared one"
+    return (
+        f"<div style='margin-top:14px;border-top:1px solid "
+        f"rgba(201,162,39,.14);padding-top:12px'>"
+        f"<div style='font-weight:800;color:var(--heading);"
+        f"font-size:14px;margin-bottom:4px'>★ {esc(user)}'s own signature"
+        f"</div>"
+        f"<div class='subtext' style='margin-bottom:8px'>Add your title "
+        f"here (Office Manager, Coordinator…). This overrides the shared "
+        f"signature for <b>your</b> replies only — right now you're "
+        f"<b>{star}</b>.</div>"
+        f"<form method='POST' action='/signature_save'>"
+        f"<input type='hidden' name='mine' value='1'>"
+        f"<textarea name='signature' rows='4' style='font-family:"
+        f"ui-monospace,Menlo,monospace;font-size:13px'>{esc(starter)}"
+        f"</textarea>"
+        f"<div style='margin-top:10px;background:rgba(17,41,33,.6);"
+        f"border:1px solid rgba(201,162,39,.16);border-radius:10px;"
+        f"padding:12px 14px'><div style='font-size:10px;font-weight:800;"
+        f"letter-spacing:1.2px;text-transform:uppercase;color:var(--mut);"
+        f"margin-bottom:6px'>Preview</div><div style='white-space:"
+        f"pre-wrap;font-size:13.5px;color:var(--ink)'>{esc(preview)}</div>"
+        f"</div>"
+        f"<button style='margin-top:10px'>Save my signature</button>"
+        + (f" <button name='clear' value='1' class='gray' "
+           f"onclick=\"return confirm('Use the shared signature "
+           f"instead?')\">Use shared instead</button>" if mine else "")
+        + "</form></div>")
+
+
 def _roof_label(raw):
     """County assessor roof codes → plain English (Dallon, Jul 13:
     'Comp Sh To 235#' means composition shingle, 235-lb standard
@@ -6402,10 +6448,10 @@ def settings_page(msg="", user=None):
     Preview (as {esc(user or "LaRee")})</div>
    <div style='white-space:pre-wrap;font-size:13.5px;color:var(--ink)'
     >{esc(sig_preview)}</div></div>
-  <button style='margin-top:10px'>Save signature</button>
+  <button style='margin-top:10px'>Save the shared signature</button>
   <span class='subtext' style='margin-left:10px'>Leave the
    <b>{{name}}</b> tag in so it stays personalized.</span>
- </form></div>"""
+ </form>{_my_signature_html(user)}</div>"""
 
     changes = [r for r in load_reviews()
                if r.get("action") == "settings_change"][-8:][::-1]
@@ -8361,13 +8407,24 @@ class Handler(BaseHTTPRequestHandler):
             # keep it personalizable — if they stripped {name}, add it
             if sig and "{name}" not in sig:
                 sig = "— {name}\n" + sig
-            _blob_save("email_signature", sig)
+            if get("mine"):                    # per-person signature
+                allp = _blob_rw("email_signatures_personal", {})
+                if get("clear") or not sig:
+                    allp.pop(_user, None)
+                    msg = f"{_user}: back to the shared signature."
+                else:
+                    allp[_user] = sig
+                    msg = f"{_user}'s own signature saved."
+                _blob_save("email_signatures_personal", allp)
+            else:                              # the shared office one
+                _blob_save("email_signature", sig)
+                msg = "Shared signature saved."
             save_review({"stamp": "", "action": "settings_change",
                          "customer": "SIGNATURE", "by": _user,
-                         "note": f"email signature updated by {_user}"})
+                         "note": msg})
             self.send_response(303)
             self.send_header("Location", "/settings?msg=" +
-                             urllib.parse.quote("Signature saved."))
+                             urllib.parse.quote(msg))
             self.end_headers()
             return
         elif self.path == "/qr_used":

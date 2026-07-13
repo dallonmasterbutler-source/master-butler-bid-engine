@@ -210,16 +210,22 @@ DEFAULT_SIGNATURE = ("— {name}\n"
 
 
 def _signature(by):
-    """The block appended to every office reply. Editable in Settings
-    (Dallon, Jul 13); {name} fills with whoever's signed in. Falls back
-    to the default so a blank never ships."""
+    """The block appended to every office reply. Precedence (Dallon,
+    Jul 13): the sender's OWN saved signature (with their title) →
+    the shared office signature → the built-in default. {name} always
+    fills with whoever's signed in, so a blank never ships."""
     tmpl = DEFAULT_SIGNATURE
     try:
         import clouddb
         if clouddb.available():
-            saved = (clouddb.get_blob("email_signature") or "").strip()
-            if saved:
-                tmpl = saved
+            personal = clouddb.get_blob("email_signatures_personal") or {}
+            mine = (personal.get(by) or "").strip() if by else ""
+            if mine:
+                tmpl = mine
+            else:
+                shared = (clouddb.get_blob("email_signature") or "").strip()
+                if shared:
+                    tmpl = shared
     except Exception:
         pass
     return tmpl.replace("{name}", by or "").strip()
