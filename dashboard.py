@@ -572,7 +572,7 @@ header{background:#fff;color:var(--green);padding:0 26px;min-height:56px;
        position:sticky;top:0;z-index:50}
 header #who{color:var(--mut)}
 header #who b{color:var(--green)}
-.wrap{max-width:1580px;margin:0 auto;padding:24px 24px 48px;flex:1}
+.wrap{max-width:1440px;margin:0 auto;padding:24px 24px 48px;flex:1}
 .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;
       padding:10px 16px;box-shadow:0 1px 2px rgba(16,24,40,.04);
@@ -1136,10 +1136,11 @@ body{background:#05140f!important}
 .mock.dkroom .bulkbar{background:rgba(201,162,39,.12);
  border-color:rgba(201,162,39,.45)}
 .mock.dkroom .qhero{position:relative;border-radius:14px;overflow:hidden;
- border:1px solid rgba(201,162,39,.2);min-height:210px;margin-bottom:12px;
+ border:1px solid rgba(201,162,39,.2);aspect-ratio:5/2;min-height:210px;
+ max-height:360px;margin-bottom:12px;
  background:linear-gradient(150deg,#14402f,#0a2b1f 60%,#07231a)}
 .mock.dkroom .qhero img{position:absolute;inset:0;width:100%;height:100%;
- object-fit:cover}
+ object-fit:cover;object-position:center 32%}
 .mock.dkroom .qhero .shade{position:absolute;inset:0;background:
  linear-gradient(to top,rgba(5,20,15,.92),rgba(5,20,15,.18) 55%)}
 .mock.dkroom .qhero .foot{position:absolute;left:16px;right:16px;bottom:12px}
@@ -1374,7 +1375,7 @@ def page(title, body, refresh=None, chrome="rail"):
                 f"initial-scale=1'>{auto}{FAVICON}"
                 f"<title>{title}</title>{STYLE}{rail_css}{tone}</head>"
                 f"<body style='padding:14px 16px 0'>{rail}"
-                f"<div style='max-width:1580px;margin:0 auto'>{body}"
+                f"<div style='max-width:1440px;margin:0 auto'>{body}"
                 f"<footer style='padding:10px 4px'>Every quote is a draft "
                 f"until a human sends it · bold = nobody's seen it · "
                 f"every price traces to a real job.</footer>"
@@ -1428,7 +1429,7 @@ border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
   }
 })();
 </script></header>"""
-                f"<div class='wrap' style='max-width:1580px;margin:0 auto'>{body}</div>"
+                f"<div class='wrap' style='max-width:1440px;margin:0 auto'>{body}</div>"
                 f"<footer>Every quote is a draft until a human sends it · "
                 f"bold = unread, shared by the whole office · every price "
                 f"traces to a real job.</footer></div></body></html>"
@@ -1451,7 +1452,7 @@ border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
             f"<title>{title}</title>{STYLE}{_GLOBAL_RAIL_CSS}"
             f"{_DARK_FORCE_CSS}</head>"
             f"<body style='padding:14px 16px 0'>{rail2}"
-            f"<div style='max-width:1580px;margin:0 auto'>"
+            f"<div style='max-width:1440px;margin:0 auto'>"
             f"<div class='mock'>{_chrome_bar(active)}"
             f"<div style='padding:18px 22px'>"
             + (f"<div style='font-size:11px;font-weight:800;"
