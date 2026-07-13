@@ -3333,21 +3333,23 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                   == "quote_approved" for b2 in c["bids"])
         # STALE QUOTE (Dallon, Jul 13): a returning customer asking for a
         # NEW quote must not inherit a stale old one. If their most recent
-        # quote is 6+ months OLDER than their newest inbound message,
-        # retire it in OUR view (Jobber has no archive-quote API, so this
-        # is our-side only) — drop the open-quote / won signals so the row
-        # behaves as a fresh request, with a note. Only fires when they
-        # actually wrote recently (their message post-dates the quote).
+        # quote is 3+ months OLDER than their newest inbound message, flag
+        # it for REVIEW and treat this as a fresh request — drop the
+        # open-quote / won signals so the row behaves as new. Jobber's API
+        # has NO quote-archive (verified: 109 mutations, clientArchive &
+        # requestArchive exist but no quoteArchive; quoteEdit has no status
+        # field) — the office archives the old quote by hand in Jobber, so
+        # the note SAYS so. Only fires when they actually wrote recently.
         stale_note = ""
         if oq and _msg_in and (oq.get("created") or ""):
             try:
                 from datetime import date as _sqd, datetime as _sqdt
                 _agedays = ((_sqdt.fromisoformat(_msg_in).date()
                              - _sqd.fromisoformat(oq["created"])).days)
-                if _agedays >= 180:
-                    stale_note = (f"⏰ last quote #{oq.get('number')} is "
-                                  f"~{_agedays // 30} mo old — retired; new "
-                                  "request")
+                if _agedays >= 90:            # 3+ months → review it
+                    stale_note = (f"⏰ review — last quote #{oq.get('number')} "
+                                  f"is ~{_agedays // 30} mo old; treat as new "
+                                  "request & archive it in Jobber")
                     oq = None
                     qno = None
                     won = False
