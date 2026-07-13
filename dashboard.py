@@ -836,7 +836,9 @@ footer{margin:8px 0 28px;padding:0 24px;
   border-color:rgba(201,162,39,.4)}
 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
   margin-top:16px}
-@media(max-width:760px){.tiles{grid-template-columns:1fr}
+.tiles.five{grid-template-columns:repeat(5,1fr);gap:10px}
+@media(max-width:1000px){.tiles.five{grid-template-columns:1fr 1fr}}
+@media(max-width:760px){.tiles,.tiles.five{grid-template-columns:1fr}
   .wbrow .cols{grid-template-columns:1fr auto}}
 .tile{background:rgba(17,41,33,.5);border:1px solid rgba(201,162,39,.14);
   border-radius:16px;padding:18px;display:flex;gap:14px;
@@ -6667,6 +6669,74 @@ def scoreboard_page():
         pd = lr.get("pastdue") or {}
         le = lr.get("learning") or {}
         so = lr.get("sorting") or {}
+        hist = lr.get("history") or []
+        wr = mo.get("win_rate") or 0
+        won_v = mo.get("won_val") or 0
+        wait_v = mo.get("awaiting_val") or 0
+        stale_v = mo.get("stale_val") or 0
+        fresh_v = max(0, wait_v - stale_v)
+
+        # the dollar FUNNEL: one stacked strip — won, waiting-fresh,
+        # gone-stale — of the last {n} quotes, dollar-weighted
+        pool = max(1, won_v + wait_v)
+        seg = lambda v: max(2.5, v / pool * 100)
+        funnel = f"""
+<div style='margin-top:14px'>
+ <div style='display:flex;height:34px;border-radius:10px;overflow:hidden;
+  border:1px solid rgba(201,162,39,.2)'>
+  <div style='width:{seg(won_v):.1f}%;background:#1d5c40'></div>
+  <div style='width:{seg(fresh_v):.1f}%;background:#8a6b14'></div>
+  <div style='width:{seg(stale_v):.1f}%;background:#7c2d24'></div>
+ </div>
+ <div style='display:flex;gap:18px;flex-wrap:wrap;margin-top:7px;
+  font-size:12.5px'>
+  <span><i style='display:inline-block;width:10px;height:10px;
+   border-radius:3px;background:#1d5c40'></i> <b class='tab'
+   style='color:var(--green2)'>${won_v:,}</b> won 🎉</span>
+  <span><i style='display:inline-block;width:10px;height:10px;
+   border-radius:3px;background:#8a6b14'></i> <b class='tab'
+   style='color:var(--goldink)'>${fresh_v:,}</b> waiting
+   (fresh)</span>
+  <span><i style='display:inline-block;width:10px;height:10px;
+   border-radius:3px;background:#7c2d24'></i> <b class='tab'
+   style='color:var(--alarm)'>${stale_v:,}</b> quiet 7+ days —
+   the 🚫 Nudge lane</span>
+ </div></div>"""
+
+        # sparkline: money-waiting day by day (grows as history does)
+        spark = ""
+        pts = [(h.get("awaiting") or 0) for h in hist]
+        if len(pts) >= 2:
+            top = max(pts) or 1
+            W, H = 150, 34
+            xy = " ".join(
+                f"{i * (W / (len(pts) - 1)):.0f},"
+                f"{H - (p / top) * (H - 4) - 2:.0f}"
+                for i, p in enumerate(pts))
+            spark = (f"<svg width='{W}' height='{H}' "
+                     f"style='display:block'><polyline points='{xy}' "
+                     f"fill='none' stroke='#c9a227' stroke-width='2' "
+                     f"stroke-linejoin='round'/></svg>"
+                     f"<div class='subtext' style='font-size:10px'>"
+                     f"$ waiting, last {len(pts)} days</div>")
+
+        # win-rate RING (pure CSS conic gradient)
+        ring = f"""
+<div style='flex:none;text-align:center'>
+ <div style='width:104px;height:104px;border-radius:50%;margin:0 auto;
+  background:conic-gradient(#5fbd85 0 {wr}%,rgba(255,255,255,.07) 0);
+  display:flex;align-items:center;justify-content:center'>
+  <div style='width:78px;height:78px;border-radius:50%;
+   background:#0d231b;display:flex;flex-direction:column;
+   align-items:center;justify-content:center'>
+   <b style='font-size:24px;color:var(--green2)' class='tab'>{wr}%</b>
+   <span style='font-size:8.5px;font-weight:800;letter-spacing:1.2px;
+    color:var(--mut);text-transform:uppercase'>win rate</span>
+  </div></div>
+ <div class='subtext' style='font-size:10.5px;margin-top:5px'>
+  {mo.get('won_n', 0)} won of {mo.get('quotes', 0)} quotes</div>
+</div>"""
+
         props = "".join(
             f"<div style='background:var(--goldbg);border-left:3px solid "
             f"var(--gold);border-radius:9px;padding:9px 13px;margin-top:8px;"
@@ -6677,43 +6747,34 @@ def scoreboard_page():
             f"{esc(m.get('at', ''))} · {esc(m.get('by') or 'office')} filed "
             f"<b>{esc(m.get('key', ''))}</b> under {esc(m.get('to', ''))}"
             f"</div>" for m in reversed(so.get("last") or []))
+        taught = "".join(
+            f"<div class='tile' style='padding:12px 14px'>"
+            f"<div><div class='tl'>{lbl}</div>"
+            f"<div class='tv' style='font-size:19px'>{val}</div>"
+            f"<div class='ts'>{sub}</div></div></div>"
+            for lbl, val, sub in (
+                ("Past due", f"${pd.get('val', 0):,}",
+                 f"{pd.get('n', 0)} invoices waiting on payment"),
+                ("House facts corrected",
+                 le.get("fact_corrections", 0),
+                 "remembered per address, forever"),
+                ("Spam senders taught", le.get("spam_senders", 0),
+                 "one office click each"),
+                ("Floors raised", le.get("floors_raised", 0),
+                 "never quote under last paid"),
+                ("Lane moves by hand", so.get("moves_14d", 0),
+                 "the sorter's report card · 2 weeks")))
         learn_card = f"""
 <div class='card'>
  <div class='schead'>{_svg_icon('trend')}<h2>What the system is
  learning</h2><span class='subtext' style='margin-left:auto'>updated
- {esc((lr.get('at') or '')[:16].replace('T', ' '))} · refreshed hourly
- </span></div>
- <div class='tiles' style='margin-top:2px'>
-  <div class='tile'><div class='ticon'>{_svg_icon('trend')}</div>
-   <div><div class='tl'>Win rate</div>
-    <div class='tv'>{mo.get('win_rate', '—')}%</div>
-    <div class='ts'>{mo.get('won_n', 0)} won of the last
-    {mo.get('quotes', 0)} quotes · ${mo.get('won_val', 0):,}</div></div>
-  </div>
-  <div class='tile'><div class='ticon'>{_svg_icon('phone')}</div>
-   <div><div class='tl'>Money waiting on customers</div>
-    <div class='tv'>${mo.get('awaiting_val', 0):,}</div>
-    <div class='ts'>{mo.get('awaiting_n', 0)} quotes out ·
-    ${mo.get('stale_val', 0):,} of it quiet 7+ days
-    ({mo.get('stale_n', 0)})</div></div>
-  </div>
-  <div class='tile'><div class='ticon'>{_svg_icon('percent')}</div>
-   <div><div class='tl'>Past due</div>
-    <div class='tv'>${pd.get('val', 0):,}</div>
-    <div class='ts'>{pd.get('n', 0)} invoices waiting on payment
-    </div></div>
-  </div>
+ {esc((lr.get('at') or '')[:16].replace('T', ' '))} · hourly</span></div>
+ <div style='display:flex;gap:22px;align-items:center;flex-wrap:wrap'>
+  {ring}
+  <div style='flex:1;min-width:260px'>{funnel}</div>
+  {f"<div style='flex:none'>{spark}</div>" if spark else ""}
  </div>
- <div style='display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;
-  font-size:13px'>
-  <span>🏠 <b>{le.get('fact_corrections', 0)}</b> house facts the
-   office corrected — remembered forever</span>
-  <span>🚫 <b>{le.get('spam_senders', 0)}</b> spam senders taught</span>
-  <span>📈 <b>{le.get('floors_raised', 0)}</b> prices raised to
-   last-paid floors</span>
-  <span>🗂 <b>{so.get('moves_14d', 0)}</b> lane moves by hand
-   (2 weeks)</span>
- </div>
+ <div class='tiles five' style='margin-top:14px'>{taught}</div>
  {props}
  {f"<details style='margin-top:10px'><summary style='cursor:pointer;font-weight:700;color:var(--mut);font-size:13px'>recent hand-filings</summary>{moves}</details>" if moves else ""}
 </div>"""

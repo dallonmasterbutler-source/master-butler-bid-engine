@@ -120,6 +120,25 @@ def build(save=True):
     except Exception:
         pass
 
+    # ── history: one snapshot per day → sparklines and trend arrows
+    # on the Scoreboard grow by themselves ──
+    try:
+        old = clouddb.get_blob("learning_report") or {}
+        hist = old.get("history") or []
+        today = now.date().isoformat()
+        mo = rep.get("money") or {}
+        snap = {"d": today, "win": mo.get("win_rate"),
+                "awaiting": mo.get("awaiting_val"),
+                "stale": mo.get("stale_val"),
+                "pastdue": (rep.get("pastdue") or {}).get("val")}
+        if hist and hist[-1].get("d") == today:
+            hist[-1] = snap
+        else:
+            hist.append(snap)
+        rep["history"] = hist[-30:]
+    except Exception:
+        pass
+
     if save:
         try:
             clouddb.put_blob("learning_report", rep)
