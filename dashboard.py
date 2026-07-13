@@ -3033,6 +3033,64 @@ def _latest_in_utc(msgs):
             if latest else "")
 
 
+_SVC_KEYWORDS = {
+    "gutter": ("gutter",),
+    "roof": ("roof", "blow off", "blow-off"),
+    "moss": ("moss",),
+    "window": ("window",),
+    "pw": ("pressure wash", "house wash", "wash", "driveway", "patio",
+           "sidewalk", "walkway", "pathway", "deck", "concrete", "paver",
+           "curb"),
+    "dryer": ("dryer",),
+    "light": ("light", "trimlight", "gemstone", "govee"),
+}
+
+
+def _svc_category(token):
+    """A parser service token → coarse category for old-quote matching."""
+    t = (token or "").lower()
+    if t.startswith("pw_") or "wash" in t:
+        return "pw"
+    if "gutter" in t:
+        return "gutter"
+    if "roof" in t:
+        return "roof"
+    if "moss" in t:
+        return "moss"
+    if "window" in t:
+        return "window"
+    if "dryer" in t:
+        return "dryer"
+    if "light" in t:
+        return "light"
+    return None
+
+
+def _quote_service_mismatch(oq, req_services):
+    """Is a customer's existing quote for a DIFFERENT service than what
+    they're asking for NOW? (Jeff Hill, Jul 13: a Holiday-Lights quote
+    flagged against a new pressure-washing request.) A different-service
+    quote is unrelated to this request REGARDLESS of age. Returns a
+    plain-English label for the old quote's service when it clearly does
+    NOT overlap the new request; '' when it overlaps or we can't tell."""
+    cats = {c for c in (_svc_category(s) for s in (req_services or [])) if c}
+    lines = (oq or {}).get("lines") or []
+    if not cats or not lines:
+        return ""                       # can't compare → don't guess
+    text = " ".join((li.get("name") or "").lower() for li in lines)
+    for cat in cats:
+        if any(kw in text for kw in _SVC_KEYWORDS.get(cat, ())):
+            return ""                   # overlap → same job, not a mismatch
+    # no overlap — name the old quote from its first real line item
+    for li in lines:
+        nm = (li.get("name") or "").strip()
+        low = nm.lower()
+        if nm and not any(w in low for w in
+                          ("discount", "tax", "product", "material", "fee")):
+            return re.split(r"\s*[:\-]", nm)[0].strip()[:28]
+    return "a different service"
+
+
 def _office_drafting(oq, stamp):
     """True when the OFFICE has a live DRAFT quote in Jobber for this
     record — i.e. they're building the quote there RIGHT NOW, so our
@@ -3341,20 +3399,33 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # field) — the office archives the old quote by hand in Jobber, so
         # the note SAYS so. Only fires when they actually wrote recently.
         stale_note = ""
-        if oq and _msg_in and (oq.get("created") or ""):
-            try:
-                from datetime import date as _sqd, datetime as _sqdt
-                _agedays = ((_sqdt.fromisoformat(_msg_in).date()
-                             - _sqd.fromisoformat(oq["created"])).days)
-                if _agedays >= 90:            # 3+ months → review it
-                    stale_note = (f"⏰ review — last quote #{oq.get('number')} "
-                                  f"is ~{_agedays // 30} mo old; treat as new "
-                                  "request & archive it in Jobber")
-                    oq = None
-                    qno = None
-                    won = False
-            except (ValueError, TypeError):
-                pass
+        if oq and (oq.get("created") or ""):
+            # (a) different SERVICE than they're asking for now = unrelated,
+            #     retire regardless of age (Jeff Hill, Jul 13: a Holiday-
+            #     Lights quote flagged against a pressure-washing request).
+            _mm = _quote_service_mismatch(oq, (nb.get("services") or [])
+                                          if nb else [])
+            _agedays = 0
+            if _msg_in:
+                try:
+                    from datetime import date as _sqd, datetime as _sqdt
+                    _agedays = ((_sqdt.fromisoformat(_msg_in).date()
+                                 - _sqd.fromisoformat(oq["created"])).days)
+                except (ValueError, TypeError):
+                    _agedays = 0
+            if _mm:
+                stale_note = (f"🔀 last quote #{oq.get('number')} was for "
+                              f"{_mm} — this is a new request")
+                oq = None
+                qno = None
+                won = False
+            elif _msg_in and _agedays >= 90:  # (b) 3+ months old → review
+                stale_note = (f"⏰ review — last quote #{oq.get('number')} "
+                              f"is ~{_agedays // 30} mo old; treat as new "
+                              "request & archive it in Jobber")
+                oq = None
+                qno = None
+                won = False
         # TECHS get their own lane ABOVE New (Dallon, Jul 10 pm: 'a
         # tech tab above New with a notification when tech messages
         # come through') — field mail never mixes with customer bids
