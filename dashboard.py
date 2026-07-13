@@ -140,10 +140,15 @@ DECIDED_ACTIONS = ("approve", "adjusted", "duplicate_same",
 
 
 def flagged_for_review():
-    """Bids LaRee sent to Tom & Dallon, minus ones they've marked seen."""
+    """Bids LaRee sent to Tom & Dallon, minus ones they've marked seen.
+    AUTO flags are excluded (LaRee, Jul 13: every failed-transcription
+    voicemail wore 'with Dallon & Tom' — that badge means a HUMAN
+    escalated it; the machine's own retry notes don't count)."""
     flagged, seen = {}, set()
     for r in load_reviews():
         if r.get("action") == "flag_review":
+            if (r.get("by") or "").strip().lower() == "auto":
+                continue
             flagged[r["stamp"]] = r
         elif r.get("action") == "review_seen":
             seen.add(r.get("stamp"))
@@ -3281,6 +3286,8 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
     # zeroed out stay cleared — the walk-away net won't creep them back —
     # until a NEW inbound message (last_at beats the cleared time).
     cleared_blob = _blob_rw("cleared", {})
+    # per-customer flags (bad payer / watch / VIP) — Garrett Mydland
+    cust_flags = _blob_rw("customer_flags", {})
 
     for b in bids:
         if b.get("merged_into") or classify_row(b)[0] == "aside":
@@ -3324,11 +3331,18 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             c["name"] = nm
         c["bids"].append(b)
     import spam_filter
-    _skip = (list(_internal_senders()) + list(_learned_spam())
+    _skip = (list(_learned_spam())
              + list(NOISE_SENDERS) + list(spam_filter.KNOWN_SPAM_DOMAINS))
+    _internal = list(_internal_senders())
     for addr, name, msgs in msglog.threads():
-        if addr not in cust and (any(s and s in addr for s in _skip)
-                                 or spam_filter.looks_spam(
+        # INTERNAL mail (Dallon/Tom/the company) used to be skipped
+        # entirely — but Dallon's emails ARE the office's questions back
+        # to him (pricing, bid questions), and LaRee needs them SEEN
+        # (Jul 13 call). They ride the Techs lane: internal, never a bid.
+        is_internal = any(s and s in addr for s in _internal)
+        if addr not in cust and not is_internal \
+                and (any(s and s in addr for s in _skip)
+                     or spam_filter.looks_spam(
                 addr, msgs[-1].get("subject"), msgs[-1].get("body"))[0]):
             continue
         c = entry(_canon_email(addr))
@@ -3336,6 +3350,8 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         if name and name != addr and not c["name"]:
             c["name"] = name
         c["msgs"] = msgs
+        if is_internal:
+            c["internal"] = True
 
     roster = []
     for key in order:
@@ -3443,8 +3459,8 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # TECHS get their own lane ABOVE New (Dallon, Jul 10 pm: 'a
         # tech tab above New with a notification when tech messages
         # come through') — field mail never mixes with customer bids
-        if nb and nb.get("tech_sender"):
-            grp = -1
+        if (nb and nb.get("tech_sender")) or c.get("internal"):
+            grp = -1                 # field mail OR office↔Dallon internal
         elif nb and nb.get("dns_match"):
             grp = 0
         # HANDLED IN JOBBER (proven: booked today / recent quote / won):
@@ -3583,6 +3599,9 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             # a new tech message brings it right back
             lane = ("drawer" if (acknowledged and not unread
                                  and not new_msg) else "techs")
+            if c.get("internal") and lane == "techs":
+                word = "📨 internal — office ↔ Dallon & Tom"
+                wstyle = "color:#6d28d9;font-weight:700"
         elif urgent:
             lane = "inbox"           # a worried customer outranks all
         elif mv and mv.get("lane") == "done":
@@ -3665,7 +3684,8 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                        "wstyle": wstyle, "age": age_h or 0,
                        "new_msg": new_msg, "oq": oq, "qno": qno,
                        "won": won, "urgent": bool(urgent),
-                       "lane": lane, "act": _msg_latest})
+                       "lane": lane, "act": _msg_latest,
+                       "cflag": cust_flags.get(key)})
     # GMAIL MIRROR (Jessica, Jul 9: office works Gmail + dashboard side
     # by side for a while) — inside each section the order is pure
     # newest-activity-first, exactly like the Gmail list; bold marks
@@ -3720,6 +3740,14 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # WITH recent back-and-forth is being worked (leave it); one gone
         # silent needs a nudge. Shown only where it matters.
         actchip = ""
+        _cfr = r.get("cflag")
+        if _cfr:
+            _cft = {"bad_payer": ("⚠️ bad payer", "#f2b8b5"),
+                    "watch": ("👀 watch", "#e8c76a"),
+                    "vip": ("⭐ VIP", "#8fc7a6")}.get(
+                        _cfr.get("label"), ("⚠️ flagged", "#f2b8b5"))
+            actchip += (f"<span style='color:{_cft[1]};font-weight:800;"
+                        f"font-size:11px'>{_cft[0]}</span> ")
         if r["lane"] in ("waiting", "nudge", "won") and r.get("act"):
             from datetime import datetime as _ad, timezone as _az
             try:
@@ -3958,13 +3986,18 @@ document.addEventListener('DOMContentLoaded', function(){
                       "color:var(--green2);font-weight:800'>All caught "
                       "up ✅</div>")
                 + "</div>")
+    # CLEAN BOTTOM (LaRee, Jul 13: 'they work the list oldest-to-newest
+    # and NOTHING else is below it') — everything already-handled lives
+    # in thin COLLAPSED folds, never an open list under the lane.
     handled_rows = [r for r in roster if r["lane"] == "handled"]
     if handled_rows:
-        lst += (f"<div class='ihead'>Handled in Jobber — verified "
-                f"({len(handled_rows)})</div>"
-                + "".join(row(r) for r in handled_rows))
+        lst += (f"<details style='margin-top:12px'><summary style='cursor:"
+                f"pointer;color:var(--mut);font-size:12.5px;font-weight:700;"
+                f"padding:0 8px'>Handled in Jobber — verified "
+                f"({len(handled_rows)})</summary>"
+                + "".join(row(r) for r in handled_rows) + "</details>")
     done_rows = [r for r in roster if r["lane"] == "drawer"]
-    lst += (f"<details style='margin-top:12px'><summary style='cursor:"
+    lst += (f"<details style='margin-top:6px'><summary style='cursor:"
             f"pointer;color:var(--mut);font-size:12.5px;font-weight:700;"
             f"padding:0 8px'>Done &amp; quiet ({len(done_rows)}) · "
             f"<a href='/queue'>old queue</a> · <a href='/history'>history"
@@ -4129,7 +4162,7 @@ document.addEventListener('DOMContentLoaded', function(){
   var open = [];
   try { open = JSON.parse(sessionStorage.getItem(key) || '[]'); }
   catch(e) {}
-  var folds = document.querySelectorAll('details.ifold');
+  var folds = document.querySelectorAll('details.ifold, #addsvcfold');
   folds.forEach(function(f, i){
     if (open.indexOf(i) >= 0) f.open = true;
     f.addEventListener('toggle', function(){
@@ -4218,6 +4251,32 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
 
     # banners: collision / dns / second look
     banners = ""
+    # CUSTOMER FLAG (Dallon, Jul 13 — Garrett Mydland: a bad-payer
+    # CUSTOMER who sent junk mail; spam would erase the history we need
+    # to remember. The flag sticks to the PERSON forever, separate from
+    # spam (hides mail) and DNS (won't serve them at all).
+    _cf = None
+    if c.get("email"):
+        _cf = _blob_rw("customer_flags", {}).get(_canon_email(c["email"]))
+    if _cf:
+        _cfl = {"bad_payer": "⚠️ BAD PAYER", "watch": "👀 WATCH",
+                "vip": "⭐ VIP"}.get(_cf.get("label"), "⚠️ FLAGGED")
+        _cfbg = ("#2a1313" if _cf.get("label") != "vip" else "#1c2a13")
+        _cfink = ("#f2b8b5" if _cf.get("label") != "vip" else "#b8f2c0")
+        banners += (
+            f"<div class='band' style='background:{_cfbg};border-color:"
+            f"{_cfink};border-left-color:{_cfink};margin:0 0 10px'>"
+            f"<b style='color:{_cfink}'>{_cfl}</b> — "
+            f"{esc(_cf.get('note') or '')} "
+            f"<span style='color:var(--mut);font-size:11.5px'>(flagged by "
+            f"{esc(_cf.get('by') or 'office')})</span>"
+            f"<form method='POST' action='/flag_customer_clear' "
+            f"style='display:inline;margin-left:8px'>"
+            f"<input type='hidden' name='email' value='{esc(c['email'])}'>"
+            f"<input type='hidden' name='back' value='{esc(back)}'>"
+            f"<button style='padding:2px 9px;font-size:11px;background:none;"
+            f"border:1px solid {_cfink};color:{_cfink}'>remove</button>"
+            f"</form></div>")
     if nb:
         other = claims.get(stamp)
         if other and other.get("by") != user \
@@ -4627,7 +4686,8 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
         f"'movemenu');m.style.display=m.style.display==='none'?'':'none'\">"
         f"Move ▾</button>"
         f"<div id='movemenu' style='display:none;position:absolute;"
-        f"right:0;top:36px;z-index:9;background:#0d231b;border:1px solid "
+        f"right:0;left:auto;top:36px;z-index:500;background:#0d231b;"
+        f"border:1px solid "
         f"rgba(201,162,39,.4);border-radius:12px;box-shadow:0 12px 30px "
         f"rgba(0,0,0,.5);min-width:235px;overflow:hidden'>"
         + "".join(
@@ -4655,6 +4715,24 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                  "finished — off the queue"),
                 ("auto", "↩ Let the system sort it",
                  "clears any manual filing")))
+        + (f"<div style='border-top:1px solid rgba(201,162,39,.25);"
+           f"padding:11px 15px'>"
+           f"<form method='POST' action='/flag_customer' style='margin:0'>"
+           f"<input type='hidden' name='email' value='{esc(c.get('email') or '')}'>"
+           f"<input type='hidden' name='back' value='{esc(back)}'>"
+           f"<div style='font-weight:700;font-size:13px;margin-bottom:6px'>"
+           f"⚠️ Flag this customer</div>"
+           f"<select name='label' style='width:100%;margin-bottom:6px;"
+           f"padding:6px;border-radius:8px'>"
+           f"<option value='bad_payer'>⚠️ Bad payer</option>"
+           f"<option value='watch'>👀 Watch — be careful</option>"
+           f"<option value='vip'>⭐ VIP — treat extra well</option></select>"
+           f"<input name='note' placeholder='why — e.g. didn&#39;t pay for "
+           f"July gutter job' style='width:100%;margin-bottom:6px;"
+           f"padding:6px;border-radius:8px'>"
+           f"<button style='width:100%;padding:7px;font-size:12.5px'>"
+           f"Save flag — sticks to them forever</button></form></div>"
+           if c.get("email") else "")
         + "</div></div>")
     pin_main = (f"{hero_html}"
                 f"<div class='pin-top'><div>"
@@ -4718,8 +4796,15 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                    f"range ${s['low']:,.0f}–${s['high']:,.0f}</div>"
                    if s.get("low") and s.get("high")
                    and s["low"] != s["high"] else "")
+            # ✕ remove a line (LaRee, Jul 13: 'can't delete line items') —
+            # checked = dropped on save; the note records who removed what
+            rmc = (f"<td style='text-align:center'><label class='subtext' "
+                   f"style='font-size:10px;cursor:pointer'>"
+                   f"<input type='checkbox' name='rm_{i}' "
+                   f"style='vertical-align:middle'> ✕</label></td>"
+                   if editable else "<td></td>")
             lines += (f"<tr><td>{esc(s['name'])}{rng}</td>{pc}"
-                      f"<td class='subtext'>{cells or '—'}</td></tr>")
+                      f"<td class='subtext'>{cells or '—'}</td>{rmc}</tr>")
         reason_chips = "".join(
             f"<button type='button' class='reason' onclick=\""
             f"document.getElementById('ireason').value='{r}';"
@@ -4736,7 +4821,8 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                  f"value='{esc(nb.get('from') or '')}'>"
                  f"<input type='hidden' name='back' value='{esc(back)}'>"
                  f"<table><tr><th>Service</th><th class='num'>Price</th>"
-                 f"<th>Past here</th></tr>{lines}</table>{edit_ctl}</form>"
+                 f"<th>Past here</th><th style='font-size:10px'>remove"
+                 f"</th></tr>{lines}</table>{edit_ctl}</form>"
                  + add_service_card(nb, back=back))
         folds += fold("Line items",
                       "tap a price to fix it" if editable else "as decided",
@@ -5941,9 +6027,11 @@ def add_service_card(b, back=""):
             f"driveway/patio/sidewalk from the sky (~2¢) — unlocks "
             f"pre-priced pressure washing</button></form>")
     return (
-        "<details class='card'><summary style='cursor:pointer;"
-        "font-weight:700;color:var(--green2)'>➕ Add more services — "
-        "check any, watch the total, add them all at once</summary>"
+        # id joins the fold-persistence script — the office kept losing
+        # this open on the 2-min refresh (LaRee, Jul 13)
+        "<details class='card' id='addsvcfold'><summary style='cursor:"
+        "pointer;font-weight:700;color:var(--green2)'>➕ Add more services "
+        "— check any, watch the total, add them all at once</summary>"
         f"<form method='POST' action='/add_service' id='addsvcform' "
         f"style='margin-top:8px'>"
         f"<input type='hidden' name='stamp' value='{b['stamp']}'>"
@@ -9013,7 +9101,15 @@ class Handler(BaseHTTPRequestHandler):
             svcs = bid_d.get("services") or []
             changes = []
             if rec and svcs and not rec.get("dns_match"):
+                # ✕ removals first (LaRee, Jul 13) — collect the checked
+                # indexes, then rebuild the list without them
+                rm = {i for i in range(len(svcs)) if get(f"rm_{i}")}
+                if rm:
+                    dropped = [svcs[i]["name"] for i in sorted(rm)]
+                    changes.append("removed: " + ", ".join(dropped))
                 for i, s in enumerate(svcs):
+                    if i in rm:
+                        continue
                     raw = get(f"p_{i}")
                     if not raw:
                         continue
@@ -9027,6 +9123,9 @@ class Handler(BaseHTTPRequestHandler):
                         changes.append(f"{s['name']}: "
                                        f"${cur:,.0f}→${new:,.0f}")
                         s["price"] = new
+                if rm:
+                    svcs = [s for i, s in enumerate(svcs) if i not in rm]
+                    bid_d["services"] = svcs
                 if changes:
                     rec["draft"]["total"] = sum(s["price"] for s in svcs)
                     reason = get("reason") or "no reason tapped"
@@ -9119,6 +9218,8 @@ class Handler(BaseHTTPRequestHandler):
                     added = [li for li in lines if li["name"] not in names]
                     if not added:
                         continue
+                    for li in added:      # office's hand — survives any
+                        li["added_by"] = _user or "office"  # reprice/sweep
                     svcs.extend(added)
                     all_added += added
                     all_names.append(svc)
@@ -9271,6 +9372,50 @@ class Handler(BaseHTTPRequestHandler):
                 _msg_read_save(d)
             self.send_response(303)
             self.send_header("Location", "/")
+            self.end_headers()
+        elif self.path == "/flag_customer":
+            # ⚠️ persistent per-customer flag (Dallon, Jul 13 — Garrett
+            # Mydland: bad payer we must REMEMBER; spam would erase him).
+            # Sticks to the person's email forever; shows as a banner on
+            # their card + a chip on their row. Never touches pricing.
+            em = _canon_email((get("email") or "").strip().lower())
+            cmf = re.search(r"office_user=([^;]+)",
+                            self.headers.get("Cookie") or "")
+            whof = urllib.parse.unquote(cmf.group(1)) if cmf else "office"
+            if em:
+                fl = _blob_rw("customer_flags", {})
+                fl[em] = {"label": get("label") or "bad_payer",
+                          "note": (get("note") or "")[:300],
+                          "by": whof,
+                          "at": datetime.now().isoformat(timespec="seconds")}
+                _blob_save("customer_flags", fl)
+                save_review({"action": "customer_flagged", "customer": em,
+                             "by": whof,
+                             "note": f"{get('label')}: {get('note') or ''}"[:200],
+                             "at": datetime.now().isoformat(
+                                 timespec="seconds")})
+            self.send_response(303)
+            back_f = get("back") or "/"
+            self.send_header("Location",
+                             back_f if back_f.startswith("/") else "/")
+            self.end_headers()
+        elif self.path == "/flag_customer_clear":
+            em = _canon_email((get("email") or "").strip().lower())
+            cmf = re.search(r"office_user=([^;]+)",
+                            self.headers.get("Cookie") or "")
+            whof = urllib.parse.unquote(cmf.group(1)) if cmf else "office"
+            fl = _blob_rw("customer_flags", {})
+            if em in fl:
+                del fl[em]
+                _blob_save("customer_flags", fl)
+                save_review({"action": "customer_flag_cleared",
+                             "customer": em, "by": whof,
+                             "at": datetime.now().isoformat(
+                                 timespec="seconds")})
+            self.send_response(303)
+            back_f = get("back") or "/"
+            self.send_header("Location",
+                             back_f if back_f.startswith("/") else "/")
             self.end_headers()
         elif self.path == "/lane_clear":
             # ZERO-IT-OUT (Dallon, Jul 13: 'the daily done feel — work a

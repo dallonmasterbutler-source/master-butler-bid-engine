@@ -142,6 +142,30 @@ def reprice(rec, edits, by="office"):
             and not any("product" in (s.get("name") or "").lower()
                         for s in results):
         results.append({"name": "Moss Treatment Product", "price": 14.50})
+    # NEVER LOSE THE OFFICE'S HAND (LaRee/Sanjeev, Jul 13: her hand-added
+    # Gutter Cleaning $270 got wiped back to the engine's $230 on a
+    # facts-reprice). A line the office EDITED (orig_price snapshot) or
+    # ADDED (added_by stamp) keeps ITS price — the office's number is
+    # ground truth; the facts-fix reprices only the engine's own lines.
+    old_lines = ((rec.get("draft") or {}).get("bid") or {}).get(
+        "services") or []
+    kept = []
+    for ol in old_lines:
+        if not (ol.get("orig_price") is not None or ol.get("added_by")):
+            continue
+        hit = next((nl for nl in results if (nl.get("name") or "").lower()
+                    == (ol.get("name") or "").lower()), None)
+        if hit:
+            hit["price"] = ol.get("price")
+            for k in ("orig_price", "added_by"):
+                if ol.get(k) is not None:
+                    hit[k] = ol[k]
+        else:
+            results.append(dict(ol))
+        kept.append(ol.get("name"))
+    if kept:
+        notes.append("Office-set lines kept at the office's price "
+                     f"(not re-priced): {', '.join(kept)}.")
     total = sum(s.get("price") or 0 for s in results)
 
     edit_txt = ", ".join(f"{k} → {v}" for k, v in clean.items())

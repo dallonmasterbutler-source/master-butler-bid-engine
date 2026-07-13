@@ -83,6 +83,24 @@ def check(parsed, prop=None, when=None):
                           "cleaning unless the home has gutter guards "
                           "(office rule) — confirm before quoting.")
 
+    # 1b · DRYER VENT UP HIGH (LaRee, Jul 13: "even at 100% confidence,
+    #      some dryer vents are on the 3rd story — we need to KNOW").
+    #      A simple 1-2 story vent is anyone's job; 3+ stories (or the
+    #      customer saying it's up high) needs eyes before booking.
+    if "dryer_vent" in services:
+        try:
+            _st = float(prop.get("stories")) if prop.get("stories") \
+                else None
+        except (TypeError, ValueError):
+            _st = None
+        if (_st and _st >= 3) or has("third story", "3rd story",
+                                     "third floor", "3rd floor",
+                                     "high vent", "up high"):
+            alert = alert or (
+                "DRYER VENT MAY BE UP HIGH (3-story home or the customer "
+                "says so) — check photos & Must-Know before booking; NOT "
+                "an anyone-can-do-it job.")
+
     # 2 · MOSS REMOVAL IS AUGUST-ONLY (docs 9.2 + quick responses)
     if has("moss_removal", "moss removal"):
         if d.month == 8:
