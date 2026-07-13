@@ -211,13 +211,17 @@ def editor_html(rec, stamp, back="/"):
     # hidden. id='fixfacts' lets the auto-refresh stand down while it's
     # open — an in-progress edit can never be wiped by a reload.
     open_attr = " open" if ov else ""
+    # its own COLOR so it stands out from the specs (Dallon, Jul 13:
+    # 'make the fix-the-facts bubble a different color, easier to see')
+    # — a blue-slate pill, distinct from the emerald room + gold rail.
     return (
         f"<details id='fixfacts' class='fixfacts'{open_attr} "
-        f"style='margin-top:14px;border-top:1px solid "
-        f"rgba(201,162,39,.14);padding-top:12px'>"
+        f"style='margin-top:14px'>"
         f"<summary style='cursor:pointer;list-style:none;font-size:12px;"
         f"font-weight:800;letter-spacing:1.2px;text-transform:uppercase;"
-        f"color:#e8c56a;display:flex;align-items:center;gap:7px'>"
+        f"color:#bcd6f0;display:flex;align-items:center;gap:7px;"
+        f"background:#1f3350;border:1px solid #3a5a86;border-radius:11px;"
+        f"padding:12px 14px'>"
         f"<span style='font-size:14px'>✎</span> Fix the facts — reprices "
         f"&amp; remembered</summary>"
         f"<form method='POST' action='/edit_facts' style='margin-top:6px'>"

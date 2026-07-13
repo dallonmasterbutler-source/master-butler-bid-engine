@@ -1157,13 +1157,14 @@ body{background:#05140f!important}
    rule: bigger/clearer over clever) */
 .mock.dkroom .lanechips{display:grid;grid-template-columns:1fr 1fr;
  gap:7px;padding:2px 2px 8px}
-.mock.dkroom .lanechip{border:1px solid rgba(201,162,39,.18);
- background:rgba(17,41,33,.5);color:#a3adab;border-radius:12px;
+.mock.dkroom .lanechip{border:1px solid rgba(201,162,39,.3);
+ background:#1c3a2c;color:#dfe8e2;border-radius:12px;
  padding:12px 13px;cursor:pointer;font-weight:800;font-size:13.5px;
  display:flex;align-items:center;gap:7px;font-family:inherit;
  width:100%;text-align:left}
 .mock.dkroom .lanechip .ln{margin-left:auto}
-.mock.dkroom .lanechip:hover{border-color:rgba(201,162,39,.45)}
+.mock.dkroom .lanechip:hover{background:#244a38;
+ border-color:rgba(201,162,39,.5)}
 .mock.dkroom .lanechip .ln{background:rgba(0,0,0,.35);
  border-radius:999px;padding:0 8px;font-size:11px;color:#e2e8f0;
  font-variant-numeric:tabular-nums}
