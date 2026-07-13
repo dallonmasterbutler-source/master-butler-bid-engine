@@ -834,6 +834,27 @@ footer{margin:8px 0 28px;padding:0 24px;
   border:1px solid var(--line)}
 .renew.hot .due{background:rgba(201,162,39,.16);color:#e8c56a;
   border-color:rgba(201,162,39,.4)}
+/* NIGHTLY REPORT SHELF (Dallon, Jul 12): chips swap one compact card */
+.rchips{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px}
+.rchip{border:1px solid rgba(201,162,39,.18);background:rgba(17,41,33,.5);
+  color:var(--mut);border-radius:11px;padding:9px 14px;cursor:pointer;
+  font-weight:800;font-size:12.5px;font-family:inherit}
+.rchip:hover{border-color:rgba(201,162,39,.45)}
+.rchip.on{background:#c9a227;color:#0b3d2e;border-color:#c9a227}
+.rcard{background:rgba(17,41,33,.55);border:1px solid
+  rgba(201,162,39,.16);border-radius:14px;padding:16px 20px;
+  margin-top:8px;display:none}
+.rcard.on{display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+.rcard .rhead{font-size:34px;font-weight:900;color:#c9a227;
+  font-variant-numeric:tabular-nums;line-height:1.05;
+  text-shadow:0 0 12px rgba(201,162,39,.35)}
+.rcard .rsub{font-size:12px;color:var(--mut);margin-top:3px;
+  max-width:220px}
+.rcard .rlines{font-size:13px;line-height:1.7;flex:1;min-width:200px}
+.rcard .rbars{display:flex;gap:4px;align-items:flex-end;height:44px}
+.rcard .rbars i{display:block;width:14px;border-radius:3px 3px 0 0;
+  background:rgba(201,162,39,.5)}
+.rcard .rbars i:last-child{background:#c9a227}
 .wchips{display:flex;flex-wrap:wrap;gap:8px}
 .wchip{display:inline-flex;align-items:center;gap:9px;
   background:rgba(17,41,33,.55);border:1px solid rgba(201,162,39,.16);
@@ -6862,6 +6883,53 @@ def scoreboard_page():
  {f"<details style='margin-top:10px'><summary style='cursor:pointer;font-weight:700;color:var(--mut);font-size:13px'>recent hand-filings</summary>{moves}</details>" if moves else ""}
 </div>"""
 
+    # ── NIGHTLY REPORT SHELF: chips swap one compact card; everything
+    # pre-baked at 3 AM, page render just reads the blob ──
+    shelf = (clouddb.get_blob("report_shelf") or {}) \
+        if clouddb.available() else {}
+    shelf_html = ""
+    scards = shelf.get("cards") or []
+    if scards:
+        rchips = "".join(
+            f"<button type='button' class='rchip{' on' if i == 0 else ''}'"
+            f" data-r='{esc(c['id'])}' onclick='rShow(this.dataset.r)'>"
+            f"{esc(c['title'])}</button>"
+            for i, c in enumerate(scards))
+        rcards = ""
+        for i, c in enumerate(scards):
+            lines = "".join(f"<div>· {esc(l)}</div>"
+                            for l in (c.get("lines") or [])[:4])
+            bars = ""
+            if c.get("bars"):
+                vals = [v for _l, v in c["bars"]]
+                mx = max(vals) or 1
+                bars = ("<div class='rbars'>" + "".join(
+                    f"<i title='{esc(str(l))}: ${v:,.0f}' "
+                    f"style='height:{max(3, v / mx * 44):.0f}px'></i>"
+                    for l, v in c["bars"]) + "</div>")
+            rcards += (
+                f"<div class='rcard{' on' if i == 0 else ''}' "
+                f"id='rc-{esc(c['id'])}'>"
+                f"<div><div class='rhead tab'>{esc(str(c.get('head', '')))}"
+                f"</div><div class='rsub'>{esc(c.get('sub', ''))}</div></div>"
+                + (f"<div class='rlines'>{lines}</div>" if lines else "")
+                + bars + "</div>")
+        gen_at = (shelf.get("at") or "")[:10]
+        shelf_html = (
+            f"<div class='schead' style='margin-top:18px'>"
+            f"{_svg_icon('chart')}<h2>Reports</h2>"
+            f"<span class='subtext' style='margin-left:auto'>baked "
+            f"nightly at 3 AM · {esc(gen_at)}</span></div>"
+            f"<div class='rchips'>{rchips}</div>{rcards}"
+            """<script>
+function rShow(id){
+  document.querySelectorAll('.rchip').forEach(function(c){
+    c.classList.toggle('on', c.dataset.r === id);});
+  document.querySelectorAll('.rcard').forEach(function(c){
+    c.classList.toggle('on', c.id === 'rc-' + id);});
+}
+</script>""")
+
     auto = None
     if clouddb.available():
         auto = clouddb.get_blob("auto_reviews") or {}
@@ -6985,8 +7053,8 @@ def scoreboard_page():
  setTimeout(function(){try{sessionStorage.setItem(K,window.scrollY);}catch(e){}
   location.reload();},120000);})();
 </script>"""
-    return page("Scoreboard", hero + learn_card + fresh + nudge_card
-                + matched_card + waiting_card + refresh_js)
+    return page("Scoreboard", hero + learn_card + shelf_html + fresh
+                + nudge_card + matched_card + waiting_card + refresh_js)
 
 
 _ABBR = {"se": "southeast", "sw": "southwest", "ne": "northeast",

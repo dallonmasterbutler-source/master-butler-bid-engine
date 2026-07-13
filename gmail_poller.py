@@ -207,6 +207,31 @@ def poll_once():
                     complete_sweep.run(recent_hours=48)
             except Exception:
                 pass
+            # NIGHTLY GEAR (Dallon, Jul 12: heavy reports run at 3 AM,
+            # never on the office's clock) — history refresh + the
+            # report shelf, once per date, gated by a cloud marker
+            try:
+                from zoneinfo import ZoneInfo as _ZI
+                _now_pt = datetime.now(_ZI("America/Los_Angeles"))
+                if _now_pt.hour == 3:
+                    import clouddb as _cdb3
+                    _mark = _cdb3.get_blob("nightly_done") or {}
+                    _today = _now_pt.date().isoformat()
+                    if _mark.get("date") != _today:
+                        _cdb3.put_blob("nightly_done",
+                                       {"date": _today})
+                        try:
+                            import servicehistory
+                            servicehistory.refresh(recent=200)
+                        except Exception as _e:
+                            print(f"  (history refresh: {_e})")
+                        try:
+                            import reports_nightly
+                            reports_nightly.build()
+                        except Exception as _e:
+                            print(f"  (report shelf: {_e})")
+            except Exception:
+                pass
             # LEARNING REPORT (Dallon, Jul 12: visible learning on the
             # Scoreboard) — money funnel + what the office taught us
             try:
