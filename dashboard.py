@@ -7709,6 +7709,11 @@ class Handler(BaseHTTPRequestHandler):
             form = urllib.parse.parse_qs(body.decode())
             pw = _password()
             given = form.get("password", [""])[0]
+            # iPad-proofing (office lockout, Jul 13): autocomplete adds
+            # a trailing space, and copying from Messages/Notes swaps
+            # the hyphen for a long dash — both invisible on screen.
+            # Strip and normalize every dash variant before comparing.
+            given = re.sub(r"[‐-―−]", "-", given).strip()
             nxt = form.get("next", ["/"])[0]
             if not nxt.startswith("/"):
                 nxt = "/"
