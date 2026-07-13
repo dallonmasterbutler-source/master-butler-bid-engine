@@ -825,6 +825,9 @@ footer{margin:8px 0 28px;padding:0 24px;
 .pill.dim{background:var(--soft);color:var(--mut);
   border:1px solid var(--line)}
 .pill:hover{filter:brightness(1.25)}
+.renewgrid{display:grid;grid-template-columns:repeat(auto-fill,
+  minmax(260px,1fr));gap:10px}
+.renewgrid .renew{margin-bottom:0}
 .renew{background:var(--card);border:1px solid rgba(201,162,39,.15);
   border-left:4px solid var(--line);border-radius:13px;
   padding:16px 18px;margin-bottom:10px}
@@ -6693,7 +6696,7 @@ def winback_page(showall=False):
     due_col = ""
     if due:
         cards = ""
-        for i, r in enumerate(due[:5]):
+        for i, r in enumerate(due[:9]):
             over = r["days_since"] - r["cadence_days"]
             when = (f"{over}d overdue" if over > 0 else
                     "due now" if over > -15 else f"in {-over}d")
@@ -6728,21 +6731,26 @@ def winback_page(showall=False):
             f"<td>{esc(r['last'])}</td>"
             f"<td class='num'>{r['days_since']}d</td>"
             f"<td class='num'><b>${r['lifetime']:,}</b></td></tr>"
-            for r in due[5:100])
-        more = (f"<details style='margin-top:6px'><summary style='cursor:"
+            for r in due[9:100])
+        more = (f"<details style='margin-top:8px'><summary style='cursor:"
                 f"pointer;font-weight:700;color:var(--mut);font-size:13px'>"
-                f"all {min(len(due), 100)} due now "
+                f"the rest — all {min(len(due), 100)} due now "
                 f"(${sum(r['lifetime'] for r in due):,} lifetime)</summary>"
+                f"<div style='overflow-x:auto'>"
                 f"<table style='margin-top:8px'><tr><th>Customer</th>"
                 f"<th class='num'>Jobs</th><th>Last</th>"
                 f"<th class='num'>Ago</th><th class='num'>Lifetime</th></tr>"
-                f"{drows}</table></details>" if len(due) > 5 else "")
+                f"{drows}</table></div></details>" if len(due) > 9 else "")
         due_col = f"""
-<div class='schead'>{_svg_icon('repeat')}<h2>Annual renewals</h2></div>
+<div style='margin-top:18px'>
+<div class='schead'>{_svg_icon('repeat')}<h2>Annual renewals</h2>
+ <span class='subtext' style='margin-left:auto'>{len(due)} inside their
+ yearly window · ${sum(r['lifetime'] for r in due):,} lifetime</span>
+</div>
 <div class='subtext' style='margin-bottom:10px'>ACTIVE customers inside
  their own yearly window — book them BEFORE they drift onto the
- call-back list. Find them on the 👥 Customers tab.</div>
-{cards}{more}"""
+ call-back list.</div>
+<div class='renewgrid'>{cards}</div>{more}</div>"""
 
     header = f"""
 <div class='pghead'>
@@ -6769,9 +6777,10 @@ def winback_page(showall=False):
    <div class='ts'>highest lifetime value first</div></div></div>
 </div>"""
 
-    body = (header
-            + f"<div class='bento'><div>{today_card}{list_card}</div>"
-            + f"<div>{due_col}</div></div>" + tiles)
+    # full-width stacked sections (Dallon, Jul 13: annual renewals were
+    # crammed in a narrow column and running off — critical info gets
+    # the whole width)
+    body = (header + tiles + today_card + due_col + list_card)
     return page("Win-back", body)
 
 
