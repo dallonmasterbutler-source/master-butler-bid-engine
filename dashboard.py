@@ -3329,6 +3329,28 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                   ("approved", "converted")
                   or (b2.get("jobber_event") or {}).get("event")
                   == "quote_approved" for b2 in c["bids"])
+        # STALE QUOTE (Dallon, Jul 13): a returning customer asking for a
+        # NEW quote must not inherit a stale old one. If their most recent
+        # quote is 6+ months OLDER than their newest inbound message,
+        # retire it in OUR view (Jobber has no archive-quote API, so this
+        # is our-side only) — drop the open-quote / won signals so the row
+        # behaves as a fresh request, with a note. Only fires when they
+        # actually wrote recently (their message post-dates the quote).
+        stale_note = ""
+        if oq and _msg_in and (oq.get("created") or ""):
+            try:
+                from datetime import date as _sqd, datetime as _sqdt
+                _agedays = ((_sqdt.fromisoformat(_msg_in).date()
+                             - _sqd.fromisoformat(oq["created"])).days)
+                if _agedays >= 180:
+                    stale_note = (f"⏰ last quote #{oq.get('number')} is "
+                                  f"~{_agedays // 30} mo old — retired; new "
+                                  "request")
+                    oq = None
+                    qno = None
+                    won = False
+            except (ValueError, TypeError):
+                pass
         # TECHS get their own lane ABOVE New (Dallon, Jul 10 pm: 'a
         # tech tab above New with a notification when tech messages
         # come through') — field mail never mixes with customer bids
@@ -3523,6 +3545,9 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             # stays put even when claimed/opened (Sanjeev, Jul 13)
         else:
             lane = "inbox"           # when in doubt, sort UP
+        # a retired-stale-quote note is worth showing on the row
+        if stale_note:
+            word, wstyle = stale_note, "color:var(--goldink);font-weight:700"
         # ACTIVE CLAIM / HANDOFF ALWAYS SHOW (Dallon, Jul 13) — the lane
         # words above were clobbering both. Claim (someone on it now)
         # wins over handoff (someone left it for the next person).
@@ -3773,6 +3798,17 @@ document.addEventListener('DOMContentLoaded', function(){
     lst += (f"<div class='lanechips' id='lanechips'>{chips}</div>"
             f"<div class='lanesub' id='lanesub'></div>"
             + f"<script>var LANE_SUBS = {subs_json};</script>")
+    # OFFICE IS DRAFTING IN JOBBER (Dallon, Jul 13) — ALWAYS-VISIBLE, up
+    # top (not buried below the Inbox list): rows the office is quoting
+    # in Jobber right now, pulled out of Inbox/Drafts so we don't
+    # double-work or double-quote them, but never hidden.
+    od_rows = sorted((r for r in roster if r["lane"] == "officedraft"),
+                     key=lambda r: r["age"])
+    if od_rows:
+        lst += (f"<div class='ihead' style='color:#8a5a00;margin-top:4px'>"
+                f"🖊️ Office is drafting in Jobber ({len(od_rows)}) — "
+                f"quote started there; don't re-quote</div>"
+                + "".join(row(r) for r in od_rows))
     for lid, _label, _sub in LANES:
         # GMAIL ORDER inside every lane (Dallon, Jul 13: 'they're out of
         # order from Gmail, scrolling back and forth'). Sort by the
@@ -3789,16 +3825,6 @@ document.addEventListener('DOMContentLoaded', function(){
                       "color:var(--green2);font-weight:800'>All caught "
                       "up ✅</div>")
                 + "</div>")
-    # OFFICE IS DRAFTING IN JOBBER (Dallon, Jul 13): pulled out of
-    # Inbox/Drafts so we don't double-work them, but shown in their own
-    # always-visible group so a stale draft never gets buried.
-    od_rows = sorted((r for r in roster if r["lane"] == "officedraft"),
-                     key=lambda r: r["age"])
-    if od_rows:
-        lst += (f"<div class='ihead' style='color:#8a5a00'>🖊️ Office is "
-                f"drafting in Jobber ({len(od_rows)}) — quote started "
-                f"there; don't re-quote</div>"
-                + "".join(row(r) for r in od_rows))
     handled_rows = [r for r in roster if r["lane"] == "handled"]
     if handled_rows:
         lst += (f"<div class='ihead'>Handled in Jobber — verified "
