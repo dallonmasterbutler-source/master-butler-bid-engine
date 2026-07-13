@@ -136,6 +136,14 @@ def run(recent_hours=None):
             clouddb.ingest_shadow(stamp, rec)
             print(f"  ✓ {stamp} {(rec.get('from') or '')[:40]}", flush=True)
 
+    # same-person detector (Dallon, Jul 13): one customer, one card even
+    # across two email addresses — conservative, never fuses two people
+    try:
+        import customer_dedup
+        customer_dedup.build_aliases()
+    except Exception as ex:
+        print(f"  (customer dedup skipped: {ex})")
+
     # heartbeat: proof of life, visible from any machine
     try:
         clouddb.put_blob("sweep_heartbeat", {

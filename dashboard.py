@@ -2947,6 +2947,26 @@ def _bid_email(b):
     return (e or "").strip().lower() or None
 
 
+_ALIAS_CACHE = {"at": 0.0, "v": {}}
+
+
+def _canon_email(e):
+    """Resolve an email to the customer's PRIMARY address so someone
+    who wrote from two accounts groups as ONE card (Dallon, Jul 13:
+    Natallie Buxton). Aliases come from customer_dedup — only confident
+    same-person matches, so it never fuses two different people."""
+    if not e:
+        return e
+    import time as _t
+    if _t.time() - _ALIAS_CACHE["at"] > 60:
+        try:
+            _ALIAS_CACHE["v"] = _blob_rw("customer_aliases", {})
+        except Exception:
+            _ALIAS_CACHE["v"] = {}
+        _ALIAS_CACHE["at"] = _t.time()
+    return _ALIAS_CACHE["v"].get(e, e)
+
+
 def _stamp_utc(stamp):
     """Bid stamp (local time) -> UTC iso, comparable with msglog times."""
     from datetime import timezone
@@ -3078,7 +3098,7 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
     for b in bids:
         if b.get("merged_into") or classify_row(b)[0] == "aside":
             continue
-        e = _bid_email(b)
+        e = _canon_email(_bid_email(b))
         if b.get("kind") == "jobber_event" and (not e or "getjobber" in e):
             c = entry("stamp:" + b["stamp"])
             # a dressed event knows its PERSON — the subject line is
@@ -3124,7 +3144,7 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                                  or spam_filter.looks_spam(
                 addr, msgs[-1].get("subject"), msgs[-1].get("body"))[0]):
             continue
-        c = entry(addr)
+        c = entry(_canon_email(addr))
         c["email"] = c["email"] or addr
         if name and name != addr and not c["name"]:
             c["name"] = name
@@ -5058,7 +5078,7 @@ def customers_page(sel=None, draft=""):
             continue
         if classify_row(b)[0] == "aside":           # spam/internal/robots
             continue
-        e = _bid_email(b)
+        e = _canon_email(_bid_email(b))
         # an UNMATCHED Jobber event (didn't fold into a real customer's
         # bid) is its own entry — the subject carries the customer's name;
         # keying by noreply@ would lump every event into one fake person
@@ -5090,7 +5110,7 @@ def customers_page(sel=None, draft=""):
         if addr not in cust and spam_filter.looks_spam(
                 addr, msgs[-1].get("subject"), msgs[-1].get("body"))[0]:
             continue
-        c = entry(addr)
+        c = entry(_canon_email(addr))
         c["email"] = c["email"] or addr
         if name and name != addr and not c["name"]:
             c["name"] = name
