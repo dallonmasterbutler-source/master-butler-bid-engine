@@ -3777,6 +3777,46 @@ def _expandable(text):
             f"onclick='mbToggle(this)'>Show more</button>")
 
 
+def _tech_about(nb):
+    """Best-effort: which customer/job is a tech email about? Match an
+    address or a strong 2-word name from the thread against our records.
+    Returns (label, url) or None. NEVER forces a wrong link — no
+    confident match returns None and the office picks (Dallon, Jul 13:
+    'the office needs to know which customer the tech is replying to')."""
+    text = ((nb.get("newest_message") or "") + " "
+            + (nb.get("subject") or ""))
+    if not text.strip():
+        return None
+    import re as _re
+    recs = [(s, r) for s, r in _shadow_source()
+            if not r.get("tech_sender") and not r.get("spam_auto")
+            and not r.get("merged_into")]
+    # 1) address match (strongest signal)
+    am = _re.search(r"\b(\d{2,6})\s+([A-Za-z][\w'.-]*(?:\s+[A-Za-z][\w'.-]*)"
+                    r"{0,3})", text)
+    if am:
+        num, street = am.group(1), am.group(2).lower()
+        for s, r in recs:
+            a = (r.get("address") or "").lower()
+            if a and num in a and any(w in a for w in street.split()[:2]):
+                nm = (r.get("from") or "").split("<")[0].strip() \
+                    or r.get("address")
+                m2 = _re.search(r"<([^>]+)>", r.get("from") or "")
+                key = m2.group(1).lower() if m2 else f"stamp:{s}"
+                return (nm, f"/?c={urllib.parse.quote(key)}")
+    # 2) strong name match: a Capitalized First Last that IS a customer
+    for nm_m in _re.finditer(r"\b([A-Z][a-z]+)\s+([A-Z][a-z]+)\b", text):
+        cand = f"{nm_m.group(1)} {nm_m.group(2)}".lower()
+        for s, r in recs:
+            disp = (r.get("from") or "").split("<")[0].strip().lower()
+            if disp and cand == disp:
+                m2 = _re.search(r"<([^>]+)>", r.get("from") or "")
+                key = m2.group(1).lower() if m2 else f"stamp:{s}"
+                return ((r.get("from") or "").split("<")[0].strip(),
+                        f"/?c={urllib.parse.quote(key)}")
+    return None
+
+
 def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                   claims, draft, convo_open, user):
     """Pinned critical card + the big folds for one Inbox entry."""
@@ -4581,6 +4621,45 @@ function qh(d){
   document.getElementById('holddate').value = t.toISOString().slice(0,10);
 }
 </script>"""
+    # ── TECH CONVERSATION (Dallon, Jul 13): a tech email is an INTERNAL
+    # pricing Q&A ("Mark, how much for the driveway now the patio's
+    # done?"), NOT a customer bid. Never show the house/specs/approve
+    # apparatus — show the conversation, and a best-effort link to the
+    # customer it's about so the office keeps the thread straight.
+    if nb and nb.get("tech_sender"):
+        about = _tech_about(nb)
+        about_html = (
+            f"<a href='{about[1]}' style='display:inline-flex;"
+            f"align-items:center;gap:6px;background:rgba(201,162,39,.14);"
+            f"border:1px solid rgba(201,162,39,.4);border-radius:999px;"
+            f"padding:6px 14px;color:var(--goldink);font-weight:800;"
+            f"font-size:13px;text-decoration:none'>📎 About: "
+            f"{esc(about[0])} — open their card ↗</a>"
+            if about else
+            "<div class='subtext'>🔍 Not sure which customer — use the "
+            "search up top to open their card, then handle the pricing "
+            "there.</div>")
+        tech_card = (
+            f"<div class='pinned'>"
+            f"<div style='display:flex;align-items:center;gap:10px;"
+            f"flex-wrap:wrap'>"
+            f"<h2 style='margin:0'>👷 {esc(nb.get('tech_sender'))}</h2>"
+            f"<span style='background:#3a2a5a;color:#cdbaf5;border:1px "
+            f"solid #6d28d9;border-radius:999px;padding:3px 12px;"
+            f"font-size:11px;font-weight:800'>TECH — internal, not a "
+            f"bid</span>"
+            f"<span class='readbtn' style='margin-left:auto'>"
+            f"Move ▾</span></div>"
+            f"<div class='subtext' style='margin:6px 0 12px'>A pricing "
+            f"question or field note from your tech — answer it like a "
+            f"chat. The system never bids to a tech.</div>"
+            f"<div style='margin-bottom:12px'>{about_html}</div>"
+            f"<div style='background:rgba(17,41,33,.5);border:1px solid "
+            f"rgba(201,162,39,.14);border-radius:12px;padding:10px 8px'>"
+            f"{bubbles or '<div class=subtext>No message body.</div>'}"
+            f"</div>{reply_ui}</div>")
+        return f"{tech_card}{scripts}"
+
     return f"{pinned}<div class='ifolds'>{folds}</div>{scripts}"
 
 
