@@ -3006,6 +3006,31 @@ def _latest_msg_utc(msgs):
             if latest else "")
 
 
+def _latest_in_utc(msgs):
+    """Latest INBOUND message time (UTC iso) — when the CUSTOMER last
+    contacted us. The queue orders and ages by THIS, not by the latest
+    message overall, so our own outbound replies never reorder a
+    customer or bump them to the top (Dallon, Jul 13: LaRee answered Dan
+    Delorey's Jul 11 question today and it shot him to the top, breaking
+    the flow — a reply going OUT is us handling it, not new activity
+    coming IN). Returns '' when the thread has no parseable inbound."""
+    from datetime import datetime as _d, timezone as _z
+    latest = None
+    for _m in msgs or []:
+        if _m.get("dir") != "in":
+            continue
+        try:
+            _t = _d.fromisoformat(_m["at"])
+        except Exception:
+            continue
+        if _t.tzinfo is None:
+            _t = _t.replace(tzinfo=_z.utc)
+        if latest is None or _t > latest:
+            latest = _t
+    return (latest.astimezone(_z.utc).isoformat(timespec="seconds")
+            if latest else "")
+
+
 def _primary_bid(bids):
     """The record that should be a card's FACE. Normally the newest, but
     a customer often fires off several emails about ONE request in a
@@ -3229,8 +3254,17 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # only for rows that never came through Gmail (voicemails,
         # Jobber leads) and so carry no real message time.
         _msg_latest = _latest_msg_utc(c["msgs"])
-        last_at = _msg_latest or (_stamp_utc(nb["stamp"]) if nb else "")
-        unread = last_at > read_marks.get(key, "")
+        _msg_in = _latest_in_utc(c["msgs"])
+        # POSITION + AGE by the customer's LAST INBOUND, not the latest
+        # message — our outbound reply must not bump them up (Dan
+        # Delorey, Jul 13). Fall back to any message, then the stamp.
+        last_at = _msg_in or _msg_latest or (_stamp_utc(nb["stamp"])
+                                             if nb else "")
+        # ANSWERED = the newest message in the thread is OURS (we replied
+        # after their last note). Such a row is handled — it must not
+        # bold or scream for attention. A later inbound flips this back.
+        answered = bool(_msg_latest and _msg_in and _msg_latest > _msg_in)
+        unread = (last_at > read_marks.get(key, "")) and not answered
         # ACKNOWLEDGED = someone explicitly marked it seen and nothing
         # newer has come in since. The walk-away net below may still
         # re-bold it for attention, but an acknowledged item must NOT
@@ -3257,7 +3291,8 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             except ValueError:
                 pass
         new_msg = bool(c["msgs"]) and c["msgs"][-1]["dir"] == "in" \
-            and c["msgs"][-1]["at"] > read_marks.get(key, "")
+            and c["msgs"][-1]["at"] > read_marks.get(key, "") \
+            and not answered      # we replied since → not new (Dan Delorey)
         # the customer's Jobber quote may live on an EARLIER record
         # (the Mia lesson): look across all their bids, newest first
         oq = next((b2.get("open_quote_ctx") for b2 in reversed(c["bids"])
@@ -3318,10 +3353,11 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # "16m / 49m" a person reads must be time-since-they-wrote, not
         # time-since-we-polled. Real message time when we have one; the
         # stamp age only for non-Gmail rows (voicemails, Jobber leads).
-        if _msg_latest:
+        _age_basis = _msg_in or _msg_latest
+        if _age_basis:
             from datetime import datetime as _dtm, timezone as _tz
             age_h = ((_dtm.now(_tz.utc)
-                      - _dtm.fromisoformat(_msg_latest)).total_seconds()
+                      - _dtm.fromisoformat(_age_basis)).total_seconds()
                      / 3600)
         else:
             age_h = nb["age_hours"] if nb else 0
