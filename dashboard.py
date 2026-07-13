@@ -1177,6 +1177,11 @@ body{background:#05140f!important}
  border-radius:999px;padding:0 7px;font-size:9.5px;font-weight:800}
 .mock.dkroom .lanechip .ltot{background:#3a4a42;color:#cdd8d2;
  border-radius:999px;padding:0 7px;font-size:9.5px;font-weight:800}
+.mock.dkroom .laneclear{padding:4px 4px 10px;text-align:right}
+.mock.dkroom .laneclear button{background:none;border:1px solid #3a5a48;
+ color:#8fc7a6;border-radius:8px;padding:5px 12px;font-size:12px;
+ font-weight:700;cursor:pointer}
+.mock.dkroom .laneclear button:hover{background:#173226;color:#c9f0d8}
 .mock.dkroom .lanesub{color:#a3adab;font-size:11.5px;padding:0 4px 8px}
 /* SITE SPECIFICATIONS rail beside the hero (Stitch Bid Review) */
 .mock.dkroom .pingrid{display:grid;grid-template-columns:1fr 290px;
@@ -3272,6 +3277,10 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
     manual_lanes = _blob_rw("manual_lanes", {})
     # visible handoffs (🚶 stepped away) — shown until re-claimed or 24h
     handoffs = _blob_rw("handoffs", {})
+    # STICKY 'Clear all' set (Dallon, Jul 13 done-feel): keys the office
+    # zeroed out stay cleared — the walk-away net won't creep them back —
+    # until a NEW inbound message (last_at beats the cleared time).
+    cleared_blob = _blob_rw("cleared", {})
 
     for b in bids:
         if b.get("merged_into") or classify_row(b)[0] == "aside":
@@ -3366,7 +3375,12 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # WALK-AWAY NET (Dallon's concern, Jul 9): opened but still
         # undecided after 30 min -> it re-bolds itself for everyone.
         # Nobody has to remember to mark-unread after stepping away.
-        if not unread and needs and read_marks.get(key):
+        # EXCEPT a row the office explicitly 'Clear all'-ed: that stays
+        # cleared (done-feel) until a new inbound beats the cleared time.
+        _clr = cleared_blob.get(key)
+        _sticky_cleared = bool(_clr and not (last_at and last_at > _clr))
+        if not unread and needs and read_marks.get(key) \
+                and not _sticky_cleared:
             try:
                 from datetime import datetime as _d3, timezone as _z3
                 rt = _d3.fromisoformat(read_marks[key])
@@ -3813,6 +3827,24 @@ function laneShow(lid){
   try { sessionStorage.setItem('lane', lid); } catch(e){}
 }
 function laneSwap(btn){ laneShow(btn.dataset.l); }
+function laneClear(lid){
+  var body = document.getElementById('lane-' + lid);
+  if(!body) return;
+  var boxes = body.querySelectorAll('.rowsel');
+  if(!boxes.length) return;
+  if(!confirm('Clear all ' + boxes.length + ' from this list? They move '
+    + 'to Done & quiet and STAY cleared — only a new customer message '
+    + 'brings one back.')) return;
+  var f = document.createElement('form');
+  f.method = 'POST'; f.action = '/lane_clear';
+  boxes.forEach(function(b){
+    var i = document.createElement('input');
+    i.name = 'keys'; i.value = b.value; f.appendChild(i);
+  });
+  document.body.appendChild(f);
+  if (window.__saveScroll) window.__saveScroll();
+  f.submit();
+}
 document.addEventListener('DOMContentLoaded', function(){
   var lid = 'inbox';
   try { lid = sessionStorage.getItem('lane') || 'inbox'; } catch(e){}
@@ -3909,8 +3941,18 @@ document.addEventListener('DOMContentLoaded', function(){
         # each row, so the order the office reads IS the order they see.
         rows_l = sorted((r for r in roster if r["lane"] == lid),
                         key=lambda r: r["age"])
+        # ZERO-IT-OUT (Dallon, Jul 13: 'the office wants the daily done
+        # feel, to work a lane down to empty like Gmail'). One click marks
+        # everything in the lane seen → Done & quiet → "All caught up ✅".
+        # Reversible; any new customer message brings a row right back.
+        # Not on 'In Jobber' (that's the office's Jobber work, not ours).
+        clearbar = ""
+        if rows_l and lid != "officedraft":
+            clearbar = (f"<div class='laneclear'><button type='button' "
+                        f"onclick='laneClear(\"{lid}\")'>✓ Clear all "
+                        f"{len(rows_l)} — done for now</button></div>")
         lst += (f"<div class='lanebody' id='lane-{lid}' "
-                f"style='display:none'>"
+                f"style='display:none'>" + clearbar
                 + ("".join(row(r) for r in rows_l)
                    or "<div style='padding:26px;text-align:center;"
                       "color:var(--green2);font-weight:800'>All caught "
@@ -9227,6 +9269,28 @@ class Handler(BaseHTTPRequestHandler):
                 for k in keys:
                     d[k] = now
                 _msg_read_save(d)
+            self.send_response(303)
+            self.send_header("Location", "/")
+            self.end_headers()
+        elif self.path == "/lane_clear":
+            # ZERO-IT-OUT (Dallon, Jul 13: 'the daily done feel — work a
+            # lane to empty like Gmail'). Like mark-seen, but STICKY: also
+            # records the key in the 'cleared' blob so the 30-min walk-away
+            # net can't creep it back this workday. Only a NEW customer
+            # message (last_at > cleared time) resurfaces it. Reversible,
+            # office-wide, records NO decision (scoreboard/learning safe).
+            keys = [k for k in form.get("keys", []) if k]
+            if keys:
+                from datetime import timezone as _tzc
+                now = datetime.now(_tzc.utc).isoformat(timespec="seconds")
+                d = _msg_read()
+                for k in keys:
+                    d[k] = now
+                _msg_read_save(d)
+                cl = _blob_rw("cleared", {})
+                for k in keys:
+                    cl[k] = now
+                _blob_save("cleared", cl)
             self.send_response(303)
             self.send_header("Location", "/")
             self.end_headers()
