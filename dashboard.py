@@ -2977,6 +2977,35 @@ def _stamp_utc(stamp):
         return ""
 
 
+def _latest_msg_utc(msgs):
+    """Latest message time in a thread as a UTC iso string, by REAL
+    parsed time (msglog carries each message's OWN Date header). Two
+    reasons this, not the record's stamp, is the truth for ordering:
+      · the stamp is only WHEN WE POLLED the email — a re-sweep
+        re-stamps a record and rockets it to the top of the queue even
+        though the customer wrote hours earlier. That was the Gmail
+        desync (Dallon, Jul 13: Anna Tang stamped 10:20 but emailed
+        9:55 sat ABOVE Jeffrey who emailed 10:46).
+      · customers' Date offsets differ (Eastern '-04:00' vs Pacific
+        '-07:00'), so a naive STRING max picks the wrong message; we
+        parse to real UTC and take the true max.
+    Returns '' when no message carries a parseable time (voicemails,
+    Jobber leads) — the caller then falls back to the stamp."""
+    from datetime import datetime as _d, timezone as _z
+    latest = None
+    for _m in msgs or []:
+        try:
+            _t = _d.fromisoformat(_m["at"])
+        except Exception:
+            continue
+        if _t.tzinfo is None:
+            _t = _t.replace(tzinfo=_z.utc)
+        if latest is None or _t > latest:
+            latest = _t
+    return (latest.astimezone(_z.utc).isoformat(timespec="seconds")
+            if latest else "")
+
+
 SLA_WORD = {"dns": "do not service", "hold": "parked",
             "flag": "with Dallon & Tom", "sl": "question for office",
             "won": "won ✓", "sent": "quote sent", "ok": "approved"}
@@ -3155,8 +3184,13 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         c = cust[key]
         c["bids"].sort(key=lambda b: b["stamp"])
         nb = c["bids"][-1] if c["bids"] else None
-        last_at = max(c["msgs"][-1]["at"] if c["msgs"] else "",
-                      _stamp_utc(nb["stamp"]) if nb else "")
+        # ORDER BY THE EMAIL'S OWN TIME, exactly like Gmail — NOT the
+        # record's poll stamp (which a re-sweep rewrites, scrambling the
+        # queue against Gmail; Dallon, Jul 13). Fall back to the stamp
+        # only for rows that never came through Gmail (voicemails,
+        # Jobber leads) and so carry no real message time.
+        _msg_latest = _latest_msg_utc(c["msgs"])
+        last_at = _msg_latest or (_stamp_utc(nb["stamp"]) if nb else "")
         unread = last_at > read_marks.get(key, "")
         # ACKNOWLEDGED = someone explicitly marked it seen and nothing
         # newer has come in since. The walk-away net below may still
@@ -3241,26 +3275,17 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         if grp == 3 and nb:
             word = "📋 " + handled_jb[nb["stamp"]]
             wstyle = "color:var(--goldink)"
-        age_h = nb["age_hours"] if nb else None
-        if age_h is None and c["msgs"]:
-            # LATEST message by REAL time, not list order or string sort —
-            # customer timestamps carry different tz offsets (Eastern
-            # customer '12:31-04:00' vs Pacific '10:46-07:00'), so a naive
-            # compare put the wrong one on top and broke Gmail-order sync
-            # (Dallon, Jul 13: Jeffrey Skall vs Anna Tang).
+        # AGE FROM THE EMAIL'S OWN TIME too (same reason as last_at): the
+        # "16m / 49m" a person reads must be time-since-they-wrote, not
+        # time-since-we-polled. Real message time when we have one; the
+        # stamp age only for non-Gmail rows (voicemails, Jobber leads).
+        if _msg_latest:
             from datetime import datetime as _dtm, timezone as _tz
-            latest = None
-            for _m in c["msgs"]:
-                try:
-                    _t = _dtm.fromisoformat(_m["at"])
-                    if _t.tzinfo is None:
-                        _t = _t.replace(tzinfo=_tz.utc)
-                    if latest is None or _t > latest:
-                        latest = _t
-                except Exception:
-                    continue
-            age_h = ((_dtm.now(_tz.utc) - latest).total_seconds() / 3600
-                     if latest else 0)
+            age_h = ((_dtm.now(_tz.utc)
+                      - _dtm.fromisoformat(_msg_latest)).total_seconds()
+                     / 3600)
+        else:
+            age_h = nb["age_hours"] if nb else 0
         # 🔧 SERVICE FOLLOW-UP (Dallon, Jul 10 pm: Vadim wrote about a
         # screen after his job was DONE — 'label, don't filter'): a
         # customer with a converted/won job writing about the work
