@@ -6528,8 +6528,23 @@ def working_page():
         "<h2 style='margin:4px 0 2px;font-size:22px'>🔭 The build board"
         "</h2>"
         f"<div class='subtext' style='margin-bottom:14px'>What Dallon "
-        f"and Claude are building on this system — updated {esc(upd) or 'recently'}. "
-        "Read-only; send ideas via 💡 on the Guide tab.</div>"
+        f"and Claude are building on this system — updated {esc(upd) or 'recently'}.</div>"
+        # idea box AT THE TOP (Dallon, Jul 14) — see the lists, then send
+        + "<div id='idea' style='margin:0 0 14px;background:var(--soft);"
+          "border:1px solid var(--line);border-radius:12px;"
+          "padding:14px 16px'>"
+          "<b>💡 Send Dallon an idea</b>"
+          "<div class='subtext' style='margin:4px 0 8px'>Check the lists "
+          "below first — if it's not already there, send it. Emails him "
+          "instantly and lands on this board.</div>"
+          "<form method='POST' action='/idea_send' style='display:flex;"
+          "gap:8px'><input type='hidden' name='back' value='/working'>"
+          "<input name='text' required placeholder='What should this "
+          "dashboard do better?' style='flex:1'>"
+          "<button>Send</button></form></div>"
+        + sec("Ideas from the office", "sent from the box above — "
+              "Dallon gets each one by email instantly",
+              wb.get("ideas"), "💡")
         + sec("Building now", "in progress this week",
               wb.get("now"), "🔨")
         + sec("Just shipped", "landed recently — already live for you",
@@ -6538,23 +6553,6 @@ def working_page():
               wb.get("office"), "🙋")
         + sec("Up next / pipeline", "queued and future ideas",
               wb.get("pipeline"), "🗺")
-        + sec("Ideas from the office", "sent from the box below — "
-              "Dallon gets each one by email instantly",
-              wb.get("ideas"), "💡")
-        # the idea box lives HERE too (Dallon, Jul 14: 'that way they
-        # can look at what's being done before they add something')
-        + "<div id='idea' style='margin-top:4px;background:var(--soft);"
-          "border:1px solid var(--line);border-radius:12px;"
-          "padding:14px 16px'>"
-          "<b>💡 Send Dallon an idea</b>"
-          "<div class='subtext' style='margin:4px 0 8px'>Check the lists "
-          "above first — then if it's new, send it. Emails him instantly "
-          "and lands on this board.</div>"
-          "<form method='POST' action='/idea_send' style='display:flex;"
-          "gap:8px'><input type='hidden' name='back' value='/working'>"
-          "<input name='text' required placeholder='What should this "
-          "dashboard do better?' style='flex:1'>"
-          "<button>Send</button></form></div>"
         + "</div>")
     return page("Build board", body)
 
