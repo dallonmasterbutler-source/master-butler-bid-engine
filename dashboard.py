@@ -6686,22 +6686,60 @@ def autodrafts_page(user=None):
 
     live_rows, retro_rows, gated = [], [], 0
     learn_store = {}          # rebuilt fresh each render → idempotent
-    for addr, name, msgs in msglog.threads():
+    pairs = []                # (kind, office_sent) → adopt_templates
+    threads = list(msglog.threads())
+
+    # PASS 1 — LEARN from every in→out pair of the last 90 days: the
+    # diary (wording gaps) AND the auto-adopted templates (Dallon's
+    # ruling, Jul 14: "automate the wording change… it's easier
+    # learned"). 90 days so the adoption bar (≥3 repeats) has teeth.
+    for addr, name, msgs in threads:
+        rec = recs.get((addr or "").lower())
+        for i in range(1, len(msgs)):
+            if msgs[i].get("dir") == "out" and msgs[i-1].get("dir") == "in":
+                t = _utc(msgs[i].get("at"))
+                if not t or now - t > timedelta(days=90):
+                    continue
+                d = autorespond.build_draft(rec, msgs[:i], user, voice)
+                if not d:
+                    continue
+                sent = msgs[i].get("body") or ""
+                pairs.append((d["type"], sent))
+                learn_store = autorespond.fold_learning(
+                    learn_store, autorespond.learn_gap(
+                        d["type"], d["draft"], sent))
+                if len(retro_rows) < 20 and now - t <= timedelta(days=30):
+                    retro_rows.append(
+                        f"<div style='border-top:1px solid var(--line);"
+                        f"padding:10px 0'><b>{esc(name or addr)}</b> "
+                        f"<span class='subtext'>{esc(d['type'])}</span>"
+                        + block("← customer wrote",
+                                (msgs[i-1].get('body') or '')[:400])
+                        + block("✨ we would have drafted", d["draft"],
+                                "var(--green2)")
+                        + block("→ the office actually sent", sent[:600])
+                        + "</div>")
+
+    tpl_off = set(_blob_rw("reply_templates_off", []) or [])
+    adopted = autorespond.adopt_templates(pairs, off=tpl_off)
+
+    # PASS 2 — LIVE proposals, drafted WITH the adopted office wording
+    for addr, name, msgs in threads:
         e = (addr or "").lower()
-        rec = recs.get(e)
-        # LIVE: newest message is a customer inbound from the last 2 wks
         last = msgs[-1] if msgs else None
         if last and last.get("dir") == "in":
             t = _utc(last.get("at"))
             if t and now - t <= timedelta(days=14):
-                d = autorespond.build_draft(rec, msgs, user, voice)
+                d = autorespond.build_draft(recs.get(e), msgs, user,
+                                            voice, auto=adopted)
                 if d:
                     live_rows.append(
                         f"<div style='border-top:1px solid var(--line);"
                         f"padding:10px 0'><b>{esc(name or e)}</b> "
                         f"<span class='chip' style='background:var(--soft);"
                         f"border-radius:12px;padding:1px 9px;font-size:11.5px'>"
-                        f"{esc(d['type'])}</span> <span class='subtext'>"
+                        f"{esc(d['type'])}{' · 📖 auto' if d.get('auto') else ''}"
+                        f"</span> <span class='subtext'>"
                         f"{esc(d['why'])}</span>"
                         + block("← customer", (last.get('body') or '')[:400])
                         + block("✨ the box would say", d["draft"],
@@ -6709,34 +6747,6 @@ def autodrafts_page(user=None):
                         + "</div>")
                 else:
                     gated += 1
-        # RETRO: every in→out pair from the last 30 days
-        for i in range(1, len(msgs)):
-            if msgs[i].get("dir") == "out" and msgs[i-1].get("dir") == "in":
-                t = _utc(msgs[i].get("at"))
-                if not t or now - t > timedelta(days=30):
-                    continue
-                d = autorespond.build_draft(rec, msgs[:i], user, voice)
-                if d:
-                    # THE LEARNING LOOP (Dallon, Jul 14: "if the office
-                    # changes it the system learns — dates excluding").
-                    # Every retro pair feeds draft_learnings; in stage 2
-                    # the send-button edit feeds the same store.
-                    learn_store = autorespond.fold_learning(
-                        learn_store, autorespond.learn_gap(
-                            d["type"], d["draft"],
-                            msgs[i].get("body") or ""))
-                if d and len(retro_rows) < 20:
-                    retro_rows.append(
-                        f"<div style='border-top:1px solid var(--line);"
-                        f"padding:10px 0'><b>{esc(name or e)}</b> "
-                        f"<span class='subtext'>{esc(d['type'])}</span>"
-                        + block("← customer wrote",
-                                (msgs[i-1].get('body') or '')[:400])
-                        + block("✨ we would have drafted", d["draft"],
-                                "var(--green2)")
-                        + block("→ the office actually sent",
-                                (msgs[i].get('body') or '')[:600])
-                        + "</div>")
 
     body = (
         "<div style='max-width:860px'>"
@@ -6756,6 +6766,13 @@ def autodrafts_page(user=None):
                f"({len(retro_rows)})",
                "".join(retro_rows) or "<div class='subtext'>no recent "
                "customer→office pairs matched a template</div>")
+        + card("📖 Auto-adopted wording — the office trained these "
+               "(hands-off, Dallon's ruling Jul 14)",
+               _adopted_rows(adopted, tpl_off) or "<div class='subtext'>"
+               "no reply type has hit the adoption bar yet (an office "
+               "shape must repeat ≥3× and cover ≥half of that type's "
+               "graded replies). The built-in templates hold until "
+               "then.</div>")
         + card("📖 What the office keeps changing (the learning diary)",
                _learn_rows(learn_store) or "<div class='subtext'>no "
                "wording gaps yet — drafts match how the office writes"
@@ -6763,9 +6780,38 @@ def autodrafts_page(user=None):
         + "</div>")
     try:
         _blob_save("draft_learnings", learn_store)
+        _blob_save("reply_templates_auto", adopted)
     except Exception:
         pass
     return page("Auto-respond shadow", body)
+
+
+def _adopted_rows(adopted, off):
+    rows = []
+    for kind, a in sorted(adopted.items(), key=lambda kv: -kv[1]["count"]):
+        rows.append(
+            f"<div style='border-top:1px solid var(--line);padding:10px 0'>"
+            f"<b>{esc(kind)}</b> <span class='subtext'>their wording "
+            f"repeated {a['count']}× — {int(a['share']*100)}% of "
+            f"{a['sample_n']} graded replies</span>"
+            f"<div style='white-space:pre-wrap;font-size:13.5px;"
+            f"background:var(--soft);border-radius:8px;padding:10px 12px;"
+            f"margin:6px 0'>{esc(a['template'])}</div>"
+            f"<form method='POST' action='/autodraft_tpl_off' "
+            f"style='display:inline'><input type='hidden' name='kind' "
+            f"value='{esc(kind)}'><button class='gray' style='font-size:"
+            f"12px'>Turn this one off</button></form></div>")
+    for kind in sorted(off):
+        rows.append(
+            f"<div style='border-top:1px solid var(--line);padding:10px 0'>"
+            f"<b>{esc(kind)}</b> <span class='subtext'>auto-wording OFF "
+            f"(built-in template in use)</span> "
+            f"<form method='POST' action='/autodraft_tpl_off' "
+            f"style='display:inline'><input type='hidden' name='kind' "
+            f"value='{esc(kind)}'><input type='hidden' name='on' "
+            f"value='1'><button class='gray' style='font-size:12px'>"
+            f"Re-enable</button></form></div>")
+    return "".join(rows)
 
 
 def _learn_rows(store):
@@ -9772,6 +9818,25 @@ class Handler(BaseHTTPRequestHandler):
                 fc[name] = ent
                 _blob_save("fold_clicks", fc)
             return self._send(b"ok")
+        elif self.path == "/autodraft_tpl_off":
+            # kill switch per reply type for auto-adopted wording
+            kind = get("kind").strip()
+            if kind:
+                off = set(_blob_rw("reply_templates_off", []) or [])
+                if get("on"):
+                    off.discard(kind)
+                else:
+                    off.add(kind)
+                _blob_save("reply_templates_off", sorted(off))
+                save_review({"stamp": "", "action": "autodraft_wording",
+                             "customer": kind,
+                             "note": ("auto-wording re-enabled" if
+                                      get("on") else "auto-wording OFF — "
+                                      "built-in template back in use")})
+            self.send_response(303)
+            self.send_header("Location", "/autodrafts")
+            self.end_headers()
+            return
         elif self.path == "/idea_send":
             # THE OFFICE'S DIRECT LINE (Dallon Jul 9): ideas go to him by
             # email INSTANTLY, land in the ideas list (Claude reads them

@@ -143,7 +143,7 @@ def _services_phrase(rec):
     return "a " + ", ".join(names[:-1]) + ", and " + names[-1]
 
 
-def build_draft(rec, msgs, user=None, voice=None):
+def build_draft(rec, msgs, user=None, voice=None, auto=None):
     """The pre-filled reply box, or None.
 
     rec  = the customer's newest queue record (may be None)
@@ -165,7 +165,25 @@ def build_draft(rec, msgs, user=None, voice=None):
     kind = classify(body)
     if not kind or kind in NO_DRAFT:
         return None
+    if kind == "approval_only" and _RIDER.search(body):
+        return None          # approval WITH instructions → human + tech
     sig = _signature(user, voice)
+
+    # AUTO-ADOPTED WORDING (Dallon's ruling, Jul 14): when the office
+    # has answered this type of message the same way ≥3 times (≥50% of
+    # graded pairs), the draft IS their own repeated reply — tokens
+    # re-slotted, signature fresh. The built-in template below becomes
+    # the fallback.
+    if auto and kind in auto:
+        body_t = _fill_tokens(auto[kind]["template"], _their_date(body))
+        if body_t:
+            return {"type": kind,
+                    "why": (f"office's own wording — repeated "
+                            f"{auto[kind]['count']}× "
+                            f"({int(auto[kind]['share']*100)}% of graded "
+                            f"replies), auto-adopted"),
+                    "auto": True,
+                    "draft": f"{body_t}\n\n{sig}"}
 
     if kind == "thanks_ack":
         return {"type": kind, "why": "confirmation-only message",
@@ -194,8 +212,6 @@ def build_draft(rec, msgs, user=None, voice=None):
                           f"you.\n\n{sig}")}
 
     if kind == "approval_only":
-        if _RIDER.search(body):
-            return None      # approval WITH instructions → human + tech
         return {"type": kind, "why": "quote approved, no date asked",
                 "draft": (f"Thank you for approving your quote!  Our "
                           f"next opening in your area is [DATE].  "
@@ -222,6 +238,64 @@ def build_draft(rec, msgs, user=None, voice=None):
                           f"know of any questions and how you’d like to "
                           f"proceed.\n\n{sig}")}
     return None
+
+
+def _norm_body(text):
+    """Whole reply → normalized shape with [DATE]/[TIME]/[PRICE]/
+    [QUOTE#]/[NAME] tokens, signature stripped. Two office replies with
+    the same shape are 'the same reply' even across different jobs."""
+    t = re.sub(r"\s+", " ", (text or ""))
+    t = re.split(r"at your service", t, flags=re.I)[0]
+    t = re.sub(r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)"
+               r"[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*\d{4})?",
+               "[DATE]", t, flags=re.I)
+    t = re.sub(r"\b\d{1,2}/\d{1,2}(?:/\d{2,4})?\b", "[DATE]", t)
+    t = re.sub(r"\b\d{1,2}(:\d{2})?\s*(am|pm)\b", "[TIME]", t, flags=re.I)
+    t = re.sub(r"\$\s?\d[\d,.]*", "[PRICE]", t)
+    t = re.sub(r"#\d{4,6}", "[QUOTE#]", t)
+    t = re.sub(r"\b(hi|hello|dear|good (?:morning|afternoon|evening))\s+"
+               r"[a-z]+,?", r"\1 [NAME],", t, flags=re.I)
+    return t.strip()
+
+
+def adopt_templates(pairs, off=None):
+    """HANDS-OFF WORDING LEARNING (Dallon's ruling, Jul 14: 'automate
+    the wording change… it's easier learned' — dates excluded, they
+    change every job). The safety that makes automation okay: a
+    template auto-changes ONLY to the office's own most-repeated reply,
+    verbatim, tokens re-slotted — the system never invents wording.
+
+    pairs = [(kind, office_sent_body), …] from the grading reel.
+    Adoption bar: a normalized office shape must appear ≥3 times AND in
+    ≥50% of that type's graded pairs. Returns {kind: {'template',
+    'count', 'share', 'sample_n'}}. `off` = kinds Dallon disabled."""
+    byk = {}
+    for kind, sent in pairs:
+        shape = _norm_body(sent)
+        if 20 < len(shape) < 600:
+            byk.setdefault(kind, []).append(shape)
+    adopted = {}
+    for kind, shapes in byk.items():
+        if off and kind in off:
+            continue
+        best, n = max(((s, shapes.count(s)) for s in set(shapes)),
+                      key=lambda x: x[1])
+        if n >= 3 and n / len(shapes) >= 0.5:
+            adopted[kind] = {"template": best, "count": n,
+                             "share": round(n / len(shapes), 2),
+                             "sample_n": len(shapes)}
+    return adopted
+
+
+def _fill_tokens(template, their_date, name=None):
+    """Re-slot the live facts into an adopted office shape. Unknown
+    tokens stay VISIBLE (the office's own [DATE] habit) except [NAME],
+    which falls back to nothing rather than a wrong name."""
+    t = template
+    if their_date:
+        t = t.replace("[DATE]", their_date)
+    t = re.sub(r"\[NAME\],?", (name + ",") if name else "", t).strip()
+    return t
 
 
 def _norm_sentences(text):
