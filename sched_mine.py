@@ -46,6 +46,12 @@ query Sweep($start: ISO8601DateTime!, $end: ISO8601DateTime!, $after: String) {
 
 LIGHT_RX = re.compile(r"light", re.I)
 TAKEDOWN_RX = re.compile(r"take ?down|removal|remove", re.I)
+# THE OFFICE'S TITLE CODES (Dallon's teaching, Jul 14):
+#   ccc = return customer · LLL = customer's lights live in OUR shop
+#   (assigned tech grabs them at the Monday meeting) · c7/c9 = bulb type
+CCC_RX = re.compile(r"\bccc\b", re.I)
+LLL_RX = re.compile(r"\blll\b", re.I)
+BULB_RX = re.compile(r"\bc([79])\b", re.I)
 
 
 def _est_minutes(a, b):
@@ -88,6 +94,8 @@ def fetch_all(verbose=False):
                 lines = [(li.get("name") or "") for li in
                          ((n.get("lineItems") or {}).get("nodes") or [])]
                 visits.append({
+                    "client": ((n.get("client") or {}).get("name")
+                               or "")[:40],
                     "start": n["startAt"], "end": n.get("endAt"),
                     "dur": n.get("duration"),
                     "title": (n.get("title") or "")[:80],
@@ -136,6 +144,10 @@ def analyze(visits, verbose=False):
     tech_days = collections.defaultdict(list)
     li_month = collections.defaultdict(lambda: [0, 0])   # install, takedown
     light_day_sizes, light_cities = [], collections.Counter()
+    codes = collections.Counter()
+    lll_future = []                      # Monday-meeting shop-grab list
+    route_cont = collections.defaultdict(set)   # lights client → techs
+                                                # across seasons
 
     for d, vs in sorted(days.items()):
         past = d <= today
@@ -167,7 +179,28 @@ def analyze(visits, verbose=False):
                     light_cities[v["city"]] += 1
                     li_month[d.strftime("%Y-%m")][
                         1 if v["is_takedown"] else 0] += 1
+                    t = v["title"]
+                    if CCC_RX.search(t):
+                        codes["ccc (return customer)"] += 1
+                    if LLL_RX.search(t):
+                        codes["LLL (lights in our shop)"] += 1
+                    m = BULB_RX.search(t)
+                    if m:
+                        codes[f"c{m.group(1)} bulbs"] += 1
+                    # route continuity: who has installed for this
+                    # client across seasons (goal: SAME tech = faster)
+                    cl = (v.get("client") or v["title"].split("-")[0]
+                          ).strip().lower()[:40]
+                    for tech in v["techs"]:
+                        route_cont[cl].add(tech)
         else:
+            # FUTURE LLL visits = the Monday-meeting shop-grab list
+            for v in vs:
+                if v["is_light"] and LLL_RX.search(v["title"]):
+                    lll_future.append({
+                        "date": d.isoformat(),
+                        "client": v.get("client") or v["title"][:40],
+                        "techs": v["techs"], "city": v["city"]})
             # FUTURE: the anchor map stage 2 feeds on
             cities = collections.Counter(v["city"] for v in vs)
             pts = [(v["lat"], v["lng"]) for v in vs if "lat" in v]
@@ -198,13 +231,25 @@ def analyze(visits, verbose=False):
                       "avg_jobs_per_day": round(sum(c) / len(c), 1)}
                   for t, c in sorted(tech_days.items(),
                                      key=lambda kv: -len(kv[1]))[:8]}
+    _multi = [c for c, ts in route_cont.items() if len(ts) > 1]
     K["lights"] = {
         "by_month_install_takedown": {m: v for m, v in
                                       sorted(li_month.items())},
         "avg_lights_jobs_per_lights_day": (round(
             sum(light_day_sizes) / len(light_day_sizes), 1)
             if light_day_sizes else 0),
-        "top_areas": dict(light_cities.most_common(8))}
+        "top_areas": dict(light_cities.most_common(8)),
+        "title_codes_seen": dict(codes),
+        # route continuity doctrine (Dallon): same tech, same route,
+        # year over year — flag clients whose installer CHANGED
+        "route_continuity": {
+            "lights_clients_tracked": len(route_cont),
+            "kept_same_tech": sum(1 for ts in route_cont.values()
+                                  if len(ts) == 1),
+            "tech_changed": len(_multi),
+            "changed_examples": _multi[:10]},
+        # whoever has LLL that week grabs the lights at Monday meeting
+        "lll_shop_grab_upcoming": lll_future[:20]}
     K["totals"] = {"visits": len(visits), "workdays": len(permonth) and
                    sum(len(v) for v in [permonth]) and
                    sum(x["workdays"] for x in
