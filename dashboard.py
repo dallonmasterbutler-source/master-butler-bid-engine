@@ -6721,6 +6721,7 @@ def autodrafts_page(user=None):
     live_rows, retro_rows, gated = [], [], 0
     learn_store = {}          # rebuilt fresh each render → idempotent
     pairs = []                # (kind, office_sent) → adopt_templates
+    accs = []                 # per-pair accuracy scores → the wheel
     threads = list(msglog.threads())
 
     # PASS 1 — LEARN from every in→out pair of the last 90 days: the
@@ -6739,14 +6740,20 @@ def autodrafts_page(user=None):
                     continue
                 sent = msgs[i].get("body") or ""
                 pairs.append((d["type"], sent))
+                acc = autorespond.accuracy(d["draft"], sent)
+                accs.append(acc)
                 learn_store = autorespond.fold_learning(
                     learn_store, autorespond.learn_gap(
                         d["type"], d["draft"], sent))
                 if len(retro_rows) < 20 and now - t <= timedelta(days=30):
+                    _ac = ("var(--green2)" if acc >= 85 else
+                           "#e8c76a" if acc >= 50 else "#f2b8b5")
                     retro_rows.append(
                         f"<div style='border-top:1px solid var(--line);"
                         f"padding:10px 0'><b>{esc(name or addr)}</b> "
-                        f"<span class='subtext'>{esc(d['type'])}</span>"
+                        f"<span class='subtext'>{esc(d['type'])}</span> "
+                        f"<span style='float:right;font-weight:800;"
+                        f"color:{_ac}'>{acc}% match</span>"
                         + block("← customer wrote",
                                 (msgs[i-1].get('body') or '')[:400])
                         + block("✨ we would have drafted", d["draft"],
@@ -6791,6 +6798,7 @@ def autodrafts_page(user=None):
         "Drafts appear ONLY for genuine customer inbounds; complaints "
         "and price talk never draft. Full plan: "
         "<a href='/plan_autorespond'>the plan of attack</a>.</div>"
+        + _reply_wheel(accs)
         + card(f"Would draft RIGHT NOW ({len(live_rows)}) — threads "
                f"awaiting a reply · {gated} inbound threads correctly "
                f"left blank",
@@ -6818,6 +6826,51 @@ def autodrafts_page(user=None):
     except Exception:
         pass
     return page("Auto-respond shadow", body)
+
+
+def _reply_wheel(accs):
+    """Reply accuracy, wheel-style (Dallon, Jul 14: 'almost like the
+    +/- 10% score we have'). ≥85% similarity = the office sent it
+    essentially as drafted. Today it grades retro pairs; the moment
+    messaging turns on, real sends feed the same numbers."""
+    if not accs:
+        return ""
+    n = len(accs)
+    good = sum(1 for a in accs if a >= 85)
+    avg = sum(accs) / n
+    pct = good / n * 100
+    circ = 2 * 3.14159 * 44
+    dash = circ * (1 - pct / 100)
+    return f"""
+<div class='card' style='margin-bottom:14px'>
+ <div class='schead'><h2>🎯 Reply accuracy</h2>
+  <span class='subtext'>how close our drafts land to what the office
+  actually sends (dates/prices excluded from the grade)</span></div>
+ <div style='display:flex;gap:24px;align-items:center;flex-wrap:wrap'>
+  <div style='flex:none;position:relative;width:110px;height:110px'>
+   <svg width='110' height='110'>
+    <circle cx='55' cy='55' r='44' fill='none' stroke='var(--soft)'
+     stroke-width='10'/>
+    <circle cx='55' cy='55' r='44' fill='none' stroke='#8fc7a6'
+     stroke-width='10' stroke-linecap='round'
+     stroke-dasharray='{circ:.0f}' stroke-dashoffset='{dash:.0f}'
+     transform='rotate(-90 55 55)'/>
+   </svg>
+   <div style='position:absolute;inset:0;display:flex;flex-direction:
+    column;align-items:center;justify-content:center'>
+    <b class='tab' style='font-size:22px'>{pct:.0f}%</b>
+    <span class='subtext' style='font-size:9px'>sent as drafted</span>
+   </div>
+  </div>
+  <div style='flex:1;min-width:200px;font-size:13.5px'>
+   <div><b>{good} of {n}</b> graded replies went out essentially as
+   drafted (≥85% match).</div>
+   <div class='subtext' style='margin-top:4px'>Average similarity:
+   <b>{avg:.0f}%</b>. What the office changed — and what the system
+   learned from it — is itemized in the two 📖 sections below.</div>
+  </div>
+ </div>
+</div>"""
 
 
 def _adopted_rows(adopted, off):

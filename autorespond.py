@@ -336,6 +336,19 @@ def learn_gap(kind, draft, sent):
     return {"kind": kind, "added": added[:6], "dropped": dropped[:6]}
 
 
+def accuracy(draft, sent):
+    """The reply version of the ±10% score (Dallon, Jul 14: 'when the
+    office uses it and sends it, id like to see it calculated').
+    Similarity of the normalized bodies (dates/times/prices/names
+    tokenized out, signatures stripped) as 0–100. 100 = sent verbatim;
+    the office rewriting every word ≈ 0."""
+    import difflib
+    a, b = _norm_body(draft), _norm_body(sent)
+    if not a or not b:
+        return 0
+    return round(difflib.SequenceMatcher(None, a, b).ratio() * 100)
+
+
 def fold_learning(store, gap):
     """Accumulate a gap into the draft_learnings blob shape:
     {kind: {'added': {sentence: count}, 'dropped': {…}, 'pairs': n}}.
