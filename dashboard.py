@@ -1387,6 +1387,37 @@ def _chrome_bar(active=""):
 </script>""")
 
 
+_RESIZE_JS = """<script>
+(function(){
+  var h=document.querySelector('.iresize');
+  var g=document.querySelector('.inboxgrid');
+  if(!h||!g) return;
+  try{var w=localStorage.getItem('ilistw');
+      if(w) g.style.setProperty('--ilistw', w+'px');}catch(e){}
+  var drag=false;
+  h.addEventListener('mousedown',function(e){
+    drag=true;h.classList.add('on');e.preventDefault();
+    document.body.style.userSelect='none';});
+  document.addEventListener('mousemove',function(e){
+    if(!drag) return;
+    var left=g.getBoundingClientRect().left;
+    var w=Math.min(760,Math.max(240,e.clientX-left));
+    g.style.setProperty('--ilistw',w+'px');});
+  document.addEventListener('mouseup',function(){
+    if(!drag) return;
+    drag=false;h.classList.remove('on');
+    document.body.style.userSelect='';
+    try{localStorage.setItem('ilistw',
+      Math.round(document.querySelector('.ilist')
+        .getBoundingClientRect().width));}catch(e){}
+  });
+  h.addEventListener('dblclick',function(){
+    g.style.setProperty('--ilistw','330px');
+    try{localStorage.removeItem('ilistw');}catch(e){}});
+})();
+</script>"""
+
+
 def page(title, body, refresh=None, chrome="rail"):
     auto = (f"<meta http-equiv='refresh' content='{refresh}'>"
             if refresh else "")
@@ -1465,38 +1496,8 @@ border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
                 f"<footer>Every quote is a draft until a human sends it · "
                 f"bold = unread, shared by the whole office · every price "
                 f"traces to a real job.</footer></div>"
-                # STRETCHABLE LIST (Dallon, Jul 14: 'widen it to read a
-                # block of text without going into the customer') — drag
-                # the divider; width remembered per browser
-                """<script>
-(function(){
-  var h=document.querySelector('.iresize');
-  var g=document.querySelector('.inboxgrid');
-  if(!h||!g) return;
-  try{var w=localStorage.getItem('ilistw');
-      if(w) g.style.setProperty('--ilistw', w+'px');}catch(e){}
-  var drag=false;
-  h.addEventListener('mousedown',function(e){
-    drag=true;h.classList.add('on');e.preventDefault();
-    document.body.style.userSelect='none';});
-  document.addEventListener('mousemove',function(e){
-    if(!drag) return;
-    var left=g.getBoundingClientRect().left;
-    var w=Math.min(760,Math.max(240,e.clientX-left));
-    g.style.setProperty('--ilistw',w+'px');});
-  document.addEventListener('mouseup',function(){
-    if(!drag) return;
-    drag=false;h.classList.remove('on');
-    document.body.style.userSelect='';
-    try{localStorage.setItem('ilistw',
-      Math.round(document.querySelector('.ilist')
-        .getBoundingClientRect().width));}catch(e){}
-  });
-  h.addEventListener('dblclick',function(){
-    g.style.setProperty('--ilistw','330px');
-    try{localStorage.removeItem('ilistw');}catch(e){}});
-})();
-</script></body></html>"""
+                + _RESIZE_JS + "</body></html>"
+
                 ).encode()
     # EVERY page lives in the framed green window now (Dallon Jul 9:
     # the left rail's links were dead — deleted; colors match the Inbox)
@@ -1536,6 +1537,7 @@ document.querySelectorAll('tr[data-href]').forEach(function(t){
   });
 });
 </script>"""
+            + _RESIZE_JS
             + "</body></html>").encode()
 
 
