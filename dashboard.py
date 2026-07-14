@@ -1112,7 +1112,8 @@ body{background:#05140f!important}
  --line:rgba(201,162,39,.18);--ink:#e2e8f0;--mut:#a3adab;
  --gold:#c9a227;--goldbg:rgba(201,162,39,.13);--goldink:#e8c56a;
  --heading:#e8c56a;--alarm:#fca5a5;--green2:#5fbd85;
- background:#05140f;border-color:rgba(201,162,39,.2)}
+ background:#05140f;border-color:rgba(201,162,39,.2);
+ color:var(--ink)}
 .mock.dkroom .chrome{background:#082d22;border-bottom:1px solid
  rgba(201,162,39,.18)}
 .mock.dkroom .chrome .navr > a{display:none}
@@ -6036,14 +6037,17 @@ def add_service_card(b, back=""):
             continue                        # already on the quote
         price = sum(li["price"] for li in lines)
         rows += (
+            # explicit colors — these rows inherited a dark ink and were
+            # unreadable on the dark theme (Tom + LaRee, Jul 13)
             f"<label style='display:flex;align-items:center;gap:10px;"
             f"padding:7px 10px;border:1px solid var(--line);"
-            f"border-radius:10px;margin:4px 0;cursor:pointer'>"
+            f"border-radius:10px;margin:4px 0;cursor:pointer;"
+            f"color:var(--ink)'>"
             f"<input type='checkbox' name='svc' value='{svc}' "
             f"data-price='{price:.0f}' class='addsvc' "
             f"style='width:17px;height:17px'>"
-            f"<span style='flex:1'>{esc(label)}</span>"
-            f"<b>${price:,.0f}</b></label>")
+            f"<span style='flex:1;color:var(--ink)'>{esc(label)}</span>"
+            f"<b style='color:var(--green2)'>${price:,.0f}</b></label>")
     if not rows:
         return ""
     cur_total = (b.get("draft") or {}).get("total") or 0
