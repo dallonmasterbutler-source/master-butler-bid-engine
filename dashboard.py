@@ -6538,6 +6538,23 @@ def working_page():
               wb.get("office"), "🙋")
         + sec("Up next / pipeline", "queued and future ideas",
               wb.get("pipeline"), "🗺")
+        + sec("Ideas from the office", "sent from the box below — "
+              "Dallon gets each one by email instantly",
+              wb.get("ideas"), "💡")
+        # the idea box lives HERE too (Dallon, Jul 14: 'that way they
+        # can look at what's being done before they add something')
+        + "<div id='idea' style='margin-top:4px;background:var(--soft);"
+          "border:1px solid var(--line);border-radius:12px;"
+          "padding:14px 16px'>"
+          "<b>💡 Send Dallon an idea</b>"
+          "<div class='subtext' style='margin:4px 0 8px'>Check the lists "
+          "above first — then if it's new, send it. Emails him instantly "
+          "and lands on this board.</div>"
+          "<form method='POST' action='/idea_send' style='display:flex;"
+          "gap:8px'><input type='hidden' name='back' value='/working'>"
+          "<input name='text' required placeholder='What should this "
+          "dashboard do better?' style='flex:1'>"
+          "<button>Send</button></form></div>"
         + "</div>")
     return page("Build board", body)
 
@@ -9512,6 +9529,17 @@ class Handler(BaseHTTPRequestHandler):
                 add_idea(who, full)
                 save_review({"stamp": "", "action": "office_idea",
                              "customer": who, "note": text[:250]})
+                # straight onto the build board too (Dallon, Jul 14:
+                # 'when someone puts an idea through, throw it directly
+                # on the build board') — visible to the whole office
+                try:
+                    wb_ = _blob_rw("working_board", {})
+                    wb_.setdefault("ideas", []).insert(0,
+                        f"💡 {who}: {text[:160]}")
+                    wb_["ideas"] = wb_["ideas"][:20]
+                    _blob_save("working_board", wb_)
+                except Exception:
+                    pass
                 try:
                     import mailer
                     ok, why = mailer.send_internal(
