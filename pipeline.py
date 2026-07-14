@@ -353,6 +353,21 @@ def process(eml_path):
     except Exception:
         pass
 
+    # USUAL BUNDLE (Tom, Jul 13): 'my roof' from someone who does roof +
+    # gutters + moss every year → surface the missing usuals with their
+    # last prices so the office quotes the FULL bundle. Note only —
+    # never silently adds lines.
+    try:
+        import lastpaid as _lp
+        _ub = _lp.usual_bundle(parsed.get("services"),
+                               address=parsed.get("address"),
+                               client_name=parsed.get("sender_name"))
+        notes += _ub
+        if _ub:
+            print(f"OFFICE_ALERT: {_ub[0]}")
+    except Exception:
+        pass
+
     # TIMED DISCOUNT (Dallon + LaRee, Jul 13): a dated discount from
     # Settings rides every new bid in its window as its OWN labeled
     # line — true prices stay on the lines above, so the learning loop
