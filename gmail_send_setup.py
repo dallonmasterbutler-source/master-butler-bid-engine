@@ -66,10 +66,23 @@ def main():
     if not rt:
         print("No refresh token in response:", str(resp)[:300])
         return
-    import clouddb
-    clouddb.put_blob("gmail_oauth", {
-        "client_id": cid, "client_secret": sec, "refresh_token": rt,
-        "scope": SCOPE})
+    payload = {"client_id": cid, "client_secret": sec,
+               "refresh_token": rt, "scope": SCOPE}
+    try:
+        import clouddb
+        if clouddb.available():
+            clouddb.put_blob("gmail_oauth", payload)
+        else:                    # Mac has no direct DB — push over HTTPS
+            from cloudpush import push
+            push(blobs={"gmail_oauth": payload})
+    except Exception as e:
+        print("Could not reach the cloud store:", e)
+        print("Token kept locally in data/gmail_oauth.json — rerun "
+              "later or tell Claude.")
+        from pathlib import Path
+        (Path(__file__).parent / "data" / "gmail_oauth.json").write_text(
+            json.dumps(payload))
+        return
     print("\n✅ Saved to the shared store — the cloud can now send as "
           "customercare@ (send-only scope). Next: Dallon flips "
           "REPLIES_ENABLED and the pre-filled reply boxes go live.")
