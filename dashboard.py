@@ -3591,13 +3591,11 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # 'won — schedule it' push; follow-up means the crew already went
         if grp == 0 and nb and (oq or {}).get("status", "") \
                 .lower() == "converted":
-            _fu_txt = (nb.get("newest_message") or "").lower()
-            followup = bool(re.search(
-                r"technician|our tech|the tech |crew|wasn'?t|was not|"
-                r"isn'?t|is not|not in place|fix (that|it|the)|redo|"
-                r"came? back|come back|missed|broken|damage|mess|"
-                r"put back|left the|excellent|great job|thank you",
-                _fu_txt))
+            # the job is DONE in Jobber and they wrote — that's a
+            # fix-it/thanks about completed work, never a bid. Was
+            # phrase-gated; the Jul-14 drafts audit showed the misses
+            # padding Inbox instead (answer, don't quote — doctrine).
+            followup = True
         if followup:
             word = "🔧 follow-up on completed work — no bid"
             wstyle = "color:var(--goldink);font-weight:800"
@@ -3639,6 +3637,11 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                 except Exception:
                     mv = None
         oq_status = ((oq or {}).get("status") or "").lower()
+        # Jobber's word beats our guesswork (Dallon, Jul 14 trust fix):
+        # a tracked/backfilled quote that's APPROVED counts as won even
+        # when the scoreboard never matched our stamp to it.
+        if oq_status == "approved":
+            won = True
         # the office is drafting THIS in Jobber right now → pull it out
         # of our Inbox/Drafts into its own section (Dallon, Jul 13)
         office_draft_no = _office_drafting(oq, nb["stamp"]) if nb else None
@@ -3659,6 +3662,13 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             and nb["stamp"] not in getattr(bid_status, "_sl", {})
             and (sbs.get(nb["stamp"]) or "").lower() not in
             ("approved", "converted", "awaiting_response", "draft", "archived")
+            # Jobber already has this one past the draft stage (tracked
+            # OR backfilled by email) → nothing left to draft. The row
+            # still surfaces in Inbox/Fix-its if the customer wrote —
+            # it just stops padding the Drafts count (Dallon, Jul 14:
+            # the office sees '20 drafts', trusts nothing).
+            and oq_status not in ("approved", "converted",
+                                  "awaiting_response", "archived")
             and (_num(nb.get("confidence")) or 0) >= 75
             and (_num((nb.get("draft") or {}).get("total")) or 0) > 0)
         if grp == -1:
@@ -3714,6 +3724,15 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             lane = "officedraft"
             word = f"🖊️ office is drafting this in Jobber · #{office_draft_no}"
             wstyle = "color:#8a5a00;font-weight:800"
+        elif oq_status in ("converted", "archived") \
+                and not (unread or new_msg):
+            # the office already quoted AND closed this in Jobber (the
+            # Jul-14 audit: Tammy Jett sat in Drafts while her job was
+            # DONE) — off the working lanes; a new message resurfaces it
+            lane = "drawer"
+            word = (f"✅ handled in Jobber · #{(oq or {}).get('number')} "
+                    f"{oq_status}")
+            wstyle = "color:var(--green2);font-weight:700"
         elif grp == 4:
             lane = "drawer"
         elif ready_draft:
@@ -4250,7 +4269,22 @@ document.addEventListener('DOMContentLoaded', function(){
       // Fix-the-facts panel counts as an active edit, same as a
       // half-typed reply.
       var ff = document.getElementById('fixfacts');
-      var editing = (rb && rb.value.trim()) || (ff && ff.open);
+      // WIDER GUARD (Dallon, Jul 14: 'if they are mid draft and it
+      // refreshes, they ruin the work') — ANY typed-but-unsent text
+      // in ANY box, or a cursor sitting in a field, blocks the reload.
+      // The numbers update on the NEXT quiet pulse instead.
+      var ae = document.activeElement;
+      var typing = ae && (ae.tagName === 'TEXTAREA' ||
+                          ae.tagName === 'SELECT' ||
+                          (ae.tagName === 'INPUT' &&
+                           ae.type !== 'checkbox' &&
+                           ae.type !== 'button'));
+      var dirty = false;
+      document.querySelectorAll('textarea').forEach(function(t){
+        if (t.value.trim()) dirty = true;
+      });
+      var editing = (rb && rb.value.trim()) || (ff && ff.open)
+                    || typing || dirty;
       if (d.t !== last && !editing) {
         if (window.__saveScroll) window.__saveScroll();
         location.reload();

@@ -90,5 +90,101 @@ def sync(verbose=False):
     return updated
 
 
+BACKFILL_Q = """
+query($term: String!) {
+  clients(searchTerm: $term, first: 3) {
+    nodes { emails { address }
+      quotes { nodes { quoteNumber quoteStatus createdAt jobberWebUri
+                       amounts { total } } } } } }"""
+
+
+def backfill_drafts(verbose=False):
+    """THE TRUST FIX (Dallon, Jul 14: '30 inbox and 20 drafts… but
+    really they are working in the background with gmail and the old
+    system — no trust').
+
+    The 2-minute delta only sees the last handful of quote transitions;
+    a quote the office created in Jobber BEFORE our record existed (or
+    outside those windows) never gets linked, so the row sits in Drafts
+    forever — the Jul-14 audit found 6 of 20 'drafts' already quoted,
+    approved, or even converted in Jobber (Tammy Jett's job was DONE).
+
+    Hourly, for every un-reviewed record that still looks like a ready
+    draft with NO tracked quote: search Jobber by the customer's email;
+    if their newest quote is recent (created within 45 days) and past
+    the draft stage, write it into open_quote_ctx — the existing lane
+    rules then move the row to Waiting/Won/Handled on the next render.
+    READ-ONLY against Jobber; a new customer message still resurfaces
+    any row (standing rule)."""
+    import clouddb
+    if not clouddb.available():
+        return 0
+    import jobber_client as jc
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc)
+              - timedelta(days=45)).isoformat()[:10]
+    was, jc.DRY_RUN = jc.DRY_RUN, False
+    updated = 0
+    try:
+        for stamp, rec in clouddb.all_shadow():
+            if rec.get("merged_into") or rec.get("spam_auto") \
+                    or rec.get("tech_sender") or rec.get("reviewed") \
+                    or rec.get("kind") in ("jobber_event", "phone_lead"):
+                continue
+            if not ((rec.get("draft") or {}).get("total")):
+                continue                 # not a priced draft
+            # a MISSING link, or a STALE one — lhasija's record tracked
+            # her 2025 quote while the office sent #36642 the same
+            # morning. A ctx created 45+ days ago is history, not this
+            # request; look again.
+            _ctx = rec.get("open_quote_ctx") or {}
+            if _ctx and (_ctx.get("created") or "9999") >= cutoff:
+                continue                 # fresh link — leave it alone
+            m = re.search(r"<([^>]+)>", rec.get("from") or "")
+            em = m.group(1).lower() if m else None
+            if not em:
+                continue
+            d = jc._post(BACKFILL_Q, {"term": em},
+                         "drafts backfill (read-only)")
+            if not d or d.get("error") or d.get("dry_run"):
+                continue
+            newest = None
+            for node in (d.get("clients") or {}).get("nodes") or []:
+                addrs = [(e.get("address") or "").lower()
+                         for e in node.get("emails") or []]
+                if em not in addrs:
+                    continue             # exact email match only
+                for q in (node.get("quotes") or {}).get("nodes") or []:
+                    if not newest or (q.get("createdAt") or "") > \
+                            (newest.get("createdAt") or ""):
+                        newest = q
+                break
+            if not newest:
+                continue
+            status = (newest.get("quoteStatus") or "").lower()
+            if status == "draft" or (newest.get("createdAt")
+                                     or "")[:10] < cutoff:
+                continue                 # old history ≠ this request
+            rec["open_quote_ctx"] = {
+                "number": newest.get("quoteNumber"),
+                "status": newest.get("quoteStatus"),
+                "total": (newest.get("amounts") or {}).get("total"),
+                "url": newest.get("jobberWebUri"),
+                "created": (newest.get("createdAt") or "")[:10],
+                "lines": [],
+                "via": "backfill (office quoted directly in Jobber)"}
+            clouddb.ingest_shadow(stamp, rec)
+            updated += 1
+            if verbose:
+                print(f"  linked {em} → #{newest.get('quoteNumber')} "
+                      f"{status}")
+    finally:
+        jc.DRY_RUN = was
+    if verbose:
+        print(f"drafts backfill: {updated} rows linked to Jobber truth")
+    return updated
+
+
 if __name__ == "__main__":
     sync(verbose=True)
+    backfill_drafts(verbose=True)

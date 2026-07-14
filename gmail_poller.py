@@ -177,6 +177,14 @@ def poll_once():
         try:
             import scoreboard
             scoreboard.run(limit=40)
+            # TRUST FIX (Dallon, Jul 14): hourly, link ready-drafts to
+            # quotes the office created directly in Jobber, so Drafts
+            # only counts work that truly needs drafting
+            try:
+                import jobber_delta as _jd
+                _jd.backfill_drafts()
+            except Exception:
+                pass
             marker.write_text(datetime.now().isoformat(timespec="seconds"))
             try:
                 import autoreview
