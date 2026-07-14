@@ -165,6 +165,7 @@ INTERNAL_DEFAULT = ["masterbutlerinc.com", "dallon.masterbutler@gmail.com",
                     "tomfricke2007@gmail.com", "frickefamily07@gmail.com"]
 NOISE_SENDERS = ["no-reply", "noreply", "donotreply", "marketing@",
                  "accounts.google.com", "notifications@", "newsletter",
+                 "mailer@", "google-maps-platform",
                  "invoice+statements", "@stripe.com", "receipts@",
                  # Jessica, Jul 9: "Facebook should always be removed"
                  "facebookmail.com", "@facebook.com", "@instagram.com",

@@ -75,6 +75,16 @@ SELL_PHRASES = (
     # newsletter / content machinery
     "view in browser", "view online", "unsubscribe",
     "subscription is pending", "documentary", "webinar", "whitepaper",
+    # fake B2B event-forum campaign (Jul 14: 'Lisa, Events Director'
+    # hit from two different domains with the same script — rotating
+    # domains, one voice; catch the WORDS, not the domain)
+    "events director", "leadership forum", "conservation forum",
+    "will bring together", "sona cp", "sponsorship opportunit",
+    "keynote", "franchise",
+    # vendor follow-up mill (Rose Glenn, Jul 14): 'pricing and samples
+    # once I know your target location' — no property, no service, all
+    # pitch. Customers name THEIR address; vendors ask for a 'location'.
+    "pricing and samples", "target location",
 )
 
 # marketing-mill sender shapes: news.foo.com, mail.foo.com, sales@ …
@@ -90,6 +100,13 @@ KNOWN_SPAM_DOMAINS = (
     "wavevector.info", "lamues.com", "themaverickaiservice.com",
     "reliablebackground", "automationworld", "controldesign",
     "stockalert", "callclnr.co", "propertyleads",
+    # Jul 14 wave (Dallon flagged / queue sweep): auction blasts,
+    # political fundraising at Tom, trading letters, estimating vendors
+    "estatesales.org", "americacampaigns.com", "keepovertrading.com",
+    "marketanchorreport.com", "exact-estimating.com",
+    # the 'Lisa' event-forum campaign burns domains; these two are dead
+    # but the CONTENT phrases below are the real net
+    "myunderseaworld.com", "brianbourneconsulting.com",
 )
 
 
@@ -104,7 +121,11 @@ def looks_spam(sender, subject, body, has_address=False,
     # ── the guards: anything homeowner-shaped is never spam ──
     if has_address or kind in ("phone_lead", "jobber_event"):
         return False, ""
-    if any(p in sender for p in PROTECTED_SENDERS):
+    # a marketing/newsletter subaddress never rides brand protection —
+    # marketing@getjobber.com was sailing through on 'jobber' (Jul 14);
+    # quote EVENTS come from @txn./notifications, never marketing@
+    if any(p in sender for p in PROTECTED_SENDERS) \
+            and not _MKT_SENDER.search(sender):
         return False, ""
     if "customercare@masterbutlerinc" in low:      # replying in OUR thread
         return False, ""
