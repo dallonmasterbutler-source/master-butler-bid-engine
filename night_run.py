@@ -106,6 +106,19 @@ try:
 except Exception as e:
     print(f"   (yoy tally skipped: {e})")
 
+# 4c ── SCHEDULING STAGE 1 (Dallon, Jul 14: "run this report tonight")
+#       — read a year of Jobber visits + 60 days ahead, learn the
+#       routes, write sched_knowledge. Read-only; throttle-tolerant.
+try:
+    import sched_mine
+    _sk = sched_mine.run(verbose=True)
+    if _sk:
+        print(f"   sched knowledge: {_sk['totals'].get('visits')} visits "
+              f"mined, {len(_sk.get('future_anchors') or {})} future "
+              f"anchor days mapped")
+except Exception as e:
+    print(f"   (sched mine skipped: {e})")
+
 # 5 ── backup + morning brief
 print("\n[5/6] Backup + morning brief…")
 try:
