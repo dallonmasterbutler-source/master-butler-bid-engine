@@ -353,6 +353,17 @@ def process(eml_path):
     except Exception:
         pass
 
+    # TIMED DISCOUNT (Dallon + LaRee, Jul 13): a dated discount from
+    # Settings rides every new bid in its window as its OWN labeled
+    # line — true prices stay on the lines above, so the learning loop
+    # still sees real numbers. After lastpaid so the ratchet compares
+    # true prices, never discounted ones.
+    try:
+        import timed_discounts
+        notes += timed_discounts.apply(results)
+    except Exception:
+        pass
+
     # EXTERIOR → IN&OUT UPSELL (LaRee, Jul 10: 'when someone asks for
     # exterior windows, quote them ALSO for in and out — capture higher
     # revenue'). A note with the ready number — the office offers it;

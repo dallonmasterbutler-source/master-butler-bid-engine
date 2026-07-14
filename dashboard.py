@@ -1054,9 +1054,19 @@ def _svg_icon(name):
                 '<circle cx="16.5" cy="17.5" r="1.7"/>',
          "chart": '<path d="M4 20V10"/><path d="M10 20V4"/>'
                   '<path d="M16 20v-7"/><path d="M21 20H3"/>',
-         "gear": '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 '
-                 '18.8v2.4M4.2 12H1.8M22.2 12h-2.4M5.4 5.4l1.7 1.7M16.9 '
-                 '16.9l1.7 1.7M18.6 5.4l-1.7 1.7M7.1 16.9l-1.7 1.7"/>',
+         "gear": '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 '
+                 '1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06'
+                 'a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 '
+                 '2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 '
+                 '0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 '
+                 '1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 '
+                 '1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-'
+                 '1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 '
+                 '0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 '
+                 '0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 '
+                 '1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 '
+                 '1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 '
+                 '2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
          "phone": '<path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 '
                   '2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
          "help": '<circle cx="12" cy="12" r="9"/><path d="M9.4 9a2.8 '
@@ -6542,6 +6552,82 @@ def guide_page():
  and makes sure discounted visits never lower anyone's future price.
  </div>
 </div>"""
+        # ROW-TAGS TRAINING (Dallon, Jul 13: 'create a training of all
+        # the tags so I can pass it to the office')
+        + """
+<div style='margin:0 0 16px;background:var(--card);border:1px solid
+ rgba(201,162,39,.3);border-left:4px solid #c9a227;border-radius:12px;
+ padding:16px 18px'>
+ <b style='font-size:16px'>🏷 Training: what the tags on a row mean</b>
+ <div class='subtext' style='margin:6px 0 10px'>Every row wears small
+ colored words. Each one answers a question — read them left to right
+ and you know what to do without opening the card.</div>
+ <table style='width:100%;font-size:13px;line-height:1.5'>
+  <tr><td colspan='2' style='padding-top:6px;color:var(--mut);
+   font-size:11.5px;font-weight:800'>WHAT KIND OF ASK IS THIS?</td></tr>
+  <tr><td style='white-space:nowrap;font-weight:700;color:#8fc7a6'>📋
+   bid request</td><td>they named services — get them a price</td></tr>
+  <tr><td style='font-weight:700;color:#e8c76a'>💬 question</td>
+   <td>words, no service ask — answer them, don't quote</td></tr>
+  <tr><td style='font-weight:700;color:#79aede'>📅 about their visit</td>
+   <td>already booked in Jobber and wrote in — confirm the schedule</td></tr>
+  <tr><td colspan='2' style='padding-top:10px;color:var(--mut);
+   font-size:11.5px;font-weight:800'>WHO HAS IT</td></tr>
+  <tr><td style='font-weight:700;color:#79aede'>🔵 [name] is working
+   this</td><td>opened in the last 15 min — leave it or check with
+   them</td></tr>
+  <tr><td style='font-weight:700;color:#e8c76a'>🚶 stepped away</td>
+   <td>someone started, then left — anyone can pick it up</td></tr>
+  <tr><td style='font-weight:700'>with Dallon &amp; Tom</td>
+   <td>a person escalated it — wait for their call</td></tr>
+  <tr><td colspan='2' style='padding-top:10px;color:var(--mut);
+   font-size:11.5px;font-weight:800'>KNOW THIS CUSTOMER</td></tr>
+  <tr><td style='font-weight:700;color:#f2b8b5'>⚠️ bad payer</td>
+   <td>flagged with a note (banner on their card) — read it before
+   promising anything</td></tr>
+  <tr><td style='font-weight:700;color:#e8c76a'>👀 watch</td>
+   <td>be careful — the card explains why</td></tr>
+  <tr><td style='font-weight:700;color:#8fc7a6'>⭐ VIP</td>
+   <td>treat extra well</td></tr>
+  <tr><td style='font-weight:700;color:#f2b8b5'>⛔ do not service</td>
+   <td>never quote or book — approve is blocked</td></tr>
+  <tr><td colspan='2' style='padding-top:10px;color:var(--mut);
+   font-size:11.5px;font-weight:800'>CONVERSATION TEMPERATURE</td></tr>
+  <tr><td style='font-weight:700;color:#f2b8b5'>⚠ urgent</td>
+   <td>worried customer, floats to the very top — handle first</td></tr>
+  <tr><td style='font-weight:700;color:#8fc7a6'>🟢 active</td>
+   <td>back-and-forth within 3 days — being worked, leave it</td></tr>
+  <tr><td style='font-weight:700;color:var(--mut)'>🔕 quiet Nd</td>
+   <td>gone silent — worth a nudge</td></tr>
+  <tr><td colspan='2' style='padding-top:10px;color:var(--mut);
+   font-size:11.5px;font-weight:800'>WHERE THE QUOTE STANDS</td></tr>
+  <tr><td style='font-weight:700;color:#8fc7a6'>ready to approve</td>
+   <td>the engine priced it confidently — check and click approve</td></tr>
+  <tr><td style='font-weight:700;color:#8fc7a6'>won — schedule it</td>
+   <td>they said yes — get it on the calendar</td></tr>
+  <tr><td style='font-weight:700'>quote sent</td>
+   <td>ball's in the customer's court — sits in Waiting</td></tr>
+  <tr><td style='font-weight:700;color:#e8c76a'>🖊️ office is
+   drafting</td><td>a quote is already started in Jobber — finish it
+   there, don't re-quote</td></tr>
+  <tr><td style='font-weight:700;color:#e8c76a'>⏰ review — quote ~X mo
+   old</td><td>stale quote — treat as a new request; archive the old
+   one in Jobber</td></tr>
+  <tr><td style='font-weight:700;color:#e8c76a'>🔀 last quote was for
+   […]</td><td>old quote was a different job — this is a new
+   request</td></tr>
+  <tr><td colspan='2' style='padding-top:10px;color:var(--mut);
+   font-size:11.5px;font-weight:800'>NOT A CUSTOMER BID</td></tr>
+  <tr><td style='font-weight:700;color:#b79ade'>👷 tech note</td>
+   <td>field mail from our crew — never a bid to send</td></tr>
+  <tr><td style='font-weight:700;color:#b79ade'>📨 internal — office ↔
+   Dallon &amp; Tom</td><td>our own questions to the owners — lives in
+   the Techs tab</td></tr>
+  <tr><td style='font-weight:700;color:#e8c76a'>🔧 follow-up on
+   completed work</td><td>job's done; they wrote about the work — a
+   person handles it, no bid</td></tr>
+ </table>
+</div>"""
         + folds +
         # the top-bar 💡 Idea button lands here (Jessica, Jul 9)
         "<div id='idea' style='margin-top:16px;background:var(--soft);"
@@ -6991,6 +7077,69 @@ def settings_page(msg="", user=None):
  {sdrows or "<div class='subtext'>None loaded yet.</div>"}</div>"""
     qr_card += sd_card
 
+    # ---- TIMED DISCOUNTS (Dallon + LaRee, Jul 13: '15% for the 2nd
+    # week of August… flexible for slow seasons') — dated windows; the
+    # engine applies the largest active one to every new bid as its own
+    # labeled line. Mockup approved by Dallon before build. ----
+    td = _blob_rw("timed_discounts", [])
+    from datetime import date as _tdd
+    _today = _tdd.today()
+    td_rows = ""
+    for i, t in enumerate(td):
+        try:
+            _s = _tdd.fromisoformat(t.get("start") or "")
+            _e = _tdd.fromisoformat(t.get("end") or "")
+        except ValueError:
+            _s = _e = None
+        if _s and _e and _s <= _today <= _e:
+            st = ("<span style='background:#1c3a2c;color:#8fc7a6;"
+                  "border-radius:999px;padding:1px 9px;font-size:11px;"
+                  f"font-weight:800'>LIVE — ends {_e.strftime('%b %-d')}"
+                  "</span>")
+        elif _s and _s > _today:
+            st = ("<span style='background:#1f3350;color:#79aede;"
+                  "border-radius:999px;padding:1px 9px;font-size:11px;"
+                  f"font-weight:800'>upcoming {_s.strftime('%b %-d')}"
+                  "</span>")
+        else:
+            st = ("<span style='color:var(--mut);font-size:11px'>ended"
+                  "</span>")
+        td_rows += (
+            f"<tr><td style='font-weight:700'>{esc(t.get('name') or '')}"
+            f"</td><td>{esc(str(t.get('pct')))}%</td>"
+            f"<td class='subtext'>{esc(t.get('start') or '')} → "
+            f"{esc(t.get('end') or '')}</td><td>{st}</td>"
+            f"<td><form method='POST' action='/timed_discount_del' "
+            f"style='margin:0'><input type='hidden' name='idx' value='{i}'>"
+            f"<button class='gray' style='padding:2px 9px;font-size:11px'>"
+            f"✕</button></form></td></tr>")
+    timed_card = f"""
+<div class='card'>
+ <div class='schead'>{_svg_icon('percent')}<h2>📅 Timed discounts</h2></div>
+ <div class='subtext' style='margin-bottom:8px'>A discount runs only
+ between its dates — every new bid in the window gets it automatically
+ as its own labeled line (true prices stay visible). Only ONE applies
+ per bid: the largest wins, they never stack. Fill slow weeks without
+ permanent price cuts.</div>
+ <table style='width:100%;font-size:13px'>{td_rows or
+     "<tr><td class='subtext'>none yet — add one below</td></tr>"}</table>
+ <form method='POST' action='/timed_discount_add' style='display:grid;
+  grid-template-columns:1.4fr 62px 1fr 1fr auto;gap:7px;margin-top:10px;
+  align-items:end'>
+  <label style='font-size:11px'>Name<input name='name'
+   placeholder='August slow-week special' required></label>
+  <label style='font-size:11px'>%<input name='pct' type='number' min='1'
+   max='60' value='15' required></label>
+  <label style='font-size:11px'>Starts<input name='start' type='date'
+   required></label>
+  <label style='font-size:11px'>Ends<input name='end' type='date'
+   required></label>
+  <button>➕ Add</button>
+ </form>
+ <div class='subtext' style='margin-top:6px'>Saved under your name tag
+ and logged like every pricing change.</div>
+</div>"""
+
     # ---- discount policy (Jessica, Jul 9: 'discounts need to be in
     # the settings') — feeds the ✨ drafter's house rules + the Guide ----
     dp = _blob_rw("discount_policy", {})
@@ -7107,7 +7256,8 @@ def settings_page(msg="", user=None):
 
     return page("Settings", banner + header
                 + f"<div class='bento'><div>{pricing_card}{qr_card}</div>"
-                + f"<div>{sig_card}{disc_card}{health}{hist}</div></div>")
+                + f"<div>{sig_card}{timed_card}{disc_card}{health}{hist}"
+                  f"</div></div>")
 
 
 def history_page():
@@ -9396,6 +9546,58 @@ class Handler(BaseHTTPRequestHandler):
                 _msg_read_save(d)
             self.send_response(303)
             self.send_header("Location", "/")
+            self.end_headers()
+        elif self.path == "/timed_discount_add":
+            # 📅 timed discounts (Dallon + LaRee, Jul 13) — dated window,
+            # logged as a settings change under the name tag
+            cmt = re.search(r"office_user=([^;]+)",
+                            self.headers.get("Cookie") or "")
+            whot = urllib.parse.unquote(cmt.group(1)) if cmt else "office"
+            try:
+                pct = float(get("pct") or 0)
+            except ValueError:
+                pct = 0
+            nm_t, s_t, e_t = (get("name") or "").strip()[:60], \
+                get("start") or "", get("end") or ""
+            ok = bool(nm_t and 0 < pct <= 60 and s_t and e_t
+                      and s_t <= e_t)
+            if ok:
+                td_ = _blob_rw("timed_discounts", [])
+                td_.append({"name": nm_t, "pct": pct, "start": s_t,
+                            "end": e_t, "by": whot,
+                            "at": datetime.now().isoformat(
+                                timespec="seconds")})
+                _blob_save("timed_discounts", td_)
+                save_review({"stamp": "", "action": "settings_change",
+                             "customer": "PRICING", "by": whot,
+                             "note": f"timed discount added: {nm_t} "
+                                     f"{pct:g}% {s_t}→{e_t}"})
+            self.send_response(303)
+            self.send_header("Location", "/settings?msg=" +
+                             urllib.parse.quote(
+                                 f"Timed discount saved: {nm_t} {pct:g}% "
+                                 f"({s_t} → {e_t})." if ok else
+                                 "Not saved — needs a name, a % (1-60), "
+                                 "and start ≤ end dates."))
+            self.end_headers()
+        elif self.path == "/timed_discount_del":
+            cmt = re.search(r"office_user=([^;]+)",
+                            self.headers.get("Cookie") or "")
+            whot = urllib.parse.unquote(cmt.group(1)) if cmt else "office"
+            td_ = _blob_rw("timed_discounts", [])
+            try:
+                i_ = int(get("idx"))
+                gone = td_.pop(i_)
+                _blob_save("timed_discounts", td_)
+                save_review({"stamp": "", "action": "settings_change",
+                             "customer": "PRICING", "by": whot,
+                             "note": f"timed discount removed: "
+                                     f"{gone.get('name')}"})
+            except (ValueError, IndexError, TypeError):
+                pass
+            self.send_response(303)
+            self.send_header("Location", "/settings?msg=" +
+                             urllib.parse.quote("Timed discount removed."))
             self.end_headers()
         elif self.path == "/flag_customer":
             # ⚠️ persistent per-customer flag (Dallon, Jul 13 — Garrett

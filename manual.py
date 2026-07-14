@@ -135,6 +135,12 @@ def process_manual(name, address, phone="", email="", services=None,
                     confidence = min(confidence, 45)
             except Exception:
                 pass
+            # timed discount rides manual bids too (Dallon, Jul 13)
+            try:
+                import timed_discounts
+                notes += timed_discounts.apply(results)
+            except Exception:
+                pass
             # exterior → in&out upsell note (LaRee, Jul 10)
             try:
                 import bid_engine as _be
