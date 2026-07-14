@@ -185,6 +185,13 @@ def poll_once():
                 _jd.backfill_drafts()
             except Exception:
                 pass
+            # THE HOURLY LANE REVIEWER (Dallon, Jul 14: 'catch the
+            # problems before the office does') — flags, never moves
+            try:
+                import lane_review
+                lane_review.run()
+            except Exception:
+                pass
             marker.write_text(datetime.now().isoformat(timespec="seconds"))
             try:
                 import autoreview

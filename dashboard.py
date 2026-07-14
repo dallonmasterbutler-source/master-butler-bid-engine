@@ -3591,11 +3591,29 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # 'won — schedule it' push; follow-up means the crew already went
         if grp == 0 and nb and (oq or {}).get("status", "") \
                 .lower() == "converted":
-            # the job is DONE in Jobber and they wrote — that's a
-            # fix-it/thanks about completed work, never a bid. Was
-            # phrase-gated; the Jul-14 drafts audit showed the misses
-            # padding Inbox instead (answer, don't quote — doctrine).
-            followup = True
+            # the job is DONE in Jobber and they wrote. But WANTING MORE
+            # WORK beats everything (Karen R, Jul 14: Adam finished her
+            # walkway that morning, she wrote 'I'd like to go ahead and
+            # schedule the driveway' — WITH praise for Adam in the same
+            # message. That's a NEW BID, not a fix-it, even though the
+            # service category matches the finished job). Only a message
+            # with no forward-looking work intent is a follow-up.
+            _fu_txt = (nb.get("newest_message") or "").lower()
+            _new_work = re.search(
+                r"go ahead (and|with)|i('|’)?d like to (schedule|book|"
+                r"add|get|do)|schedule (the|a|my|us|me)|can you (also )?"
+                r"(add|do|come (out|back) (and|to)|quote)|(another|a|"
+                r"new) (quote|estimate)|how much (would|is|for)|"
+                r"interested in|next (visit|time) (can|could|please)|"
+                r"add (the|just the|a) \w+ to"
+                # …and SCHEDULING/APPROVAL replies (the Jul-14 lane
+                # read-through: Tammy 'The 15th would work', Angela
+                # 'I will take it', Prash 'July 15th is okay. What
+                # time?' — money asking to be booked, not fix-its)
+                r"|(would|will|that) works?\b|is (fine|good|okay|ok)\b|"
+                r"i('|’)?ll take it|i will take it|works for (me|us)|"
+                r"what time", _fu_txt)
+            followup = not _new_work
         if followup:
             word = "🔧 follow-up on completed work — no bid"
             wstyle = "color:var(--goldink);font-weight:800"
@@ -6649,6 +6667,24 @@ def working_page():
           "<input name='text' required placeholder='What should this "
           "dashboard do better?' style='flex:1'>"
           "<button>Send</button></form></div>"
+        # THE HOURLY REVIEW (Dallon, Jul 14): what the auto-reviewer
+        # caught this hour — problems surfaced before the office trips
+        # on them. Flags only; a human decides.
+        + (lambda lr: (
+            "<div class='card' style='margin-bottom:14px'>"
+            "<div class='schead'>🕵️<h2>Hourly review — needs a look</h2>"
+            f"</div><div class='subtext' style='margin:0 0 6px'>every "
+            f"row on every tab, re-checked hourly · last pass "
+            f"{esc((lr.get('at') or '')[11:16])} UTC</div>"
+            + "".join(
+                f"<div style='padding:8px 14px;border-top:1px solid "
+                f"var(--line);font-size:13px'>{f.get('sev')} "
+                f"<b>{esc(f.get('name') or f.get('email'))}</b> "
+                f"<span class='subtext'>{esc(f.get('check'))}</span><br>"
+                f"{esc(f.get('note'))}</div>"
+                for f in (lr.get("findings") or [])[:12])
+            + "</div>") if (lr.get("findings")) else "")(
+                _blob_rw("lane_review", {}) or {})
         + sec("Ideas from the office", "sent from the box above — "
               "Dallon gets each one by email instantly",
               wb.get("ideas"), "💡")
