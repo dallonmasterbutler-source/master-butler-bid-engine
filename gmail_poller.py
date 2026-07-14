@@ -155,6 +155,9 @@ def poll_once():
     try:
         import gmail_mirror
         gmail_mirror.sync(verbose=False)
+        # LaRee's signals (Jul 14): trash = done, greyed = being worked.
+        # Display-only blob — never clears a row (kill switch honored).
+        gmail_mirror.state_sync(verbose=False)
     except Exception as _e:
         print(f"  (gmail mirror skipped: {_e})")
     try:

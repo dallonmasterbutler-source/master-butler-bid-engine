@@ -3368,6 +3368,11 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
     cleared_blob = _blob_rw("cleared", {})
     # per-customer flags (bad payer / watch / VIP) — Garrett Mydland
     cust_flags = _blob_rw("customer_flags", {})
+    # LaRee's Gmail signals (Jul 14 call): trash = DONE, greyed (read,
+    # still in inbox) = being worked. Display-only — a chip and a sink
+    # to the bottom of the group, never a cleared row (Jul-13 kill
+    # switch stands). A new inbound message always outranks it.
+    gmail_state = _blob_rw("gmail_state", {})
 
     for b in bids:
         if b.get("merged_into") or classify_row(b)[0] == "aside":
@@ -3835,13 +3840,16 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                        "new_msg": new_msg, "oq": oq, "qno": qno,
                        "won": won, "urgent": bool(urgent),
                        "lane": lane, "act": _msg_latest,
-                       "cflag": cust_flags.get(key), "qtag": qtag})
+                       "cflag": cust_flags.get(key), "qtag": qtag,
+                       "gmail": ((gmail_state.get(key) or {}).get("state")
+                                 if not (unread or new_msg) else None)})
     # GMAIL MIRROR (Jessica, Jul 9: office works Gmail + dashboard side
     # by side for a while) — inside each section the order is pure
     # newest-activity-first, exactly like the Gmail list; bold marks
     # unread but does NOT reorder. Urgent still outranks everything.
     roster.sort(key=lambda r: r["at"], reverse=True)
-    roster.sort(key=lambda r: (r["grp"], not r["urgent"]))
+    roster.sort(key=lambda r: (r["grp"], not r["urgent"],
+                               r.get("gmail") == "done"))
 
     cur = next((r for r in roster if r["key"] == sel), None)
     convo_open = bool(cur and cur["new_msg"])
@@ -3862,6 +3870,8 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         box = ("background:var(--soft);outline:2px solid var(--green2)"
                if active else "")
         op = "" if (r["unread"] or active or r["grp"] == 0) else "opacity:.62;"
+        if r.get("gmail") == "done" and not active:
+            op = "opacity:.45;"       # office trashed it in Gmail = done
         nm_w = "font-weight:800" if r["unread"] else "font-weight:600"
         dot = "<span class='dot'></span>" if r["unread"] else ""
         if c.get("vm"):
@@ -3890,6 +3900,15 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # WITH recent back-and-forth is being worked (leave it); one gone
         # silent needs a nudge. Shown only where it matters.
         actchip = ""
+        # Gmail's own verdict, LaRee's reading (Jul 14): trash = done,
+        # greyed = someone's on it. Chips only — the ✓ button (or a new
+        # message) still decides the row's fate.
+        if r.get("gmail") == "done":
+            actchip += ("<span style='color:var(--mut);font-weight:700;"
+                        "font-size:11px'>🗑 done in Gmail</span> ")
+        elif r.get("gmail") == "working":
+            actchip += ("<span style='color:#e8c76a;font-weight:700;"
+                        "font-size:11px'>🖐 office on it</span> ")
         if r.get("qtag"):
             actchip += (f"<span style='color:{r['qtag'][1]};font-weight:800;"
                         f"font-size:11px'>{r['qtag'][0]}</span> ")

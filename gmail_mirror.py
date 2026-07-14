@@ -68,6 +68,114 @@ def _inbox_state():
     return senders, msgids
 
 
+def state_sync(verbose=True):
+    """LaRee's phone-call lesson (Jul 14) as a NON-DESTRUCTIVE mirror.
+
+    Her words: in Gmail, trash = DONE; greyed out (read, still in the
+    inbox) = being worked on. The Jul-13 kill switch stays — this never
+    clears a row. It only WRITES what Gmail says into a `gmail_state`
+    blob; the dashboard shows it as a chip and a fold, and a human (or
+    a new message) decides everything else.
+
+        gmail_state = { email: {"state": "unread"|"working"|"done",
+                                "at": iso} }
+
+      · unread  — their message sits UNREAD in the Gmail inbox
+      · working — in the inbox but READ (greyed out on their screen)
+      · done    — the office moved the thread to TRASH
+    Absent = Gmail can't vouch (archived, or never came through Gmail)
+    → dashboard shows the row exactly as before.
+    """
+    import clouddb
+    if not clouddb.available():
+        return 0
+    from gmail_poller import _creds
+    import email as _email
+    from datetime import datetime, timezone
+
+    addr, pw = _creds()
+    M = imaplib.IMAP4_SSL("imap.gmail.com")
+    M.login(addr, pw)
+
+    def _scan(box):
+        out = {}                        # msgid -> (sender, unread)
+        typ, _ = M.select('"%s"' % box, readonly=True)
+        if typ != "OK":
+            return None
+        typ, data = M.search(None, "ALL")
+        ids = data[0].split() if data and data[0] else []
+        for i in ids:
+            typ, resp = M.fetch(
+                i, "(FLAGS BODY.PEEK[HEADER.FIELDS (FROM MESSAGE-ID)])")
+            if typ != "OK" or not resp or not resp[0]:
+                continue
+            flg = resp[0][0]
+            flg = flg.decode("utf-8", "replace") if isinstance(
+                flg, bytes) else str(flg)
+            raw = resp[0][1].decode("utf-8", "replace")
+            msg = _email.message_from_string(raw)
+            _, em = email.utils.parseaddr(msg.get("From") or "")
+            mid = (msg.get("Message-ID") or "").strip()
+            if mid:
+                out[mid] = (em.lower(), "\\Seen" not in flg)
+        return out
+
+    try:
+        inbox = _scan("INBOX")
+        trash = _scan("[Gmail]/Trash")
+    finally:
+        try:
+            M.logout()
+        except Exception:
+            pass
+    if inbox is None:                   # couldn't read — change nothing
+        return 0
+    trash = trash or {}
+
+    inbox_senders = {}                  # sender -> any-unread?
+    for mid, (s, unread) in inbox.items():
+        if s:
+            inbox_senders[s] = inbox_senders.get(s, False) or unread
+    trash_senders = {s for s, _ in trash.values() if s}
+
+    # map each queue customer to a state via Message-ID first (forms
+    # arrive From Squarespace — the Amanda Gentry lesson), sender second
+    mids_by_email = {}
+    emails = set()
+    for _s, _r in clouddb.all_shadow():
+        if _r.get("merged_into") or _r.get("spam_auto") \
+                or _r.get("tech_sender") or _r.get("kind") == "jobber_event":
+            continue
+        m = re.search(r"<([^>]+)>", _r.get("from") or "")
+        e = m.group(1).lower() if m else None
+        if not e:
+            continue
+        emails.add(e)
+        mid = (_r.get("message_id") or "").strip()
+        if mid:
+            mids_by_email.setdefault(e, set()).add(mid)
+
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    state = {}
+    for e in emails:
+        mids = mids_by_email.get(e, set())
+        hits = [inbox[m] for m in mids if m in inbox]
+        if hits or e in inbox_senders:
+            unread = any(u for _, u in hits) or inbox_senders.get(e, False)
+            state[e] = {"state": "unread" if unread else "working",
+                        "at": now}
+        elif any(m in trash for m in mids) or e in trash_senders:
+            state[e] = {"state": "done", "at": now}
+    clouddb.put_blob("gmail_state", state)
+    if verbose:
+        cts = {}
+        for v in state.values():
+            cts[v["state"]] = cts.get(v["state"], 0) + 1
+        print(f"gmail state mirror: {cts} across {len(emails)} customers "
+              "(display-only — nothing cleared)")
+    return len(state)
+
+
 # KILL SWITCH (Dallon, Jul 13 — URGENT): auto-clearing rows from the
 # queue because a Gmail thread was archived kept making live rows vanish
 # under the office's hands (Squarespace-form leads; and draft rows for
