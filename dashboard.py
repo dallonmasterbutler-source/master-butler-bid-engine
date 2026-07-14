@@ -685,8 +685,12 @@ footer{margin:8px 0 28px;padding:0 24px;
 .chrome .navr a.on{background:rgba(255,255,255,.14);color:#fff}
 .chrome .whobox{margin-left:14px;padding-left:14px;
   border-left:1px solid rgba(255,255,255,.25);opacity:.95;font-size:13px}
-.inboxgrid{display:grid;grid-template-columns:330px 1fr;min-height:640px}
-@media(max-width:840px){.inboxgrid{grid-template-columns:1fr}}
+.inboxgrid{display:grid;grid-template-columns:var(--ilistw,330px) 6px 1fr;
+  min-height:640px}
+.iresize{cursor:col-resize;background:transparent;position:relative}
+.iresize:hover,.iresize.on{background:rgba(201,162,39,.35)}
+@media(max-width:840px){.inboxgrid{grid-template-columns:1fr}
+  .iresize{display:none}}
 .ilist{border-right:1px solid var(--line);padding:8px;overflow-y:auto;
   max-height:calc(100vh - 140px)}
 .idetail{display:flex;flex-direction:column;max-height:calc(100vh - 140px);
@@ -723,8 +727,9 @@ footer{margin:8px 0 28px;padding:0 24px;
 .bulkbar .bulklink{background:none;border:none;color:var(--green2);
   font-weight:700;cursor:pointer;font-size:12.5px;text-decoration:underline;
   padding:0}
-.irow .pv{color:var(--mut);font-size:12.5px;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.irow .pv{color:var(--mut);font-size:12.5px;white-space:normal;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;
+  -webkit-box-orient:vertical;margin-top:1px}
 .irow .meta{display:flex;justify-content:space-between;margin-top:3px}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;
   background:var(--gold);margin-right:9px;vertical-align:1px}
@@ -1459,7 +1464,39 @@ border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
                 f"<div class='wrap' style='max-width:1440px;margin:0 auto'>{body}</div>"
                 f"<footer>Every quote is a draft until a human sends it · "
                 f"bold = unread, shared by the whole office · every price "
-                f"traces to a real job.</footer></div></body></html>"
+                f"traces to a real job.</footer></div>"
+                # STRETCHABLE LIST (Dallon, Jul 14: 'widen it to read a
+                # block of text without going into the customer') — drag
+                # the divider; width remembered per browser
+                """<script>
+(function(){
+  var h=document.querySelector('.iresize');
+  var g=document.querySelector('.inboxgrid');
+  if(!h||!g) return;
+  try{var w=localStorage.getItem('ilistw');
+      if(w) g.style.setProperty('--ilistw', w+'px');}catch(e){}
+  var drag=false;
+  h.addEventListener('mousedown',function(e){
+    drag=true;h.classList.add('on');e.preventDefault();
+    document.body.style.userSelect='none';});
+  document.addEventListener('mousemove',function(e){
+    if(!drag) return;
+    var left=g.getBoundingClientRect().left;
+    var w=Math.min(760,Math.max(240,e.clientX-left));
+    g.style.setProperty('--ilistw',w+'px');});
+  document.addEventListener('mouseup',function(){
+    if(!drag) return;
+    drag=false;h.classList.remove('on');
+    document.body.style.userSelect='';
+    try{localStorage.setItem('ilistw',
+      Math.round(document.querySelector('.ilist')
+        .getBoundingClientRect().width));}catch(e){}
+  });
+  h.addEventListener('dblclick',function(){
+    g.style.setProperty('--ilistw','330px');
+    try{localStorage.removeItem('ilistw');}catch(e){}});
+})();
+</script></body></html>"""
                 ).encode()
     # EVERY page lives in the framed green window now (Dallon Jul 9:
     # the left rail's links were dead — deleted; colors match the Inbox)
@@ -3762,9 +3799,9 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                             >= _stamp_utc(nb["stamp"])):
             last = c["msgs"][-1]
             arrow = "←" if last["dir"] == "in" else "→"
-            pv = f"{arrow} {(last.get('body') or last.get('subject') or '')[:52]}"
+            pv = f"{arrow} {(last.get('body') or last.get('subject') or '')[:240]}"
         elif nb:
-            pv = (nb.get("newest_message") or nb.get("subject") or "")[:52]
+            pv = (nb.get("newest_message") or nb.get("subject") or "")[:240]
         else:
             pv = ""
         alarm = (r["grp"] == 0 and r["age"] >= SLA_HOURS)
@@ -4095,6 +4132,7 @@ document.addEventListener('DOMContentLoaded', function(){
     body = (_DARKROOM_CSS + f"<div class='mock dkroom'>{_chrome_dark()}"
             + f"<div class='inboxgrid'>"
             f"<div class='ilist'>{lst}</div>"
+            "<div class='iresize' title='Drag to widen the list'></div>"
             f"<div class='idetail'>{detail}</div>"
             f"</div></div>")
     body += """
@@ -5507,6 +5545,7 @@ if (t) t.scrollTop = t.scrollHeight;
     body = (f"<div class='mock'>{_chrome_bar('Customers')}"
             f"<div class='inboxgrid'>"
             f"<div class='ilist'>{lst}</div>"
+            "<div class='iresize' title='Drag to widen the list'></div>"
             f"<div class='idetail'>{detail}{keep_js}</div>"
             f"</div></div>")
     return page("Customers", body, chrome="bare")
