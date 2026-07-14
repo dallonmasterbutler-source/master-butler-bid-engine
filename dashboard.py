@@ -6625,7 +6625,8 @@ def working_page():
            "<details open><summary style='cursor:pointer;padding:4px 0;"
            "font-weight:800;font-size:16px'>✨ Auto-Respond — Plan of "
            "Attack <span class='subtext' style='font-weight:400'>"
-           "(Jul 14 — awaiting Dallon's go; nothing sends itself)</span>"
+           "(stage 1 SHADOW is live — <a href='/autodrafts'>the grading "
+           "room</a>; nothing sends itself)</span>"
            "</summary>"
            "<iframe src='/plan_autorespond' title='Auto-Respond plan' "
            "style='width:100%;height:1500px;border:0;border-radius:8px;"
@@ -6642,6 +6643,111 @@ def working_page():
               wb.get("pipeline"), "🗺")
         + "</div>")
     return page("Build board", body)
+
+
+def autodrafts_page(user=None):
+    """AUTO-RESPOND STAGE 1 — the shadow review page (Dallon's GO,
+    Jul 14). Shows what the pre-filled reply box WOULD say: live
+    proposals for threads awaiting us now, and a retro reel of recent
+    (customer → office) exchanges with our draft beside what the office
+    actually sent. Nothing here sends; the office isn't linked here."""
+    import msglog
+    import autorespond
+    voice = _blob_rw("office_voice", {}) or {}
+
+    # newest queue record per customer email (gates + facts live there)
+    recs = {}
+    for b in load_bids():
+        m = re.search(r"<([^>]+)>", b.get("from") or "")
+        e = m.group(1).lower() if m else None
+        if e and (e not in recs or b["stamp"] > recs[e]["stamp"]):
+            recs[e] = b
+
+    def card(title, inner):
+        return (f"<div class='card' style='margin-bottom:14px'>"
+                f"<div class='schead'><h2>{title}</h2></div>{inner}</div>")
+
+    def block(label, text, color="var(--ink)"):
+        return (f"<div style='margin:6px 0'><div class='subtext' "
+                f"style='font-weight:800'>{label}</div>"
+                f"<div style='white-space:pre-wrap;font-size:13.5px;"
+                f"color:{color};background:var(--soft);border-radius:8px;"
+                f"padding:10px 12px'>{esc(text)}</div></div>")
+
+    from datetime import datetime as _dt, timezone as _tz, timedelta
+    now = _dt.now(_tz.utc)
+
+    def _utc(at):
+        try:
+            t = _dt.fromisoformat(at)
+            return t.replace(tzinfo=_tz.utc) if t.tzinfo is None else t
+        except (ValueError, TypeError):
+            return None
+
+    live_rows, retro_rows, gated = [], [], 0
+    for addr, name, msgs in msglog.threads():
+        e = (addr or "").lower()
+        rec = recs.get(e)
+        # LIVE: newest message is a customer inbound from the last 2 wks
+        last = msgs[-1] if msgs else None
+        if last and last.get("dir") == "in":
+            t = _utc(last.get("at"))
+            if t and now - t <= timedelta(days=14):
+                d = autorespond.build_draft(rec, msgs, user, voice)
+                if d:
+                    live_rows.append(
+                        f"<div style='border-top:1px solid var(--line);"
+                        f"padding:10px 0'><b>{esc(name or e)}</b> "
+                        f"<span class='chip' style='background:var(--soft);"
+                        f"border-radius:12px;padding:1px 9px;font-size:11.5px'>"
+                        f"{esc(d['type'])}</span> <span class='subtext'>"
+                        f"{esc(d['why'])}</span>"
+                        + block("← customer", (last.get('body') or '')[:400])
+                        + block("✨ the box would say", d["draft"],
+                                "var(--green2)")
+                        + "</div>")
+                else:
+                    gated += 1
+        # RETRO: every in→out pair from the last 30 days
+        for i in range(1, len(msgs)):
+            if msgs[i].get("dir") == "out" and msgs[i-1].get("dir") == "in":
+                t = _utc(msgs[i].get("at"))
+                if not t or now - t > timedelta(days=30):
+                    continue
+                d = autorespond.build_draft(rec, msgs[:i], user, voice)
+                if d and len(retro_rows) < 20:
+                    retro_rows.append(
+                        f"<div style='border-top:1px solid var(--line);"
+                        f"padding:10px 0'><b>{esc(name or e)}</b> "
+                        f"<span class='subtext'>{esc(d['type'])}</span>"
+                        + block("← customer wrote",
+                                (msgs[i-1].get('body') or '')[:400])
+                        + block("✨ we would have drafted", d["draft"],
+                                "var(--green2)")
+                        + block("→ the office actually sent",
+                                (msgs[i].get('body') or '')[:600])
+                        + "</div>")
+
+    body = (
+        "<div style='max-width:860px'>"
+        "<h2 style='margin:4px 0 2px;font-size:22px'>✨ Auto-respond — "
+        "shadow drafts (stage 1)</h2>"
+        "<div class='subtext' style='margin-bottom:14px'>Nothing on this "
+        "page sends or touches the inbox — it's the grading room. "
+        "Drafts appear ONLY for genuine customer inbounds; complaints "
+        "and price talk never draft. Full plan: "
+        "<a href='/plan_autorespond'>the plan of attack</a>.</div>"
+        + card(f"Would draft RIGHT NOW ({len(live_rows)}) — threads "
+               f"awaiting a reply · {gated} inbound threads correctly "
+               f"left blank",
+               "".join(live_rows) or "<div class='subtext'>nothing "
+               "awaiting us matches a safe template right now</div>")
+        + card(f"Grading reel — last 30 days, our draft vs the office "
+               f"({len(retro_rows)})",
+               "".join(retro_rows) or "<div class='subtext'>no recent "
+               "customer→office pairs matched a template</div>")
+        + "</div>")
+    return page("Auto-respond shadow", body)
 
 
 def guide_page():
@@ -8606,6 +8712,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(guide_page())
         if self.path == "/working":
             return self._send(working_page())
+        if self.path == "/autodrafts":
+            cm = re.search(r"office_user=([^;]+)", self.headers.get(
+                "Cookie") or "")
+            return self._send(autodrafts_page(
+                urllib.parse.unquote(cm.group(1)) if cm else None))
         if self.path == "/plan_autorespond":
             # the Auto-Respond plan of attack, embedded on the build
             # board via iframe (Dallon, Jul 14: "add this entire widget
