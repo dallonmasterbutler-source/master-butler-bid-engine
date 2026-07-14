@@ -6500,6 +6500,44 @@ m2.fitBounds(L.polyline(D.poly).getBounds(), {{padding: [16, 16]}});
     return page("Route mockup", body, chrome="bare")
 
 
+def working_page():
+    """🔭 The build board (Tom, Jul 14: 'the office should see what
+    Dallon's worked on, what he's doing'). Renders the working_board
+    blob — Claude keeps it current alongside the running-list artifact.
+    Read-only for the office; sections: now / shipped / office / next."""
+    wb = _blob_rw("working_board", {}) or {}
+    upd = (wb.get("updated") or "")[:10]
+
+    def sec(title, sub, items, icon):
+        rows = "".join(
+            f"<div style='padding:9px 14px;border-top:1px solid "
+            f"var(--line);font-size:13.5px;color:var(--ink)'>{esc(i)}"
+            f"</div>" for i in (items or []))
+        return (f"<div class='card' style='margin-bottom:14px'>"
+                f"<div class='schead'>{icon}<h2>{esc(title)}</h2></div>"
+                f"<div class='subtext' style='margin:0 0 6px'>{esc(sub)}"
+                f"</div>{rows or '<div class=subtext>nothing here</div>'}"
+                f"</div>")
+
+    body = (
+        "<div style='max-width:820px'>"
+        "<h2 style='margin:4px 0 2px;font-size:22px'>🔭 The build board"
+        "</h2>"
+        f"<div class='subtext' style='margin-bottom:14px'>What Dallon "
+        f"and Claude are building on this system — updated {esc(upd) or 'recently'}. "
+        "Read-only; send ideas via 💡 on the Guide tab.</div>"
+        + sec("Building now", "in progress this week",
+              wb.get("now"), "🔨")
+        + sec("Just shipped", "landed recently — already live for you",
+              wb.get("shipped"), "✅")
+        + sec("Waiting on the office", "a person's answer unblocks these",
+              wb.get("office"), "🙋")
+        + sec("Up next / pipeline", "queued and future ideas",
+              wb.get("pipeline"), "🗺")
+        + "</div>")
+    return page("Build board", body)
+
+
 def guide_page():
     """The office manual, living where the office lives (Dallon Jul 9:
     'a tab that instructs... a FAQ type of situation')."""
@@ -6515,7 +6553,9 @@ def guide_page():
         "<div class='subtext' style='margin-bottom:12px'>Two rules cover "
         "almost everything: <b>bold means nobody's handled it</b>, and "
         "<b>nothing sends to a customer without a human</b>. The rest is "
-        "detail — tap any question.</div>"
+        "detail — tap any question. Curious what's being built? "
+        "<a href='/working' style='font-weight:700'>🔭 The build board</a>"
+        "</div>"
         # DISCOUNT LABELING TRAINING — AT THE TOP (Dallon, Jul 12:
         # 'anything critical shouldn't have to be searched for')
         """
@@ -8458,6 +8498,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(history_page())
         if self.path == "/guide":
             return self._send(guide_page())
+        if self.path == "/working":
+            return self._send(working_page())
         if self.path == "/route_demo":
             return self._send(route_demo_page())
         if self.path.startswith("/routes"):
