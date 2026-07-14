@@ -30,8 +30,19 @@ import re
 #    4 weeks of inbound: 72 thanks / 33 approve+date / 29 amendments…) ──
 
 _RX = {
+    # Jul-14 language dive (4,597 real messages): a customer who praises
+    # first and pivots with but/however is REPORTING A PROBLEM politely
+    # (178 found — Hope Todd: "prompt and courteous… but the star is
+    # swaying"). And a self-correction rewrites their own last message —
+    # only a human should untangle which instruction stands (19 found).
+    "self_correction": r"never ?mind|i meant|my (mistake|bad)|"
+                       r"please disregard|ignore my (last|previous)|"
+                       r"sorry,? i (said|sent|meant)",
     "fixit": r"missed|redo|not (done|cleaned)|still dirty|streak|"
-             r"complaint|unhappy|left a mess|damage",
+             r"complaint|unhappy|left a mess|damage|"
+             r"(great|good|excellent|wonderful|courteous|prompt|"
+             r"satisfied)[^.!?]{0,80}[.!?][^?]{0,140}\b(but|however|"
+             r"although|except|one issue|noticed (a|that|one))",
     "price_discount": r"discount|cheaper|price match|too (high|expensive)"
                       r"|lower price|better price|beat (the|their) price",
     "approve_wants_date": r"(approv\w+|accepted|go ahead|sounds good)"
@@ -62,14 +73,25 @@ _RX = {
 # order matters: specific before generic; the first two never draft
 # date_confirm outranks approve_wants_date: "I approved. July 8th
 # works" carries a real date — confirm THAT, don't ask for one (Durga)
-_ORDER = ("fixit", "price_discount", "date_confirm",
+_ORDER = ("self_correction", "fixit", "price_discount", "date_confirm",
           "approve_wants_date", "amendment", "status_chaser",
           "approval_only", "thanks_ack")
-NO_DRAFT = {"fixit", "price_discount"}
+NO_DRAFT = {"self_correction", "fixit", "price_discount"}
+
+# a 👍 Gmail emoji reaction IS an approval/ack (Lijun Chen, Jul-14 dive)
+_EMOJI_ACK = re.compile(r"^\W*(👍|🙏|❤️|reacted via gmail)", re.I)
+
+# approval that carries a RIDER instruction ("I approved it. They will
+# need to check the other sides…") — the instruction must reach a
+# human/the tech, so the box stays empty (137 of these in a year)
+_RIDER = re.compile(r"(please|make sure|need to|don'?t forget|"
+                    r"also .{0,30}(check|clean|replace|fix))", re.I)
 
 
 def classify(text):
     """The customer's newest message → template key, or None."""
+    if _EMOJI_ACK.match((text or "").strip()):
+        return "thanks_ack"
     t = re.sub(r"\s+", " ", (text or "")).strip().lower()
     # strip quoted reply tails so old office text can't trigger a match
     t = re.split(r"\bon (mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|"
@@ -172,6 +194,8 @@ def build_draft(rec, msgs, user=None, voice=None):
                           f"you.\n\n{sig}")}
 
     if kind == "approval_only":
+        if _RIDER.search(body):
+            return None      # approval WITH instructions → human + tech
         return {"type": kind, "why": "quote approved, no date asked",
                 "draft": (f"Thank you for approving your quote!  Our "
                           f"next opening in your area is [DATE].  "
