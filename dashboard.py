@@ -1442,7 +1442,7 @@ def page(title, body, refresh=None, chrome="rail"):
                 f"<footer style='padding:10px 4px'>Every quote is a draft "
                 f"until a human sends it · bold = nobody's seen it · "
                 f"every price traces to a real job.</footer>"
-                f"</div></body></html>").encode()
+                f"</div>" + _RESIZE_JS + "</body></html>").encode()
     if chrome == "top":
         # THE INBOX CHROME (Dallon Jul 9): no left rail — pages live
         # top-right, the left side of the screen is only ever the list.
