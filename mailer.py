@@ -49,7 +49,21 @@ def _oauth_env():
     for k in ("GMAIL_OAUTH_CLIENT_ID", "GMAIL_OAUTH_CLIENT_SECRET",
               "GMAIL_OAUTH_REFRESH_TOKEN"):
         out[k] = creds.get(k) or os.environ.get(k)
-    return out if all(out.values()) else None
+    if all(out.values()):
+        return out
+    # the CLOUD has no .env oauth lines — the shared store carries the
+    # same send-only credentials (saved Jul 14, verified by test send)
+    try:
+        import clouddb
+        if clouddb.available():
+            b = clouddb.get_blob("gmail_oauth") or {}
+            if b.get("refresh_token"):
+                return {"GMAIL_OAUTH_CLIENT_ID": b["client_id"],
+                        "GMAIL_OAUTH_CLIENT_SECRET": b["client_secret"],
+                        "GMAIL_OAUTH_REFRESH_TOKEN": b["refresh_token"]}
+    except Exception:
+        pass
+    return None
 
 
 def _api_send(msg):

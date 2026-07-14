@@ -48,7 +48,11 @@ SLA_HOURS = 24
 # Ships OFF. Dallon flips it when shadow mode has earned trust.
 # Customer-reply kill switch: Dallon flips this to True when the
 # office is ready to send from the Messages page.
-REPLIES_ENABLED = False
+# FLIPPED Jul 14 2026 — Dallon: "wire up the send button" after the
+# Gmail-API test send was confirmed From customercare@. Send is a named
+# human clicking; drafts pre-fill for three safe reply types; every
+# edit is graded and taught. Send-only OAuth scope.
+REPLIES_ENABLED = True
 
 
 SERVICE_LABELS = {
@@ -2149,11 +2153,19 @@ def bid_page(stamp, user=None, draft=""):
     <input type='hidden' name='subject' value='{esc(reply_subject)}'>
     <input type='hidden' name='back' value='/bid/{stamp}'>
     <textarea id='bidreply' name='body' rows='3' style='min-height:76px'
-     placeholder='Reply to {esc(cust_email)} — or copy into Gmail while sending is off'>{esc(draft)}</textarea>
+     placeholder='Reply to {esc(cust_email)}'>{esc(draft)}</textarea>
     <div style='display:flex;justify-content:space-between;
                 align-items:center;margin-top:6px'>
-     <span class='subtext'>Sending stays locked until Dallon flips it on.</span>
-     <button class='big' type='button' onclick="alert('Sending is switched OFF while we test — copy the text into Gmail for now.')">Send reply</button>
+     <span class='subtext'>{"Sends as customercare@ · your edits teach "
+                            "the brain" if REPLIES_ENABLED else
+                            "Sending stays locked until Dallon flips "
+                            "it on."}</span>
+     {f"<button class='big' onclick=\"return confirm('Send this reply "
+      f"to {esc(cust_email)}?')\">Send reply</button>"
+      if REPLIES_ENABLED else
+      "<button class='big' type='button' onclick=\"alert('Sending is "
+      "switched OFF while we test — copy the text into Gmail for "
+      "now.')\">Send reply</button>"}
     </div>
    </form></div>
 <script>
@@ -5143,6 +5155,42 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
         reply_subject = (last_subject if last_subject.lower()
                          .startswith("re:") else f"Re: {last_subject}"
                          if last_subject else "Master Butler")
+        # STAGE 2 PRE-FILL (Tom's ask; Dallon's go, Jul 14): a genuine
+        # customer inbound of a SAFE type arrives with the reply already
+        # in the box — office edits anything, then sends. The ✨ button
+        # and quick responses still override; every send is graded.
+        _pre = None
+        if not draft:
+            try:
+                import autorespond as _ar
+                _cand = _ar.build_draft(
+                    nb, c["msgs"], user,
+                    _blob_rw("office_voice", {}) or {},
+                    auto=_blob_rw("reply_templates_auto", {}) or {})
+                if _cand and _cand["type"] in ("thanks_ack",
+                                               "date_confirm",
+                                               "approve_wants_date"):
+                    _pre = _cand
+            except Exception:
+                _pre = None
+        _box_text = draft or (_pre or {}).get("draft", "")
+        _pre_banner = (
+            "<div style='background:rgba(201,162,39,.12);color:"
+            "var(--goldink);font-size:12px;font-weight:800;"
+            "border-radius:8px;padding:6px 10px;margin-bottom:6px'>"
+            "✨ DRAFT READY — written the way the office writes "
+            f"({esc(_pre['why'])}). Edit anything, then send.</div>"
+            if _pre else "")
+        _send_note = ("Sends as customercare@ · your edits teach the "
+                      "brain" if REPLIES_ENABLED else
+                      "Sending stays locked until Dallon flips it on.")
+        _send_btn = (
+            f"<button class='big' onclick=\"return confirm("
+            f"'Send this reply to {esc(c['email'])}?')\">Send reply"
+            f"</button>" if REPLIES_ENABLED else
+            "<button class='big' type='button' onclick=\"alert('Sending "
+            "is switched OFF while we test — copy the text into Gmail "
+            "for now.')\">Send reply</button>")
         reply_ui = f"""
  <div style='border-top:1px solid var(--line);margin-top:8px;padding-top:8px'>
   <div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px'>
@@ -5155,16 +5203,19 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
    <select id='inboxcanned' style='max-width:280px'>
     <option value=''>Quick responses…</option></select>
   </div>
+  {_pre_banner}
   <form method='POST' action='/msg_send'>
    <input type='hidden' name='to' value='{esc(c["email"])}'>
    <input type='hidden' name='subject' value='{esc(reply_subject)}'>
    <input type='hidden' name='back' value='{esc(back)}'>
+   <input type='hidden' name='prefill_kind' value='{esc((_pre or {}).get("type",""))}'>
+   <input type='hidden' name='prefill' value='{esc((_pre or {}).get("draft",""))}'>
    <textarea id='inboxreply' name='body' rows='3' style='min-height:76px'
-    placeholder='Reply to {esc(c["email"])} — copy into Gmail while sending is off'>{esc(draft)}</textarea>
+    placeholder='Reply to {esc(c["email"])}'>{esc(_box_text)}</textarea>
    <div style='display:flex;justify-content:space-between;align-items:center;
         margin-top:6px'>
-    <span class='subtext'>Sending stays locked until Dallon flips it on.</span>
-    <button class='big' type='button' onclick="alert('Sending is switched OFF while we test — copy the text into Gmail for now.')">Send reply</button>
+    <span class='subtext'>{_send_note}</span>
+    {_send_btn}
    </div></form></div>
 <script>
 {_CANNED_MERGE_JS}
@@ -6834,7 +6885,9 @@ def autodrafts_page(user=None):
         "Drafts appear ONLY for genuine customer inbounds; complaints "
         "and price talk never draft. Full plan: "
         "<a href='/plan_autorespond'>the plan of attack</a>.</div>"
-        + _reply_wheel(accs)
+        + (lambda _s: _reply_wheel(
+            [x["acc"] for x in _s] if _s else accs, live=bool(_s)))(
+            _blob_rw("draft_sends", []) or [])
         + card(f"Would draft RIGHT NOW ({len(live_rows)}) — threads "
                f"awaiting a reply · {gated} inbound threads correctly "
                f"left blank",
@@ -6864,7 +6917,7 @@ def autodrafts_page(user=None):
     return page("Auto-respond shadow", body)
 
 
-def _reply_wheel(accs):
+def _reply_wheel(accs, live=False):
     """Reply accuracy, wheel-style (Dallon, Jul 14: 'almost like the
     +/- 10% score we have'). ≥85% similarity = the office sent it
     essentially as drafted. Today it grades retro pairs; the moment
@@ -6880,8 +6933,10 @@ def _reply_wheel(accs):
     return f"""
 <div class='card' style='margin-bottom:14px'>
  <div class='schead'><h2>🎯 Reply accuracy</h2>
-  <span class='subtext'>how close our drafts land to what the office
-  actually sends (dates/prices excluded from the grade)</span></div>
+  <span class='subtext'>{"LIVE SENDS — pre-filled box vs what actually "
+  "went out" if live else "how close our drafts land to what the "
+  "office actually sends"} (dates/prices excluded from the grade)
+  </span></div>
  <div style='display:flex;gap:24px;align-items:center;flex-wrap:wrap'>
   <div style='flex:none;position:relative;width:110px;height:110px'>
    <svg width='110' height='110'>
@@ -10313,6 +10368,24 @@ class Handler(BaseHTTPRequestHandler):
                                   by=_user or "")
                     save_review({"stamp": "", "action": "customer_reply",
                                  "customer": to, "note": text[:120]})
+                    # THE LIVE GRADE (Dallon, Jul 14): a pre-filled
+                    # draft was in the box — score what they actually
+                    # sent against it (dates excluded) and learn the gap
+                    _pk, _pf = get("prefill_kind"), get("prefill")
+                    if _pk and _pf:
+                        try:
+                            import autorespond as _ar
+                            _acc = _ar.accuracy(_pf, text)
+                            _sends = _blob_rw("draft_sends", []) or []
+                            _sends.append({
+                                "kind": _pk, "acc": _acc,
+                                "by": _user or "", "to": to,
+                                "at": datetime.now().isoformat(
+                                    timespec="seconds"),
+                                "gap": _ar.learn_gap(_pk, _pf, text)})
+                            _blob_save("draft_sends", _sends[-200:])
+                        except Exception:
+                            pass
                 else:
                     save_review({"stamp": "", "action": "reply_FAILED",
                                  "customer": to, "note": why[:150]})

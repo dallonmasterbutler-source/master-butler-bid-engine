@@ -67,7 +67,7 @@ _RX = {
     "approval_only": r"\bapprov\w+\b|accepted (the|your) quote|"
                      r"go ahead|let'?s do it|book (it|us|me)",
     "thanks_ack": r"^\W*(thank(s| you)|great|perfect|awesome|sounds "
-                  r"good|got it|ok(ay)?|will do)\b",
+                  r"good|got it|ok(ay)?|will do|yes|yep|yup|sure)\b",
 }
 
 # order matters: specific before generic; the first two never draft
