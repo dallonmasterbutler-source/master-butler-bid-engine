@@ -224,6 +224,64 @@ def build_draft(rec, msgs, user=None, voice=None):
     return None
 
 
+def _norm_sentences(text):
+    """Sentences with the always-changing parts blanked (Dallon, Jul 14:
+    'if the office changes it the system learns — dates excluding,
+    because those change all the time'). Dates, times, prices, quote
+    numbers and names-after-greetings all become tokens so only real
+    WORDING differences count as learning."""
+    t = re.sub(r"\s+", " ", (text or ""))
+    t = re.sub(r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)"
+               r"[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*\d{4})?",
+               "[DATE]", t, flags=re.I)
+    t = re.sub(r"\b\d{1,2}/\d{1,2}(?:/\d{2,4})?\b", "[DATE]", t)
+    t = re.sub(r"\b\d{1,2}(:\d{2})?\s*(am|pm)\b", "[TIME]", t, flags=re.I)
+    t = re.sub(r"\$\s?\d[\d,.]*", "[PRICE]", t)
+    t = re.sub(r"#\d{4,6}", "[QUOTE#]", t)
+    t = re.sub(r"\b(hi|hello|dear|good (morning|afternoon|evening))\s+"
+               r"[a-z]+", r"\1 [NAME]", t, flags=re.I)
+    out = []
+    for s in re.split(r"(?<=[.!?])\s+", t):
+        s = s.strip().lower()
+        if 12 < len(s) < 240 and "at your service" not in s \
+                and "customercare@" not in s:
+            out.append(s)
+    return out
+
+
+def learn_gap(kind, draft, sent):
+    """One retro pair (or, in stage 2, one office edit) → what changed.
+    Returns {'added': […], 'dropped': […]} of normalized sentences the
+    office used that we didn't, and ours they threw away. Dates/times/
+    prices/names are normalized out first, so a rescheduled date is NOT
+    a lesson but a reworded explanation IS."""
+    ours = _norm_sentences(draft)
+    theirs = _norm_sentences(sent)
+    added = [s for s in theirs if s not in ours]
+    dropped = [s for s in ours if s not in theirs]
+    return {"kind": kind, "added": added[:6], "dropped": dropped[:6]}
+
+
+def fold_learning(store, gap):
+    """Accumulate a gap into the draft_learnings blob shape:
+    {kind: {'added': {sentence: count}, 'dropped': {…}, 'pairs': n}}.
+    The office's most-repeated additions float to the top — those are
+    the sentences the templates should adopt next (human-approved,
+    policy-not-fact doctrine: templates only change via Dallon)."""
+    k = store.setdefault(gap["kind"], {"added": {}, "dropped": {},
+                                       "pairs": 0})
+    k["pairs"] += 1
+    for s in gap["added"]:
+        k["added"][s] = k["added"].get(s, 0) + 1
+    for s in gap["dropped"]:
+        k["dropped"][s] = k["dropped"].get(s, 0) + 1
+    # keep only the strongest 40 lines each so the blob never bloats
+    for side in ("added", "dropped"):
+        k[side] = dict(sorted(k[side].items(),
+                              key=lambda kv: -kv[1])[:40])
+    return store
+
+
 if __name__ == "__main__":
     # self-check on the mined message shapes (not part of trials)
     cases = [

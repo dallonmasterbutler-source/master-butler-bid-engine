@@ -6685,6 +6685,7 @@ def autodrafts_page(user=None):
             return None
 
     live_rows, retro_rows, gated = [], [], 0
+    learn_store = {}          # rebuilt fresh each render → idempotent
     for addr, name, msgs in msglog.threads():
         e = (addr or "").lower()
         rec = recs.get(e)
@@ -6715,6 +6716,15 @@ def autodrafts_page(user=None):
                 if not t or now - t > timedelta(days=30):
                     continue
                 d = autorespond.build_draft(rec, msgs[:i], user, voice)
+                if d:
+                    # THE LEARNING LOOP (Dallon, Jul 14: "if the office
+                    # changes it the system learns — dates excluding").
+                    # Every retro pair feeds draft_learnings; in stage 2
+                    # the send-button edit feeds the same store.
+                    learn_store = autorespond.fold_learning(
+                        learn_store, autorespond.learn_gap(
+                            d["type"], d["draft"],
+                            msgs[i].get("body") or ""))
                 if d and len(retro_rows) < 20:
                     retro_rows.append(
                         f"<div style='border-top:1px solid var(--line);"
@@ -6746,8 +6756,43 @@ def autodrafts_page(user=None):
                f"({len(retro_rows)})",
                "".join(retro_rows) or "<div class='subtext'>no recent "
                "customer→office pairs matched a template</div>")
+        + card("📖 What the office keeps changing (the learning diary)",
+               _learn_rows(learn_store) or "<div class='subtext'>no "
+               "wording gaps yet — drafts match how the office writes"
+               "</div>")
         + "</div>")
+    try:
+        _blob_save("draft_learnings", learn_store)
+    except Exception:
+        pass
     return page("Auto-respond shadow", body)
+
+
+def _learn_rows(store):
+    """draft_learnings → readable rows: per reply type, the sentences
+    the office repeatedly ADDS that our template lacks (template-change
+    candidates — adopted only via Dallon, policy doctrine) and ours
+    they drop. Dates/times/prices already normalized out."""
+    rows = []
+    for kind, k in sorted(store.items(), key=lambda kv: -kv[1]["pairs"]):
+        adds = [f"<li>{esc(s)} <span class='subtext'>×{c}</span></li>"
+                for s, c in list(k["added"].items())[:5] if c >= 2]
+        drops = [f"<li>{esc(s)} <span class='subtext'>×{c}</span></li>"
+                 for s, c in list(k["dropped"].items())[:3] if c >= 2]
+        if not adds and not drops:
+            continue
+        rows.append(
+            f"<div style='border-top:1px solid var(--line);padding:10px "
+            f"0'><b>{esc(kind)}</b> <span class='subtext'>"
+            f"({k['pairs']} graded pairs)</span>"
+            + (f"<div class='subtext' style='margin-top:4px'>the office "
+               f"adds:</div><ul style='margin:4px 0 0 18px'>"
+               + "".join(adds) + "</ul>" if adds else "")
+            + (f"<div class='subtext' style='margin-top:4px'>ours they "
+               f"drop:</div><ul style='margin:4px 0 0 18px'>"
+               + "".join(drops) + "</ul>" if drops else "")
+            + "</div>")
+    return "".join(rows)
 
 
 def guide_page():
