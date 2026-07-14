@@ -1054,6 +1054,9 @@ def _svg_icon(name):
                 '<circle cx="16.5" cy="17.5" r="1.7"/>',
          "chart": '<path d="M4 20V10"/><path d="M10 20V4"/>'
                   '<path d="M16 20v-7"/><path d="M21 20H3"/>',
+         "board": '<rect x="3" y="3" width="18" height="18" rx="2"/>'
+                  '<rect x="6.5" y="6.5" width="4.5" height="11" rx="1"/>'
+                  '<rect x="13" y="6.5" width="4.5" height="6" rx="1"/>',
          "gear": '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 '
                  '1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06'
                  'a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 '
@@ -1315,7 +1318,8 @@ def _rail_html(active="/"):
     links = [("/", "queue", "Bid Queue"), ("/customers", "people",
               "Customers"), ("/routes", "van", "Routes"),
              ("/scoreboard", "chart", "Scoreboard"),
-             ("/winback", "phone", "Win-back")]
+             ("/winback", "phone", "Win-back"),
+             ("/working", "board", "Build board — what's being built")]
     out = "<div class='dkrail'>"
     for href, ic, title in links:
         cls = " class='on'" if href == active else ""
