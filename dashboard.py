@@ -8174,6 +8174,73 @@ def scoreboard_page():
 </div>"""
     except Exception:
         yoy_card = ""
+    # ── 🎯 THE GRADED WHEEL (Tom's ask via Dallon's Stitch mockup,
+    # Jul 14): alignment gauge (share of compared drafts within ±10%
+    # of the office), the biggest spreads as bars, awaiting-data count,
+    # and a plain-English insight. One card, nothing else moved. ──
+    _pct = (close / len(matched) * 100) if matched else 0
+    _circ = 2 * 3.14159 * 52
+    _dash = _circ * (1 - _pct / 100)
+    _spread_rows = ""
+    _worst = sorted((r for r in matched if r.get("gap_pct") is not None),
+                    key=lambda r: -abs(r["gap_pct"]))[:3]
+    for r in _worst:
+        g = r["gap_pct"]
+        _clr = "#8fc7a6" if abs(g) <= 10 else ("#e8c76a" if abs(g) <= 35
+                                               else "#f2b8b5")
+        _w = min(100, abs(g))
+        _spread_rows += (
+            f"<div style='margin:7px 0'><div style='display:flex;"
+            f"justify-content:space-between;font-size:11px;"
+            f"color:var(--mut);font-weight:700'><span>{cname(r)}</span>"
+            f"<span style='color:{_clr}'>{g:+.0f}%</span></div>"
+            f"<div style='height:7px;background:var(--soft);"
+            f"border-radius:6px;overflow:hidden'><div style='height:100%;"
+            f"width:{_w:.0f}%;background:{_clr}'></div></div></div>")
+    _insight = ""
+    if med_gap_precompute := sorted(abs(r["gap_pct"]) for r in matched
+                                    if r.get("gap_pct") is not None):
+        _mg = med_gap_precompute[len(med_gap_precompute) // 2]
+        _insight = (f"Median distance from the office's number is "
+                    f"<b>{_mg:.0f}%</b> across {len(matched)} compared "
+                    f"quotes. The auto-review ledger names the exact "
+                    f"Settings knob when a service drifts ±10%+.")
+    wheel_card = f"""
+<div class='card' style='margin:14px 0'>
+ <div class='schead'>{_svg_icon('trend')}<h2>Alignment wheel</h2>
+  <span class='subtext'>how often our draft lands within ±10% of the
+  office's final</span></div>
+ <div style='display:flex;gap:26px;align-items:center;flex-wrap:wrap'>
+  <div style='flex:none;position:relative;width:130px;height:130px'>
+   <svg width='130' height='130'>
+    <circle cx='65' cy='65' r='52' fill='none' stroke='var(--soft)'
+     stroke-width='11'/>
+    <circle cx='65' cy='65' r='52' fill='none' stroke='#8fc7a6'
+     stroke-width='11' stroke-linecap='round'
+     stroke-dasharray='{_circ:.0f}' stroke-dashoffset='{_dash:.0f}'
+     transform='rotate(-90 65 65)'/>
+   </svg>
+   <div style='position:absolute;inset:0;display:flex;flex-direction:
+    column;align-items:center;justify-content:center'>
+    <b class='tab' style='font-size:26px'>{_pct:.0f}%</b>
+    <span class='subtext' style='font-size:9.5px'>within 10%</span>
+   </div>
+  </div>
+  <div style='flex:1;min-width:220px'>
+   <div class='subtext' style='font-weight:800;font-size:11px;
+    text-transform:uppercase;letter-spacing:1px'>Biggest spreads —
+    draft vs office</div>{_spread_rows or
+    "<div class='subtext'>no compared quotes yet</div>"}
+  </div>
+  <div style='flex:none;text-align:center;padding:0 10px'>
+   <b class='tab' style='font-size:30px;color:#e8c76a'>{len(waiting)}</b>
+   <div class='subtext' style='font-size:11px'>drafts awaiting the<br>
+   office's number</div>
+  </div>
+ </div>
+ {f"<div class='subtext' style='margin-top:10px'>💡 {_insight}</div>"
+  if _insight else ""}
+</div>"""
 
     # ── 📚 WHAT THE SYSTEM IS LEARNING (Dallon, Jul 12: 'seeing the
     # reports… where things land, money we are losing') — built hourly
@@ -8544,7 +8611,7 @@ function rShow(id){
  setTimeout(function(){try{sessionStorage.setItem(K,window.scrollY);}catch(e){}
   location.reload();},120000);})();
 </script>"""
-    return page("Scoreboard", hero + yoy_card + learn_card + shelf_html + fresh
+    return page("Scoreboard", hero + wheel_card + yoy_card + learn_card + shelf_html + fresh
                 + nudge_card + matched_card + waiting_card + refresh_js)
 
 
