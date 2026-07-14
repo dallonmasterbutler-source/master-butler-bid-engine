@@ -95,6 +95,17 @@ try:
 except Exception as e:
     print(f"   skipped ({e})")
 
+# 4b ── July running tally (Tom's ask, Jul 14): re-mine the matched
+#       window nightly — July 1 → today, both years — so the Scoreboard
+#       card is a live year-over-year race, not a snapshot.
+try:
+    import yoy_compare
+    _yy = yoy_compare.run(verbose=True)
+    if _yy:
+        print(f"   yoy tally refreshed through {_yy['window_label']}")
+except Exception as e:
+    print(f"   (yoy tally skipped: {e})")
+
 # 5 ── backup + morning brief
 print("\n[5/6] Backup + morning brief…")
 try:

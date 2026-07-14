@@ -8099,11 +8099,13 @@ def scoreboard_page():
     try:
         _yy = (clouddb.get_blob("yoy_july") or {}) \
             if clouddb.available() else {}
-        _t25 = (_yy.get("totals") or {}).get("2025") or {}
-        _t26 = (_yy.get("totals") or {}).get("2026") or {}
+        _yrs = _yy.get("years") or ["2026", "2025"]
+        _t25 = (_yy.get("totals") or {}).get(_yrs[-1]) or {}
+        _t26 = (_yy.get("totals") or {}).get(_yrs[0]) or {}
+        _wl = _yy.get("window_label") or "July 1–14"
         if _t25.get("invoices") or _t26.get("invoices"):
-            _s25 = (_yy.get("services") or {}).get("2025") or {}
-            _s26 = (_yy.get("services") or {}).get("2026") or {}
+            _s25 = (_yy.get("services") or {}).get(_yrs[-1]) or {}
+            _s26 = (_yy.get("services") or {}).get(_yrs[0]) or {}
             _keys = sorted(set(_s25) | set(_s26),
                            key=lambda k: -((_s26.get(k) or {}).get(
                                "revenue", 0) + (_s25.get(k) or {}).get(
@@ -8127,14 +8129,14 @@ def scoreboard_page():
                                                    or 0)
             yoy_card = f"""
 <div class='card' style='margin:14px 0'>
- <div class='schead'>{_svg_icon('trend')}<h2>July 1–14, this year vs
+ <div class='schead'>{_svg_icon('trend')}<h2>{_wl}, this year vs
  last</h2><span class='subtext'>invoiced work, straight from Jobber
  (Tom's comparison)</span></div>
  <div class='stats'>
   <div class='stat'><b class='tab'>${_t25.get('revenue', 0):,}</b>
-   <span>2025 · {_t25.get('invoices', 0)} invoices</span></div>
+   <span>{_yrs[-1]} · {_t25.get('invoices', 0)} invoices</span></div>
   <div class='stat'><b class='tab'>${_t26.get('revenue', 0):,}</b>
-   <span>2026 · {_t26.get('invoices', 0)} invoices</span></div>
+   <span>{_yrs[0]} · {_t26.get('invoices', 0)} invoices</span></div>
   <div class='stat'><b class='tab' style='color:{"var(--green2)"
    if _dt >= 0 else "#f2b8b5"}'>{_dt:+,}</b><span>year over year</span>
   </div>
@@ -8144,7 +8146,7 @@ def scoreboard_page():
   <tr class='subtext' style='text-align:right;font-size:10.5px;
    text-transform:uppercase;letter-spacing:.8px'>
    <th style='text-align:left;padding:4px 8px'>Service</th>
-   <th>Jul 2025</th><th>Jul 2026</th><th>Δ $</th></tr>
+   <th>Jul {_yrs[-1]}</th><th>Jul {_yrs[0]}</th><th>Δ $</th></tr>
   {_rows}</table></div>
 </div>"""
     except Exception:
