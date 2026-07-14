@@ -737,7 +737,7 @@ footer{margin:8px 0 28px;padding:0 24px;
   font-weight:700;cursor:pointer;font-size:12.5px;text-decoration:underline;
   padding:0}
 .irow .pv{color:var(--mut);font-size:12.5px;white-space:normal;
-  overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;
   -webkit-box-orient:vertical;margin-top:1px}
 .irow .meta{display:flex;justify-content:space-between;margin-top:3px}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;
@@ -3730,7 +3730,19 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         #   📋 bid request — services were parsed; they want a price
         #   💬 question — they wrote words, no service ask; answer them
         qtag = None
-        if lane in ("inbox", "drafts", "fixits"):
+        _lastin_b = ""
+        if c["msgs"]:
+            _li = next((m for m in reversed(c["msgs"])
+                        if m.get("dir") == "in"), None)
+            _lastin_b = ((_li or {}).get("body") or "").lower()
+        # ✅ approved-and-asking-for-a-date — the #3 most common customer
+        # message (33 in the last 4 weeks; Dallon's exact example):
+        # 'I approve the quote. What day will you come?'
+        if re.search(r"(approve|approved|go ahead|accept)", _lastin_b)                 and re.search(r"(what day|when (can|will|could)|which day|"
+                              r"schedule|come out|how soon|next opening)",
+                              _lastin_b) and (new_msg or unread):
+            qtag = ("✅ approved — wants a date", "#8fc7a6")
+        elif lane in ("inbox", "drafts", "fixits"):
             _hjb = handled_jb.get(nb["stamp"], "") if nb else ""
             # a real VISIT on the schedule only — not merely a quote out
             if ("booked" in _hjb or "done" in _hjb) and (new_msg or unread):
@@ -3815,9 +3827,9 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                             >= _stamp_utc(nb["stamp"])):
             last = c["msgs"][-1]
             arrow = "←" if last["dir"] == "in" else "→"
-            pv = f"{arrow} {(last.get('body') or last.get('subject') or '')[:240]}"
+            pv = f"{arrow} {(last.get('body') or last.get('subject') or '')[:400]}"
         elif nb:
-            pv = (nb.get("newest_message") or nb.get("subject") or "")[:240]
+            pv = (nb.get("newest_message") or nb.get("subject") or "")[:400]
         else:
             pv = ""
         alarm = (r["grp"] == 0 and r["age"] >= SLA_HOURS)
@@ -3836,7 +3848,8 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         if _cfr:
             _cft = {"bad_payer": ("⚠️ bad payer", "#f2b8b5"),
                     "watch": ("👀 watch", "#e8c76a"),
-                    "vip": ("⭐ VIP", "#8fc7a6")}.get(
+                    "vip": ("⭐ VIP", "#8fc7a6"),
+                    "realtor": ("🏘 realtor", "#79aede")}.get(
                         _cfr.get("label"), ("⚠️ flagged", "#f2b8b5"))
             actchip += (f"<span style='color:{_cft[1]};font-weight:800;"
                         f"font-size:11px'>{_cft[0]}</span> ")
@@ -4353,9 +4366,12 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
         _cf = _blob_rw("customer_flags", {}).get(_canon_email(c["email"]))
     if _cf:
         _cfl = {"bad_payer": "⚠️ BAD PAYER", "watch": "👀 WATCH",
-                "vip": "⭐ VIP"}.get(_cf.get("label"), "⚠️ FLAGGED")
-        _cfbg = ("#2a1313" if _cf.get("label") != "vip" else "#1c2a13")
-        _cfink = ("#f2b8b5" if _cf.get("label") != "vip" else "#b8f2c0")
+                "vip": "⭐ VIP",
+                "realtor": "🏘 REALTOR — price PER HOUSE"}.get(
+                    _cf.get("label"), "⚠️ FLAGGED")
+        _lbl2 = _cf.get("label")
+        _cfbg = {"vip": "#1c2a13", "realtor": "#16283a"}.get(_lbl2, "#2a1313")
+        _cfink = {"vip": "#b8f2c0", "realtor": "#79aede"}.get(_lbl2, "#f2b8b5")
         banners += (
             f"<div class='band' style='background:{_cfbg};border-color:"
             f"{_cfink};border-left-color:{_cfink};margin:0 0 10px'>"
@@ -4819,7 +4835,9 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
            f"padding:6px;border-radius:8px'>"
            f"<option value='bad_payer'>⚠️ Bad payer</option>"
            f"<option value='watch'>👀 Watch — be careful</option>"
-           f"<option value='vip'>⭐ VIP — treat extra well</option></select>"
+           f"<option value='vip'>⭐ VIP — treat extra well</option>"
+           f"<option value='realtor'>🏘 Realtor / property manager — "
+           f"price per house</option></select>"
            f"<input name='note' placeholder='why — e.g. didn&#39;t pay for "
            f"July gutter job' style='width:100%;margin-bottom:6px;"
            f"padding:6px;border-radius:8px'>"

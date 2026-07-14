@@ -101,6 +101,31 @@ def check(parsed, prop=None, when=None):
                 "says so) — check photos & Must-Know before booking; NOT "
                 "an anyone-can-do-it job.")
 
+    # 1c · REALTY / PROPERTY-MANAGEMENT LANGUAGE (Dallon, Jul 14 —
+    #      the Eli DeBerry lesson: ~25 realtors in our last year).
+    #      A realtor's houses must never share pricing anchors, and
+    #      their timing runs on LISTING deadlines, not seasons.
+    _realty_hits = [w for w in (
+        "listing", "tenant", "rental property", "property manager",
+        "property management", "my client", "closing date", "escrow",
+        "staging", "vacant", "on the market", "open house",
+        "photographed for sale", "my seller", "my buyer",
+        "move-out", "move out clean") if w in text]
+    _realty_dom = any(d in text[:0] or d in (parsed.get("sender_email")
+                      or parsed.get("from") or "").lower() for d in (
+        "windermere", "johnlscott", "compass.com", "remax", "kw.com",
+        "realty", "realtor", "cbbain", "sotheby", "century21",
+        "exprealty", "homesmart"))
+    if _realty_hits or _realty_dom:
+        alert = alert or (
+            "🏘 REALTY/PM SIGNALS (" +
+            (", ".join(_realty_hits[:3]) if _realty_hits
+             else "realty email domain") +
+            ") — likely multiple properties: confirm WHICH house, price "
+            "per property (never reuse another house's numbers), and ask "
+            "for their deadline — realtors run on listing dates, not "
+            "seasons.")
+
     # 2 · MOSS REMOVAL IS AUGUST-ONLY (docs 9.2 + quick responses)
     if has("moss_removal", "moss removal"):
         if d.month == 8:
