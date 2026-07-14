@@ -8614,12 +8614,12 @@ class Handler(BaseHTTPRequestHandler):
             html = _blob_rw("autorespond_plan", "") or \
                 "<p style='font-family:sans-serif;padding:20px'>" \
                 "Plan not loaded yet.</p>"
-            return self._send("<!doctype html><html><head>"
-                              "<meta charset='utf-8'>"
-                              "<meta name='viewport' content="
-                              "'width=device-width,initial-scale=1'>"
-                              "</head><body style='margin:0'>"
-                              + html + "</body></html>")
+            return self._send(("<!doctype html><html><head>"
+                               "<meta charset='utf-8'>"
+                               "<meta name='viewport' content="
+                               "'width=device-width,initial-scale=1'>"
+                               "</head><body style='margin:0'>"
+                               + html + "</body></html>").encode("utf-8"))
         if self.path == "/route_demo":
             return self._send(route_demo_page())
         if self.path.startswith("/routes"):
