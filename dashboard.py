@@ -6618,6 +6618,20 @@ def working_page():
         + sec("Ideas from the office", "sent from the box above — "
               "Dallon gets each one by email instantly",
               wb.get("ideas"), "💡")
+        # THE AUTO-RESPOND PLAN, WHOLE (Dallon, Jul 14: "add this entire
+        # widget to the build board") — iframed so its own styling stays
+        # isolated; the doc lives in the autorespond_plan blob.
+        + ("<div class='card' style='margin-bottom:14px'>"
+           "<details open><summary style='cursor:pointer;padding:4px 0;"
+           "font-weight:800;font-size:16px'>✨ Auto-Respond — Plan of "
+           "Attack <span class='subtext' style='font-weight:400'>"
+           "(Jul 14 — awaiting Dallon's go; nothing sends itself)</span>"
+           "</summary>"
+           "<iframe src='/plan_autorespond' title='Auto-Respond plan' "
+           "style='width:100%;height:1500px;border:0;border-radius:8px;"
+           "margin-top:8px;background:transparent'></iframe>"
+           "</details></div>"
+           if _blob_rw("autorespond_plan", "") else "")
         + sec("Building now", "in progress this week",
               wb.get("now"), "🔨")
         + sec("Just shipped", "landed recently — already live for you",
@@ -8592,6 +8606,20 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(guide_page())
         if self.path == "/working":
             return self._send(working_page())
+        if self.path == "/plan_autorespond":
+            # the Auto-Respond plan of attack, embedded on the build
+            # board via iframe (Dallon, Jul 14: "add this entire widget
+            # to the build board"). Blob-backed so the doc updates
+            # without a deploy; its styles stay isolated in the frame.
+            html = _blob_rw("autorespond_plan", "") or \
+                "<p style='font-family:sans-serif;padding:20px'>" \
+                "Plan not loaded yet.</p>"
+            return self._send("<!doctype html><html><head>"
+                              "<meta charset='utf-8'>"
+                              "<meta name='viewport' content="
+                              "'width=device-width,initial-scale=1'>"
+                              "</head><body style='margin:0'>"
+                              + html + "</body></html>")
         if self.path == "/route_demo":
             return self._send(route_demo_page())
         if self.path.startswith("/routes"):
