@@ -115,6 +115,22 @@ def build_property(parsed, facts):
             facts, parsed.get("address"))
     except Exception:
         pass
+    # OFFICE PROTOCOL (Dallon's ruling on the LaRee call, Jul 14): roof
+    # blow-off is NEVER quoted without a gutter cleaning — the blow-off
+    # debris lands in the gutters. Was a warning note; now the gutter
+    # line is ADDED to the quote automatically. Exception: gutter guards
+    # (the guards SKU includes the blow-off, no open gutters to clean).
+    _txt = ((parsed.get("newest_message") or "")
+            + " " + (parsed.get("subject") or "")).lower()
+    if "roof_blow_off" in parsed["services"] \
+            and "gutter_cleaning" not in parsed["services"] \
+            and "roof_blow_off_guards" not in parsed["services"] \
+            and "gutter guard" not in _txt and "guards" not in _txt:
+        parsed["services"] = list(parsed["services"]) + ["gutter_cleaning"]
+        office_flags.append(
+            "Gutter cleaning ADDED automatically — office rule: no roof "
+            "blow-off without gutters (debris lands in them). Remove the "
+            "line only if the home has gutter guards.")
     for svc in parsed["services"]:
         if svc in SERVICE_TO_ENGINE:
             key, val = SERVICE_TO_ENGINE[svc]
