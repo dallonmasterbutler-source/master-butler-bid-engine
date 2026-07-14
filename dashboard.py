@@ -8001,6 +8001,64 @@ def scoreboard_page():
         f"<div class='stat'><b>{close}</b><span>within 10%</span></div>"
         f"</div>")
 
+    # ── 📆 JULY VS LAST JULY (Tom's notes via Dallon, Jul 14: 'direct
+    # comparison to last year — first 14 days') — reads the yoy_july
+    # blob mined from Jobber invoices; hidden until the blob exists ──
+    yoy_card = ""
+    try:
+        _yy = (clouddb.get_blob("yoy_july") or {}) \
+            if clouddb.available() else {}
+        _t25 = (_yy.get("totals") or {}).get("2025") or {}
+        _t26 = (_yy.get("totals") or {}).get("2026") or {}
+        if _t25.get("invoices") or _t26.get("invoices"):
+            _s25 = (_yy.get("services") or {}).get("2025") or {}
+            _s26 = (_yy.get("services") or {}).get("2026") or {}
+            _keys = sorted(set(_s25) | set(_s26),
+                           key=lambda k: -((_s26.get(k) or {}).get(
+                               "revenue", 0) + (_s25.get(k) or {}).get(
+                               "revenue", 0)))
+            _rows = ""
+            for k in _keys[:9]:
+                a = _s25.get(k) or {}
+                b = _s26.get(k) or {}
+                d_rev = (b.get("revenue", 0) or 0) - (a.get("revenue", 0)
+                                                      or 0)
+                _dc = ("var(--green2)" if d_rev >= 0 else "#f2b8b5")
+                _rows += (
+                    f"<tr><td style='padding:5px 8px'>{esc(k.title())}"
+                    f"</td><td class='tab' style='text-align:right'>"
+                    f"{a.get('count', 0)}× ${a.get('revenue', 0):,}</td>"
+                    f"<td class='tab' style='text-align:right'>"
+                    f"{b.get('count', 0)}× ${b.get('revenue', 0):,}</td>"
+                    f"<td class='tab' style='text-align:right;"
+                    f"color:{_dc};font-weight:800'>{d_rev:+,}</td></tr>")
+            _dt = (_t26.get("revenue", 0) or 0) - (_t25.get("revenue", 0)
+                                                   or 0)
+            yoy_card = f"""
+<div class='card' style='margin:14px 0'>
+ <div class='schead'>{_svg_icon('trend')}<h2>July 1–14, this year vs
+ last</h2><span class='subtext'>invoiced work, straight from Jobber
+ (Tom's comparison)</span></div>
+ <div class='stats'>
+  <div class='stat'><b class='tab'>${_t25.get('revenue', 0):,}</b>
+   <span>2025 · {_t25.get('invoices', 0)} invoices</span></div>
+  <div class='stat'><b class='tab'>${_t26.get('revenue', 0):,}</b>
+   <span>2026 · {_t26.get('invoices', 0)} invoices</span></div>
+  <div class='stat'><b class='tab' style='color:{"var(--green2)"
+   if _dt >= 0 else "#f2b8b5"}'>{_dt:+,}</b><span>year over year</span>
+  </div>
+ </div>
+ <div class='overx' style='overflow-x:auto'><table style='width:100%;
+  border-collapse:collapse;font-size:12.5px;margin-top:8px'>
+  <tr class='subtext' style='text-align:right;font-size:10.5px;
+   text-transform:uppercase;letter-spacing:.8px'>
+   <th style='text-align:left;padding:4px 8px'>Service</th>
+   <th>Jul 2025</th><th>Jul 2026</th><th>Δ $</th></tr>
+  {_rows}</table></div>
+</div>"""
+    except Exception:
+        yoy_card = ""
+
     # ── 📚 WHAT THE SYSTEM IS LEARNING (Dallon, Jul 12: 'seeing the
     # reports… where things land, money we are losing') — built hourly
     # by learning_report.py ──
@@ -8370,7 +8428,7 @@ function rShow(id){
  setTimeout(function(){try{sessionStorage.setItem(K,window.scrollY);}catch(e){}
   location.reload();},120000);})();
 </script>"""
-    return page("Scoreboard", hero + learn_card + shelf_html + fresh
+    return page("Scoreboard", hero + yoy_card + learn_card + shelf_html + fresh
                 + nudge_card + matched_card + waiting_card + refresh_js)
 
 
