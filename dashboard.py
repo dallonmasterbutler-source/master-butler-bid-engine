@@ -3373,6 +3373,17 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
     # to the bottom of the group, never a cleared row (Jul-13 kill
     # switch stands). A new inbound message always outranks it.
     gmail_state = _blob_rw("gmail_state", {})
+    # 🏜 STANDBY HOMES LIVE IN TOM'S FOLD, NOT THE INBOX (Dallon,
+    # Jul 15: 'michelle yelle is in inbox AND in the tom only') —
+    # a home waiting on Tom's dry window isn't office to-do. It leaves
+    # the working lanes; a new customer message brings it right back.
+    tom_standby_at = {}
+    for c2 in (_blob_rw("tom_standby", {}) or {}).get("customers") or []:
+        _e2 = (c2.get("email") or "").lower()
+        _s2 = c2.get("stamp") or ""
+        if _e2 and re.match(r"\d{8}-\d{6}$", _s2):
+            tom_standby_at[_e2] = (f"{_s2[:4]}-{_s2[4:6]}-{_s2[6:8]}"
+                                   f"T{_s2[9:11]}:{_s2[11:13]}:{_s2[13:15]}")
 
     for b in bids:
         if b.get("merged_into") or classify_row(b)[0] == "aside":
@@ -3743,6 +3754,14 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             lane = "won"             # Jobber fact: approved — a claim
             # must not knock it out of Won either (same bug as Drafts);
             # grp!=4 keeps an already-scheduled/done won in the drawer
+        elif key in tom_standby_at and not (
+                last_at and last_at > tom_standby_at[key]):
+            # waiting on Tom's weather window — the 🏜 fold is their
+            # home; they never gum up the working lanes (Dallon, Jul 15:
+            # 'michelle yelle is in inbox AND in the tom only'). A
+            # customer message NEWER than their intake resurfaces them;
+            # a Jobber approval (Won) still outranks this.
+            lane = "standby"
         elif oq_status == "awaiting_response" or grp == 2:
             # Jobber fact: quote out, ball in the customer's court —
             # EVEN if the office archived the thread (money still
@@ -4306,6 +4325,24 @@ document.addEventListener('DOMContentLoaded', function(){
   function panes(){ return {
     list: document.querySelector('.ilist'),
     detail: document.querySelector('.idetail')}; }
+  // ANCHOR ON A ROW, NOT A PIXEL (Dallon, Jul 15: 'working from the
+  // bottom up, it continues to refresh to the top'). A refresh adds/
+  // removes rows ABOVE where you're working, so a pixel offset lands
+  // on the wrong row — remember WHICH customer was at the top of the
+  // pane instead, and put that same customer back in the same spot.
+  function anchor(p){
+    if (!p.list) return null;
+    var lt = p.list.getBoundingClientRect().top;
+    var rows = p.list.querySelectorAll('.irowwrap');
+    for (var i = 0; i < rows.length; i++){
+      var r = rows[i].getBoundingClientRect();
+      if (r.bottom > lt + 4){
+        var k = rows[i].querySelector('.rowsel');
+        return {k: k ? k.value : null, off: Math.round(r.top - lt)};
+      }
+    }
+    return null;
+  }
   function save(){
     var p = panes();
     try { sessionStorage.setItem(KEY, JSON.stringify({
@@ -4313,7 +4350,8 @@ document.addEventListener('DOMContentLoaded', function(){
       list: p.list ? p.list.scrollTop : 0,
       detail: p.detail ? p.detail.scrollTop : 0})); } catch(e) {}
     try { if (p.list)
-      sessionStorage.setItem(LKEY, String(p.list.scrollTop)); } catch(e) {}
+      sessionStorage.setItem(LKEY, JSON.stringify({
+        top: p.list.scrollTop, a: anchor(p)})); } catch(e) {}
   }
   window.__saveScroll = save;
   // save the moment a row is clicked, before the browser navigates
@@ -4322,15 +4360,32 @@ document.addEventListener('DOMContentLoaded', function(){
   }, true);
   // restore the list position on EVERY load (retry until laid out)
   try {
-    var lv = parseInt(sessionStorage.getItem(LKEY) || '', 10);
-    if (!isNaN(lv) && lv > 0) {
+    var lraw = sessionStorage.getItem(LKEY) || '';
+    var lsav = null;
+    try { lsav = JSON.parse(lraw); } catch(e){}
+    if (typeof lsav === 'number') lsav = {top: lsav, a: null};
+    if (lsav && (lsav.top > 0 || (lsav.a && lsav.a.k))) {
       var ltries = 0;
       (function lapply(){
         var p = panes();
         if (p.list) {
-          p.list.scrollTop = lv;
-          var lok = Math.abs(p.list.scrollTop - lv) < 3
-                    || p.list.scrollHeight - p.list.clientHeight <= lv + 3;
+          var done = false;
+          if (lsav.a && lsav.a.k) {
+            var sel = p.list.querySelector(
+              ".rowsel[value='" + lsav.a.k.replace(/'/g, "\\'") + "']");
+            var wrap = sel && sel.closest('.irowwrap');
+            if (wrap) {
+              var lt = p.list.getBoundingClientRect().top;
+              p.list.scrollTop += (wrap.getBoundingClientRect().top - lt)
+                                  - (lsav.a.off || 0);
+              done = true;
+            }
+          }
+          if (!done) p.list.scrollTop = lsav.top;
+          var want = done ? p.list.scrollTop : lsav.top;
+          var lok = done || Math.abs(p.list.scrollTop - lsav.top) < 3
+                    || p.list.scrollHeight - p.list.clientHeight
+                       <= lsav.top + 3;
           if (!lok && ltries++ < 12) setTimeout(lapply, 80);
         } else if (ltries++ < 12) setTimeout(lapply, 80);
       })();
@@ -4346,14 +4401,15 @@ document.addEventListener('DOMContentLoaded', function(){
       var tries = 0;
       (function apply(){
         var p = panes();
-        if (p.list) p.list.scrollTop = s.list;
+        // the LIST is handled by the row-anchored restore above —
+        // pixel-setting it here would undo the anchor (Jul 15)
         if (p.detail) p.detail.scrollTop = s.detail;
         window.scrollTo(0, s.w);
         // if the target didn't stick (content not tall enough yet),
         // try again for up to ~1s
-        var ok = (!p.list || Math.abs(p.list.scrollTop - s.list) < 3
-                  || p.list.scrollHeight - p.list.clientHeight
-                     <= s.list + 3);
+        var ok = (!p.detail || Math.abs(p.detail.scrollTop - s.detail) < 3
+                  || p.detail.scrollHeight - p.detail.clientHeight
+                     <= s.detail + 3);
         if (!ok && tries++ < 12) setTimeout(apply, 80);
       })();
     }
@@ -5740,21 +5796,26 @@ def customers_tab_page(sel=None, q="", user=None, draft=""):
    <input type='hidden' name='back'
     value='/customers?c={urllib.parse.quote(sel)}'>
    <textarea id='custreply' name='body' rows='2' style='min-height:56px'
-    placeholder='Reply to {esc(e0)} — copy into Gmail while sending is
- off'>{esc(draft)}</textarea>
+    placeholder='Reply to {esc(e0)} — sends as customercare@'
+    >{esc(draft)}</textarea>
    <div style='display:flex;justify-content:space-between;
         align-items:center;margin-top:6px'>
-    <span class='subtext'>Sending stays locked until Dallon flips it.</span>
-    <button class='big' type='button' onclick="alert('Sending is OFF —
- copy the text into Gmail for now.')">Send</button>
+    <span class='subtext'>{"Sends for real, as customercare@ — same as"
+     " the Inbox reply box." if REPLIES_ENABLED else
+     "Sending stays locked until Dallon flips it on."}</span>
+    {f'''<button class='big' onclick="return this.form.body.value.trim()
+ ? confirm('Send this to {esc(e0)}?') : false">✉️ Send to customer
+    </button>''' if REPLIES_ENABLED else
+     '''<button class='big' type='button' onclick="alert('Sending is
+ switched OFF — copy the text into Gmail for now.')">Send</button>'''}
    </div></form>
   <form method='POST' action='/idea_send' style='margin-top:10px;
        border-top:1px dashed var(--line);padding-top:10px'>
    <input type='hidden' name='context'
     value='while working on {esc(", ".join(p["names"][:2]) or sel)} — open them: https://masterbutler-dashboard.onrender.com/customers?c={urllib.parse.quote(sel)}'>
    <input type='hidden' name='back' value='/customers?c={urllib.parse.quote(sel)}'>
-   <input type='text' name='text' placeholder='💡 Need help / have an idea? Dallon gets it instantly — tagged with this customer'>
-   <button class='gray'>💡 Send</button>
+   <input type='text' name='text' placeholder='💡 Need help / have an idea? This goes to DALLON (never the customer), tagged with this profile'>
+   <button class='gray'>💡 Ask Dallon</button>
   </form></div>
 <script>
 {_CANNED_MERGE_JS}
@@ -6076,11 +6137,18 @@ def customers_page(sel=None, draft=""):
     <input type='hidden' name='subject' value='{esc(reply_subject)}'>
     <input type='hidden' name='back' value='{esc(back)}'>
     <textarea id='replybox' name='body' rows='4' style='min-height:90px'
-     placeholder='Reply as customercare@ — or copy into Gmail while sending is off'>{esc(draft)}</textarea>
+     placeholder='Reply as customercare@'>{esc(draft)}</textarea>
     <div style='display:flex;justify-content:space-between;
                 align-items:center;margin-top:6px'>
-     <span class='subtext'>Sending stays locked until Dallon flips it on.</span>
-     <button class='big' type='button' onclick="alert('Sending is switched OFF while we test — copy the text into Gmail for now. Dallon flips this on when ready.')">Send reply</button>
+     <span class='subtext'>{"Sends as customercare@ · your edits teach "
+      "the brain" if REPLIES_ENABLED else
+      "Sending stays locked until Dallon flips it on."}</span>
+     {f"<button class='big' onclick=\"return confirm('Send this reply "
+      f"to {esc(c['email'])}?')\">Send reply</button>"
+      if REPLIES_ENABLED else
+      "<button class='big' type='button' onclick=\"alert('Sending is "
+      "switched OFF while we test — copy the text into Gmail for "
+      "now.')\">Send reply</button>"}
     </div>
    </form></div>
 <script>
@@ -6476,9 +6544,11 @@ GUIDE_FAQ = [
   "from THAT quote; the system physically refuses to create a second "
   "one for them."),
  ("Replying to a customer",
-  "Conversation fold → pick a Quick Response or press <b>✨ Draft a "
-  "reply for me</b>, edit, then copy it into Gmail. The Send button "
-  "stays locked while we test — nothing here can email a customer."),
+  "Conversation fold → the box is often PRE-FILLED in our own words "
+  "(or pick a Quick Response / press <b>✨ Draft a reply for me</b>). "
+  "Edit anything, hit <b>Send</b> and confirm — it goes out from "
+  "customercare@, same as Gmail. Your edits teach the system; every "
+  "send is scored on the Scoreboard's 🎯 wheel."),
  ("Voicemails",
   "Each call is its own entry. If audio came with it, the words appear "
   "as a transcript. '0:00 — hang-up' means nothing was recorded. "

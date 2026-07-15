@@ -191,6 +191,25 @@ def reprice(rec, edits, by="office"):
     if kept:
         notes.append("Office-set lines kept at the office's price "
                      f"(not re-priced): {', '.join(kept)}.")
+    # NEVER DROP A LINE THE REBUILD CAN'T REPRODUCE (Gregory Fenich,
+    # Jul 15: a facts-reprice rebuilt from services+address alone and
+    # silently lost his two pressure-wash lines — measured areas from
+    # the original aerial read — shrinking the bid $309). Any old line
+    # with no counterpart in the recompute is carried at its old price.
+    def _base(n):
+        return (n or "").split("(")[0].strip().lower()
+    new_names = {_base(nl.get("name")) for nl in results}
+    carried = []
+    for ol in old_lines:
+        if ol.get("orig_price") is not None or ol.get("added_by"):
+            continue                       # already handled above
+        if _base(ol.get("name")) not in new_names:
+            results.append(dict(ol))
+            carried.append(ol.get("name"))
+    if carried:
+        notes.append("Kept at their previous price (the reprice "
+                     "couldn't re-measure them from facts alone): "
+                     f"{', '.join(carried)}.")
     total = sum(s.get("price") or 0 for s in results)
 
     edit_txt = ", ".join(f"{k} → {v}" for k, v in clean.items())
