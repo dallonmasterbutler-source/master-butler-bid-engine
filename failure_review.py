@@ -44,14 +44,21 @@ def _utc(at):
 
 def _customer_emails(clouddb):
     """Emails with a real (non-aside) queue record — spam, vendors and
-    robot mail never count as 'a customer we ignored'."""
-    ok = set()
+    robot mail never count as 'a customer we ignored'. Returns
+    {email: jobber_quote_status_or_None} so every claim in this report
+    is CROSS-REFERENCED WITH JOBBER (Dallon, Jul 15): a customer with
+    a quote in Jobber was answered — through Jobber — even when no
+    Gmail reply exists."""
+    ok = {}
     try:
         from dashboard import classify_row
-        for _s, rec in clouddb.all_shadow():
+        for _s, rec in sorted(clouddb.all_shadow()):
             m = re.search(r"<([^>]+)>", rec.get("from") or "")
             if m and classify_row(rec)[0] == "main":
-                ok.add(m.group(1).lower())
+                e = m.group(1).lower()
+                oq = ((rec.get("open_quote_ctx") or {}).get("status")
+                      or "").lower() or None
+                ok[e] = oq or ok.get(e)     # newest record wins a status
     except Exception:
         return None
     return ok
@@ -62,7 +69,7 @@ def _time_section(now, customers=None, gmail_done=()):
     finished in Gmail (trash) or answered via a Jobber quote email
     don't count as ignored — no EMAIL reply is not no reply."""
     import msglog
-    lat, unanswered = [], []
+    lat, unanswered, jobber_answered = [], [], []
     for addr, name, msgs in msglog.threads():
         a = (addr or "").lower()
         if not a or a.startswith("vm:") or any(x in a for x in INTERNAL):
@@ -80,10 +87,18 @@ def _time_section(now, customers=None, gmail_done=()):
                 lat.append(((t - pend).total_seconds() / 3600, name))
                 pend = None
         if pend and a not in gmail_done:
-            unanswered.append(((now - pend).total_seconds() / 3600,
-                               name or a))
+            # JOBBER CROSS-REFERENCE: a quote on file = they were
+            # answered through Jobber, not ignored
+            _oq = (customers or {}).get(a) if isinstance(customers,
+                                                         dict) else None
+            if _oq:
+                jobber_answered.append((a, _oq))
+            else:
+                unanswered.append(((now - pend).total_seconds() / 3600,
+                                   name or a))
     hrs = sorted(h for h, _ in lat)
-    out = {"n": len(hrs), "unanswered": len(unanswered)}
+    out = {"n": len(hrs), "unanswered": len(unanswered),
+           "answered_via_jobber": len(jobber_answered)}
     if hrs:
         out["median_h"] = round(statistics.median(hrs), 1)
         out["p90_h"] = round(hrs[int(len(hrs) * .9) - 1], 1)
@@ -183,9 +198,11 @@ def _verdicts(R):
                  f"within a day (median {t.get('median_h')}h) — speed "
                  "is the biggest lever on close rate.")
     if t.get("unanswered"):
-        v.append(f"⏱ {t['unanswered']} customer threads from the last "
-                 "30 days have NO reply at all — the hourly 🕰 check "
-                 "names them.")
+        v.append(f"⏱ {t['unanswered']} customers from the last 30 days "
+                 "have NO reply by email AND no quote in Jobber — "
+                 f"truly ignored (another {t.get('answered_via_jobber', 0)} "
+                 "were answered through Jobber only). The hourly 🕰 "
+                 "check names them.")
     b = R["bids"]
     if b.get("within_10pct") is not None and b["within_10pct"] < 60:
         v.append(f"💰 Only {b['within_10pct']}% of our drafts land "
