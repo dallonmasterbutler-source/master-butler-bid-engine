@@ -97,6 +97,7 @@ def mine_prices(verbose=False):
                                               "month": mo, "when": c})
                     if MATERIAL_RX.search(nm) and 0 < val < 900:
                         materials.append({"name": nm[:60], "usd": val,
+                                          "qty": li.get("quantity"),
                                           "when": c})
                     if DISCOUNT_RX.search(nm) and val < 0:
                         discounts.append({"name": nm[:60], "usd": val,
@@ -200,10 +201,16 @@ def measure_fronts(limit=100, verbose=False):
                     front_ft += width_m * 3.281
             elif 60 < diff <= 120:       # gable side → a front peak run
                 peaks += 1
-        est = round(front_ft + peaks * 12)   # each visible peak ≈ +12ft
+        # SIDE WRAP (Dallon, Jul 14): installs turn the corner and run
+        # 5-10 ft down EACH side of the home — add the midpoint (+15 ft
+        # total) to every front estimate; the raw eave number stays
+        # separate so calibration can tune the wrap per home style.
+        SIDE_WRAP_FT = 15
+        est = round(front_ft + peaks * 12 + SIDE_WRAP_FT)
         out.append({"client": h["client"], "address": h["address"],
                     "city": h["city"], "front_eave_ft_est": round(
                         front_ft), "peaks_est": peaks,
+                    "side_wrap_ft": 15,
                     "front_total_ft_est": est,
                     "segments": raw[:10]})
         time.sleep(0.2)
