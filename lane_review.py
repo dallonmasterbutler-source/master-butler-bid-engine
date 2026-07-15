@@ -209,6 +209,51 @@ def run(verbose=False):
     except Exception:
         pass
 
+    # ── 🏜 TOM'S STANDBY FOLDER (Dallon, Jul 15: "make sure we have a
+    # standby folder for him somewhere that doesn't get lost"). Every
+    # live record marked Tom-only/high-risk joins the persistent list;
+    # done/converted work drops off; the queue renders the fold. His
+    # work is weather-window standby at HIS discretion, any season.
+    try:
+        standby = []
+        for stamp, rec in clouddb.all_shadow():
+            if rec.get("merged_into") or rec.get("spam_auto") \
+                    or rec.get("kind") == "jobber_event":
+                continue
+            _pi = (rec.get("draft") or {}).get("prop_info") or {}
+            blob2 = ((rec.get("office_alert") or "") + " "
+                     + " ".join((rec.get("draft") or {})
+                                .get("notes") or [])).lower()
+            tomish = (_pi.get("pitch") == "tom_only"
+                      or "tom-only" in blob2 or "tom only" in blob2
+                      or "high-risk" in blob2 or "high risk" in blob2)
+            if not tomish:
+                continue
+            st = ((rec.get("open_quote_ctx") or {}).get("status")
+                  or "").lower()
+            if st in ("converted", "archived"):
+                continue                 # job done / retired
+            m2 = re.search(r"<([^>]+)>", rec.get("from") or "")
+            standby.append({
+                "email": m2.group(1).lower() if m2 else "",
+                "name": (rec.get("client_name")
+                         or (rec.get("from") or "").split("<")[0])
+                .strip()[:34],
+                "address": (rec.get("address") or "")[:60],
+                "stamp": stamp, "quote_status": st or "no quote yet"})
+        # dedupe by email, newest record wins
+        _by = {}
+        for s2 in standby:
+            k3 = s2["email"] or s2["stamp"]
+            if k3 not in _by or s2["stamp"] > _by[k3]["stamp"]:
+                _by[k3] = s2
+        clouddb.put_blob("tom_standby", {
+            "at": now.isoformat(timespec="seconds"),
+            "customers": sorted(_by.values(),
+                                key=lambda x: x["stamp"])})
+    except Exception:
+        pass
+
     out = {"at": now.isoformat(timespec="seconds"),
            "findings": findings[:60],
            "counts": {}}

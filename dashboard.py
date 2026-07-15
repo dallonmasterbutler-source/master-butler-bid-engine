@@ -4184,6 +4184,28 @@ document.addEventListener('DOMContentLoaded', function(){
     # CLEAN BOTTOM (LaRee, Jul 13: 'they work the list oldest-to-newest
     # and NOTHING else is below it') — everything already-handled lives
     # in thin COLLAPSED folds, never an open list under the lane.
+    # 🏜 TOM'S DRY-DAY STANDBY (Dallon, Jul 15: a persistent folder that
+    # never gets lost). Weather-window work, any season, his call —
+    # a dry stretch in March counts as much as August.
+    _ts = _blob_rw("tom_standby", {}) or {}
+    _tsc = _ts.get("customers") or []
+    if _tsc:
+        _tsrows = "".join(
+            f"<a href='/?c={urllib.parse.quote(c.get('email') or '')}' "
+            f"class='irow' style='opacity:.85'><div class='nm'>🏜 "
+            f"{esc(c.get('name') or c.get('email') or '?')}</div>"
+            f"<div class='pv'>{esc(c.get('address') or '')} · "
+            f"{esc(c.get('quote_status'))}</div></a>"
+            for c in _tsc)
+        lst += (f"<details style='margin-top:12px'><summary style="
+                f"'cursor:pointer;color:var(--goldink);font-size:12.5px;"
+                f"font-weight:800;padding:0 8px'>🏜 Tom's dry-day "
+                f"standby ({len(_tsc)}) — any dry window, his call"
+                f"</summary><div class='subtext' style='padding:4px 8px'>"
+                f"High-risk/Tom-only homes waiting for dry weather — "
+                f"March or June counts as much as August. This list "
+                f"never loses anyone; jobs drop off when converted."
+                f"</div>{_tsrows}</details>")
     handled_rows = [r for r in roster if r["lane"] == "handled"]
     if handled_rows:
         lst += (f"<details style='margin-top:12px'><summary style='cursor:"
@@ -7271,7 +7293,10 @@ def _guide_training():
             "double-quote. <b>✓ Done</b> clears a row for the whole "
             "office (a new customer message always brings it back — "
             "nothing is ever lost). <b>Move ▾</b> files it, and every "
-            "move teaches the sorter. The 🕵️ hourly review re-checks "
+            "move teaches the sorter. <b>🏜 Tom's dry-day standby</b> "
+            "(bottom fold) holds every high-risk/Tom-only home waiting "
+            "for a dry window — any season, his call; nobody falls out "
+            "of it until the job converts. The 🕵️ hourly review re-checks "
             "every bubble and posts anything odd on the "
             "<a href='/working'>build board</a>.")
 
