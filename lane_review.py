@@ -107,6 +107,33 @@ def run(verbose=False):
                              "note": note[:180], "sev": sev,
                              "stamp": stamp})
 
+        # 📮 BOUNCE WATCHDOG (Dallon, Jul 15: 'multiple client email
+        # was not delivered — find out whats happening asap'). A
+        # mailer-daemon record means a CUSTOMER never got our reply —
+        # flag it loudly and pin a note on that customer's card.
+        if "mailer-daemon" in e or "delivery status" in \
+                (rec.get("subject") or "").lower():
+            _bm = re.search(r"(?:message to|failed[^:]*:)\s*"
+                            r"<?([\w.+-]+@[\w.-]+)", body, re.I)
+            _victim = _bm.group(1).lower() if _bm else None
+            add("bounce", f"our email to {_victim or 'a customer'} "
+                "BOUNCED — they never got the reply; call/text or "
+                "resend after the DNS fix", "📮")
+            if _victim:
+                for s2, r2 in sorted(clouddb.all_shadow(),
+                                     reverse=True):
+                    if _victim in (r2.get("from") or "").lower():
+                        nl2 = (r2.setdefault("draft", {})
+                               .setdefault("notes", []))
+                        note2 = (f"📮 EMAIL BOUNCED {stamp[:8]}: our "
+                                 "reply never reached them (Yahoo/"
+                                 "provider block) — reach them another "
+                                 "way.")
+                        if not any("EMAIL BOUNCED" in x for x in nl2):
+                            nl2.append(note2)
+                            clouddb.ingest_shadow(s2, r2)
+                        break
+            continue
         if DECLINE_RX.search(body_head):
             add("decline", f"they're saying NO/leaving — clear the row & "
                 f"log the reason: “{body_head[:110]}”", "🚪")
