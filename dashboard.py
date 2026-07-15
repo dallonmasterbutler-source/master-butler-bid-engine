@@ -2371,7 +2371,7 @@ _bs.onchange = function(){{
                    if s.get("orig_price") not in (None, s["price"]) else "")
             price_cell = (
                 f"<td class='num'>$<input type='number' name='p_{i}' "
-                f"value='{s['price']:.0f}' step='5' min='0' "
+                f"value='{s['price']:g}' step='any' min='0' "
                 f"style='width:78px;text-align:right;font-weight:700;"
                 f"border:1px solid var(--line);border-radius:6px;"
                 f"padding:4px'>{was}</td>"
@@ -5166,8 +5166,12 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
             was = (f"<div class='subtext' style='font-size:10.5px'>system "
                    f"said ${s['orig_price']:,.0f}</div>"
                    if s.get("orig_price") not in (None, s["price"]) else "")
+            # step='any' + true value (LaRee, Jul 15: the $14.50 moss
+            # product made step='5' invalid, so the browser refused the
+            # WHOLE save — "change the moss pricing to $15" — and the
+            # .0f render was silently shaving the 50¢ to '14')
             pc = (f"<td class='num'>$<input type='number' name='p_{i}' "
-                  f"value='{s['price']:.0f}' step='5' min='0' "
+                  f"value='{s['price']:g}' step='any' min='0' "
                   f"style='width:76px;text-align:right;font-weight:700;"
                   f"border:1px solid var(--line);border-radius:6px;"
                   f"padding:4px'>{was}</td>" if editable
@@ -10957,14 +10961,16 @@ class Handler(BaseHTTPRequestHandler):
                     if not raw:
                         continue
                     try:
-                        new = round(float(raw))
+                        # keep the cents (LaRee, Jul 15: whole-dollar
+                        # rounding was mangling the $14.50 moss product)
+                        new = round(float(raw), 2)
                     except ValueError:
                         continue
                     cur = _num(s.get("price")) or 0   # corrupt price safe
-                    if new != round(cur):
+                    if new != round(cur, 2):
                         s.setdefault("orig_price", cur)
                         changes.append(f"{s['name']}: "
-                                       f"${cur:,.0f}→${new:,.0f}")
+                                       f"${cur:,.2f}→${new:,.2f}")
                         s["price"] = new
                 if rm:
                     svcs = [s for i, s in enumerate(svcs) if i not in rm]
