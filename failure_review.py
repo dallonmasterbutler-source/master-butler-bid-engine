@@ -118,14 +118,23 @@ def _bids_section(clouddb):
     """Where our prices miss the office's."""
     sb = clouddb.get_blob("scoreboard") or {}
     bysvc = collections.defaultdict(list)
-    worst = []
+    worst, overparsed = [], 0
     for r in sb.get("rows") or []:
         gp, ot = r.get("gap_pct"), r.get("office_total")
         if gp is None or not ot:
             continue
-        for s in (r.get("services") or ["?"])[:1]:
-            bysvc[s].append(gp)
-        if abs(gp) > 10:
+        svcs = r.get("services") or ["?"]
+        # OVERPARSE rows are PARSER failures, not pricing failures —
+        # Irene Hwang's 10-service $1,408 draft (office: $246) was
+        # getting pinned on whatever service happened to be listed
+        # first, inventing a 'moss removal prices 160% high' verdict
+        # (Dallon caught it, Jul 15). Track them as their own bucket.
+        if len(svcs) >= 7:
+            overparsed += 1
+            continue
+        for s in svcs:                 # every service on the bid owns
+            bysvc[s].append(gp)        # a share of the miss, not just
+        if abs(gp) > 10:               # the first-listed one
             worst.append({"who": (r.get("customer") or "?")
                           .split("<")[0].strip()[:30],
                           "gap_pct": gp, "ours": r.get("system_total"),
@@ -142,10 +151,12 @@ def _bids_section(clouddb):
     cl = clouddb.get_blob("calibration_ledger") or {}
     rulings = {s: len(v) for s, v in cl.items() if v}
     matched = [r for r in (sb.get("rows") or []) if r.get("office_total")
-               and r.get("gap_pct") is not None]
+               and r.get("gap_pct") is not None
+               and len(r.get("services") or []) < 7]
     within10 = (round(sum(1 for r in matched if abs(r["gap_pct"]) <= 10)
                       / len(matched) * 100) if matched else None)
     return {"within_10pct": within10, "n_matched": len(matched),
+            "overparsed_excluded": overparsed,
             "by_service": svc_rank[:8], "worst": sorted(
                 worst, key=lambda x: -abs(x["gap_pct"]))[:8],
             "rulings_by_service": rulings}

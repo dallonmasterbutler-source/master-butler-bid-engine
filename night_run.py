@@ -98,6 +98,22 @@ except Exception as e:
 # 4b ── July running tally (Tom's ask, Jul 14): re-mine the matched
 #       window nightly — July 1 → today, both years — so the Scoreboard
 #       card is a live year-over-year race, not a snapshot.
+# ONE-TIME FULL HISTORY REBUILD FIRST (Jul 15: the pre-discount scaler
+# was double-inflating invoices carrying a standalone discount line —
+# Tracy Van Horn's $371 windows became a $727 floor. Only a fresh
+# sweep applies the fix; the nightly merge keeps poisoned entries.)
+# Runs BEFORE yoy/win-back so tonight's numbers use clean data.
+try:
+    from pathlib import Path as _P
+    _mk = _P("data/.history_rebuilt_jul15")
+    if not _mk.exists():
+        import servicehistory
+        print("   FULL service-history rebuild (discount-line fix)…")
+        servicehistory.sweep()
+        _mk.write_text("done")
+except Exception as e:
+    print(f"   (history rebuild skipped: {e})")
+
 try:
     import yoy_compare
     _yy = yoy_compare.run_local(verbose=True)

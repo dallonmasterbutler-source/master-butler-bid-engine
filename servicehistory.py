@@ -125,9 +125,19 @@ def sweep(limit=100000):
             slug = _slug(addr.get("street"), addr.get("city"))
             ckey = _name_key((inv.get("client") or {}).get("name"))
             fac = factors.get(str(inv.get("invoiceNumber")), 1.0)
+            # STANDALONE DISCOUNT LINE = the other lines are ALREADY
+            # pre-discount (Tracy Van Horn, Jul 15: her $371 windows
+            # carried a separate −$280 F&F line; the scaler multiplied
+            # the full price again → a phantom $727 floor). Only scale
+            # when the discount was baked INTO the line prices.
+            _lis = (inv.get("lineItems") or {}).get("nodes", [])
+            if any((li.get("totalPrice") or 0) < 0
+                   or _looks_discounted(li.get("name"))
+                   for li in _lis):
+                fac = 1.0
             if fac > 1.0:
                 undiscounted += 1
-            for li in (inv.get("lineItems") or {}).get("nodes", []):
+            for li in _lis:
                 key = _service_key(li.get("name"))
                 price = li.get("totalPrice") or 0
                 if not key or price <= 0 \
