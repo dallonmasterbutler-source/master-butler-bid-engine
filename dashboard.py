@@ -4266,7 +4266,26 @@ document.addEventListener('DOMContentLoaded', function(){
                 f"padding:0 8px'>Handled in Jobber — verified "
                 f"({len(handled_rows)})</summary>"
                 + "".join(row(r) for r in handled_rows) + "</details>")
-    done_rows = [r for r in roster if r["lane"] == "drawer"]
+    # 🗑 WHERE THE GMAIL-SYNCED ROWS WENT (Martha + Jessica, Jul 15,
+    # within hours of the trash=done rule: "I can't find a lot of
+    # emails… is the automatic clean up clearing too much?"). Nothing
+    # is deleted — everything the sync cleared sits HERE, named, with
+    # the search box above finding anyone instantly.
+    gm_rows = [r for r in roster if r["lane"] == "drawer"
+               and r.get("gmail") == "done"]
+    if gm_rows:
+        lst += (f"<details style='margin-top:12px'><summary style="
+                f"'cursor:pointer;color:var(--mut);font-size:12.5px;"
+                f"font-weight:800;padding:0 8px'>🗑 Cleared by the "
+                f"Gmail sync ({len(gm_rows)}) — they're in your Gmail "
+                f"trash, so the dashboard filed them too</summary>"
+                f"<div class='subtext' style='padding:4px 8px'>Nothing "
+                f"is deleted — open any row, or use 🔍 find customer "
+                f"above. A new message from them pops the row right "
+                f"back into the Inbox.</div>"
+                + "".join(row(r) for r in gm_rows[:40]) + "</details>")
+    done_rows = [r for r in roster if r["lane"] == "drawer"
+                 and r.get("gmail") != "done"]
     lst += (f"<details style='margin-top:6px'><summary style='cursor:"
             f"pointer;color:var(--mut);font-size:12.5px;font-weight:700;"
             f"padding:0 8px'>Done &amp; quiet ({len(done_rows)}) · "
@@ -4465,6 +4484,16 @@ document.addEventListener('DOMContentLoaded', function(){
       var dirty = false;
       document.querySelectorAll('textarea').forEach(function(t){
         if (t.value.trim()) dirty = true;
+      });
+      // HALF-DONE EDITS COUNT TOO (Jessica/Tracy Van Horn, Jul 15:
+      // her ✕ line-removals and price changes kept silently vanishing
+      // — the refresh only respected textareas). A checked box or a
+      // changed input blocks the reload the same as a typed reply.
+      document.querySelectorAll('input').forEach(function(t){
+        if (t.type === 'checkbox' || t.type === 'radio') {
+          if (t.checked !== t.defaultChecked) dirty = true;
+        } else if (t.type !== 'hidden' && t.type !== 'button'
+                   && t.value !== t.defaultValue) dirty = true;
       });
       var editing = (rb && rb.value.trim()) || (ff && ff.open)
                     || typing || dirty;
@@ -4896,6 +4925,29 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
     <div class='subtext' style='margin-top:3px'>Emails Dallon instantly;
      Claude reads every idea overnight and pre-plans the fix.</div>
    </form></div>"""
+    else:
+        # 🙋 HELP NEVER DISAPPEARS (Jessica, Jul 15: 'the help button
+        # disappears for me after I approve the quote') — approved/
+        # handled cards keep a slim escalate + idea row.
+        actions = f"""
+  <div style='display:flex;gap:8px;flex-wrap:wrap;margin-top:10px'>
+   <form method='POST' action='/escalate' style='flex:1;min-width:200px'>
+    <input type='hidden' name='stamp' value='{stamp}'>
+    <input type='hidden' name='customer' value='{esc(nb.get("from") or "") if nb else ""}'>
+    <input type='hidden' name='back' value='/'>
+    <button class='gray' style='width:100%'>🙋 Help — email Dallon &amp;
+     Tom about this one</button>
+   </form>
+   <form method='POST' action='/idea_send' style='flex:2;min-width:240px;
+        display:flex;gap:6px'>
+    <input type='hidden' name='context'
+     value='while working on {esc((nb.get("from") or "").split("<")[0].strip()) if nb else ""} — open them: https://masterbutler-dashboard.onrender.com/?c={urllib.parse.quote(key)}'>
+    <input type='hidden' name='back' value='{esc(back)}'>
+    <input type='text' name='text' style='flex:1' placeholder='💡 Idea or
+ problem? Tells Dallon instantly'>
+    <button class='gray'>💡 Send</button>
+   </form>
+  </div>"""
 
     # THE CUSTOMER'S EXISTING JOBBER QUOTE (Dallon, the Mia rule):
     # read the past, find the quote, put ALL of it in front of the
@@ -6573,6 +6625,12 @@ GUIDE_FAQ = [
   "as a transcript. '0:00 — hang-up' means nothing was recorded. "
   "'No audio attached' means dial the mailbox (press * during the "
   "greeting, passcode 1234), then reply by email as usual."),
+ ("Where did an email go?",
+  "When you TRASH a thread in Gmail, the dashboard files it too — "
+  "look in the <b>🗑 Cleared by the Gmail sync</b> fold at the bottom "
+  "of the list, or type the name in <b>🔍 find customer</b>. Nothing "
+  "is ever deleted, and a new message from that customer pops the row "
+  "straight back into the Inbox."),
  ("⛔ DO NOT SERVICE showed up",
   "The system matched them to a do-not-service marker in Jobber — by "
   "email, phone, ADDRESS, or name (it catches new-email tricks). Don't "
@@ -11024,6 +11082,24 @@ class Handler(BaseHTTPRequestHandler):
                     lines = price_one_service(rec, svc)
                     if not lines:
                         continue
+                    # NEVER BELOW THEIR LAST INVOICE — the add-a-line
+                    # path skipped the floor the intake enforces
+                    # (Jessica/Tracy, Jul 15: added Windows In & Out
+                    # priced $315; her last job was $371)
+                    try:
+                        import lastpaid
+                        _nm3 = ((rec.get("caller_id") or {}).get("name")
+                                or (rec.get("from") or "")
+                                .split("<")[0].strip())
+                        _fl_notes = lastpaid.apply(
+                            lines, address=rec.get("address"),
+                            client_name=_nm3)
+                        if _fl_notes:
+                            rec.setdefault("draft", {}).setdefault(
+                                "bid", {}).setdefault("notes", []) \
+                               .extend(_fl_notes)
+                    except Exception:
+                        pass
                     bid_d = rec.setdefault("draft", {}).setdefault("bid", {})
                     svcs = bid_d.setdefault("services", [])
                     names = {s["name"] for s in svcs}
