@@ -8513,16 +8513,45 @@ def scoreboard_page():
         _mo = list((_sk.get("jobs_per_day_by_month") or {}).items())
         if _mo:
             _mx = max(v["avg_per_day"] for _, v in _mo) or 1
+            def _py(val):
+                return 100 - (val / _mx) * 70
             _pts = " ".join(
-                f"{20 + i*740/(len(_mo)-1):.0f},"
-                f"{100-(v['avg_per_day']/_mx)*70:.0f}"
+                f"{34 + i*726/(len(_mo)-1):.0f},{_py(v['avg_per_day']):.0f}"
                 for i, (_, v) in enumerate(_mo))
+            # Y-AXIS + VALUE LABELS (Dallon, Jul 15: 'no numbers on the
+            # line — we can't know what those numbers mean')
+            _step = 5 if _mx > 8 else 2
+            _grid = "".join(
+                f"<line x1='34' y1='{_py(g):.0f}' x2='766' "
+                f"y2='{_py(g):.0f}' stroke='var(--line)' "
+                f"stroke-dasharray='3,4' stroke-width='.7'/>"
+                f"<text x='28' y='{_py(g)+3:.0f}' font-size='9' "
+                f"fill='var(--mut)' text-anchor='end'>{g}</text>"
+                for g in range(_step, int(_mx) + 1, _step))
+            # number every yearly PEAK and the newest month
+            _marks = ""
+            _peak_idx = {max(range(len(_mo)),
+                             key=lambda i: (_mo[i][0].startswith(y)
+                                            and _mo[i][1]['avg_per_day']
+                                            or -1))
+                         for y in ("2023", "2024", "2025", "2026")}
+            _peak_idx.add(len(_mo) - 1)
+            for i in sorted(_peak_idx):
+                k2, v2 = _mo[i]
+                _x = 34 + i * 726 / (len(_mo) - 1)
+                _marks += (
+                    f"<circle cx='{_x:.0f}' cy='{_py(v2['avg_per_day']):.0f}'"
+                    f" r='3.5' fill='#c9a227'/>"
+                    f"<text x='{_x:.0f}' y='{_py(v2['avg_per_day'])-7:.0f}'"
+                    f" font-size='10' font-weight='800' fill='#c9a227' "
+                    f"text-anchor='middle'>{v2['avg_per_day']}</text>")
             _lbl = "".join(
-                f"<text x='{20 + i*740/(len(_mo)-1):.0f}' y='114' "
+                f"<text x='{34 + i*726/(len(_mo)-1):.0f}' y='114' "
                 f"font-size='8' fill='var(--mut)' text-anchor='middle'>"
                 f"{k[2:7]}</text>"
                 for i, (k, v) in enumerate(_mo)
                 if k.endswith(("-01", "-07")))
+            _lbl = _grid + _lbl + _marks
             _g = _sk.get("drive_gaps") or {}
             mined_cards += f"""
 <div class='card' style='margin:14px 0'>
