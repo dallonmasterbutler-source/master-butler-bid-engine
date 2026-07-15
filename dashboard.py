@@ -8914,6 +8914,50 @@ def scoreboard_page():
     except Exception:
         pulse_card = ""
 
+    # ── 🔍 THE SELF-REVIEW (Dallon, Jul 15: "a shadow program to
+    # periodically review all our work… tell us where we are failing
+    # the most. Time, bids, language, etc.") — failure_review blob,
+    # refreshed hourly; verdicts worst-first, receipts underneath ──
+    fail_card = ""
+    try:
+        _fr = (clouddb.get_blob("failure_review") or {}) \
+            if clouddb.available() else {}
+        if _fr.get("verdicts"):
+            _ft, _fb = _fr.get("time") or {}, _fr.get("bids") or {}
+            _vrows = "".join(
+                f"<div style='padding:8px 12px;border-top:1px solid "
+                f"var(--line);font-size:13.5px'>{esc(v)}</div>"
+                for v in _fr["verdicts"])
+            _slow = ", ".join(
+                f"{esc(x['who'])} ({x['hours']}h)" for x in
+                (_ft.get("oldest_unanswered") or [])[:4])
+            fail_card = f"""
+<div class='card' style='margin-bottom:14px'>
+ <div class='schead'>🔍<h2>Where we're failing — the self-review</h2>
+  <span class='subtext'>the system grading OUR work, worst first ·
+  re-graded hourly · as of {esc((_fr.get('at') or '')[11:16])} UTC
+  </span></div>
+ <div style='display:flex;gap:26px;flex-wrap:wrap;margin:4px 0 6px'>
+  <div><b class='tab' style='font-size:24px'>
+   {_ft.get('median_h', '–')}h</b>
+   <div class='subtext'>median time to first reply (30d)</div></div>
+  <div><b class='tab' style='font-size:24px'>
+   {_ft.get('within_24h', '–')}%</b>
+   <div class='subtext'>answered within a day</div></div>
+  <div><b class='tab' style='font-size:24px'>
+   {_ft.get('unanswered', '–')}</b>
+   <div class='subtext'>never answered (30d)</div></div>
+  <div><b class='tab' style='font-size:24px'>
+   {_fb.get('within_10pct', '–')}%</b>
+   <div class='subtext'>bids within ±10% of the office</div></div>
+ </div>
+ {_vrows}
+ {f"<div class='subtext' style='margin-top:6px'>oldest with no reply: "
+  f"{_slow}</div>" if _slow else ""}
+</div>"""
+    except Exception:
+        fail_card = ""
+
     # ── 🗺 THE MINED REPORTS (Dallon, Jul 15: "add the other things
     # like the pace, area days, lights etc") — pace, area-days, lights
     # seasons, fronts, all from the nightly mining blobs; each card
@@ -9461,9 +9505,10 @@ function rShow(id){
  setTimeout(function(){try{sessionStorage.setItem(K,window.scrollY);}catch(e){}
   location.reload();},120000);})();
 </script>"""
-    return page("Scoreboard", hero + wheel_card + pulse_card + yoy_card
-                + mined_cards + learn_card + shelf_html + fresh
-                + nudge_card + matched_card + waiting_card + refresh_js)
+    return page("Scoreboard", hero + wheel_card + pulse_card + fail_card
+                + yoy_card + mined_cards + learn_card + shelf_html
+                + fresh + nudge_card + matched_card + waiting_card
+                + refresh_js)
 
 
 _ABBR = {"se": "southeast", "sw": "southwest", "ne": "northeast",

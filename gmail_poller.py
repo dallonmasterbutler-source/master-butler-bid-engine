@@ -195,6 +195,13 @@ def poll_once():
                 lane_review.run()
             except Exception:
                 pass
+            # 🔍 THE SELF-REVIEW (Dallon, Jul 15: 'tell us where we
+            # are failing the most') — re-grade ourselves hourly
+            try:
+                import failure_review
+                failure_review.run()
+            except Exception:
+                pass
             # AUTO-RESPOND PULSE (Dallon, Jul 15: 'i would love to watch
             # this on the scoreboard') — refresh the shadow summary blob
             # hourly so the Scoreboard card stays live without anyone
