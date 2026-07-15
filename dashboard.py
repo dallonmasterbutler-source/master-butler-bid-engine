@@ -7235,7 +7235,15 @@ def _guide_training():
             + divider_mock +
             "Click the <b>→ name</b> to jump straight to that customer.")
 
-        + _t_step(6, "Move ▾, ✓ Done, and the folders",
+        + _t_step(6, "👷 Tech mail — internal, never a bid",
+            "Emails from our techs get their own purple card: the "
+            "conversation as a chat, <b>every photo they sent right "
+            "above it</b>, and a 📎 link to the customer it's about. "
+            "Answer it like a text message. If a tech's question is "
+            "really about pricing a customer, open that customer's card "
+            "and handle it there.")
+
+        + _t_step(7, "Move ▾, ✓ Done, and the folders",
             "<b>✓ Done</b> clears a row for the whole office (a new "
             "customer message always brings it back — nothing is ever "
             "lost). <b>Move ▾</b> files it: needs-reply, declined, park "
