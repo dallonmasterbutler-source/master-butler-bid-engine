@@ -195,6 +195,15 @@ def poll_once():
                 lane_review.run()
             except Exception:
                 pass
+            # AUTO-RESPOND PULSE (Dallon, Jul 15: 'i would love to watch
+            # this on the scoreboard') — refresh the shadow summary blob
+            # hourly so the Scoreboard card stays live without anyone
+            # opening the grading room.
+            try:
+                import dashboard as _dash
+                _dash.autodrafts_page(None)   # renders → saves the pulse
+            except Exception:
+                pass
             marker.write_text(datetime.now().isoformat(timespec="seconds"))
             try:
                 import autoreview

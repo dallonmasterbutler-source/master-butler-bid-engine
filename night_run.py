@@ -131,6 +131,18 @@ try:
 except Exception as e:
     print(f"   (lights deep mine skipped: {e})")
 
+# 4e ── PW WIN-BACK LIST (Dallon, Jul 15): rebuilt nightly from the
+#       fresh invoice archive, pushed as the pw_winback blob so the
+#       /pwwinback page renders on Render (no data/ there).
+try:
+    import winback
+    _wbk = winback.save()
+    if _wbk:
+        print(f"   pw win-back: {len(_wbk.get('rows') or [])} lapsed "
+              f"PW customers, ${_wbk.get('value', 0):,.0f} at last prices")
+except Exception as e:
+    print(f"   (pw win-back skipped: {e})")
+
 # 5 ── backup + morning brief
 print("\n[5/6] Backup + morning brief…")
 try:

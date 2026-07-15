@@ -6997,6 +6997,7 @@ def autodrafts_page(user=None):
     adopted = autorespond.adopt_templates(pairs, off=tpl_off)
 
     # PASS 2 — LIVE proposals, drafted WITH the adopted office wording
+    pulse_live = []       # compact copy for the Scoreboard pulse card
     for addr, name, msgs in threads:
         e = (addr or "").lower()
         last = msgs[-1] if msgs else None
@@ -7022,6 +7023,11 @@ def autodrafts_page(user=None):
                                 "🗓 stage-2 shadow — the date it would "
                                 "offer", _off.get("why") or "",
                                 "#e8c76a")
+                    pulse_live.append({
+                        "name": name or e, "type": d["type"],
+                        "auto": bool(d.get("auto")),
+                        "offer": (_off.get("why") if _off_html and _off
+                                  else None)})
                     live_rows.append(
                         f"<div style='border-top:1px solid var(--line);"
                         f"padding:10px 0'><b>{esc(name or e)}</b> "
@@ -7074,6 +7080,17 @@ def autodrafts_page(user=None):
     try:
         _blob_save("draft_learnings", learn_store)
         _blob_save("reply_templates_auto", adopted)
+        # THE PULSE (Dallon, Jul 15: 'watch this on the scoreboard') —
+        # a compact summary the Scoreboard card renders; refreshed on
+        # every grading-room open + hourly by the poller.
+        _sends = _blob_rw("draft_sends", []) or []
+        _pa = [x["acc"] for x in _sends] if _sends else accs
+        _blob_save("autorespond_pulse", {
+            "at": now.isoformat(timespec="seconds"),
+            "live": pulse_live[:8], "gated": gated,
+            "n": len(_pa), "live_sends": bool(_sends),
+            "good": sum(1 for a in _pa if a >= 85),
+            "avg": round(sum(_pa) / len(_pa), 1) if _pa else 0})
     except Exception:
         pass
     return page("Auto-respond shadow", body)
@@ -7430,7 +7447,7 @@ def pw_winback_page():
     Read-only: no Jobber calls, no sends — a call sheet."""
     try:
         import winback
-        W = winback.build()
+        W = winback.load()
     except Exception as ex:
         return page("PW win-backs", f"<div class='card'>couldn't build "
                                     f"the list: {esc(str(ex))}</div>")
@@ -8758,6 +8775,50 @@ def scoreboard_page():
   if _insight else ""}
 </div>"""
 
+    # ── ✨ AUTO-RESPOND PULSE (Dallon, Jul 15: "where are you seeing
+    # this auto respond shadow… i would love to watch this on the
+    # scoreboard") — the grading room's summary blob, refreshed hourly
+    # by the poller and on every /autodrafts open ──
+    pulse_card = ""
+    try:
+        _pu = (clouddb.get_blob("autorespond_pulse") or {}) \
+            if clouddb.available() else {}
+        if _pu:
+            _plive = _pu.get("live") or []
+            _prows = "".join(
+                f"<div style='padding:7px 12px;border-top:1px solid "
+                f"var(--line);font-size:13px'><b>{esc(p.get('name'))}"
+                f"</b> <span class='subtext'>{esc(p.get('type'))}"
+                f"{' · 📖 auto' if p.get('auto') else ''}</span>"
+                + (f"<br><span style='color:var(--goldink)'>🗓 "
+                   f"{esc(p['offer'])}</span>" if p.get("offer") else "")
+                + "</div>" for p in _plive)
+            _pn = _pu.get("n") or 0
+            _ppct = (_pu.get("good", 0) / _pn * 100) if _pn else 0
+            pulse_card = f"""
+<div class='card' style='margin-bottom:14px'>
+ <div class='schead'>✨<h2>Auto-respond shadow — the pulse</h2>
+  <span class='subtext'>what the reply box would do right now · full
+  grading room: <a href='/autodrafts'>open it</a> · as of
+  {esc((_pu.get('at') or '')[11:16])} UTC</span></div>
+ <div style='display:flex;gap:26px;flex-wrap:wrap;margin:4px 0 6px'>
+  <div><b class='tab' style='font-size:24px'>{len(_plive)}</b>
+   <div class='subtext'>would draft right now</div></div>
+  <div><b class='tab' style='font-size:24px'>{_pu.get('gated', 0)}</b>
+   <div class='subtext'>correctly left blank</div></div>
+  <div><b class='tab' style='font-size:24px'>{_ppct:.0f}%</b>
+   <div class='subtext'>{"live sends" if _pu.get('live_sends') else
+   "graded drafts"} sent as written ({_pn} graded)</div></div>
+ </div>
+ {_prows or "<div class='subtext'>nothing awaiting a reply matches a "
+  "safe template right now</div>"}
+ <div class='subtext' style='margin-top:6px'>🗓 gold lines = stage-2
+ shadow date offers — an offer is NOT a booking; it books on the
+ customer's yes, first yes wins the slot.</div>
+</div>"""
+    except Exception:
+        pulse_card = ""
+
     # ── 🗺 THE MINED REPORTS (Dallon, Jul 15: "add the other things
     # like the pace, area days, lights etc") — pace, area-days, lights
     # seasons, fronts, all from the nightly mining blobs; each card
@@ -9305,7 +9366,8 @@ function rShow(id){
  setTimeout(function(){try{sessionStorage.setItem(K,window.scrollY);}catch(e){}
   location.reload();},120000);})();
 </script>"""
-    return page("Scoreboard", hero + wheel_card + yoy_card + mined_cards + learn_card + shelf_html + fresh
+    return page("Scoreboard", hero + wheel_card + pulse_card + yoy_card
+                + mined_cards + learn_card + shelf_html + fresh
                 + nudge_card + matched_card + waiting_card + refresh_js)
 
 

@@ -69,6 +69,36 @@ def build(today=None):
             "rows": rows}
 
 
+def save():
+    """Push the built list to the pw_winback blob (Render has no
+    data/ archive — the Mac builds, the cloud renders)."""
+    out = build()
+    try:
+        import clouddb
+        if clouddb.available():
+            clouddb.put_blob("pw_winback", out)
+            return out
+    except Exception:
+        pass
+    try:
+        from cloudpush import push
+        push(blobs={"pw_winback": out})
+    except Exception:
+        pass
+    return out
+
+
+def load():
+    """Blob when the local archive is missing (Render); fresh build
+    when it's here (the Mac)."""
+    if (BASE / "data" / "service_history.json").exists():
+        return build()
+    import clouddb
+    if clouddb.available():
+        return clouddb.get_blob("pw_winback") or {}
+    return {}
+
+
 if __name__ == "__main__":
     out = build()
     print(f"{len(out['rows'])} win-backs · ${out['value']:,.0f} at last-"
