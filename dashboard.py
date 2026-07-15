@@ -10953,6 +10953,33 @@ class Handler(BaseHTTPRequestHandler):
                     got = afields.get("aerial_surfaces") or {}
                     if got:
                         pi["aerial_surfaces"] = got
+                        # 📐→💵 CLOSE THE LOOP (Anna Gal, Jul 15:
+                        # pw_driveway was REQUESTED, unpriceable at
+                        # intake, and stayed missing even after Jessica
+                        # measured). Any requested PW service still
+                        # absent from the draft gets priced and added
+                        # NOW, from the areas we just measured.
+                        _bidd = rec["draft"].setdefault("bid", {})
+                        _lines = _bidd.setdefault("services", [])
+                        _have = {(_l.get("name") or "").split("(")[0]
+                                 .strip().lower() for _l in _lines}
+                        for _svc in rec.get("services") or []:
+                            if not _svc.startswith("pw_"):
+                                continue
+                            _new = price_one_service(rec, _svc)
+                            for _li in _new or []:
+                                if (_li["name"].split("(")[0].strip()
+                                        .lower()) in _have:
+                                    continue
+                                _li["added_by"] = "📐 aerial measure"
+                                _lines.append(_li)
+                                _bidd.setdefault("notes", []).append(
+                                    f"💦 {_li['name']} — requested at "
+                                    "intake, priced from the aerial "
+                                    "measure (was missing until the "
+                                    "surfaces were measured).")
+                        rec["draft"]["total"] = sum(
+                            _l.get("price") or 0 for _l in _lines)
                     if afields.get("debris") or afields.get("canopy_level"):
                         pi["debris_read"] = (afields.get("debris")
                                              or ("heavy" if afields.get(
@@ -11041,6 +11068,26 @@ class Handler(BaseHTTPRequestHandler):
                 save_review({"stamp": stamp, "action": "line_added",
                              "customer": get("customer"),
                              "note": f"{svc}: +${sum(li['price'] for li in added):,.0f}"})
+            elif rec and picked:
+                # NEVER FAIL SILENTLY (Jessica/Anna Gal, Jul 15: her
+                # add looked like it worked, nothing persisted, nothing
+                # logged). Say WHY, on the card and in the log.
+                _pi9 = ((rec.get("draft") or {}).get("prop_info")) or {}
+                _why9 = ("no measured area for this surface — hit 📐 "
+                         "Measure surfaces first"
+                         if any(s.startswith("pw_") for s in picked)
+                         and not _pi9.get("aerial_surfaces")
+                         else "the engine couldn't price it from this "
+                              "property's facts — send to Dallon/Tom")
+                rec.setdefault("draft", {}).setdefault("bid", {}) \
+                   .setdefault("notes", []).append(
+                    f"⚠️ ADD FAILED: {', '.join(picked)} was NOT added "
+                    f"— {_why9}.")
+                if clouddb.available():
+                    clouddb.ingest_shadow(stamp, rec)
+                save_review({"stamp": stamp, "action": "line_add_FAILED",
+                             "customer": get("customer"),
+                             "note": f"{', '.join(picked)}: {_why9}"})
             back = get("back")
             self.send_response(303)
             self.send_header("Location", back if back.startswith("/")

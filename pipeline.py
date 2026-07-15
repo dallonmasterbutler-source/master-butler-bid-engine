@@ -345,6 +345,20 @@ def process(eml_path):
             print(f"    Aerial cross-check: {len(anotes)} note(s)")
         except Exception as e:
             office_flags.append(f"Aerial cross-check unavailable ({e}).")
+        # 💦 A REQUESTED PW SURFACE WITH NO MEASUREMENT = A LOUD ALERT,
+        # not a buried note (Anna Gal, Jul 15: she asked for driveway
+        # pressure washing, the engine priced only the dryer vent, and
+        # a $150 quote nearly went out missing the bigger job).
+        _pw_missing = [k for k in ("driveway", "patio", "sidewalk")
+                       if prop.get("services", {}).get(k)
+                       and not prop.get("surfaces", {}).get(k)]
+        if _pw_missing:
+            office_flags.append(
+                "💦 PRESSURE WASHING REQUESTED BUT NOT PRICED — no "
+                f"measured area for: {', '.join(_pw_missing)}. The "
+                "draft has NO line for it. Hit 📐 Measure surfaces on "
+                "the card (adds the line automatically) or get "
+                "photos/dimensions.")
         try:                    # pre-warm the 3D flyover (free tier) so
             from aerial_view import request_render   # it's ready when the
             request_render(parsed["address"])        # office opens the bid

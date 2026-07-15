@@ -32,7 +32,9 @@ BASE = Path(__file__).parent
 # the editable facts and their allowed values (anything else = refused)
 EDITABLE = {
     "pitch": ("mild", "moderate", "steep", "tom_only"),
-    "stories": ("1", "2", "3", "3_exp_tech"),
+    # 2_3_split = walk-out lot, 2 in front / 3 in back or vice versa —
+    # any tech can work it (Jessica, Jul 15)
+    "stories": ("1", "2", "3", "3_exp_tech", "2_3_split"),
     "debris": ("light", "moderate", "heavy"),
     "roof_material": ("standard", "shake", "tile", "metal"),
 }

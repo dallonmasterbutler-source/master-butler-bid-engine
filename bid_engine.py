@@ -34,6 +34,10 @@ STORIES = {
     "2": 1.0,          # 1 and 2 stories are priced the same
     "3": 1.35,         # 3 stories = always flag for office review
     "3_exp_tech": 1.5, # 3 stories done by an experienced tech
+    # Jessica, Jul 15: walk-out lots — "2 story in the front, 3 in the
+    # back or vice versa. We can usually send ANY tech to that type."
+    # Priced between 2 and true-3; never trips the 3-story tech gates.
+    "2_3_split": 1.15,
 }
 
 PITCH = {
