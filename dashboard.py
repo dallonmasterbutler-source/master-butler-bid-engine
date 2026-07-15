@@ -3796,6 +3796,15 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                               r"schedule|come out|how soon|next opening)",
                               _lastin_b) and (new_msg or unread):
             qtag = ("✅ approved — wants a date", "#8fc7a6")
+        # ➕ SAME-DAY ADD-ON (Jennie Lee, Jul 15): booked customer
+        # adding a service to an EXISTING visit — bundled price, no
+        # minimum, add the line to the visit, never re-quote the rest
+        elif re.search(r"(already (have|scheduled)|is scheduled|on the "
+                       r"books)[\s\S]{0,120}(add|include|also do|same "
+                       r"(day|visit|trip))|add [\s\S]{0,60}same "
+                       r"(day|visit|trip)", _lastin_b) \
+                and (new_msg or unread):
+            qtag = ("➕ add-on to booked visit", "#e8c76a")
         elif lane in ("inbox", "drafts", "fixits"):
             _hjb = handled_jb.get(nb["stamp"], "") if nb else ""
             # a real VISIT on the schedule only — not merely a quote out

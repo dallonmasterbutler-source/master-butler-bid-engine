@@ -12,6 +12,8 @@ Rules never block or reprice anything — they put the office's own
 playbook in front of whoever reviews the bid.
 """
 
+import re
+
 from datetime import date
 
 # ── geography (doc: "4. Office Procedures and Help") ─────────
@@ -125,6 +127,26 @@ def check(parsed, prop=None, when=None):
             "per property (never reuse another house's numbers), and ask "
             "for their deadline — realtors run on listing dates, not "
             "seasons.")
+
+    # 1d · SAME-DAY ADD-ON (Jennifer "Jennie" Lee, Jul 15: 'I already
+    #      have the pressure washing scheduled in August. Can I add the
+    #      dryer vent cleaning on the same day?'). A booked customer
+    #      adding to an EXISTING visit is not a new bid: quote ONLY the
+    #      added service at its WITH-OTHER-WORK price (no trip minimum
+    #      — the truck is already there), add the line to the existing
+    #      Jobber visit, and check that day's load first (mix rule).
+    if re.search(r"(already (have|scheduled)|is scheduled|on the books)"
+                 r"[\s\S]{0,120}(add|include|also do|same (day|visit|"
+                 r"trip))|add [\s\S]{0,60}(same (day|visit|trip)|"
+                 r"while (you|they|he)('re| are| is)? (out |here)?)",
+                 text):
+        alert = alert or (
+            "➕ SAME-DAY ADD-ON: they already have a BOOKED visit and "
+            "want a service added to it. Quote ONLY the added service "
+            "at its with-other-work price — NO standalone minimum, the "
+            "truck is already there. Add the line to their existing "
+            "Jobber visit (don't re-quote what they bought) and check "
+            "that day's load before confirming.")
 
     # 2 · MOSS REMOVAL IS AUGUST-ONLY (docs 9.2 + quick responses)
     if has("moss_removal", "moss removal"):
