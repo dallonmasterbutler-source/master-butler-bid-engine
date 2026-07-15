@@ -381,6 +381,21 @@ def process(eml_path):
     results, notes, confidence = calculate_bid(prop)
     confidence = max(0, confidence - deduction)   # data quality lowers trust
 
+    # FLOORED-PRICE HONESTY (engine batch, Jul 14): a bid that only
+    # reaches $150 because the JOB-MINIMUM adjustment padded it is NOT
+    # a confidently-priced job — the floor is masking unknown scope
+    # (Buvaneswari: $105 blow-off + $45 'adjustment' shown at 100%).
+    # Cap those at 80 with the why. A flat-rate single service (dryer
+    # vent alone) has no adjustment line and keeps its confidence.
+    if any("minimum adjustment" in (r.get("name") or "").lower()
+           for r in results):
+        if confidence > 80:
+            confidence = 80
+            notes.append("Confidence capped at 80 — this price is the "
+                         "visit MINIMUM, not a measured job; the "
+                         "adjustment line is doing the work. Worth a "
+                         "quick scope check before sending.")
+
     # TECH FIELD-NOTE MINIMUMS: the tech saw the roof; the office didn't.
     try:
         import minimums

@@ -624,6 +624,28 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
                     f"since {(oq.get('createdAt') or '')[:10]}: {lines}). "
                     "Likely a follow-up — reply on that quote, don't send "
                     "a second one.")
+            # THE AMENDMENT ENGINE (Dallon's spec, built Jul-14 night):
+            # add/remove/instead/only language + their quote's own lines
+            # → propose the revision FROM their lines, never reprice
+            # from scratch (the Gloria lesson). Proposal rides the
+            # record; the office reviews like any draft.
+            try:
+                import amendments
+                import lastpaid as _lp
+                _prop = amendments.propose(
+                    {"open_quote_ctx": record["open_quote_ctx"],
+                     "newest_message": parsed.get("newest_message")
+                     or parsed.get("body") or ""},
+                    last_paid=_lp.last_paid(parsed.get("address"),
+                                            parsed.get("sender_name")))
+                if _prop:
+                    record["amendment_proposal"] = _prop
+                    record.setdefault("draft", {}).setdefault(
+                        "notes", []).append(_prop["note"])
+                    print("     → amendment proposal built from quote "
+                          f"#{_prop['quote']} (${_prop['total']})")
+            except Exception as _ae:
+                print(f"     → amendment engine skipped: {_ae}")
 
     # NEW-or-RETURNING (techs' ask): first job = say so, exactly once.
     # Kevin Pham lesson (Jul 10): a returning customer writing "please
