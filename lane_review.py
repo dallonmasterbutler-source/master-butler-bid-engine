@@ -130,6 +130,55 @@ def run(verbose=False):
                 and not rec.get("vm"):
             add("empty-row", "blank message holding a queue slot", "👻")
 
+    # ── 💰 DALLON'S EMAIL RULINGS → THE CUSTOMER'S CARD (Dallon,
+    # Jul 14: the office emails him photos/questions, he replies terse
+    # numbers — "$100" on Re: quote #36433. Those rulings must land on
+    # the record, not die in the thread). Quote# in the subject/body is
+    # the join key; the note rides bid.notes (lane-safe, Jul-13 lesson).
+    try:
+        byquote = {}
+        for stamp, rec in clouddb.all_shadow():
+            qn = str(((rec.get("open_quote_ctx") or {}).get("number")
+                      or ""))
+            if qn:
+                byquote.setdefault(qn, []).append((stamp, rec))
+        for addr, _n, msgs in msglog.threads():
+            if "dallon.masterbutler" not in (addr or "") \
+                    and "tomfricke2007" not in (addr or ""):
+                continue
+            who = "Dallon" if "dallon" in addr else "Tom"
+            for m in msgs:
+                if m.get("dir") != "in":
+                    continue
+                t = _utc(m.get("at"))
+                if not t or (now - t).days > 21:
+                    continue
+                body = (m.get("body") or "")
+                subj = (m.get("subject") or "")
+                if not re.search(r"\$\s?\d{2,4}|\b\d{2,4}\s?\$", body):
+                    continue             # a ruling carries a number
+                qm = re.search(r"#\s?(3[0-9]{4})", subj + " " + body)
+                if not qm or qm.group(1) not in byquote:
+                    continue
+                head = re.split(r"On (Mon|Tue|Wed|Thu|Fri|Sat|Sun|Jan|"
+                                r"Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|"
+                                r"Nov|Dec)", body)[0].strip()[:140]
+                note = (f"💰 {who}'s pricing (office asked by email, "
+                        f"{str(t.date())}): “{head}”")
+                for stamp, rec in byquote[qm.group(1)]:
+                    nl = (rec.setdefault("draft", {})
+                          .setdefault("notes", []))
+                    if not any("💰" in x and head[:40] in x for x in nl):
+                        nl.append(note)
+                        clouddb.ingest_shadow(stamp, rec)
+                        findings.append({"email": "", "name": who,
+                                         "check": "ruling-attached",
+                                         "note": f"quote #{qm.group(1)}"
+                                                 f": {head[:80]}",
+                                         "sev": "💰", "stamp": stamp})
+    except Exception:
+        pass
+
     out = {"at": now.isoformat(timespec="seconds"),
            "findings": findings[:60],
            "counts": {}}

@@ -36,7 +36,7 @@ query Sweep($start: ISO8601DateTime!, $end: ISO8601DateTime!, $after: String) {
   visits(first: 50, after: $after,
          filter: {startAt: {after: $start, before: $end}}) {
     pageInfo { hasNextPage endCursor }
-    nodes { title startAt endAt duration isComplete
+    nodes { title instructions startAt endAt duration isComplete
       assignedUsers(first: 3) { nodes { name { full } } }
       client { name }
       lineItems(first: 6) { nodes { name } }
@@ -101,6 +101,7 @@ def fetch_all(verbose=False):
                     "start": n["startAt"], "end": n.get("endAt"),
                     "dur": n.get("duration"),
                     "title": (n.get("title") or "")[:80],
+                    "instr": (n.get("instructions") or "")[:300],
                     "lines": lines[:6],
                     "done": bool(n.get("isComplete")),
                     "techs": [u["name"]["full"] for u in
@@ -271,16 +272,33 @@ def run(verbose=False):
     (BASE / "data" / "sched_mine.json").write_text(json.dumps(K, indent=1))
     # lights homes roster → the footage measurer (Dallon, Jul 14:
     # "measure linear feet on the front … do like 100 homes")
-    seen, homes = set(), []
+    seen, homes = set(), {}
+    _ftrx = re.compile(r"(\d{2,4})\s*(?:ft|feet|lf|linear)", re.I)
+    _colrx = re.compile(r"warm white|cool white|red[/& ]?(?:green|white)?"
+                        r"|green[/& ]?blue|multi ?color|blue|candy cane",
+                        re.I)
     for v in visits:
         if v.get("is_light") and v.get("address") and "lat" in v:
             k2 = v["address"].lower()
-            if k2 not in seen:
-                seen.add(k2)
-                homes.append({"client": v.get("client"),
-                              "address": v["address"],
-                              "city": v["city"],
-                              "lat": v["lat"], "lng": v["lng"]})
+            blob = " ".join([v["title"], v.get("instr") or ""]
+                            + v.get("lines", []))
+            h = homes.get(k2) or {"client": v.get("client"),
+                                  "address": v["address"],
+                                  "city": v["city"],
+                                  "lat": v["lat"], "lng": v["lng"]}
+            # the office writes color combo + footage in TITLES and
+            # NOTES (Dallon, Jul 14) — capture the per-home lights spec
+            m = _ftrx.search(blob)
+            if m and not h.get("noted_ft"):
+                h["noted_ft"] = int(m.group(1))
+            c = _colrx.search(blob)
+            if c and not h.get("color_combo"):
+                h["color_combo"] = c.group(0).lower()
+            bm = re.search(r"\bc([79])\b", blob, re.I)
+            if bm:
+                h["bulb"] = f"c{bm.group(1)}"
+            homes[k2] = h
+    homes = list(homes.values())
     (BASE / "data" / "lights_homes.json").write_text(
         json.dumps(homes, indent=1))
     if verbose:
