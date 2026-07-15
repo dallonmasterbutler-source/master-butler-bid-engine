@@ -8569,18 +8569,23 @@ def scoreboard_page():
             def _py(val):
                 return 100 - (val / _mx) * 70
             _pts = " ".join(
-                f"{34 + i*726/(len(_mo)-1):.0f},{_py(v['avg_per_day']):.0f}"
+                f"{48 + i*712/(len(_mo)-1):.0f},{_py(v['avg_per_day']):.0f}"
                 for i, (_, v) in enumerate(_mo))
             # Y-AXIS + VALUE LABELS (Dallon, Jul 15: 'no numbers on the
             # line — we can't know what those numbers mean')
             _step = 5 if _mx > 8 else 2
             _grid = "".join(
-                f"<line x1='34' y1='{_py(g):.0f}' x2='766' "
+                f"<line x1='48' y1='{_py(g):.0f}' x2='766' "
                 f"y2='{_py(g):.0f}' stroke='var(--line)' "
                 f"stroke-dasharray='3,4' stroke-width='.7'/>"
-                f"<text x='28' y='{_py(g)+3:.0f}' font-size='9' "
+                f"<text x='42' y='{_py(g)+3:.0f}' font-size='9' "
                 f"fill='var(--mut)' text-anchor='end'>{g}</text>"
                 for g in range(_step, int(_mx) + 1, _step))
+            # what the axis MEASURES (Dallon, Jul 15)
+            _grid += ("<text x='11' y='65' font-size='9.5' "
+                      "font-weight='800' fill='var(--mut)' "
+                      "transform='rotate(-90 11 65)' "
+                      "text-anchor='middle'>AVG JOBS / DAY</text>")
             # number every yearly PEAK and the newest month
             _marks = ""
             _peak_idx = {max(range(len(_mo)),
@@ -8591,7 +8596,7 @@ def scoreboard_page():
             _peak_idx.add(len(_mo) - 1)
             for i in sorted(_peak_idx):
                 k2, v2 = _mo[i]
-                _x = 34 + i * 726 / (len(_mo) - 1)
+                _x = 48 + i * 712 / (len(_mo) - 1)
                 _marks += (
                     f"<circle cx='{_x:.0f}' cy='{_py(v2['avg_per_day']):.0f}'"
                     f" r='3.5' fill='#c9a227'/>"
@@ -8599,7 +8604,7 @@ def scoreboard_page():
                     f" font-size='10' font-weight='800' fill='#c9a227' "
                     f"text-anchor='middle'>{v2['avg_per_day']}</text>")
             _lbl = "".join(
-                f"<text x='{34 + i*726/(len(_mo)-1):.0f}' y='114' "
+                f"<text x='{48 + i*712/(len(_mo)-1):.0f}' y='114' "
                 f"font-size='8' fill='var(--mut)' text-anchor='middle'>"
                 f"{k[2:7]}</text>"
                 for i, (k, v) in enumerate(_mo)
