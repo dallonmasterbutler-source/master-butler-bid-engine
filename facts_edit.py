@@ -37,6 +37,20 @@ EDITABLE = {
     "roof_material": ("standard", "shake", "tile", "metal"),
 }
 
+# sqft is a free number, not an enum (Dallon, Jul 15: 'allow editing of
+# the sqft in the fix it box') — the office's measure beats the
+# assessor's. Sane bounds so a typo can't nuke a bid.
+SQFT_MIN, SQFT_MAX = 200, 30000
+
+
+def _clean_sqft(v):
+    """'2,450 sq ft' → 2450, or None if absent/insane."""
+    digits = re.sub(r"[^\d]", "", str(v or ""))
+    if not digits:
+        return None
+    n = int(digits)
+    return n if SQFT_MIN <= n <= SQFT_MAX else None
+
 
 def _slug(address):
     return re.sub(r"[^a-z0-9]+", "-", (address or "").lower()).strip("-")[:60]
@@ -83,6 +97,14 @@ def apply_overrides(facts, address):
                              f"(was {facts.get(k)}, set by "
                              f"{ov.get('_by', 'office')})")
             facts[k] = v
+    sq = _clean_sqft(ov.get("sqft"))
+    if sq:
+        if facts.get("sqft") != sq:
+            notes.append(f"🏠 office correction on file: sqft = {sq:,} "
+                         f"(was {facts.get('sqft')}, set by "
+                         f"{ov.get('_by', 'office')})")
+        facts["sqft"] = sq
+        facts["sqft_source"] = "office correction"
     return notes
 
 
@@ -90,6 +112,9 @@ def set_override(address, edits, by="office"):
     """Persist corrections for this house. Returns the cleaned edits."""
     clean = {k: v for k, v in edits.items()
              if k in EDITABLE and v in EDITABLE[k]}
+    sq = _clean_sqft(edits.get("sqft"))
+    if sq:
+        clean["sqft"] = sq
     if not (address and clean):
         return {}
     d, _ = _blob()
@@ -251,6 +276,22 @@ def editor_html(rec, stamp, back="/"):
         f"<form method='POST' action='/edit_facts' style='margin-top:6px'>"
         f"<input type='hidden' name='stamp' value='{_h.escape(stamp)}'>"
         f"<input type='hidden' name='back' value='{_h.escape(back)}'>"
+        # SQFT — free number (Dallon, Jul 15). Prefilled with what the
+        # bid priced from; office types the real measure and saves.
+        + (f"<label style='display:block;font-size:12px;font-weight:800;"
+           f"letter-spacing:1px;text-transform:uppercase;color:#a3adab;"
+           f"margin-top:14px'>Square feet"
+           f"<input name='sqft' inputmode='numeric' pattern='[0-9,]*' "
+           f"value='{_h.escape(str(pi.get('sqft') or ''))}' "
+           f"placeholder='e.g. 2450' style='width:100%;margin-top:6px;"
+           f"background:rgba(0,0,0,.35);border:1px solid "
+           f"rgba(201,162,39,.3);border-radius:11px;color:#e2e8f0;"
+           f"padding:0 14px;font:inherit;font-size:17px;font-weight:700;"
+           f"height:54px;box-sizing:border-box'></label>"
+           f"<div style='font-size:11px;color:#a3adab;margin-top:4px'>"
+           f"currently priced from: "
+           f"{_h.escape(str(pi.get('sqft_source') or 'assessor lookup'))}"
+           f"</div>")
         + sel("pitch", "Pitch", pi.get("pitch"))
         + sel("stories", "Stories", pi.get("stories"))
         + sel("debris", "Debris", pi.get("debris_read") or pi.get("debris"))

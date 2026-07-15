@@ -10677,6 +10677,15 @@ class Handler(BaseHTTPRequestHandler):
                      ("pitch", "stories", "debris", "roof_material")
                      if get(k)}
             import facts_edit
+            # SQFT (Dallon, Jul 15): the box comes PREFILLED with the
+            # current number — only count it as a correction when the
+            # office actually changed it, or every pitch fix would also
+            # 'correct' the sqft it was born with.
+            _sq_new = facts_edit._clean_sqft(get("sqft"))
+            _sq_cur = ((rec_.get("draft") or {}).get("prop_info")
+                       or {}).get("sqft")
+            if _sq_new and _sq_new != _sq_cur:
+                edits["sqft"] = _sq_new
             rec_, summary_ = facts_edit.reprice(
                 rec_, edits, by=_user or "office")
             try:
