@@ -82,7 +82,7 @@ def run(verbose=False):
 
     marks = clouddb.get_blob("msg_read") or {}
     gmail_state = clouddb.get_blob("gmail_state") or {}
-    findings, seen_email = [], set()
+    findings, seen_email, seen_cr = [], set(), set()
     for stamp, rec in sorted(clouddb.all_shadow(), reverse=True):
         _jev = (rec.get("jobber_event") or {}).get("event")
         if rec.get("merged_into") or rec.get("spam_auto") \
@@ -95,10 +95,25 @@ def run(verbose=False):
         if not e or (e in seen_email and _jev != "send_failed"):
             continue          # send-fails share the Jobber sender —
         seen_email.add(e)     # every victim deserves its own flag
-        if e in marks:                    # cleared = not the office's now
-            continue
         name = (rec.get("client_name")
                 or (rec.get("from") or "").split("<")[0]).strip()[:34]
+        # ✏️ CHANGE REQUEST STILL OPEN — checked BEFORE the cleared-row
+        # skip (Alisha Singh, Jul 15: the office's queue cleanup ✓'d
+        # her while quote #36651 sat in changes_requested; Jobber's
+        # status is the truth and only a quote revision clears it).
+        _oqs9 = ((rec.get("open_quote_ctx") or {}).get("status")
+                 or "").lower()
+        if _oqs9 == "changes_requested" and e not in seen_cr:
+            seen_cr.add(e)
+            findings.append({
+                "email": e, "name": name, "check": "change-request-open",
+                "note": (f"quote #{(rec.get('open_quote_ctx') or {}).get('number')} "
+                         "still sits in CHANGES REQUESTED in Jobber — "
+                         "revise & re-send it (a cleared row doesn't "
+                         "close this)"),
+                "sev": "✏️", "stamp": stamp})
+        if e in marks:                    # cleared = not the office's now
+            continue
         body = re.sub(r"\s+", " ", (rec.get("newest_message") or ""))
         # only judge the CUSTOMER'S newest words, not quoted tails
         body_head = re.split(r"On (Mon|Tue|Wed|Thu|Fri|Sat|Sun|Jan|Feb|"

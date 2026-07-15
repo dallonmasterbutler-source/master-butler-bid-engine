@@ -3812,6 +3812,18 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             # stays put even when claimed/opened (Sanjeev, Jul 13)
         else:
             lane = "inbox"           # when in doubt, sort UP
+        # ✅ ANSWERED & QUIET FOR 2 DAYS = FILED BY ITSELF (Dallon,
+        # Jul 15 evening: 'this is exactly what i was trying to figure
+        # out so she didnt have to do this' — the office was hand-
+        # clearing multi-day answered rows). Only plain inbox rows;
+        # Won/Waiting keep tracking Jobber money, and any new customer
+        # message resurfaces the row instantly. The Jul-13 lesson
+        # holds: UNANSWERED rows never auto-clear.
+        if lane in ("inbox", "fixits") and answered \
+                and not (unread or new_msg) and (age_h or 0) >= 48:
+            lane = "drawer"
+            word = "✅ answered — filed itself"
+            wstyle = "color:var(--mut);font-weight:700"
         # WHAT KIND OF ASK IS THIS? (LaRee + Dallon, Jul 13: 'train the
         # system on questions vs job requests' — a header TAG on the row,
         # not a separate tab). Three kinds:
