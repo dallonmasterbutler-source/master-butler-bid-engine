@@ -8491,6 +8491,145 @@ def scoreboard_page():
   if _insight else ""}
 </div>"""
 
+    # ── 🗺 THE MINED REPORTS (Dallon, Jul 15: "add the other things
+    # like the pace, area days, lights etc") — pace, area-days, lights
+    # seasons, fronts, all from the nightly mining blobs; each card
+    # hides itself until its data exists ──
+    mined_cards = ""
+    try:
+        _sk = (clouddb.get_blob("sched_knowledge") or {}) \
+            if clouddb.available() else {}
+        _mo = list((_sk.get("jobs_per_day_by_month") or {}).items())
+        if _mo:
+            _mx = max(v["avg_per_day"] for _, v in _mo) or 1
+            _pts = " ".join(
+                f"{20 + i*740/(len(_mo)-1):.0f},"
+                f"{100-(v['avg_per_day']/_mx)*70:.0f}"
+                for i, (_, v) in enumerate(_mo))
+            _lbl = "".join(
+                f"<text x='{20 + i*740/(len(_mo)-1):.0f}' y='114' "
+                f"font-size='8' fill='var(--mut)' text-anchor='middle'>"
+                f"{k[2:7]}</text>"
+                for i, (k, v) in enumerate(_mo)
+                if k.endswith(("-01", "-07")))
+            _g = _sk.get("drive_gaps") or {}
+            mined_cards += f"""
+<div class='card' style='margin:14px 0'>
+ <div class='schead'>{_svg_icon('trend')}<h2>The company's pace</h2>
+ <span class='subtext'>jobs/day, {len(_mo)} months · from the nightly
+ route mine</span></div>
+ <svg viewBox='0 0 780 118' style='width:100%;height:auto'>
+  <polyline points='{_pts}' fill='none' stroke='#8fc7a6'
+   stroke-width='2.5' stroke-linejoin='round'/>{_lbl}</svg>
+ <div class='stats'>
+  <div class='stat'><b class='tab'>{_g.get('median_min','?')} min</b>
+   <span>median drive between stops</span></div>
+  <div class='stat'><b class='tab'>{(_g.get('share_over_20min') or 0)*100:.0f}%</b>
+   <span>hops over the 20-min rule</span></div>
+  <div class='stat'><b class='tab'>{_mo[-1][1]['avg_per_day']}</b>
+   <span>jobs/day this month</span></div>
+  <div class='stat'><b class='tab'>{len(_sk.get('future_anchors') or {})}</b>
+   <span>future days anchor-mapped</span></div>
+ </div></div>"""
+        _wd = _sk.get("weekday_city") or {}
+        if _wd:
+            _cc = {"Sammamish": "#c9a227", "Redmond": "#8fc7a6",
+                   "Issaquah": "#79aede", "Bellevue": "#b08ed9",
+                   "Monroe": "#e0a068", "Kirkland": "#7fc9c0",
+                   "Woodinville": "#d9a3b2"}
+            _rows = ""
+            for _d2 in ("Mon", "Tue", "Wed", "Thu", "Fri"):
+                _cs = _wd.get(_d2) or {}
+                _t2 = sum(_cs.values()) or 1
+                _seg = "".join(
+                    f"<div title='{esc(c)}: {n}' style='width:"
+                    f"{n/_t2*100:.1f}%;background:"
+                    f"{_cc.get(c, '#9aa8a0')}'></div>"
+                    for c, n in _cs.items())
+                _top = max(_cs, key=_cs.get) if _cs else ""
+                _rows += (f"<div style='display:flex;align-items:center;"
+                          f"gap:10px;margin:6px 0'><div style='width:38px;"
+                          f"font-weight:800;font-size:12px'>{_d2}</div>"
+                          f"<div style='flex:1;display:flex;height:15px;"
+                          f"border-radius:8px;overflow:hidden'>{_seg}"
+                          f"</div><div style='width:90px;font-size:11px;"
+                          f"color:var(--mut)'>{esc(_top)}</div></div>")
+            _leg = " ".join(
+                f"<span style='font-size:10.5px'><span style='display:"
+                f"inline-block;width:9px;height:9px;border-radius:2px;"
+                f"background:{v};margin-right:3px'></span>{k}</span>"
+                for k, v in _cc.items())
+            mined_cards += (
+                f"<div class='card' style='margin:14px 0'>"
+                f"<div class='schead'>📍<h2>Area days</h2>"
+                f"<span class='subtext'>where each weekday actually "
+                f"goes — 3 years measured</span></div>{_rows}"
+                f"<div style='margin-top:6px'>{_leg}</div></div>")
+        _li = (_sk.get("lights") or {})
+        _lim = _li.get("by_month_install_takedown") or {}
+        if _lim:
+            _keys = sorted(_lim)
+            _mx3 = max(v[0] for v in _lim.values()) or 1
+            _bw = 750 / len(_keys)
+            _bars = "".join(
+                f"<rect x='{15+i*_bw:.1f}' "
+                f"y='{125-(_lim[k][0]/_mx3)*100:.1f}' "
+                f"width='{_bw*0.75:.1f}' "
+                f"height='{(_lim[k][0]/_mx3)*100:.1f}' rx='1.5' "
+                f"fill='{'#c9a227' if _lim[k][0] > 400 else '#8fc7a6' if _lim[k][0] > 50 else 'rgba(140,160,150,.45)'}'/>"
+                + (f"<text x='{15+i*_bw:.0f}' y='138' font-size='8' "
+                   f"fill='var(--mut)'>{k[2:7]}</text>"
+                   if k.endswith(("-01", "-07")) else "")
+                for i, k in enumerate(_keys))
+            _rc = _li.get("route_continuity") or {}
+            _kept = _rc.get("kept_same_tech") or 0
+            _chg = _rc.get("tech_changed") or 0
+            _pk2 = _kept / max(_kept + _chg, 1) * 100
+            mined_cards += f"""
+<div class='card' style='margin:14px 0'>
+ <div class='schead'>🎄<h2>Lights — three seasons, one shape</h2>
+ <span class='subtext'>installs by month · Sept ramp → Oct peak → Nov
+ hold</span></div>
+ <svg viewBox='0 0 780 142' style='width:100%;height:auto'>{_bars}</svg>
+ <div class='stats'>
+  <div class='stat'><b class='tab'>{_li.get('avg_lights_jobs_per_lights_day','?')}</b>
+   <span>lights jobs per lights day</span></div>
+  <div class='stat'><b class='tab' style='color:#e8c76a'>{_pk2:.0f}%</b>
+   <span>kept same installer yr→yr</span></div>
+  <div class='stat'><b class='tab'>{(_li.get('title_codes_seen') or {}).get('ccc (return customer)','?')}</b>
+   <span>ccc return customers</span></div>
+  <div class='stat'><b class='tab'>{(_li.get('title_codes_seen') or {}).get('LLL (lights in our shop)','?')}</b>
+   <span>LLL — lights in our shop</span></div>
+ </div>
+ <div class='subtext'>Route continuity is the finding: keeping the same
+ tech on the same route is the speed play — {_chg:,} customers changed
+ hands across the seasons.</div></div>"""
+        _lp2 = (clouddb.get_blob("lights_pricing") or {}) \
+            if clouddb.available() else {}
+        _ff = _lp2.get("front_footage_v1") or {}
+        if _ff.get("buckets"):
+            _bk = _ff["buckets"]
+            _mx4 = max(_bk.values()) or 1
+            _fb = "".join(
+                f"<div style='flex:1;display:flex;flex-direction:column;"
+                f"align-items:center'><div style='width:70%;height:"
+                f"{max(4, n/_mx4*70):.0f}px;background:#8fc7a6;"
+                f"border-radius:3px 3px 0 0;margin-top:auto'></div>"
+                f"<span style='font-size:9px;color:var(--mut)'>{b}"
+                f"{'+' if int(b) >= 300 else ''}</span></div>"
+                for b, n in _bk.items())
+            mined_cards += (
+                f"<div class='card' style='margin:14px 0'>"
+                f"<div class='schead'>📏<h2>Lights front footage — "
+                f"{_ff.get('n')} homes measured</h2>"
+                f"<span class='subtext'>median "
+                f"{_ff.get('median_ft')} ft · satellite eaves + peaks "
+                f"+ side wrap (v1 estimate)</span></div>"
+                f"<div style='display:flex;align-items:flex-end;gap:2px;"
+                f"height:92px'>{_fb}</div></div>")
+    except Exception:
+        mined_cards = mined_cards or ""
+
     # ── 📚 WHAT THE SYSTEM IS LEARNING (Dallon, Jul 12: 'seeing the
     # reports… where things land, money we are losing') — built hourly
     # by learning_report.py ──
@@ -8860,7 +8999,7 @@ function rShow(id){
  setTimeout(function(){try{sessionStorage.setItem(K,window.scrollY);}catch(e){}
   location.reload();},120000);})();
 </script>"""
-    return page("Scoreboard", hero + wheel_card + yoy_card + learn_card + shelf_html + fresh
+    return page("Scoreboard", hero + wheel_card + yoy_card + mined_cards + learn_card + shelf_html + fresh
                 + nudge_card + matched_card + waiting_card + refresh_js)
 
 
