@@ -68,7 +68,9 @@ def _est_minutes(a, b):
 
 def fetch_all(verbose=False):
     import jobber_client as jc
-    start = "2025-07-01T07:00:00Z"
+    # back to 2023 (Dallon, Jul 14): one year holds only ONE lights
+    # season — route continuity needs several. 2023→now = 3 cycles.
+    start = "2023-01-01T08:00:00Z"
     end = (datetime.now(timezone.utc) + timedelta(days=60)) \
         .strftime("%Y-%m-%dT07:00:00Z")
     was, jc.DRY_RUN = jc.DRY_RUN, False
