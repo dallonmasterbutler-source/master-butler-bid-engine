@@ -143,6 +143,17 @@ try:
 except Exception as e:
     print(f"   (pw win-back skipped: {e})")
 
+# 4f ── SQFT TRUTH SWEEP (Dallon, Jul 15): what sqft has the office
+#       put INTO Jobber, and where does it disagree with our sources
+try:
+    import sqft_mine
+    _sqm = sqft_mine.run(verbose=True)
+    if _sqm:
+        print(f"   sqft compare: {_sqm['with_sqft']} Jobber values, "
+              f"{len(_sqm['disagree_15pct'])} disagreements >15%")
+except Exception as e:
+    print(f"   (sqft sweep skipped: {e})")
+
 # 5 ── backup + morning brief
 print("\n[5/6] Backup + morning brief…")
 try:
