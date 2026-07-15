@@ -8390,12 +8390,18 @@ def scoreboard_page():
                                                       or 0)
                 _dc = ("var(--green2)" if d_rev >= 0 else "#f2b8b5")
                 _rows += (
-                    f"<tr><td style='padding:5px 8px'>{esc(k.title())}"
-                    f"</td><td class='tab' style='text-align:right'>"
+                    f"<tr style='border-top:1px solid var(--line)'>"
+                    f"<td style='padding:5px 8px;overflow:hidden;"
+                    f"text-overflow:ellipsis;white-space:nowrap'>"
+                    f"{esc(k.title())}"
+                    f"</td><td class='tab' style='text-align:right;"
+                    f"padding:5px 8px'>"
                     f"{a.get('count', 0)}× ${a.get('revenue', 0):,}</td>"
-                    f"<td class='tab' style='text-align:right'>"
+                    f"<td class='tab' style='text-align:right;"
+                    f"padding:5px 8px'>"
                     f"{b.get('count', 0)}× ${b.get('revenue', 0):,}</td>"
                     f"<td class='tab' style='text-align:right;"
+                    f"padding:5px 8px;"
                     f"color:{_dc};font-weight:800'>{d_rev:+,}</td></tr>")
             _dt = (_t26.get("revenue", 0) or 0) - (_t25.get("revenue", 0)
                                                    or 0)
@@ -8414,11 +8420,16 @@ def scoreboard_page():
   </div>
  </div>
  <div class='overx' style='overflow-x:auto'><table style='width:100%;
-  border-collapse:collapse;font-size:12.5px;margin-top:8px'>
-  <tr class='subtext' style='text-align:right;font-size:10.5px;
-   text-transform:uppercase;letter-spacing:.8px'>
+  max-width:620px;table-layout:fixed;border-collapse:collapse;
+  font-size:12.5px;margin-top:8px'>
+  <colgroup><col style='width:34%'><col style='width:24%'>
+   <col style='width:24%'><col style='width:18%'></colgroup>
+  <tr class='subtext' style='font-size:10.5px;text-transform:uppercase;
+   letter-spacing:.8px'>
    <th style='text-align:left;padding:4px 8px'>Service</th>
-   <th>Jul {_yrs[-1]}</th><th>Jul {_yrs[0]}</th><th>Δ $</th></tr>
+   <th style='text-align:right;padding:4px 8px'>Jul {_yrs[-1]}</th>
+   <th style='text-align:right;padding:4px 8px'>Jul {_yrs[0]}</th>
+   <th style='text-align:right;padding:4px 8px'>Δ $</th></tr>
   {_rows}</table></div>
 </div>"""
     except Exception:
