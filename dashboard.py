@@ -5140,8 +5140,9 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                       (m_.get("name") or c["name"] or "Customer"),
                       m_.get("by"),
                       msglog.clean_body(m_.get("body") or "")
-                      or m_.get("subject") or ""))
-    seen_bodies = {(b or "")[:80] for _, _, _, _, b in convo}
+                      or m_.get("subject") or "",
+                      m_.get("subject") or ""))
+    seen_bodies = {(b or "")[:80] for _, _, _, _, b, *_ in convo}
     for b2 in c["bids"]:
         nm = b2.get("newest_message") or ""
         is_vm = bool(b2.get("lead")) or b2.get("kind") == "phone_lead" \
@@ -5150,10 +5151,46 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
             seen_bodies.add(nm[:80])
             convo.append((_stamp_utc(b2["stamp"]), "in",
                           "☎ " + (c["name"] or "Voicemail"), None,
-                          nm or "☎ Voicemail — dial in to hear it"))
+                          nm or "☎ Voicemail — dial in to hear it", ""))
     convo.sort(key=lambda x: x[0])
     bubbles = ""
-    for at, dr, who_, by_, body_ in convo[-12:]:
+    # THE SANDWICH FIX (Dallon, Jul 14: the office asks him about 3
+    # different homes in ONE thread — 'how do they know what price I
+    # said to their question'). On INTERNAL threads, every topic change
+    # gets a divider with the subject, and a quote# in the subject
+    # links straight to that customer's card. Answers stop floating.
+    _internal = bool(c.get("internal"))
+    _byq = {}
+    if _internal:
+        for _b3 in load_bids():
+            _q3 = str(((_b3.get("open_quote_ctx") or {}).get("number")
+                       or ""))
+            if _q3 and _q3 not in _byq:
+                _m3 = re.search(r"<([^>]+)>", _b3.get("from") or "")
+                _byq[_q3] = ((_b3.get("client_name")
+                              or (_b3.get("from") or "").split("<")[0])
+                             .strip()[:28],
+                             _m3.group(1) if _m3 else "")
+    _last_subj = None
+    for at, dr, who_, by_, body_, subj_ in convo[-12:]:
+        if _internal:
+            _ns = re.sub(r"^\s*((re|fwd?)\s*:\s*)+", "",
+                         (subj_ or ""), flags=re.I).strip().lower()
+            if _ns and _ns != _last_subj:
+                _last_subj = _ns
+                _qm = re.search(r"#?\s?(3[0-9]{4})",
+                                subj_ + " " + body_[:120])
+                _who_link = ""
+                if _qm and _qm.group(1) in _byq:
+                    _cn2, _ce2 = _byq[_qm.group(1)]
+                    _who_link = (f" · <a href='/?c="
+                                 f"{urllib.parse.quote(_ce2)}' "
+                                 f"style='font-weight:800'>→ {esc(_cn2)}"
+                                 f"</a>" if _ce2 else f" · {esc(_cn2)}")
+                bubbles += (
+                    f"<div style='text-align:center;margin:12px 0 4px;"
+                    f"font-size:11px;font-weight:800;color:var(--goldink)'>"
+                    f"── 📋 {esc(_ns[:60])}{_who_link} ──</div>")
         inn = dr == "in"
         who = esc(who_) if inn else \
             ("Master Butler" + ((" · " + esc(by_)) if by_ else ""))
