@@ -42,6 +42,10 @@ def refresh(stamp):
         rec["services"] = parsed["services"]
     if parsed.get("phone") and not rec.get("phone"):
         rec["phone"] = parsed["phone"]
+    if parsed.get("newest_message"):
+        # the fixed parser stores the WHOLE (tidied) request, not a
+        # 300-char preview cut mid-form (Martha, Jul 15)
+        rec["newest_message"] = parsed["newest_message"]
     rec["kind"] = parsed["kind"]
 
     # full pipeline run → priced draft + human-readable trace

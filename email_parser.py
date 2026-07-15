@@ -227,6 +227,31 @@ def form_field(text: str, *labels):
 # STEP 4: WHICH SERVICES ARE THEY ASKING FOR?
 # ─────────────────────────────────────────────────────────────
 
+def tidy_form(text):
+    """Squarespace form emails arrive as a whitespace blizzard — label
+    on one line, value floating below, 40 blank-ish lines between. The
+    office reads THIS text on the card (Martha, Jul 15: 'I can't see
+    any of the details… they are our main source of quote requests').
+    Collapse it to clean 'Label: value' lines; non-forms pass through."""
+    if "form submission" not in (text or "")[:120].lower():
+        return text
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    out, i = [], 0
+    while i < len(lines):
+        ln = lines[i]
+        if ln.endswith(":") and i + 1 < len(lines):
+            vals = []
+            while (i + 1 < len(lines)
+                   and not lines[i + 1].endswith(":")):
+                vals.append(lines[i + 1])
+                i += 1
+            out.append(f"{ln} {'; '.join(vals)}" if vals else ln)
+        else:
+            out.append(ln)
+        i += 1
+    return "\n".join(out)
+
+
 def find_services(text: str):
     """Return our service names found in the customer's words (deduped)."""
     # Collapse line breaks/extra spaces so phrases split across lines still match
@@ -237,6 +262,27 @@ def find_services(text: str):
             for s in service.split("+"):
                 if s not in found:
                     found.append(s)
+    # IN & OUT BY MEANING, not just by phrase (Martha, Jul 15: "the
+    # system keeps defaulting to exterior windows when people request
+    # in/out"). Real customers write it a hundred ways the table can't
+    # enumerate — Steve's "indoor/outdoor window cleaning", Sherrie's
+    # "window cleaning in my house inside and out". If a window ask is
+    # present and BOTH sides are mentioned near it, it's in & out.
+    if ("windows_unspecified" in found or "windows_exterior" in found) \
+            and "windows_in_out" not in found:
+        _win_zone = re.search(
+            r"(?:(?:inside|indoor|interior|\bin\b)\W{0,3}"
+            r"(?:and|&|\+|/|,)?\W{0,3}(?:outside|outdoor|exterior|"
+            r"\bout\b)|(?:outside|outdoor|exterior|\bout\b)\W{0,3}"
+            r"(?:and|&|\+|/|,)\W{0,3}(?:inside|indoor|interior|"
+            r"\bin\b)|both sides)", lowered)
+        if _win_zone:
+            i = _win_zone.start()
+            j = lowered.find("window")
+            while j != -1 and abs(j - i) > 60:
+                j = lowered.find("window", j + 1)
+            if j != -1:
+                found.append("windows_in_out")
     # "windows_unspecified" is redundant if a specific window service matched
     if "windows_unspecified" in found and (
         "windows_exterior" in found or "windows_in_out" in found
@@ -464,7 +510,10 @@ def parse_eml(path) -> dict:
         "sender_name": sender_name,
         "sender_email": sender_email,
         "subject": msg.get("Subject", "").strip(),
-        "newest_message": fresh[:300],   # preview
+        # forms tidy to Label: value; 2,500 chars so the office sees
+        # the WHOLE request, not a preview cut mid-form (Martha/Anna
+        # Gal, Jul 15: the stored text stopped at 'IN-HOUSE SERVICES:')
+        "newest_message": tidy_form(fresh)[:2500],
         # labeled form address wins; fall back to the freeform regex
         "address": form_addr or find_address(fresh) or find_address(body),
         "phone": find_phone(fresh) or find_phone(body),
