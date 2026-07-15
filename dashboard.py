@@ -8616,9 +8616,12 @@ def scoreboard_page():
  <div class='schead'>{_svg_icon('trend')}<h2>The company's pace</h2>
  <span class='subtext'>jobs/day, {len(_mo)} months · from the nightly
  route mine</span></div>
- <svg viewBox='0 0 780 118' style='width:100%;height:auto'>
+ <svg viewBox='0 0 780 132' style='width:100%;height:auto'>
   <polyline points='{_pts}' fill='none' stroke='#8fc7a6'
-   stroke-width='2.5' stroke-linejoin='round'/>{_lbl}</svg>
+   stroke-width='2.5' stroke-linejoin='round'/>{_lbl}
+  <text x='407' y='129' font-size='9.5' font-weight='800'
+   fill='var(--mut)' text-anchor='middle'>MONTH · JAN 2023 → TODAY
+   </text></svg>
  <div class='stats'>
   <div class='stat'><b class='tab'>{_g.get('median_min','?')} min</b>
    <span>median drive between stops</span></div>
