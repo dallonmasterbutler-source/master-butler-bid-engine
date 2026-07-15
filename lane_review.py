@@ -176,6 +176,36 @@ def run(verbose=False):
                                          "note": f"quote #{qm.group(1)}"
                                                  f": {head[:80]}",
                                          "sev": "💰", "stamp": stamp})
+                # → CALIBRATION LEDGER (Dallon, Jul 14 "wire it"): a
+                # clean single-price ruling vs the NEWEST record's
+                # draft total = one anchor-tuning sample per ruling,
+                # tagged DALLON so the suggestion names its source.
+                # Karen R: our $225 vs his $100 = the founding sample.
+                stamp, rec = max(byquote[qm.group(1)])
+                _pm = re.findall(r"\$?\s?(\d{2,4})\s?\$?", head)
+                _ours = ((rec.get("draft") or {}).get("total"))
+                if len(_pm) == 1 and _ours:
+                    _rp = float(_pm[0])
+                    _svc = (rec.get("services") or ["?"])[0]
+                    _key = {"pw_driveway": "driveway",
+                            "pw_patio": "patio",
+                            "pw_sidewalk": "patio",
+                            "gutter_cleaning": "gutter",
+                            "moss_treatment": "moss",
+                            "moss_removal": "moss",
+                            "roof_blow_off": "roof blow",
+                            }.get(_svc, _svc.split("_")[0]
+                                  .replace("windows", "window"))
+                    if 0 < _rp < 5000 and _ours > 0:
+                        led = clouddb.get_blob("calibration_ledger") or {}
+                        pct = (float(_ours) - _rp) / _rp * 100
+                        row2 = [str(now.date()), round(float(_ours)),
+                                round(_rp), round(pct, 1),
+                                f"DALLON ruling #{qm.group(1)}"]
+                        if not any(len(r) > 4 and r[4] == row2[4]
+                                   for r in (led.get(_key) or [])):
+                            led.setdefault(_key, []).append(row2)
+                            clouddb.put_blob("calibration_ledger", led)
     except Exception:
         pass
 
