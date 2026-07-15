@@ -5188,9 +5188,19 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                                  f"style='font-weight:800'>→ {esc(_cn2)}"
                                  f"</a>" if _ce2 else f" · {esc(_cn2)}")
                 bubbles += (
-                    f"<div style='text-align:center;margin:12px 0 4px;"
-                    f"font-size:11px;font-weight:800;color:var(--goldink)'>"
-                    f"── 📋 {esc(_ns[:60])}{_who_link} ──</div>")
+                    f"<div style='display:flex;align-items:center;"
+                    f"gap:10px;margin:18px 0 8px'>"
+                    f"<div style='flex:1;height:2px;"
+                    f"background:rgba(201,162,39,.35)'></div>"
+                    f"<div style='background:rgba(201,162,39,.14);"
+                    f"border:1px solid rgba(201,162,39,.4);"
+                    f"border-radius:20px;padding:5px 16px;font-size:13px;"
+                    f"font-weight:800;color:var(--goldink);"
+                    f"white-space:nowrap;max-width:75%;overflow:hidden;"
+                    f"text-overflow:ellipsis'>📋 {esc(_ns[:60])}"
+                    f"{_who_link}</div>"
+                    f"<div style='flex:1;height:2px;"
+                    f"background:rgba(201,162,39,.35)'></div></div>")
         inn = dr == "in"
         who = esc(who_) if inn else \
             ("Master Butler" + ((" · " + esc(by_)) if by_ else ""))
@@ -7079,9 +7089,160 @@ def _learn_rows(store):
     return "".join(rows)
 
 
+# ── THE STEP-BY-STEP TRAINING (Dallon, Jul 14: "a page of training,
+# pictures, mock ups, examples — step by step how to use this website").
+# Every mockup below is drawn with the dashboard's own styling so what
+# the office reads looks exactly like what they click. Printable.
+def _t_step(n, title, body):
+    return (f"<div class='card' style='margin:0 0 14px'>"
+            f"<div style='display:flex;gap:12px;align-items:baseline'>"
+            f"<div style='flex:none;width:30px;height:30px;border-radius:"
+            f"50%;background:#0b3d2e;color:#fff;display:flex;align-items:"
+            f"center;justify-content:center;font-weight:800;font-size:14px"
+            f"'>{n}</div><h3 style='margin:0;font-size:16.5px'>{title}"
+            f"</h3></div><div style='margin-top:8px;font-size:14px;"
+            f"line-height:1.6'>{body}</div></div>")
+
+
+def _t_mock(inner):
+    return (f"<div style='border:1px dashed rgba(201,162,39,.5);"
+            f"border-radius:10px;padding:12px;margin:10px 0;"
+            f"background:var(--soft)'>"
+            f"<div style='font-size:9.5px;font-weight:800;letter-spacing:"
+            f"1px;text-transform:uppercase;color:var(--goldink);"
+            f"margin-bottom:6px'>example — this is what it looks like"
+            f"</div>{inner}</div>")
+
+
+def _guide_training():
+    chip = lambda t, c="#e8c76a": (f"<span style='color:{c};font-weight:"
+                                   f"800;font-size:11px'>{t}</span>")
+    row_mock = _t_mock(
+        "<div style='padding:10px;border-radius:10px;background:"
+        "var(--card)'><div style='font-size:14.5px;font-weight:800'>"
+        "<span style='display:inline-block;width:8px;height:8px;"
+        "border-radius:50%;background:#c9a227;margin-right:6px'></span>"
+        "Karen R</div><div style='margin:2px 0'>"
+        + chip("📋 bid request", "#8fc7a6") + " "
+        + chip("🏘 realtor", "#79aede") + " "
+        + chip("🪔 Diwali lights") + " "
+        + chip("🗑 done in Gmail", "var(--mut)")
+        + "<span style='float:right;font-weight:700;color:var(--mut)'>"
+        "$225</span></div>"
+        "<div style='color:var(--mut);font-size:12.5px'>← Hi Martha, I "
+        "think I'd like to go ahead and schedule the driveway…</div>"
+        "</div>")
+    reply_mock = _t_mock(
+        "<div style='background:rgba(201,162,39,.12);color:var(--goldink);"
+        "font-size:12px;font-weight:800;border-radius:8px;padding:6px "
+        "10px;margin-bottom:6px'>✨ DRAFT READY — written the way the "
+        "office writes. Edit anything, then send.</div>"
+        "<div style='background:var(--card);border-radius:8px;padding:"
+        "10px;font-size:13px;white-space:pre-wrap'>Great!  We have your "
+        "appointment confirmed on July 22nd for a gutter cleaning.  "
+        "Thank you for booking with us.  We look forward to servicing "
+        "your home!\n\nAt your service,\nLaRee</div>"
+        "<div style='display:flex;justify-content:space-between;"
+        "margin-top:6px;align-items:center'><span class='subtext'>Sends "
+        "as customercare@ · your edits teach the brain</span>"
+        "<button class='big' type='button'>Send reply</button></div>")
+    divider_mock = _t_mock(
+        "<div style='display:flex;align-items:center;gap:10px'>"
+        "<div style='flex:1;height:2px;background:rgba(201,162,39,.35)'>"
+        "</div><div style='background:rgba(201,162,39,.14);border:1px "
+        "solid rgba(201,162,39,.4);border-radius:20px;padding:5px 16px;"
+        "font-size:13px;font-weight:800;color:var(--goldink)'>📋 "
+        "following up on quote #36433 · <u>→ Karen R</u></div>"
+        "<div style='flex:1;height:2px;background:rgba(201,162,39,.35)'>"
+        "</div></div>")
+    return (
+        "<div style='display:flex;justify-content:space-between;"
+        "align-items:center;margin:18px 0 10px'>"
+        "<h2 style='margin:0;font-size:19px'>📚 Step-by-step: working a "
+        "day in the dashboard</h2>"
+        "<button class='gray' type='button' onclick='window.print()' "
+        "style='font-size:12px'>🖨 Print / save as PDF</button></div>"
+
+        + _t_step(1, "Start in 📬 Inbox — it mirrors Gmail",
+            "Bold rows with a gold dot are <b>unhandled</b> — same as "
+            "unread in Gmail. Work top to bottom. The chips on each row "
+            "tell you what you're walking into before you click:"
+            + row_mock +
+            "<b>📋 bid request</b> = they want a quote · <b>💬 question"
+            "</b> = answer, don't quote · <b>✅ approved — wants a date"
+            "</b> = money asking to be scheduled · <b>🏘 realtor</b> = "
+            "price PER HOUSE, ask their deadline · <b>🪔 Diwali lights"
+            "</b> = offer early-October install · <b>🗑 done in Gmail"
+            "</b> = someone already finished this in Gmail (it sinks to "
+            "the bottom by itself) · <b>🖐 office on it</b> = a teammate "
+            "is working it.")
+
+        + _t_step(2, "Open the customer — everything lives on one card",
+            "The conversation (emails AND voicemails), their draft "
+            "quote, photos and 3D flyover, their history at this house, "
+            "and the must-know pins. <b>If a fact is wrong</b> (stories, "
+            "roof, debris) use <b>Fix the facts</b> — the price recomputes "
+            "itself. You edit <i>facts</i>, never prices; prices come "
+            "from the calibrated engine and the customer's own history "
+            "(never quote a returning customer below their last invoice).")
+
+        + _t_step(3, "Reply — the box may already be written",
+            "When a customer's message matches a safe pattern, the reply "
+            "is <b>pre-filled in their file, in our office voice</b>:"
+            + reply_mock +
+            "Read it, change anything you like, hit <b>Send reply</b> — "
+            "it sends as customercare@ instantly. Your edits literally "
+            "train tomorrow's drafts. No pre-fill? Use the <b>Quick "
+            "responses</b> dropdown (Ctrl/Cmd + 1–9 are hotkeys) or ✨ "
+            "<b>Draft a reply for me</b>. Nothing ever sends without a "
+            "person clicking.")
+
+        + _t_step(4, "🤖 Drafts — the engine asking for a yes",
+            "Each draft shows its price, the customer's last-paid "
+            "anchors, and any ⚠ amber warnings (seasonal rules, Tom-only "
+            "roofs, guard exceptions). Approve to push it into Jobber as "
+            "a draft quote — a human still sends it from Jobber. If the "
+            "price looks off, fix the FACTS and let it reprice, or 🚩 "
+            "flag it for Dallon &amp; Tom.")
+
+        + _t_step(5, "Asking Dallon about a property — one habit",
+            "Email him like always, but <b>keep the quote # in the "
+            "subject</b> (e.g. “Following up on quote #36433”). His "
+            "answer then files itself onto that customer's card as a 💰 "
+            "note, and your internal thread splits by topic so three "
+            "houses never blur together:"
+            + divider_mock +
+            "Click the <b>→ name</b> to jump straight to that customer.")
+
+        + _t_step(6, "Move ▾, ✓ Done, and the folders",
+            "<b>✓ Done</b> clears a row for the whole office (a new "
+            "customer message always brings it back — nothing is ever "
+            "lost). <b>Move ▾</b> files it: needs-reply, declined, park "
+            "a week, fix-its — and every move teaches the sorter. "
+            "<b>🖊️ In Jobber</b> means a teammate is already building "
+            "that quote — don't double-quote. <b>📤 Waiting</b> moves by "
+            "itself when the customer acts; <b>⏰ Follow-ups</b> is the "
+            "nudge list. The 🕵️ hourly review re-checks every folder "
+            "and posts anything odd on the <a href='/working'>build "
+            "board</a>.")
+
+        + "<div class='card' style='background:rgba(11,61,46,.06);"
+          "border-left:4px solid #0b3d2e'><b>The golden rules</b>"
+          "<ul style='margin:8px 0 0 18px;font-size:14px'>"
+          "<li><b>Bold = nobody's handled it.</b></li>"
+          "<li><b>Nothing sends to a customer without a human click."
+          "</b></li><li>Fix <b>facts</b>, not prices — the engine "
+          "reprices itself.</li>"
+          "<li>Label every discount with its one-word reason.</li>"
+          "<li>Quote # in the subject when you ask Dallon.</li>"
+          "<li>When in doubt: open the card and read the conversation "
+          "— everything is there.</li></ul></div>")
+
+
 def guide_page():
     """The office manual, living where the office lives (Dallon Jul 9:
-    'a tab that instructs... a FAQ type of situation')."""
+    'a tab that instructs... a FAQ type of situation'; Jul 14: full
+    step-by-step training with mockups, printable/sendable)."""
     folds = "".join(
         f"<details class='ifold'><summary>{q}</summary>"
         f"<div class='fbody' style='font-size:14.5px;line-height:1.65'>"
@@ -7094,12 +7255,14 @@ def guide_page():
         "<div class='subtext' style='margin-bottom:12px'>Two rules cover "
         "almost everything: <b>bold means nobody's handled it</b>, and "
         "<b>nothing sends to a customer without a human</b>. The rest is "
-        "detail — tap any question. Curious what's being built? "
+        "detail — the step-by-step below, then tap any question. "
+        "Curious what's being built? "
         "<a href='/working' style='font-weight:700'>🔭 The build board</a>"
         "</div>"
+        + _guide_training()
         # DISCOUNT LABELING TRAINING — AT THE TOP (Dallon, Jul 12:
         # 'anything critical shouldn't have to be searched for')
-        """
+        + """
 <div style='margin:0 0 16px;background:var(--card);border:1px solid
  rgba(201,162,39,.3);border-left:4px solid #c9a227;border-radius:12px;
  padding:16px 18px'>
