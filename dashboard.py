@@ -3931,15 +3931,21 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # WITH recent back-and-forth is being worked (leave it); one gone
         # silent needs a nudge. Shown only where it matters.
         actchip = ""
-        # Gmail's own verdict, LaRee's reading (Jul 14): trash = done,
-        # greyed = someone's on it. Chips only — the ✓ button (or a new
-        # message) still decides the row's fate.
+        # Gmail's own verdict, LaRee's reading (Jul 14 call, corrected
+        # Jul 15 from the recording): trash = done; UNREAD is the
+        # office's own "actively working / come back to this" flag;
+        # READ = looked at, not an immediate concern. Chips only — the
+        # ✓ button (or a new message) still decides the row's fate.
         if r.get("gmail") == "done":
             actchip += ("<span style='color:var(--mut);font-weight:700;"
                         "font-size:11px'>🗑 done in Gmail</span> ")
-        elif r.get("gmail") == "working":
+        elif r.get("gmail") == "unread":
             actchip += ("<span style='color:#e8c76a;font-weight:700;"
-                        "font-size:11px'>🖐 office on it</span> ")
+                        "font-size:11px'>🖐 office on it — flagged to "
+                        "revisit</span> ")
+        elif r.get("gmail") == "working":
+            actchip += ("<span style='color:var(--mut);font-weight:700;"
+                        "font-size:11px'>👀 office has seen it</span> ")
         if r.get("qtag"):
             actchip += (f"<span style='color:{r['qtag'][1]};font-weight:800;"
                         f"font-size:11px'>{r['qtag'][0]}</span> ")
