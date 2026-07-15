@@ -100,7 +100,7 @@ except Exception as e:
 #       card is a live year-over-year race, not a snapshot.
 try:
     import yoy_compare
-    _yy = yoy_compare.run(verbose=True)
+    _yy = yoy_compare.run_local(verbose=True)
     if _yy:
         print(f"   yoy tally refreshed through {_yy['window_label']}")
 except Exception as e:

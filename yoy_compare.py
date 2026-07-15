@@ -29,11 +29,25 @@ CANON = ("gutter guard", "gutter", "window", "roof blow", "moss treat",
          "handyman", "minimum", "product")
 
 
+
+def _save_blob(name, val):
+    """Cloud direct when possible; HTTPS courier from the Mac."""
+    try:
+        import clouddb
+        if clouddb.available():
+            clouddb.put_blob(name, val)
+            return True
+    except Exception:
+        pass
+    try:
+        from cloudpush import push
+        push(blobs={name: val})
+        return True
+    except Exception:
+        return False
+
 def run(verbose=False, today=None):
-    import clouddb
     import jobber_client as jc
-    if not clouddb.available():
-        return None
     d0 = today or date.today()
     if d0.month != 7:                    # July feature; generalize later
         return None
@@ -94,7 +108,7 @@ def run(verbose=False, today=None):
                                  "revenue": round(rev[y][k])}
                              for k in svc[y]} for y in W},
             "mined_at": d0.isoformat(), "scanned": n}
-    clouddb.put_blob("yoy_july", blob)
+    _save_blob("yoy_july", blob)
     if verbose:
         for y in sorted(W, reverse=True):
             print(f"July 1–{day} {y}: {tot[y][0]} invoices, "
@@ -105,3 +119,66 @@ def run(verbose=False, today=None):
 
 if __name__ == "__main__":
     run(verbose=True)
+
+
+def run_local(verbose=False):
+    """THE DAY-MATCHED RACE, THROTTLE-FREE (Tom via Dallon, Jul 15:
+    'exact date match… running numbers for the month… with the split').
+    Computes July 1→today for BOTH years from the local invoice-line
+    archive (service_history.json, refreshed nightly) — no Jobber API,
+    so it can never starve. Same method both years = a fair race."""
+    import json
+    import collections
+    from pathlib import Path
+    from datetime import date
+    d0 = date.today()
+    if d0.month != 7:
+        return None
+    day = d0.day
+    p = Path(__file__).parent / "data" / "service_history.json"
+    if not p.exists():
+        return None
+    byp = (json.loads(p.read_text()) or {}).get("by_property") or {}
+    LABEL = {"gutter": "Gutters", "roof blow": "Roof blow-off",
+             "moss": "Moss", "window_exterior": "Windows (ext)",
+             "window_inout": "Windows (in&out)", "window": "Windows",
+             "dryer": "Dryer vents", "patio": "Pressure wash",
+             "sidewalk": "Pressure wash", "driveway": "Pressure wash",
+             "house wash": "House wash", "light": "Holiday lights"}
+    yrs = (str(d0.year), str(d0.year - 1))
+    svc = {y: collections.Counter() for y in yrs}
+    rev = {y: collections.Counter() for y in yrs}
+    tot = {y: [0, 0.0] for y in yrs}
+    seen = {y: set() for y in yrs}
+    for prop, buckets in byp.items():
+        for key, entries in buckets.items():
+            lbl = next((v for k, v in LABEL.items() if k in key),
+                       key.replace("_", " ").title())
+            for e in entries:
+                if not e or not e[0]:
+                    continue
+                dte, price = e[0], (e[1] if len(e) > 1 else 0) or 0
+                for y in yrs:
+                    if f"{y}-07-01" <= dte <= f"{y}-07-{day:02d}":
+                        svc[y][lbl] += 1
+                        rev[y][lbl] += price
+                        tot[y][1] += price
+                        seen[y].add((prop, dte))
+    for y in yrs:
+        tot[y][0] = len(seen[y])
+    blob = {"window_label": f"July 1–{day} (day-matched)",
+            "years": list(yrs),
+            "totals": {y: {"invoices": tot[y][0],
+                           "revenue": round(tot[y][1])} for y in yrs},
+            "services": {y: {k: {"count": svc[y][k],
+                                 "revenue": round(rev[y][k])}
+                             for k in svc[y]} for y in yrs},
+            "mined_at": d0.isoformat(),
+            "note": "line-item revenue from the invoice archive, same "
+                    "method both years"}
+    _save_blob("yoy_july", blob)
+    if verbose:
+        for y in yrs:
+            print(f"  July 1-{day} {y}: {tot[y][0]} jobs, "
+                  f"${tot[y][1]:,.0f}")
+    return blob
