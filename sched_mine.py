@@ -54,6 +54,25 @@ LLL_RX = re.compile(r"\blll\b", re.I)
 BULB_RX = re.compile(r"\bc([79])\b", re.I)
 
 
+def _save_blob(name, val):
+    """Cloud direct when possible; HTTPS courier from the Mac
+    (night_run's system python has no psycopg — this is the path
+    that kept Jul 14's mine from stranding again)."""
+    try:
+        import clouddb
+        if clouddb.available():
+            clouddb.put_blob(name, val)
+            return True
+    except Exception:
+        pass
+    try:
+        from cloudpush import push
+        push(blobs={name: val})
+        return True
+    except Exception:
+        return False
+
+
 def _est_minutes(a, b):
     """Haversine km → estimated road minutes (×1.35 road factor,
     40 km/h suburban average)."""
@@ -267,8 +286,7 @@ def run(verbose=False):
     if not visits:
         return None
     K = analyze(visits, verbose=verbose)
-    if clouddb.available():
-        clouddb.put_blob("sched_knowledge", K)
+    _save_blob("sched_knowledge", K)
     (BASE / "data" / "sched_mine.json").write_text(json.dumps(K, indent=1))
     # lights homes roster → the footage measurer (Dallon, Jul 14:
     # "measure linear feet on the front … do like 100 homes")

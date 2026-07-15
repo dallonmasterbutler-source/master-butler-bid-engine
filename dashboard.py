@@ -6999,6 +6999,22 @@ def autodrafts_page(user=None):
                 d = autorespond.build_draft(recs.get(e), msgs, user,
                                             voice, auto=adopted)
                 if d:
+                    # 🗓 STAGE 2 SHADOW (Dallon's go, Jul 15): what date
+                    # the box WOULD offer — graded here, never shown to
+                    # the office until the offers prove out
+                    _off_html = ""
+                    if d["type"] in ("approve_wants_date",
+                                     "approval_only"):
+                        try:
+                            import sched_offers
+                            _off = sched_offers.offer(recs.get(e) or {})
+                        except Exception:
+                            _off = None
+                        if _off:
+                            _off_html = block(
+                                "🗓 stage-2 shadow — the date it would "
+                                "offer", _off.get("why") or "",
+                                "#e8c76a")
                     live_rows.append(
                         f"<div style='border-top:1px solid var(--line);"
                         f"padding:10px 0'><b>{esc(name or e)}</b> "
@@ -7010,6 +7026,7 @@ def autodrafts_page(user=None):
                         + block("← customer", (last.get('body') or '')[:400])
                         + block("✨ the box would say", d["draft"],
                                 "var(--green2)")
+                        + _off_html
                         + "</div>")
                 else:
                     gated += 1

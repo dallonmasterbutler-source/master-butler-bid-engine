@@ -53,6 +53,24 @@ DISCOUNT_RX = re.compile(r"discount|early|october|promo|diwali", re.I)
 TAKEDOWN_RX = re.compile(r"take ?down|removal", re.I)
 
 
+def _save_blob(name, val):
+    """Cloud direct when possible; HTTPS courier from the Mac
+    (night_run's system python has no psycopg)."""
+    try:
+        import clouddb
+        if clouddb.available():
+            clouddb.put_blob(name, val)
+            return True
+    except Exception:
+        pass
+    try:
+        from cloudpush import push
+        push(blobs={name: val})
+        return True
+    except Exception:
+        return False
+
+
 def mine_prices(verbose=False):
     import jobber_client as jc
     was, jc.DRY_RUN = jc.DRY_RUN, False
@@ -235,8 +253,7 @@ def run(verbose=False):
                           "before quoting off it)",
                 "homes": fronts[:100]},
             "mined_at": date.today().isoformat()}
-    if clouddb.available():
-        clouddb.put_blob("lights_pricing", blob)
+    _save_blob("lights_pricing", blob)
     return blob
 
 
