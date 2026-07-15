@@ -5412,7 +5412,26 @@ function qh(d){
             f"question or field note from your tech — answer it like a "
             f"chat. The system never bids to a tech.</div>"
             f"<div style='margin-bottom:12px'>{about_html}</div>"
-            f"<div style='background:rgba(17,41,33,.5);border:1px solid "
+            # PICTURES RIDE THE TECH CARD (Dallon, Jul 14: 'the email
+            # comes in, bringing all pertinent data with it') — every
+            # photo from this tech's emails, right above the chat
+            + (lambda _ph: (
+                "<div style='margin-bottom:12px'><div class='subtext' "
+                "style='font-weight:800;font-size:11px;text-transform:"
+                "uppercase;letter-spacing:1px;margin-bottom:4px'>📷 "
+                "Photos they sent</div>"
+                + "".join(
+                    f"<a href='/img/{_r}/{_k}/{_i}' target='_blank'>"
+                    f"<img src='/img/{_r}/{_k}/{_i}' "
+                    f"style='width:170px;height:108px;object-fit:cover;"
+                    f"margin:4px;border-radius:10px'></a>"
+                    for _r, _k, _i in _ph)
+                + "</div>") if _ph else "")(
+                [(_r, _k, _i) for _r, _k, _i in
+                 (clouddb.photos_index(_all_photo_refs(c))
+                  if clouddb.available() else [])
+                 if _k != "eml"])
+            + f"<div style='background:rgba(17,41,33,.5);border:1px solid "
             f"rgba(201,162,39,.14);border-radius:12px;padding:10px 8px'>"
             f"{bubbles or '<div class=subtext>No message body.</div>'}"
             f"</div>{reply_ui}</div>")
@@ -7165,8 +7184,10 @@ def _guide_training():
 
         + _t_step(1, "Start in 📬 Inbox — it mirrors Gmail",
             "Bold rows with a gold dot are <b>unhandled</b> — same as "
-            "unread in Gmail. Work top to bottom. The chips on each row "
-            "tell you what you're walking into before you click:"
+            "unread in Gmail. <b>Work bottom to top — oldest first</b>, "
+            "exactly like you did in Gmail, so nobody waits longest. "
+            "The chips on each row tell you what you're walking into "
+            "before you click:"
             + row_mock +
             "<b>📋 bid request</b> = they want a quote · <b>💬 question"
             "</b> = answer, don't quote · <b>✅ approved — wants a date"
