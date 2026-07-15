@@ -7296,7 +7296,9 @@ def _guide_training():
             "move teaches the sorter. <b>🏜 Tom's dry-day standby</b> "
             "(bottom fold) holds every high-risk/Tom-only home waiting "
             "for a dry window — any season, his call; nobody falls out "
-            "of it until the job converts. The 🕵️ hourly review re-checks "
+            "of it until the job converts. Tom works it from his own "
+            "board (link on the fold): he picks a date, the office gets "
+            "notified to book it in Jobber. The 🕵️ hourly review re-checks "
             "every bubble and posts anything odd on the "
             "<a href='/working'>build board</a>.")
 
@@ -7311,6 +7313,80 @@ def _guide_training():
           "<li>Quote # in the subject when you ask Dallon.</li>"
           "<li>When in doubt: open the card and read the conversation "
           "— everything is there.</li></ul></div>")
+
+
+def tom_standby_page(user=None):
+    """🏜 TOM'S BOARD (Dallon, Jul 15: 'make Tom's standby bigger so
+    Tom can work through that too — or throw them on a day when he
+    wants, directly from the dashboard'). His weather-window work, his
+    call: the full standby list grouped by area, and a one-click 'put
+    them on this day' that stamps the record, tells the office, and
+    preps the customer email. No Jobber writes — the office books it;
+    Tom's pick drives it."""
+    ts = _blob_rw("tom_standby", {}) or {}
+    cust = ts.get("customers") or []
+    picks = _blob_rw("tom_days", {}) or {}
+    from collections import defaultdict
+    bycity = defaultdict(list)
+    picked_emails = {c.get("email") for d2 in picks.values()
+                     for c in d2}
+    for c in cust:
+        city = (c.get("address") or "").split(",")[-2].strip().title() \
+            if "," in (c.get("address") or "") else "Other"
+        bycity[city].append(c)
+
+    def card(c):
+        e = c.get("email") or ""
+        done = e in picked_emails
+        return f"""
+<div class='card' style='margin:0 0 10px;{'opacity:.55' if done else ''}'>
+ <div style='display:flex;justify-content:space-between;align-items:
+  center;flex-wrap:wrap;gap:8px'>
+  <div><a href='/?c={urllib.parse.quote(e)}' style='font-weight:800;
+   font-size:16px'>{esc(c.get('name') or e)}</a>
+   <div class='subtext'>{esc(c.get('address') or 'no address on file')}
+    · {esc(c.get('quote_status'))}</div></div>
+  <form method='POST' action='/tom_pick' style='display:flex;gap:6px;
+   align-items:center'>
+   <input type='hidden' name='email' value='{esc(e)}'>
+   <input type='hidden' name='name' value='{esc(c.get('name') or '')}'>
+   <input type='hidden' name='stamp' value='{esc(c.get('stamp') or '')}'>
+   <input type='date' name='day' required style='padding:6px'>
+   <button class='big' onclick="return confirm('Put '
+    + this.form.name.value + ' on this day? The office gets notified '
+    + 'and books it in Jobber.')">📅 Put on this day</button>
+  </form>
+ </div>
+ {f"<div class='subtext' style='margin-top:4px'>✅ already picked</div>" if done else ""}
+</div>"""
+
+    sections = "".join(
+        f"<h3 style='margin:18px 0 8px'>📍 {esc(city)} "
+        f"({len(cs)})</h3>" + "".join(card(c) for c in cs)
+        for city, cs in sorted(bycity.items(),
+                               key=lambda kv: -len(kv[1])))
+    picked_html = ""
+    for d2, cs in sorted(picks.items()):
+        picked_html += (f"<div style='padding:8px 12px;border-top:1px "
+                        f"solid var(--line)'><b>{esc(d2)}</b> — "
+                        + ", ".join(esc(c.get('name') or '?')
+                                    for c in cs)
+                        + f" <span class='subtext'>({len(cs)} home"
+                          f"{'s' if len(cs) != 1 else ''})</span></div>")
+    body = f"""
+<div style='max-width:820px'>
+ <h2 style='margin:4px 0 2px;font-size:22px'>🏜 Tom's dry-day board</h2>
+ <div class='subtext' style='margin-bottom:14px'>Every high-risk /
+ Tom-only home waiting for a dry window — any season, your call.
+ Pick a date and the office is notified to book it in Jobber; the
+ customer's confirmation email preps itself on their card. Nobody
+ leaves this list until their job converts.</div>
+ {f"<div class='card'><b>📅 Days you've claimed</b>{picked_html}</div>"
+  if picked_html else ""}
+ {sections or "<div class='card subtext'>Standby is empty — every"
+              " Tom-only home is booked or done. 🎉</div>"}
+</div>"""
+    return page("Tom's board", body)
 
 
 def guide_page():
@@ -9652,6 +9728,11 @@ class Handler(BaseHTTPRequestHandler):
                 "Cookie") or "")
             return self._send(autodrafts_page(
                 urllib.parse.unquote(cm.group(1)) if cm else None))
+        if self.path == "/tomstandby":
+            cm = re.search(r"office_user=([^;]+)",
+                           self.headers.get("Cookie") or "")
+            return self._send(tom_standby_page(
+                urllib.parse.unquote(cm.group(1)) if cm else None))
         if self.path == "/plan_autorespond":
             # the Auto-Respond plan of attack, embedded on the build
             # board via iframe (Dallon, Jul 14: "add this entire widget
@@ -10662,6 +10743,48 @@ class Handler(BaseHTTPRequestHandler):
                 fc[name] = ent
                 _blob_save("fold_clicks", fc)
             return self._send(b"ok")
+        elif self.path == "/tom_pick":
+            # Tom claims a standby home onto a day of HIS choosing —
+            # stamps the record, notifies office via review feed +
+            # internal email, groups into the tom_days blob. The office
+            # books it in Jobber (no writes from here).
+            e2 = get("email").strip().lower()
+            day2 = get("day").strip()
+            nm2 = get("name").strip()
+            if e2 and day2:
+                days = _blob_rw("tom_days", {}) or {}
+                lst2 = days.setdefault(day2, [])
+                if not any(c.get("email") == e2 for c in lst2):
+                    lst2.append({"email": e2, "name": nm2,
+                                 "picked_by": _user or "Tom"})
+                _blob_save("tom_days", days)
+                st2 = get("stamp")
+                if st2:
+                    rec2 = dict(_shadow_source()).get(st2)
+                    if rec2:
+                        (rec2.setdefault("draft", {})
+                         .setdefault("notes", [])).append(
+                            f"🏜 TOM PICKED {day2} for this home "
+                            f"(dry-window standby) — office: book it "
+                            f"in Jobber and confirm with the customer.")
+                        if clouddb.available():
+                            clouddb.ingest_shadow(st2, rec2)
+                save_review({"stamp": st2 or "", "action": "tom_pick",
+                             "customer": e2,
+                             "note": f"🏜 Tom put {nm2 or e2} on {day2}"})
+                try:
+                    import mailer
+                    mailer.send_internal(
+                        f"🏜 Tom claimed a dry day: {day2}",
+                        f"{nm2 or e2} → {day2}\n\nOffice: book it in "
+                        f"Jobber and send the confirmation (their card "
+                        f"has the note).")
+                except Exception:
+                    pass
+            self.send_response(303)
+            self.send_header("Location", "/tomstandby")
+            self.end_headers()
+            return
         elif self.path == "/autodraft_tpl_off":
             # kill switch per reply type for auto-adopted wording
             kind = get("kind").strip()
