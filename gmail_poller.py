@@ -892,7 +892,13 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
             except Exception:
                 prior_rec = {}
             from dedup import looks_same_job
-            if looks_same_job(record.get("subject"),
+            # send-failure notices all share Jobber's sender and carry
+            # no services — the folder was merging DIFFERENT customers'
+            # bounces into one row (Avani's + Greg's vanished into
+            # Sherrie's, Jul 15). Each victim keeps their own record.
+            _sf = (record.get("jobber_event") or {}).get("event") \
+                == "send_failed"
+            if not _sf and looks_same_job(record.get("subject"),
                               prior_rec.get("subject"),
                               record.get("newest_message"),
                               bool(parsed.get("services"))):

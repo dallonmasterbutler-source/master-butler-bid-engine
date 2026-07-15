@@ -383,6 +383,16 @@ JOBBER_EVENT_KINDS = (
     ("approved", "quote_approved"),
     ("new request", "request_received"),
     ("requested changes", "changes_requested"),
+    # Jobber's actual wording is 'Changes requested for quote #…' /
+    # '…has requested a change' — the word-order miss filed Alisha
+    # Singh's +20-window ask as invisible other_event (Martha, Jul 15)
+    ("changes requested", "changes_requested"),
+    ("requested a change", "changes_requested"),
+    # 'There was a problem sending your email' = a CUSTOMER NEVER GOT
+    # THEIR QUOTE (Dallon's 'multiple not delivered', Jul 15) — the
+    # loudest event there is, was hidden as other_event
+    ("problem sending your email", "send_failed"),
+    ("problem delivering client email", "send_failed"),
     ("assessment", "assessment"),
 )
 
@@ -395,11 +405,24 @@ def parse_jobber_event(subject, body):
     amount = re.search(r"\$\s?([\d,]+\.?\d*)", text)
     who = re.search(r"^\s*-*\s*(?:Quote Approved\s*-*\s*)?([A-Z][a-zA-Z]+"
                     r"(?:\s+[A-Z][a-zA-Z]+)+)\s+just\s+approved", body)
+    client, client_email = (who.group(1) if who else None), None
+    if event == "send_failed":
+        # '…sent on 07/15/2026 to Tilak & Avani Patel(avani999@yahoo…)'
+        vm = re.search(r"to\s+([A-Z][\w .&'-]{2,40}?)\s*"
+                       r"\(([\w.+-]+@[\w.-]+)\)", body)
+        if vm:
+            client, client_email = vm.group(1).strip(), vm.group(2).lower()
+    elif event == "changes_requested":
+        cm = re.search(r"([A-Z][\w'-]+(?:\s+[A-Z][\w'-]+)+)\s+has\s+"
+                       r"requested a change", body)
+        if cm:
+            client = cm.group(1)
     return {
         "event": event,
         "quote_number": quote.group(1) if quote else None,
         "amount": amount.group(1) if amount else None,
-        "client": who.group(1) if who else None,
+        "client": client,
+        "client_email": client_email,
     }
 
 

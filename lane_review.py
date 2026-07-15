@@ -84,14 +84,17 @@ def run(verbose=False):
     gmail_state = clouddb.get_blob("gmail_state") or {}
     findings, seen_email = [], set()
     for stamp, rec in sorted(clouddb.all_shadow(), reverse=True):
+        _jev = (rec.get("jobber_event") or {}).get("event")
         if rec.get("merged_into") or rec.get("spam_auto") \
-                or rec.get("tech_sender") or rec.get("kind") == "jobber_event":
+                or rec.get("tech_sender") \
+                or (rec.get("kind") == "jobber_event"
+                    and _jev != "send_failed"):
             continue
         m = re.search(r"<([^>]+)>", rec.get("from") or "")
         e = m.group(1).lower() if m else None
-        if not e or e in seen_email:
-            continue
-        seen_email.add(e)
+        if not e or (e in seen_email and _jev != "send_failed"):
+            continue          # send-fails share the Jobber sender —
+        seen_email.add(e)     # every victim deserves its own flag
         if e in marks:                    # cleared = not the office's now
             continue
         name = (rec.get("client_name")
@@ -112,10 +115,13 @@ def run(verbose=False):
         # mailer-daemon record means a CUSTOMER never got our reply —
         # flag it loudly and pin a note on that customer's card.
         if "mailer-daemon" in e or "delivery status" in \
-                (rec.get("subject") or "").lower():
-            _bm = re.search(r"(?:message to|failed[^:]*:)\s*"
-                            r"<?([\w.+-]+@[\w.-]+)", body, re.I)
-            _victim = _bm.group(1).lower() if _bm else None
+                (rec.get("subject") or "").lower() \
+                or _jev == "send_failed":
+            _bm = re.search(r"(?:message to|failed[^:]*:|"
+                            r"to\s+[A-Z][\w .&'-]{2,40}?\()"
+                            r"\s*<?([\w.+-]+@[\w.-]+)", body, re.I)
+            _victim = ((rec.get("jobber_event") or {}).get("client_email")
+                       or (_bm.group(1).lower() if _bm else None))
             add("bounce", f"our email to {_victim or 'a customer'} "
                 "BOUNCED — they never got the reply; call/text or "
                 "resend after the DNS fix", "📮")

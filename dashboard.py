@@ -235,7 +235,7 @@ def classify_row(rec):
     ev = rec.get("jobber_event")
     if ev:
         if ev.get("event") in ("quote_approved", "changes_requested",
-                               "request_received"):
+                               "request_received", "send_failed"):
             return "main", None
         return "aside", f"jobber event: {ev.get('event')}"
     if rec.get("spam_auto"):          # the poller already ruled at intake
@@ -3746,12 +3746,11 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             lane = "fixits"
             word = "🔧 follow-up on completed work — no bid"
             wstyle = "color:var(--goldink);font-weight:800"
-        elif won and grp != 4 \
-                and not ((gmail_state.get(key) or {}).get("state")
-                         == "done"):
-            # a WON approval the office HASN'T trashed still needs
-            # scheduling; a trashed one falls through to 🗑 below
-            # (trash means they already booked it in Jobber)
+        elif won and grp != 4:
+            # WON OUTRANKS THE TRASH (Martha, Jul 15 evening: 'I don't
+            # see quote approval emails either' — the office trashes
+            # the Jobber notification but still schedules from Won).
+            # Only actually-scheduled (grp 4) leaves this lane.
             lane = "won"
         elif ((gmail_state.get(key) or {}).get("state") == "done"
               and not (last_at and last_at >
