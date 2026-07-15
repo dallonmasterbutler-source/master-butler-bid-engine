@@ -6947,7 +6947,14 @@ def autodrafts_page(user=None):
     learn_store = {}          # rebuilt fresh each render → idempotent
     pairs = []                # (kind, office_sent) → adopt_templates
     accs = []                 # per-pair accuracy scores → the wheel
-    threads = list(msglog.threads())
+    # OUR OWN MAIL IS NOT A CUSTOMER (Jul 15: the office training email,
+    # customercare→customercare, landed in the reel as a 4%-match
+    # "customer" and dragged the accuracy wheel). Internal senders —
+    # our domain, Dallon, Tom — never draft and never grade.
+    _internal = ("@masterbutlerinc.com", "dallon.masterbutler@gmail.com",
+                 "tomfricke2007@gmail.com")
+    threads = [(a, n, m) for a, n, m in msglog.threads()
+               if not any((a or "").lower().endswith(x) for x in _internal)]
 
     # PASS 1 — LEARN from every in→out pair of the last 90 days: the
     # diary (wording gaps) AND the auto-adopted templates (Dallon's
@@ -7413,6 +7420,75 @@ def tom_standby_page(user=None):
               " Tom-only home is booked or done. 🎉</div>"}
 </div>"""
     return page("Tom's board", body)
+
+
+def winback_page():
+    """💦 PW WIN-BACK LIST (Dallon's running list, Jul 15 — the
+    day-matched race showed pressure washing down $4,790 this July and
+    ~$50k in April). Everyone who bought PW in the last two years and
+    hasn't this year, worth-most-first, from the local service archive.
+    Read-only: no Jobber calls, no sends — a call sheet."""
+    try:
+        import winback
+        W = winback.build()
+    except Exception as ex:
+        return page("Win-back", f"<div class='card'>couldn't build the "
+                                f"list: {esc(str(ex))}</div>")
+    rows = W.get("rows") or []
+
+    def row(r):
+        yrs = ", ".join(str(y) for y in r["pw_years"][-4:])
+        still = ("<span class='chip' style='background:#2e5c46;"
+                 "color:#dff3e7;border-radius:12px;padding:1px 9px;"
+                 "font-size:11.5px'>STILL A CUSTOMER — bought "
+                 + esc(", ".join(r["this_year_bought"]).replace("_", " "))
+                 + " this year</span>") if r["still_customer"] else ""
+        return (
+            f"<div style='border-top:1px solid var(--line);padding:9px 0;"
+            f"display:flex;justify-content:space-between;gap:10px;"
+            f"flex-wrap:wrap;align-items:center'>"
+            f"<div><a href='/customers?q={urllib.parse.quote(r['who'])}'"
+            f" style='font-weight:800'>{esc(r['who'])}</a>"
+            f"<div class='subtext'>last PW {esc(r['last_pw'])} "
+            f"({esc(r['last_pw_service'])}) · PW years: {yrs}</div>"
+            f"{still}</div>"
+            f"<div style='font-weight:800;font-size:17px;white-space:"
+            f"nowrap'>${r['last_pw_total']:,.0f}</div></div>")
+
+    tA = [r for r in rows if r["tier"] == "A"]
+    tB = [r for r in rows if r["tier"] == "B"]
+    body = f"""
+<div style='max-width:820px'>
+ <h2 style='margin:4px 0 2px;font-size:22px'>💦 Pressure-washing
+ win-backs</h2>
+ <div class='subtext' style='margin-bottom:14px'>Bought pressure
+ washing in the last two years, none this year. Dollar shown = what
+ their last PW visit was worth. Click a name to open their customer
+ card. Built fresh from the invoice archive each time you open this
+ page — nobody here has been contacted by anything automatic.</div>
+ <div class='card' style='display:flex;gap:26px;flex-wrap:wrap'>
+  <div><div style='font-size:26px;font-weight:800'>${W['value']:,.0f}
+   </div><div class='subtext'>at last-visit prices</div></div>
+  <div><div style='font-size:26px;font-weight:800'>{len(tA)}</div>
+   <div class='subtext'>repeaters gone quiet</div></div>
+  <div><div style='font-size:26px;font-weight:800'>{len(tB)}</div>
+   <div class='subtext'>last year only</div></div>
+  <div><div style='font-size:26px;font-weight:800'>
+   {W['still_customer']}</div><div class='subtext'>still buy other
+   work — easiest asks</div></div>
+ </div>
+ <div class='card'><b>🥇 Repeaters gone quiet ({len(tA)})</b>
+  <div class='subtext'>They bought PW two or more years running, then
+  stopped. Habit broken — one call usually restarts it.</div>
+  {"".join(row(r) for r in tA)}</div>
+ <div class='card'><b>🥈 Last year only ({len(tB)})</b>
+  <div class='subtext'>One-time PW buyers from last season.</div>
+  {"".join(row(r) for r in tB[:120])}
+  {f"<div class='subtext' style='padding-top:8px'>…and "
+   f"{len(tB) - 120} more (worth-most shown first).</div>"
+   if len(tB) > 120 else ""}</div>
+</div>"""
+    return page("PW win-backs", body)
 
 
 def guide_page():
@@ -9754,6 +9830,8 @@ class Handler(BaseHTTPRequestHandler):
                 "Cookie") or "")
             return self._send(autodrafts_page(
                 urllib.parse.unquote(cm.group(1)) if cm else None))
+        if self.path == "/winback":
+            return self._send(winback_page())
         if self.path == "/tomstandby":
             cm = re.search(r"office_user=([^;]+)",
                            self.headers.get("Cookie") or "")
