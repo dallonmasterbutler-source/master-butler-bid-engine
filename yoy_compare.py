@@ -166,7 +166,26 @@ def run_local(verbose=False):
                         seen[y].add((prop, dte))
     for y in yrs:
         tot[y][0] = len(seen[y])
+    # MONTH-TO-MONTH HISTORY (Tom via Dallon, Jul 15): every month's
+    # line revenue for 3 trailing years, so the card can race any month
+    # against the same month last year.
+    monthly = collections.defaultdict(lambda: [0, 0.0])
+    seen_m = collections.defaultdict(set)
+    floor_m = f"{d0.year - 2}-01"
+    for prop, buckets in byp.items():
+        for key, entries in buckets.items():
+            for e in entries:
+                if not e or not e[0]:
+                    continue
+                mo2 = e[0][:7]
+                if mo2 >= floor_m:
+                    monthly[mo2][1] += (e[1] if len(e) > 1 else 0) or 0
+                    seen_m[mo2].add((prop, e[0]))
+    for m2 in monthly:
+        monthly[m2][0] = len(seen_m[m2])
     blob = {"window_label": f"July 1–{day} (day-matched)",
+            "monthly": {m2: {"jobs": v[0], "revenue": round(v[1])}
+                        for m2, v in sorted(monthly.items())},
             "years": list(yrs),
             "totals": {y: {"invoices": tot[y][0],
                            "revenue": round(tot[y][1])} for y in yrs},

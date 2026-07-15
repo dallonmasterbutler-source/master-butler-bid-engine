@@ -8405,6 +8405,58 @@ def scoreboard_page():
                     f"color:{_dc};font-weight:800'>{d_rev:+,}</td></tr>")
             _dt = (_t26.get("revenue", 0) or 0) - (_t25.get("revenue", 0)
                                                    or 0)
+            # MONTH-TO-MONTH (Tom, Jul 15): each of the last 12 months
+            # vs the same month a year earlier, as paired mini-bars
+            _month_strip = ""
+            _mm = _yy.get("monthly") or {}
+            if _mm:
+                _ms = sorted(_mm)[-12:]
+                _vals = []
+                _curmo = (_yy.get("mined_at") or "")[:7]
+                for m in _ms:
+                    _prev = f"{int(m[:4])-1}{m[4:]}"
+                    if m == _curmo:
+                        # in-progress month: use the DAY-MATCHED race
+                        # totals, never partial-vs-full (that lied -99k)
+                        _vals.append((m + "*",
+                                      _t26.get("revenue", 0) or 0,
+                                      _t25.get("revenue", 0) or 0))
+                    else:
+                        _vals.append((m,
+                                      _mm.get(m, {}).get("revenue", 0),
+                                      _mm.get(_prev, {})
+                                      .get("revenue", 0)))
+                _mmax = max([1] + [max(c, o) for _, c, o in _vals])
+                _cols = ""
+                for m, _cur, _old2 in _vals:
+                    _up = _cur >= _old2
+                    _cols += (
+                        f"<div style='flex:1;display:flex;flex-direction:"
+                        f"column;align-items:center;gap:2px' title='"
+                        f"{m}: ${_cur:,} vs same month LY: ${_old2:,}'>"
+                        f"<div style='font-size:9.5px;font-weight:800;"
+                        f"color:{'var(--green2)' if _up else '#f2b8b5'}'>"
+                        f"{(_cur - _old2) / 1000:+,.0f}k</div>"
+                        f"<div style='display:flex;gap:2px;align-items:"
+                        f"flex-end;height:56px'>"
+                        f"<div style='width:9px;height:"
+                        f"{max(3, _old2 / _mmax * 54):.0f}px;background:"
+                        f"rgba(140,160,150,.5);border-radius:2px'></div>"
+                        f"<div style='width:9px;height:"
+                        f"{max(3, _cur / _mmax * 54):.0f}px;background:"
+                        f"#c9a227;border-radius:2px'></div></div>"
+                        f"<div style='font-size:9px;color:var(--mut)'>"
+                        f"{m[5:]}/{m[2:4]}</div></div>")
+                _month_strip = (
+                    "<div style='margin-top:14px'><div class='subtext' "
+                    "style='font-weight:800;font-size:11px;"
+                    "text-transform:uppercase;letter-spacing:1px'>"
+                    "Month vs same month last year "
+                    "<span style='font-weight:400;text-transform:none'>"
+                    "· grey = last year, gold = this year · hover for "
+                    "dollars</span></div>"
+                    f"<div style='display:flex;gap:6px;margin-top:6px'>"
+                    f"{_cols}</div></div>")
             yoy_card = f"""
 <div class='card' style='margin:14px 0'>
  <div class='schead'>{_svg_icon('trend')}<h2>{_wl}, this year vs
@@ -8431,6 +8483,7 @@ def scoreboard_page():
    <th style='text-align:right;padding:4px 8px'>Jul {_yrs[0]}</th>
    <th style='text-align:right;padding:4px 8px'>Δ $</th></tr>
   {_rows}</table></div>
+ {_month_strip}
 </div>"""
     except Exception:
         yoy_card = ""
@@ -8595,9 +8648,11 @@ def scoreboard_page():
                           f"</div><div style='width:90px;font-size:11px;"
                           f"color:var(--mut)'>{esc(_top)}</div></div>")
             _leg = " ".join(
-                f"<span style='font-size:10.5px'><span style='display:"
-                f"inline-block;width:9px;height:9px;border-radius:2px;"
-                f"background:{v};margin-right:3px'></span>{k}</span>"
+                f"<span style='font-size:13.5px;font-weight:700;"
+                f"margin-right:12px;white-space:nowrap'>"
+                f"<span style='display:inline-block;width:13px;"
+                f"height:13px;border-radius:3px;background:{v};"
+                f"margin-right:5px;vertical-align:-1px'></span>{k}</span>"
                 for k, v in _cc.items())
             mined_cards += (
                 f"<div class='card' style='margin:14px 0'>"
