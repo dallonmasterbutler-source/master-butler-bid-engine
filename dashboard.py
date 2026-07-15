@@ -3746,6 +3746,25 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             lane = "fixits"
             word = "🔧 follow-up on completed work — no bid"
             wstyle = "color:var(--goldink);font-weight:800"
+        elif won and grp != 4 \
+                and not ((gmail_state.get(key) or {}).get("state")
+                         == "done"):
+            # a WON approval the office HASN'T trashed still needs
+            # scheduling; a trashed one falls through to 🗑 below
+            # (trash means they already booked it in Jobber)
+            lane = "won"
+        elif ((gmail_state.get(key) or {}).get("state") == "done"
+              and not (last_at and last_at >
+                       ((gmail_state.get(key) or {}).get("at") or ""))):
+            # 🗑 THE OFFICE TRASHED IT IN GMAIL = DONE (LaRee's recorded
+            # doctrine, Jul 14 call: 'deleted… 99.9% of the time' —
+            # an explicit act, unlike the ARCHIVED-guessing the Jul-13
+            # kill switch rightly stopped). 20 of the 28 stale inbox
+            # rows on Jul 15 were already finished in Gmail. A newer
+            # customer message still resurfaces the row.
+            lane = "drawer"
+            word = "🗑 done in Gmail"
+            wstyle = "color:var(--mut);font-weight:700"
         elif grp == 3:
             lane = "handled"
         elif followup:
