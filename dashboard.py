@@ -3898,7 +3898,11 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             _cft = {"bad_payer": ("⚠️ bad payer", "#f2b8b5"),
                     "watch": ("👀 watch", "#e8c76a"),
                     "vip": ("⭐ VIP", "#8fc7a6"),
-                    "realtor": ("🏘 realtor", "#79aede")}.get(
+                    "realtor": ("🏘 realtor", "#79aede"),
+                    # Diwali-timed lights homes (Dallon, Jul 14): the
+                    # week of Diwali brings a surge — offer these homes
+                    # EARLY-OCTOBER install proactively
+                    "diwali": ("🪔 Diwali lights", "#e8c76a")}.get(
                         _cfr.get("label"), ("⚠️ flagged", "#f2b8b5"))
             actchip += (f"<span style='color:{_cft[1]};font-weight:800;"
                         f"font-size:11px'>{_cft[0]}</span> ")
