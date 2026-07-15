@@ -105,8 +105,11 @@ except Exception as e:
 # Runs BEFORE yoy/win-back so tonight's numbers use clean data.
 try:
     from pathlib import Path as _P
+    from datetime import date as _D
     _mk = _P("data/.history_rebuilt_jul15")
-    if not _mk.exists():
+    # Dallon, Jul 15 eve: system stability first — the 2-3h rebuild
+    # waits until the Jul 16 run so tonight stays quiet
+    if not _mk.exists() and _D.today() >= _D(2026, 7, 16):
         import servicehistory
         print("   FULL service-history rebuild (discount-line fix)…")
         servicehistory.sweep()
