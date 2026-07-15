@@ -3752,26 +3752,6 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             # the Jobber notification but still schedules from Won).
             # Only actually-scheduled (grp 4) leaves this lane.
             lane = "won"
-        elif ((gmail_state.get(key) or {}).get("state") == "done"
-              and not (last_at and last_at >
-                       ((gmail_state.get(key) or {}).get("at") or ""))):
-            # 🗑 THE OFFICE TRASHED IT IN GMAIL = DONE (LaRee's recorded
-            # doctrine, Jul 14 call: 'deleted… 99.9% of the time' —
-            # an explicit act, unlike the ARCHIVED-guessing the Jul-13
-            # kill switch rightly stopped). 20 of the 28 stale inbox
-            # rows on Jul 15 were already finished in Gmail. A newer
-            # customer message still resurfaces the row.
-            lane = "drawer"
-            word = "🗑 done in Gmail"
-            wstyle = "color:var(--mut);font-weight:700"
-        elif grp == 3:
-            lane = "handled"
-        elif followup:
-            lane = "fixits"          # Jobber fact: job done + they wrote
-        elif won and grp != 4:
-            lane = "won"             # Jobber fact: approved — a claim
-            # must not knock it out of Won either (same bug as Drafts);
-            # grp!=4 keeps an already-scheduled/done won in the drawer
         elif key in tom_standby_at and not (
                 last_at and last_at > tom_standby_at[key]):
             # waiting on Tom's weather window — the 🏜 fold is their
@@ -3781,13 +3761,30 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             # a Jobber approval (Won) still outranks this.
             lane = "standby"
         elif oq_status == "awaiting_response" or grp == 2:
-            # Jobber fact: quote out, ball in the customer's court —
-            # EVEN if the office archived the thread (money still
-            # waits). Quiet 10+ days = the follow-up list.
+            # JOBBER'S OPEN MONEY OUTRANKS THE GMAIL TRASH (Jessica's
+            # doctrine, relayed by Dallon Jul 15 eve: 'we consider a
+            # customer done when we delete their email… they are still
+            # OPEN in Jobber if they have a quote awaiting response').
+            # Waiting/nudge track the Jobber side; trash only closes
+            # the Gmail side. Quiet 10+ days = the follow-up list.
             lane = "nudge" if (age_h or 0) >= 240 else "waiting"
             if lane == "nudge" and not (unread or new_msg):
                 word, wstyle = ("⏰ gone quiet — worth a nudge",
                                 "color:var(--goldink);font-weight:800")
+        elif ((gmail_state.get(key) or {}).get("state") == "done"
+              and not (last_at and last_at >
+                       ((gmail_state.get(key) or {}).get("at") or ""))):
+            # 🗑 TRASHED IN GMAIL AND no open Jobber quote = truly done
+            # for now (LaRee's trash=done doctrine, scoped by Jessica's
+            # two-truths rule above). A newer customer message still
+            # resurfaces the row.
+            lane = "drawer"
+            word = "🗑 done in Gmail"
+            wstyle = "color:var(--mut);font-weight:700"
+        elif grp == 3:
+            lane = "handled"
+        elif followup:
+            lane = "fixits"          # Jobber fact: job done + they wrote
         elif office_draft_no and not (unread or new_msg):
             # the office is building this quote in Jobber — out of our
             # Inbox/Drafts so nobody double-works or double-quotes it,
