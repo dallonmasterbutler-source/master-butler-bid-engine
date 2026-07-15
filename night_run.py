@@ -119,6 +119,18 @@ try:
 except Exception as e:
     print(f"   (sched mine skipped: {e})")
 
+# 4d ── LIGHTS DEEP MINE (Dallon, Jul 14): seasonal/early-bird pricing
+#       tiers from invoices + front-footage v1 on ~100 lights homes
+try:
+    import lights_deep_mine
+    _lp = lights_deep_mine.run(verbose=True)
+    if _lp:
+        print(f"   lights pricing: per-ft median "
+              f"{_lp['prices'].get('per_ft_median')} · "
+              f"{_lp['front_footage_v1']['n']} fronts measured")
+except Exception as e:
+    print(f"   (lights deep mine skipped: {e})")
+
 # 5 ── backup + morning brief
 print("\n[5/6] Backup + morning brief…")
 try:

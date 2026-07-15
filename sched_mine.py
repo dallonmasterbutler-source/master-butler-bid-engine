@@ -269,6 +269,20 @@ def run(verbose=False):
     if clouddb.available():
         clouddb.put_blob("sched_knowledge", K)
     (BASE / "data" / "sched_mine.json").write_text(json.dumps(K, indent=1))
+    # lights homes roster → the footage measurer (Dallon, Jul 14:
+    # "measure linear feet on the front … do like 100 homes")
+    seen, homes = set(), []
+    for v in visits:
+        if v.get("is_light") and v.get("address") and "lat" in v:
+            k2 = v["address"].lower()
+            if k2 not in seen:
+                seen.add(k2)
+                homes.append({"client": v.get("client"),
+                              "address": v["address"],
+                              "city": v["city"],
+                              "lat": v["lat"], "lng": v["lng"]})
+    (BASE / "data" / "lights_homes.json").write_text(
+        json.dumps(homes, indent=1))
     if verbose:
         print(json.dumps(K["drive_gaps"], indent=1))
         print("months:", len(K["jobs_per_day_by_month"]),
