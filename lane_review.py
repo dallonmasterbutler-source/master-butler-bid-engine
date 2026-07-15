@@ -81,6 +81,7 @@ def run(verbose=False):
                 last_out[a] = max(last_out.get(a, t), t)
 
     marks = clouddb.get_blob("msg_read") or {}
+    gmail_state = clouddb.get_blob("gmail_state") or {}
     findings, seen_email = [], set()
     for stamp, rec in sorted(clouddb.all_shadow(), reverse=True):
         if rec.get("merged_into") or rec.get("spam_auto") \
@@ -129,6 +130,45 @@ def run(verbose=False):
         if not body.strip() and rec.get("kind") not in ("phone_lead",) \
                 and not rec.get("vm"):
             add("empty-row", "blank message holding a queue slot", "👻")
+        # 🕰 STALE ROW (Dallon, Jul 15: 'ive asked for it multiple
+        # times each day for about a week' — the de-gum is now a
+        # STANDING hourly check, not a favor). Anything 3+ days old
+        # still holding a working-lane slot gets named, with WHY.
+        try:
+            _born = datetime.strptime(stamp[:8], "%Y%m%d") \
+                .replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            _born = None
+        _aside = False
+        try:
+            from dashboard import classify_row
+            _aside = classify_row(rec)[0] == "aside"
+        except Exception:
+            pass
+        if _born and (now - _born).days >= 3 and not _aside:
+            _gs = (gmail_state.get(e) or {}).get("state")
+            _oqs = ((rec.get("open_quote_ctx") or {}).get("status")
+                    or "").lower()
+            _is_vm = rec.get("kind") == "phone_lead" or rec.get("vm") \
+                or e.startswith("vm:")
+            _days = (now - _born).days
+            if _gs == "done" or _oqs in ("converted", "archived"):
+                pass                    # lane rules already sink these
+            elif _is_vm:
+                add("stale-row", f"{_days}-day-old VOICEMAIL — no Gmail "
+                    "thread to sync; needs the dashboard ✓ (or a "
+                    "call-back)", "🕰")
+            elif not last_out.get(e):
+                add("stale-row", f"{_days} days old and WE NEVER "
+                    "REPLIED — money may be walking", "🕰")
+            elif _gs == "working":
+                pass                    # office has it open in Gmail
+            elif _oqs == "awaiting_response":
+                pass                    # waiting lane / nudge clock
+            else:
+                add("stale-row", f"{_days} days old, answered but "
+                    "still surfacing — tell Dallon (sync case worth "
+                    "a look)", "🕰")
 
     # ── 💰 DALLON'S EMAIL RULINGS → THE CUSTOMER'S CARD (Dallon,
     # Jul 14: the office emails him photos/questions, he replies terse
