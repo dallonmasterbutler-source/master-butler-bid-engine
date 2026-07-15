@@ -122,6 +122,43 @@ def build_property(parsed, facts):
     # (the guards SKU includes the blow-off, no open gutters to clean).
     _txt = ((parsed.get("newest_message") or "")
             + " " + (parsed.get("subject") or "")).lower()
+    # GUARDS-FROM-HISTORY (Dallon's engine batch, Jul 14 — the Gloria
+    # Sloan lesson: her home has guards on file, yet a fresh request
+    # drafted a plain gutter cleaning). Homes that ever bought the
+    # guards SKU are in the guards_homes registry: their roof blow-off
+    # IS the guards SKU, and no gutter line gets auto-added.
+    _has_guards = False
+    try:
+        import re as _re2
+        _gslug = _re2.sub(r"[^a-z0-9]+", "-",
+                          (parsed.get("address") or "").lower()).strip("-")
+        if _gslug:
+            _gh = []
+            try:
+                import clouddb as _gc
+                if _gc.available():
+                    _gh = _gc.get_blob("guards_homes") or []
+            except Exception:
+                pass
+            if not _gh:
+                import json as _gj
+                from pathlib import Path as _gp
+                _f = _gp(__file__).parent / "data" / "guards_homes.json"
+                _gh = _gj.loads(_f.read_text()) if _f.exists() else []
+            _has_guards = any(_gslug == g or (len(_gslug) > 12 and
+                              (g.startswith(_gslug)
+                               or _gslug.startswith(g))) for g in _gh)
+    except Exception:
+        _has_guards = False
+    if _has_guards and "roof_blow_off" in parsed["services"]:
+        parsed["services"] = ["roof_blow_off_guards" if s ==
+                              "roof_blow_off" else s
+                              for s in parsed["services"]
+                              if s != "gutter_cleaning"]
+        office_flags.append(
+            "🛡 THIS HOME HAS GUTTER GUARDS ON FILE — quoted the "
+            "guards blow-off SKU (includes the blow-off; no open "
+            "gutters to clean). Remove only if the guards are gone.")
     if "roof_blow_off" in parsed["services"] \
             and "gutter_cleaning" not in parsed["services"] \
             and "roof_blow_off_guards" not in parsed["services"] \

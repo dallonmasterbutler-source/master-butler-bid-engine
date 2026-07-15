@@ -46,6 +46,34 @@ def _client_key(name):
     return re.sub(r"\s+", " ", (name or "").lower()).strip()
 
 
+_REALTORS = None
+
+
+def _is_multi_property(client_name):
+    """THE ELI DEBERRY FIX (Dallon, Jul 14): for realtors/PMs/landlords
+    the HOUSE is the customer — a client-NAME fallback cross-pollinates
+    one property's prices onto another ($227/$290/$880 were three
+    different houses). Flagged multi-property names never use the name
+    fallback; their floors come from the ADDRESS or not at all."""
+    global _REALTORS
+    if _REALTORS is None:
+        names = []
+        try:
+            import clouddb
+            if clouddb.available():
+                names = clouddb.get_blob("realtor_names") or []
+        except Exception:
+            pass
+        if not names:
+            p = BASE / "data" / "realtor_names.json"
+            try:
+                names = json.loads(p.read_text()) if p.exists() else []
+            except Exception:
+                names = []
+        _REALTORS = {_client_key(n) for n in names}
+    return _client_key(client_name) in _REALTORS
+
+
 def last_paid(address=None, client_name=None, hist=None):
     """{service_key: (price, date)} — what they paid on their most recent
     visit, per service. Property match first (the house is the job);
@@ -60,7 +88,8 @@ def last_paid(address=None, client_name=None, hist=None):
             if k == s or (len(s) > 12 and (k.startswith(s) or s.startswith(k))):
                 buckets = v
                 break
-    if buckets is None and client_name:
+    if buckets is None and client_name \
+            and not _is_multi_property(client_name):
         buckets = (hist.get("by_client") or {}).get(_client_key(client_name))
     if not buckets:
         return {}
@@ -109,7 +138,8 @@ def usual_bundle(requested, address=None, client_name=None):
                                            or s.startswith(k))):
                 buckets = v
                 break
-    if buckets is None and client_name:
+    if buckets is None and client_name \
+            and not _is_multi_property(client_name):
         buckets = (hist.get("by_client") or {}).get(
             _client_key(client_name))
     if not buckets:

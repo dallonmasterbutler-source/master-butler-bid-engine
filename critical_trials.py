@@ -104,9 +104,15 @@ def main():
               "bulkbar" in h and "already-quoted" in h.lower()
               or "bulkQuoted" in h)
         check("Search box (Jessica)", "isearch" in h)
-        check("Lanes (inbox / drafts / fix-its / won / waiting / nudge)",
+        # FIVE BUBBLES (Dallon's approved collapse, built Jul 14 night):
+        # fix-its ride Inbox, nudges ride Waiting, in-Jobber rides the
+        # Handled fold — so the chips are exactly these five.
+        check("Lanes (5 bubbles: inbox/drafts/won/waiting/techs)",
               "lanechip" in h and "lane-inbox" in h
-              and "lane-drafts" in h and "lane-nudge" in h)
+              and "lane-drafts" in h and "lane-won" in h
+              and "lane-waiting" in h
+              and "data-l='nudge'" not in h
+              and "data-l='fixits'" not in h)
         check("Scroll keeper (LaRee's jump-to-top fix)",
               "KEEP MY PLACE" in h or "__saveScroll" in h)
         check("Pulse auto-refresh wiring", "/api/pulse" in h)

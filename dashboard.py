@@ -3841,12 +3841,34 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                        "won": won, "urgent": bool(urgent),
                        "lane": lane, "act": _msg_latest,
                        "cflag": cust_flags.get(key), "qtag": qtag,
+                       "answered": answered,
                        "gmail": ((gmail_state.get(key) or {}).get("state")
                                  if not (unread or new_msg) else None)})
     # GMAIL MIRROR (Jessica, Jul 9: office works Gmail + dashboard side
     # by side for a while) — inside each section the order is pure
     # newest-activity-first, exactly like the Gmail list; bold marks
     # unread but does NOT reorder. Urgent still outranks everything.
+    # THE 5-BUBBLE COLLAPSE (Dallon approved the plan Jul 13, built in
+    # the Jul-14 night batch): label, don't filter —
+    #   · Fix-its → Inbox (rows keep their 🔧 word — it's a message
+    #     needing an answer, so it lives with the messages)
+    #   · Nudge → Waiting (⏰ gone-quiet / 🚫 declined words stay)
+    #   · In-Jobber → the Handled fold (🖊️ word stays; any new customer
+    #     message still resurfaces it per the standing rule)
+    # Plus SELF-ZEROING INBOX: we replied and nothing new came in →
+    # the row clears itself to Done & quiet. Inbox trends to zero the
+    # way Gmail does, without anyone clicking ✓.
+    for r in roster:
+        if r["lane"] == "fixits":
+            r["lane"] = "inbox"
+        elif r["lane"] == "nudge":
+            r["lane"] = "waiting"
+        elif r["lane"] == "officedraft":
+            r["lane"] = "handled"
+        if r["lane"] == "inbox" and r.get("answered") \
+                and not r["unread"] and not r["new_msg"] \
+                and not r["urgent"] and r["grp"] != 0:
+            r["lane"] = "drawer"
     roster.sort(key=lambda r: r["at"], reverse=True)
     roster.sort(key=lambda r: (r["grp"], not r["urgent"],
                                r.get("gmail") == "done"))
@@ -4093,26 +4115,22 @@ document.addEventListener('DOMContentLoaded', function(){
     # ── THE LANES (Dallon, Jul 12; per the approved mockup): one row
     # of tap-chips, each swapping the list below. NO CAP inside a lane
     # — hiding a customer is the unforgivable failure. ──
+    # FIVE BUBBLES (Dallon's approved plan, built Jul 14 night): every
+    # row still carries its old identity as a word/tag — 🔧 fix-its
+    # live in Inbox, ⏰ nudges live in Waiting, 🖊️ in-Jobber rows live
+    # in the Handled fold. Fewer boxes, nothing hidden.
     LANES = [("inbox", "📬 Inbox",
-              "Matches the Gmail inbox — the only number that has to "
-              "hit zero. New messages, replies, voicemails."),
+              "Matches Gmail — work bottom to top, oldest first. New "
+              "messages, replies, voicemails, and 🔧 fix-its. Answered "
+              "rows clear themselves."),
              ("drafts", "🤖 Drafts",
               "The engine's quotes waiting for a human yes. Burn down "
               "when there's time."),
-             ("officedraft", "🖊️ In Jobber",
-              "The office is drafting these quotes in Jobber right now — "
-              "out of your way, don't re-quote."),
-             ("fixits", "🔧 Fix-its",
-              "Completed-work customers who wrote back — answer, "
-              "don't quote."),
              ("won", "📅 Won",
               "They said yes — get them on the schedule."),
              ("waiting", "📤 Waiting",
-              "Quotes out, ball in the customer's court. Moves by "
-              "itself when they act."),
-             ("nudge", "🚫 Nudge",
-              "Declined or quiet 10+ days — the follow-up money list, "
-              "auto-filled."),
+              "Quotes out, ball in the customer's court — including ⏰ "
+              "gone-quiet nudges and 🚫 declines. Moves by itself."),
              ("techs", "👷 Techs",
               "Field mail from our own techs — never a bid.")]
     chips = ""
@@ -7243,17 +7261,19 @@ def _guide_training():
             "really about pricing a customer, open that customer's card "
             "and handle it there.")
 
-        + _t_step(7, "Move ▾, ✓ Done, and the folders",
-            "<b>✓ Done</b> clears a row for the whole office (a new "
-            "customer message always brings it back — nothing is ever "
-            "lost). <b>Move ▾</b> files it: needs-reply, declined, park "
-            "a week, fix-its — and every move teaches the sorter. "
-            "<b>🖊️ In Jobber</b> means a teammate is already building "
-            "that quote — don't double-quote. <b>📤 Waiting</b> moves by "
-            "itself when the customer acts; <b>⏰ Follow-ups</b> is the "
-            "nudge list. The 🕵️ hourly review re-checks every folder "
-            "and posts anything odd on the <a href='/working'>build "
-            "board</a>.")
+        + _t_step(7, "The five bubbles, Move ▾, and ✓ Done",
+            "Just five boxes now: <b>📬 Inbox</b> (messages, voicemails, "
+            "and 🔧 fix-its — answered rows clear themselves), <b>🤖 "
+            "Drafts</b>, <b>📅 Won</b>, <b>📤 Waiting</b> (including ⏰ "
+            "gone-quiet nudges and 🚫 declines), and <b>👷 Techs</b>. "
+            "Rows a teammate is already quoting in Jobber live in the "
+            "<b>Handled in Jobber</b> fold at the bottom — don't "
+            "double-quote. <b>✓ Done</b> clears a row for the whole "
+            "office (a new customer message always brings it back — "
+            "nothing is ever lost). <b>Move ▾</b> files it, and every "
+            "move teaches the sorter. The 🕵️ hourly review re-checks "
+            "every bubble and posts anything odd on the "
+            "<a href='/working'>build board</a>.")
 
         + "<div class='card' style='background:rgba(11,61,46,.06);"
           "border-left:4px solid #0b3d2e'><b>The golden rules</b>"
