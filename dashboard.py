@@ -7422,7 +7422,7 @@ def tom_standby_page(user=None):
     return page("Tom's board", body)
 
 
-def winback_page():
+def pw_winback_page():
     """💦 PW WIN-BACK LIST (Dallon's running list, Jul 15 — the
     day-matched race showed pressure washing down $4,790 this July and
     ~$50k in April). Everyone who bought PW in the last two years and
@@ -7432,8 +7432,8 @@ def winback_page():
         import winback
         W = winback.build()
     except Exception as ex:
-        return page("Win-back", f"<div class='card'>couldn't build the "
-                                f"list: {esc(str(ex))}</div>")
+        return page("PW win-backs", f"<div class='card'>couldn't build "
+                                    f"the list: {esc(str(ex))}</div>")
     rows = W.get("rows") or []
 
     def row(r):
@@ -9830,8 +9830,11 @@ class Handler(BaseHTTPRequestHandler):
                 "Cookie") or "")
             return self._send(autodrafts_page(
                 urllib.parse.unquote(cm.group(1)) if cm else None))
-        if self.path == "/winback":
-            return self._send(winback_page())
+        if self.path == "/pwwinback":
+            # NOTE: /winback (above) is the office's lifetime-value call
+            # list; this is the Jul 15 PW-specific lapsed list — related
+            # but different questions, kept separate on purpose.
+            return self._send(pw_winback_page())
         if self.path == "/tomstandby":
             cm = re.search(r"office_user=([^;]+)",
                            self.headers.get("Cookie") or "")
