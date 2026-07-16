@@ -104,16 +104,18 @@ except Exception as e:
 # sweep applies the fix; the nightly merge keeps poisoned entries.)
 # Runs BEFORE yoy/win-back so tonight's numbers use clean data.
 try:
-    from pathlib import Path as _P
     from datetime import date as _D
-    _mk = _P("data/.history_rebuilt_jul15")
-    # Dallon, Jul 15 eve: system stability first — the 2-3h rebuild
-    # waits until the Jul 16 run so tonight stays quiet
-    if not _mk.exists() and _D.today() >= _D(2026, 7, 16):
+    # BLOB-gated, not file-gated (Jul 16 cloud-ify): a local marker
+    # doesn't survive the cron's ephemeral disk → the 2-3h rebuild
+    # would re-run EVERY night. The blob is permanent, so it runs once.
+    import clouddb as _cdb
+    _done = bool((_cdb.get_blob("history_rebuilt_jul15") or {}).get("done")) \
+        if _cdb.available() else True
+    if not _done and _D.today() >= _D(2026, 7, 16):
         import servicehistory
         print("   FULL service-history rebuild (discount-line fix)…")
         servicehistory.sweep()
-        _mk.write_text("done")
+        _cdb.put_blob("history_rebuilt_jul15", {"done": True})
 except Exception as e:
     print(f"   (history rebuild skipped: {e})")
 
