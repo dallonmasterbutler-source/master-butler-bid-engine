@@ -3373,6 +3373,20 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
     # to the bottom of the group, never a cleared row (Jul-13 kill
     # switch stands). A new inbound message always outranks it.
     gmail_state = _blob_rw("gmail_state", {})
+    # 📵 YAHOO/AOL BOUNCE FLAG (Dallon, Jul 16): while the domain's DNS
+    # is unauthenticated, mail to Yahoo-run providers bounces — flag
+    # those customers to call instead. One switch clears it everywhere
+    # the day the DNS goes live: set the dns_fixed blob to True.
+    _dns_fixed = bool(_blob_rw("dns_fixed", False))
+    _YAHOO_DOMS = ("yahoo.com", "yahoo.ca", "ymail.com", "rocketmail.com",
+                   "aol.com", "sbcglobal.net", "att.net", "verizon.net",
+                   "bellsouth.net", "pacbell.net", "ameritech.net",
+                   "flash.net", "prodigy.net")
+
+    def _yahoo_family(email):
+        e = (email or "").lower()
+        return "@" in e and e.rsplit("@", 1)[-1] in _YAHOO_DOMS
+
     # 🏜 STANDBY HOMES LIVE IN TOM'S FOLD, NOT THE INBOX (Dallon,
     # Jul 15: 'michelle yelle is in inbox AND in the tom only') —
     # a home waiting on Tom's dry window isn't office to-do. It leaves
@@ -3995,6 +4009,14 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         if r.get("qtag"):
             actchip += (f"<span style='color:{r['qtag'][1]};font-weight:800;"
                         f"font-size:11px'>{r['qtag'][0]}</span> ")
+        # 📵 YAHOO/AOL = EMAIL UNRELIABLE, CALL INSTEAD (Dallon, Jul 16 —
+        # the Yahoo policy block bounces our quotes to these providers;
+        # flag them so the office phones rather than emails into a void.
+        # Auto-clears the day the DNS records go live: flip dns_fixed.)
+        if not _dns_fixed and _yahoo_family(r["key"]):
+            actchip += ("<span style='color:#b03a2e;font-weight:800;"
+                        "font-size:11px'>📵 email bounces — call/text"
+                        "</span> ")
         _cfr = r.get("cflag")
         if _cfr:
             _cft = {"bad_payer": ("⚠️ bad payer", "#f2b8b5"),
