@@ -178,39 +178,35 @@ def poll_once():
         fresh = False
     if not fresh:
         try:
-            import scoreboard
-            scoreboard.run(limit=40)
-            # TRUST FIX (Dallon, Jul 14): hourly, link ready-drafts to
-            # quotes the office created directly in Jobber, so Drafts
-            # only counts work that truly needs drafting
+            # SCOREBOARD + drafts backfill hit JOBBER — isolate them so a
+            # Jobber THROTTLE can't starve the local watchdogs below
+            # (Jul 16 health-check: scoreboard.run threw on a throttle,
+            # jumped past lane/self-review/pulse, and froze all three at
+            # 4:23pm — they only read our own DB and never needed Jobber).
             try:
+                import scoreboard
+                scoreboard.run(limit=40)
                 import jobber_delta as _jd
-                _jd.backfill_drafts()
-            except Exception:
-                pass
-            # THE HOURLY LANE REVIEWER (Dallon, Jul 14: 'catch the
-            # problems before the office does') — flags, never moves
+                _jd.backfill_drafts()   # trust fix — Drafts counts real work
+            except Exception as _e:
+                print(f"  (scoreboard/quote sync skipped — Jobber: {_e})")
+            # LOCAL WATCHDOGS — read the cloud DB only, so they run EVERY
+            # hour regardless of Jobber's mood.
             try:
                 import lane_review
-                lane_review.run()
-            except Exception:
-                pass
-            # 🔍 THE SELF-REVIEW (Dallon, Jul 15: 'tell us where we
-            # are failing the most') — re-grade ourselves hourly
+                lane_review.run()            # hourly problem-catcher
+            except Exception as _e:
+                print(f"  (lane review skipped: {_e})")
             try:
                 import failure_review
-                failure_review.run()
-            except Exception:
-                pass
-            # AUTO-RESPOND PULSE (Dallon, Jul 15: 'i would love to watch
-            # this on the scoreboard') — refresh the shadow summary blob
-            # hourly so the Scoreboard card stays live without anyone
-            # opening the grading room.
+                failure_review.run()         # 🔍 self-review
+            except Exception as _e:
+                print(f"  (self review skipped: {_e})")
             try:
                 import dashboard as _dash
-                _dash.autodrafts_page(None)   # renders → saves the pulse
-            except Exception:
-                pass
+                _dash.autodrafts_page(None)  # refreshes the pulse blob
+            except Exception as _e:
+                print(f"  (pulse refresh skipped: {_e})")
             marker.write_text(datetime.now().isoformat(timespec="seconds"))
             try:
                 import autoreview
