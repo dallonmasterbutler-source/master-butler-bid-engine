@@ -73,6 +73,103 @@ def _remember(msg_id):
 FOLDERS = ["INBOX", "[Gmail]/Spam"]
 
 
+# Gmail-ids already looked at THIS session — skip re-fetching them every
+# poll (in-memory; a restart re-checks the recent window once, cheap).
+_API_SEEN = set()
+_API_OK = {"checked": False, "ok": False}
+
+
+def _use_api():
+    """Read via the Gmail API when the token can read; fall back to IMAP
+    otherwise. Checked once per process (scope doesn't change mid-run)."""
+    if not _API_OK["checked"]:
+        try:
+            import gmail_api
+            _API_OK["ok"] = gmail_api.can_read()
+        except Exception:
+            _API_OK["ok"] = False
+        _API_OK["checked"] = True
+        print(f"  inbox read path: "
+              f"{'Gmail API' if _API_OK['ok'] else 'IMAP (no read scope)'}")
+    return _API_OK["ok"]
+
+
+def _poll_via_api(seen):
+    """Fetch new mail over the Gmail API — same Message-ID dedup as the
+    IMAP path, so nothing is ever re-processed on cutover."""
+    import email as _email
+    import gmail_api
+    new_count = 0
+    for folder, q in (("INBOX", "in:inbox"), ("[Gmail]/Spam", "in:spam")):
+        try:
+            ids = gmail_api.list_ids(f"newer_than:2d {q}", cap=300)
+        except Exception as e:
+            print(f"  (api list {folder} skipped: {e})")
+            continue
+        for gid in ids:
+            if gid in _API_SEEN:
+                continue
+            try:
+                raw = gmail_api.get_raw(gid)
+            except Exception:
+                continue
+            _API_SEEN.add(gid)
+            m = _email.message_from_bytes(raw)
+            msg_id = (m.get("Message-ID") or f"gmail-{gid}").strip()
+            if msg_id in seen:
+                continue
+            new_count += 1
+            shadow_process(raw, msg_id, folder=folder)
+            _remember(msg_id)
+            seen.add(msg_id)
+    try:
+        _sweep_sent_api(seen)
+    except Exception as e:
+        print(f"  (sent sweep skipped: {e})")
+    return new_count
+
+
+def _sweep_sent_api(seen):
+    """Office replies sent from Gmail → the message log, via the API."""
+    import email as _email
+    import gmail_api
+    import msglog
+    for gid in gmail_api.list_ids("newer_than:3d in:sent", cap=40):
+        _k = "sent-api-" + gid
+        if _k in _API_SEEN:
+            continue
+        _API_SEEN.add(_k)
+        try:
+            raw = gmail_api.get_raw(gid)
+        except Exception:
+            continue
+        msg = _email.message_from_bytes(raw, policy=_email.policy.default)
+        mid = "sent-" + (msg.get("Message-ID") or gid).strip()
+        if mid in seen:
+            continue
+        seen.add(mid)
+        _remember(mid)
+        to_addr = _email.utils.parseaddr(msg.get("To", ""))[1]
+        body = ""
+        plain = msg.get_body(preferencelist=("plain",))
+        if plain is not None:
+            body = plain.get_content()
+        else:
+            h = msg.get_body(preferencelist=("html",))
+            if h is not None:
+                body = _re.sub(r"<[^>]+>", " ", h.get_content())
+        sent_at = None
+        try:
+            from email.utils import parsedate_to_datetime
+            if msg.get("Date"):
+                sent_at = parsedate_to_datetime(msg["Date"]) \
+                    .isoformat(timespec="seconds")
+        except Exception:
+            pass
+        msglog.record("out", to_addr, subject=msg.get("Subject", ""),
+                      body=body, at=sent_at)
+
+
 def poll_once():
     """One pass: fetch unseen-by-US messages, shadow-process each."""
     # relay any cloud-queued internal mail while we're here (the cloud
@@ -84,47 +181,48 @@ def poll_once():
             print(f"  relayed {n} queued internal email(s)")
     except Exception:
         pass
-    addr, pw = _creds()
-    M = imaplib.IMAP4_SSL("imap.gmail.com")
-    M.login(addr, pw)
-    try:
-        seen = _processed()
-        new_count = 0
+    seen = _processed()
+    new_count = 0
 
-        for folder in FOLDERS:
-            typ, _ = M.select(f'"{folder}"', readonly=True)  # the safety guarantee
-            if typ != "OK":
-                print(f"  (cannot open {folder} — skipped)")
-                continue
-            typ, data = M.search(None, "ALL")
-            ids = data[0].split() if data and data[0] else []
-
-            for num in ids:
-                # stable Message-ID header (num changes; Message-ID doesn't)
-                typ, hdr = M.fetch(num, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
-                raw_hdr = hdr[0][1].decode(errors="replace")
-                msg_id = raw_hdr.split(":", 1)[-1].strip() or f"no-id-{num.decode()}"
-                if msg_id in seen:
+    # PREFERRED: the Gmail API (no IMAP rate limits — the Jul 15/16
+    # outages). Falls back to IMAP automatically if the token can't read.
+    if _use_api():
+        new_count = _poll_via_api(seen)
+    else:
+        addr, pw = _creds()
+        M = imaplib.IMAP4_SSL("imap.gmail.com")
+        M.login(addr, pw)
+        try:
+            for folder in FOLDERS:
+                typ, _ = M.select(f'"{folder}"', readonly=True)
+                if typ != "OK":
+                    print(f"  (cannot open {folder} — skipped)")
                     continue
-
-                typ, full = M.fetch(num, "(BODY.PEEK[])")   # untouched
-                raw = full[0][1]
-                new_count += 1
-                shadow_process(raw, msg_id, folder=folder)
-                _remember(msg_id)
-                seen.add(msg_id)
-
-        # LIVE MESSAGES: also sweep the Sent folder, so replies the office
-        # sends from Gmail still show up in the dashboard conversation.
-        try:
-            _sweep_sent(M, seen)
-        except Exception as e:
-            print(f"  (sent sweep skipped: {e})")
-    finally:
-        try:
-            M.logout()      # NEVER leak an IMAP connection —
-        except Exception:   # Gmail caps simultaneous logins
-            pass
+                typ, data = M.search(None, "ALL")
+                ids = data[0].split() if data and data[0] else []
+                for num in ids:
+                    typ, hdr = M.fetch(
+                        num, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
+                    raw_hdr = hdr[0][1].decode(errors="replace")
+                    msg_id = raw_hdr.split(":", 1)[-1].strip() \
+                        or f"no-id-{num.decode()}"
+                    if msg_id in seen:
+                        continue
+                    typ, full = M.fetch(num, "(BODY.PEEK[])")
+                    raw = full[0][1]
+                    new_count += 1
+                    shadow_process(raw, msg_id, folder=folder)
+                    _remember(msg_id)
+                    seen.add(msg_id)
+            try:
+                _sweep_sent(M, seen)
+            except Exception as e:
+                print(f"  (sent sweep skipped: {e})")
+        finally:
+            try:
+                M.logout()
+            except Exception:
+                pass
     # pull the office's Settings edits down so THIS machine prices and
     # drafts with the same numbers the cloud uses
     try:
