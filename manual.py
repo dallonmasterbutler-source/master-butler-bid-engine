@@ -101,10 +101,12 @@ def process_manual(name, address, phone="", email="", services=None,
                 record["office_alert"] += " " + s_alert
         except Exception:
             pass
-        out_lines = [f"MANUAL LEAD — {name}", f"Address: {addr}"]
+        out_lines = [f"MANUAL LEAD — {name}", f"Address: {addr or '(none yet)'}"]
         if not prop.get("sqft"):
-            record["office_alert"] += (" No property size found — office "
-                                       "verifies before pricing.")
+            record["office_alert"] += (
+                (" 📇 Contact saved — no address yet; add it later to look up "
+                 "and price this lead.") if not addr else
+                (" No property size found — office verifies before pricing."))
             record["pipeline_output"] = "\n".join(
                 out_lines + ["No square footage — office must supply it."])
             record["draft"] = {"customer": {"name": name, "email": email,

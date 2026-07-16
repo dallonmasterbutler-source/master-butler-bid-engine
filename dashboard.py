@@ -2644,14 +2644,17 @@ def new_lead_page(msg=""):
 <div class='card' style='max-width:640px'>
  <h2 style='margin-top:0'>New lead — enter it like an email came in</h2>
  <div class='subtext' style='margin-bottom:12px'>For a tech's curbside
-  contact or a phone lead. The system looks up the property from the
-  satellite, prices it, and drops a draft on the queue — same as an email.</div>
+  contact or a phone lead. With an address, the system looks up the
+  property, prices it, and drops a draft on the queue — same as an email.
+  <b>No address yet? That's fine</b> — save just the name and phone now,
+  and the card waits on the queue for you to fill in the rest later.</div>
  <form method='POST' action='/new'>
   <div style='margin-bottom:8px'><b>Customer name</b>
    <input type='text' name='name' required></div>
   <div style='margin-bottom:8px'><b>Property address</b>
-   <input type='text' name='address' required
-          placeholder='street, city, WA zip'></div>
+   <span class='subtext'>— optional; leave blank to save a contact only</span>
+   <input type='text' name='address'
+          placeholder='street, city, WA zip — or leave blank for now'></div>
   <div style='display:flex;gap:10px;margin-bottom:8px'>
    <div style='flex:1'><b>Phone</b><input type='text' name='phone'></div>
    <div style='flex:1'><b>Email (optional)</b><input type='text' name='email'></div>
@@ -5221,6 +5224,24 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
             was = (f"<div class='subtext' style='font-size:10.5px'>system "
                    f"said ${s['orig_price']:,.0f}</div>"
                    if s.get("orig_price") not in (None, s["price"]) else "")
+            # ↩ HONOR PRIOR QUOTE (Tom): one click sets this line to what
+            # they last paid for this service (from their own history) —
+            # no digging through old quotes. Only shows when there IS a
+            # past price and it differs from the current line.
+            _last = recent[0][1] if recent else None
+            honor = ""
+            if editable and _last is not None and abs(_last - s["price"]) >= 1:
+                honor = (
+                    f"<button type='button' "
+                    f"title='Set this line to what they last paid "
+                    f"({esc(recent[0][0][:7])})' "
+                    f"onclick=\"var e=document.getElementsByName('p_{i}')[0];"
+                    f"e.value={_last:g};e.dispatchEvent(new Event('input'));\" "
+                    f"style='display:block;margin-top:3px;font-size:10px;"
+                    f"padding:2px 6px;border:1px solid var(--gold);"
+                    f"border-radius:6px;background:var(--goldbg);"
+                    f"color:var(--green2);cursor:pointer;font-weight:700;"
+                    f"width:100%'>↩ honor ${_last:,.0f}</button>")
             # step='any' + true value (LaRee, Jul 15: the $14.50 moss
             # product made step='5' invalid, so the browser refused the
             # WHOLE save — "change the moss pricing to $15" — and the
@@ -5229,7 +5250,7 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                   f"value='{s['price']:g}' step='any' min='0' "
                   f"style='width:76px;text-align:right;font-weight:700;"
                   f"border:1px solid var(--line);border-radius:6px;"
-                  f"padding:4px'>{was}</td>" if editable
+                  f"padding:4px'>{was}{honor}</td>" if editable
                   else f"<td class='num'>${s['price']:,.0f}</td>")
             rng = (f"<div class='subtext' style='font-size:10.5px'>"
                    f"range ${s['low']:,.0f}–${s['high']:,.0f}</div>"
