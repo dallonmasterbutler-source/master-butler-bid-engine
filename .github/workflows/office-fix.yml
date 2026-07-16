@@ -4,6 +4,20 @@ name: Auto-fix office issues
 # `office-fix`), Claude diagnoses it, writes a fix on a BRANCH, runs the tests,
 # and opens a DRAFT pull request for Dallon to review. It never pushes to main
 # and never deploys — merging the PR is Dallon's decision (that's the gate).
+#
+# ┌─────────────────────────────────────────────────────────────────────┐
+# │  ON / OFF SWITCH  (currently OFF — set up but dormant, Jul 16 2026)  │
+# │                                                                       │
+# │  This never runs until BOTH are true:                                 │
+# │    1. a repository VARIABLE `AUTOFIX_ENABLED` = `true` exists          │
+# │       (Repo → Settings → Secrets and variables → Actions →            │
+# │        Variables tab → New repository variable)                       │
+# │    2. the Claude GitHub App is installed + ANTHROPIC_API_KEY secret    │
+# │       is set.                                                          │
+# │                                                                       │
+# │  To TURN OFF again: delete the AUTOFIX_ENABLED variable (or set it     │
+# │  to anything other than `true`). No code change needed either way.    │
+# └─────────────────────────────────────────────────────────────────────┘
 
 on:
   issues:
@@ -16,8 +30,11 @@ permissions:
 
 jobs:
   fix:
-    # only run for tickets tagged office-fix
-    if: contains(github.event.issue.labels.*.name, 'office-fix')
+    # Runs ONLY when the master switch is on AND the ticket is tagged
+    # office-fix. AUTOFIX_ENABLED is unset today, so this stays dormant.
+    if: >-
+      vars.AUTOFIX_ENABLED == 'true' &&
+      contains(github.event.issue.labels.*.name, 'office-fix')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
