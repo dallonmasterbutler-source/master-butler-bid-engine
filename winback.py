@@ -28,7 +28,8 @@ PW = ("driveway", "patio", "sidewalk", "house wash")
 def build(today=None):
     today = today or date.today()
     yr = today.year
-    d = json.loads((BASE / "data" / "service_history.json").read_text())
+    from servicehistory import load_history   # file on Mac, blob on cloud
+    d = load_history()
     rows = []
     for who, svcs in (d.get("by_client") or {}).items():
         pw_years, pw_last, pw_total_last = set(), None, 0.0

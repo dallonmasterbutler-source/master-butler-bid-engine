@@ -135,10 +135,11 @@ def run_local(verbose=False):
     if d0.month != 7:
         return None
     day = d0.day
-    p = Path(__file__).parent / "data" / "service_history.json"
-    if not p.exists():
+    # file on the Mac, blob on Render (Jul 16 cloud-ify) — one loader
+    from servicehistory import load_history
+    byp = (load_history() or {}).get("by_property") or {}
+    if not byp:
         return None
-    byp = (json.loads(p.read_text()) or {}).get("by_property") or {}
     LABEL = {"gutter": "Gutters", "roof blow": "Roof blow-off",
              "moss": "Moss", "window_exterior": "Windows (ext)",
              "window_inout": "Windows (in&out)", "window": "Windows",

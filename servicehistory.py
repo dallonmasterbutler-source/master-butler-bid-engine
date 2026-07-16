@@ -70,6 +70,27 @@ def _discount_factors():
     return factors
 
 
+def load_history():
+    """The invoice archive, wherever it lives (Jul 16 cloud-ify): the
+    local data/service_history.json on the Mac, else the mirrored
+    `service_history` blob on Render (ephemeral fs has no file). Every
+    reader — yoy, win-back — goes through here so the night run works
+    in the cloud, not just on Dallon's laptop."""
+    p = Path("data") / "service_history.json"
+    if p.exists():
+        try:
+            return json.loads(p.read_text())
+        except Exception:
+            pass
+    try:
+        import clouddb
+        if clouddb.available():
+            return clouddb.get_blob("service_history") or {}
+    except Exception:
+        pass
+    return {}
+
+
 def _slug(street, city):
     return re.sub(r"[^a-z0-9]+", "-",
                   f"{street or ''} {city or ''}".lower()).strip("-")[:60]

@@ -60,6 +60,33 @@ def start_cloud_ears():
     print("cloud ears: ON — watching the inbox from the cloud")
 
 
+def start_cloud_nightly():
+    """THE NIGHTLY, IN THE CLOUD (Dallon, Jul 16): the office-essential
+    refreshes fire once a day from here, so they no longer wait on
+    Dallon's Mac. A daily-marker blob keeps it to one run/day even
+    across restarts. Only runs where cloud ears run (same switch)."""
+    if os.environ.get("POLL_IN_CLOUD", "").lower() != "true":
+        return
+    import threading
+    import time
+
+    def loop():
+        import cloud_nightly
+        while True:
+            try:
+                now = __import__("datetime").datetime.now()
+                # fire in the 21:00–21:59 local hour, once per day
+                if now.hour == 21 and not cloud_nightly.already_ran_today():
+                    print("[cloud nightly] starting…")
+                    cloud_nightly.run()
+                    print("[cloud nightly] done")
+            except Exception as e:
+                print(f"[cloud nightly] error: {e}")
+            time.sleep(600)          # check every 10 min
+    threading.Thread(target=loop, daemon=True).start()
+    print("cloud nightly: ON — office refreshes run from the cloud at 9pm")
+
+
 if __name__ == "__main__":
     apply_schema()
     os.environ.setdefault("HOST", "0.0.0.0")
@@ -69,6 +96,7 @@ if __name__ == "__main__":
     if not dashboard._password():
         raise SystemExit("REFUSING public serve without DASHBOARD_PASSWORD")
     start_cloud_ears()
+    start_cloud_nightly()
     print(f"dashboard on {dashboard.HOST}:{dashboard.PORT} (password-protected)")
     HTTPServer((dashboard.HOST, dashboard.PORT),
                dashboard.Handler).serve_forever()
