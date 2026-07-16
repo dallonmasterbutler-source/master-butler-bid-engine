@@ -48,16 +48,34 @@ def start_cloud_ears():
 
     def loop():
         import gmail_poller
+        BASE = 120                       # gentler than the old 75s
+        delay = BASE
         while True:
             try:
                 n = gmail_poller.poll_once()
                 gmail_poller._keep_cloud_warm()
                 print(f"[cloud ears] poll complete — {n} new")
+                delay = BASE             # healthy → back to normal cadence
             except Exception as e:
-                print(f"[cloud ears] poll error: {e}")
-            time.sleep(75)
+                # BACK OFF on Gmail's rate limit (Jul 16: polling every
+                # 75s into an 'exceeded command/bandwidth limits' block
+                # PROLONGS the lockout — the poller was hammering itself
+                # stale). Exponential to 15 min; heartbeat still beats so
+                # the dashboard knows the loop is alive, just waiting.
+                msg = str(e).lower()
+                rate = any(w in msg for w in
+                           ("exceed", "bandwidth", "limit", "throttl"))
+                delay = min(delay * 2, 900) if rate else min(delay + 60, 300)
+                try:
+                    gmail_poller._keep_cloud_warm()
+                except Exception:
+                    pass
+                print(f"[cloud ears] poll error "
+                      f"({'rate-limit backoff' if rate else 'retry'} "
+                      f"{delay}s): {e}")
+            time.sleep(delay)
     threading.Thread(target=loop, daemon=True).start()
-    print("cloud ears: ON — watching the inbox from the cloud")
+    print("cloud ears: ON — watching the inbox from the cloud (backoff-aware)")
 
 
 def start_cloud_nightly():
