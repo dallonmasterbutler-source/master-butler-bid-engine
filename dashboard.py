@@ -5810,6 +5810,18 @@ def customers_tab_page(sel=None, q="", user=None, draft=""):
                    f"Bids</a>")
         facts = ""
         _pi = ((newest or {}).get("draft") or {}).get("prop_info") or {}
+        if not _pi.get("sqft"):
+            # Fall back to any record for this customer that carries the
+            # house facts — the newest one can be a bare reply or a Jobber
+            # event that gathered nothing, which left the profile blank
+            # while the sqft sat on an earlier bid (Jessica, Jul 16:
+            # "it was going to the quote, but not their main profile").
+            for _s in sorted(p["stamps"], reverse=True):
+                _cand = ((recs.get(_s) or {}).get("draft")
+                         or {}).get("prop_info") or {}
+                if _cand.get("sqft"):
+                    _pi = _cand
+                    break
         for f_ in (f"{_pi['sqft']:,} sqft" if _pi.get("sqft") else None,
                    f"{_pi['stories']} story" if _pi.get("stories") else None,
                    f"{_pi['roof_material']} roof"
