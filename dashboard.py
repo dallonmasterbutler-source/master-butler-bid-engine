@@ -22,6 +22,7 @@ Local prototype — reads/writes the repo's data/ folder only.
 
 import json
 import re
+import time as _time
 import urllib.parse
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -30,6 +31,10 @@ from pathlib import Path
 import templates
 
 BASE = Path(__file__).parent
+
+# failed sign-in timestamps per client IP → the brute-force throttle
+# (in-memory; resets on restart, which is fine for a cool-off window)
+_LOGIN_FAILS = {}
 SHADOW = BASE / "data" / "shadow_bids"
 REVIEW_LOG = BASE / "data" / "review_log.json"
 RECON = BASE / "data" / "discount_reconciliation.json"
@@ -9974,7 +9979,8 @@ class Handler(BaseHTTPRequestHandler):
         tok = getattr(self, "_basic_upgrade", None)
         if tok:
             self.send_header("Set-Cookie", f"mb_auth={tok}; Path=/; "
-                             "Max-Age=31536000; SameSite=Lax")
+                             "Max-Age=31536000; SameSite=Lax; "
+                             "Secure; HttpOnly")
         if "text/html" in ctype:
             # never let a browser show yesterday's design (Dallon,
             # Jul 10 pm: new Settings/Win-back 'still aren't there' —
@@ -10300,6 +10306,24 @@ class Handler(BaseHTTPRequestHandler):
 
         # ── sign-in form POST (must run BEFORE the auth gate) ──
         if self.path == "/login":
+            # BRUTE-FORCE THROTTLE (lock-down pass, Jul 16): one shared
+            # password on the open internet had no guard. Track failed
+            # tries per real client IP (X-Forwarded-For behind Render);
+            # 20+ fails in 10 min → cool off. Generous so the office's
+            # fat-fingers never lock them out; a guesser can't grind.
+            _ip = (self.headers.get("X-Forwarded-For", "").split(",")[0]
+                   .strip() or self.client_address[0])
+            _now = _time.time()
+            _hits = [t for t in _LOGIN_FAILS.get(_ip, []) if _now - t < 600]
+            if len(_hits) >= 20:
+                _LOGIN_FAILS[_ip] = _hits
+                self.send_response(429)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Retry-After", "300")
+                self.end_headers()
+                self.wfile.write(b"Too many sign-in attempts. Wait a "
+                                 b"few minutes and try again.")
+                return
             form = urllib.parse.parse_qs(body.decode())
             pw = _password()
             given = form.get("password", [""])[0]
@@ -10313,11 +10337,13 @@ class Handler(BaseHTTPRequestHandler):
                 nxt = "/"
             import hmac as _hmac
             if pw and _hmac.compare_digest(given, pw):
+                _LOGIN_FAILS.pop(_ip, None)         # clean slate on success
                 self.send_response(303)
                 # 1-year session cookie; the name tag rides along too
                 self.send_header("Set-Cookie",
                                  f"mb_auth={_auth_token(pw)}; Path=/; "
-                                 "Max-Age=31536000; SameSite=Lax")
+                                 "Max-Age=31536000; SameSite=Lax; "
+                                 "Secure; HttpOnly")
                 who = form.get("who", [""])[0].strip()
                 # generic identities can never become the name tag
                 if who.lower() in ("office", "admin", "masterbutler",
@@ -10331,7 +10357,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header("Location", nxt)
                 self.end_headers()
                 return
-            # wrong password → re-show the form with the error
+            # wrong password → count it, re-show the form with the error
+            _LOGIN_FAILS[_ip] = _hits + [_now]
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
