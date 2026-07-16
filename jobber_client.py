@@ -691,6 +691,15 @@ def create_draft_quote(client_id, property_id, bid, prop_info=None,
     descs = _service_descriptions()
     tom = _is_tom_only(prop_info)
     line_items = []
+    # The office pairs moss treatment with its product line. Only auto-add
+    # it when the bid doesn't ALREADY carry one — the intake pipeline adds
+    # the product line itself, and it sits LATER in the list than the
+    # treatment line, so the "not already in line_items" guard below fired
+    # too early (product not appended yet) and we shipped it TWICE
+    # (Jessica, Jul 16, Randy Dirks #36666).
+    _has_moss_product = any(
+        "moss treatment product" in (s.get("name") or "").lower()
+        for s in bid["services"])
     for s in bid["services"]:
         names = _OFFICE_LINE.get(s["name"].split(" (~")[0])
         oname = (names[1] if tom else names[0]) if names else s["name"]
@@ -706,6 +715,7 @@ def create_draft_quote(client_id, property_id, bid, prop_info=None,
         line_items.append(li)
         # the office always pairs treatment with its product line
         if oname.startswith("Apply Moss Treatment") \
+                and not _has_moss_product \
                 and "Moss Treatment Product" not in [
                     x["name"] for x in line_items]:
             line_items.append({

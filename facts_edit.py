@@ -212,6 +212,18 @@ def reprice(rec, edits, by="office"):
         notes.append("Kept at their previous price (the reprice "
                      "couldn't re-measure them from facts alone): "
                      f"{', '.join(carried)}.")
+    # DEDUP: the merge above (fresh reprice + preserved office lines +
+    # carried-forward lines) can re-introduce a line that already exists —
+    # e.g. Moss Treatment Product showing up twice. Keep the first of each
+    # name (case-insensitive), which preserves the office's price/order.
+    _seen, _uniq = set(), []
+    for s in results:
+        k = (s.get("name") or "").strip().lower()
+        if k in _seen:
+            continue
+        _seen.add(k)
+        _uniq.append(s)
+    results = _uniq
     total = sum(s.get("price") or 0 for s in results)
 
     edit_txt = ", ".join(f"{k} → {v}" for k, v in clean.items())

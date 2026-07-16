@@ -4776,6 +4776,19 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
         # pm: 'all the stats on the right of the picture — what
         # happened to those'; supersedes Jessica's house-fact chips)
         _pih = (nb.get("draft") or {}).get("prop_info") or {}
+        if not _pih.get("sqft"):
+            # FALL BACK to any sibling record that carries the house facts.
+            # The face record for a customer can be a bare reply or a Jobber
+            # event with no property read — that blanked the profile's facts
+            # while an earlier bid record held the sqft (Jessica, Jul 16,
+            # Randy Dirks: "sqft only shows on the quote, not the profile").
+            for _sb in sorted(c.get("bids") or [],
+                              key=lambda b: b.get("stamp") or "",
+                              reverse=True):
+                _cand = (_sb.get("draft") or {}).get("prop_info") or {}
+                if _cand.get("sqft"):
+                    _pih = _cand
+                    break
 
         def _sprow(icon, label, val, unit=""):
             u = f"<small>{unit}</small>" if unit else ""
@@ -5030,14 +5043,21 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
             + "</div>")
 
     addr_line = ""
-    if nb and nb.get("address"):
+    # The face record can lack an address (a Jobber "quote approved" event,
+    # a bare reply) — fall back to the newest sibling record that HAS one so
+    # the address + tax chip don't vanish from the profile (Jessica, Jul 16).
+    _taxaddr = (nb.get("address") if nb else None) or next(
+        (b.get("address") for b in sorted(c.get("bids") or [],
+         key=lambda b: b.get("stamp") or "", reverse=True)
+         if b.get("address")), None)
+    if _taxaddr:
         _tax_svcs = ([s.get("name") for s in
                       (((nb.get("draft") or {}).get("bid") or {})
                        .get("services") or [])]
-                     or (nb.get("services") or []))
-        addr_line = (f"<a href='/property/{_slug(nb['address'])}'>"
-                     f"{esc(nb['address'])}</a> "
-                     + _tax_glance(nb["address"], _tax_svcs))
+                     or (nb.get("services") if nb else None) or [])
+        addr_line = (f"<a href='/property/{_slug(_taxaddr)}'>"
+                     f"{esc(_taxaddr)}</a> "
+                     + _tax_glance(_taxaddr, _tax_svcs))
     elif c["email"]:
         addr_line = esc(c["email"])
     # HERO (Dallon's design + his photo rule): the house photo with the
@@ -6550,8 +6570,39 @@ def add_service_card(b, back=""):
             f"style='width:17px;height:17px'>"
             f"<span style='flex:1;color:var(--ink)'>{esc(label)}</span>"
             f"<b style='color:var(--green2)'>${price:,.0f}</b></label>")
-    if not rows:
+    # REQUESTED-BUT-UNMEASURED (Jessica, Jul 16, Randy Dirks): the customer
+    # asked for a pressure-wash surface but no measured area came through,
+    # so the engine won't guess a price and it never reached the menu above.
+    # Don't strand the office in Jobber — give them a line with a price box
+    # they TYPE (Dallon Jul 16: "let them type the price"). The office knows
+    # the driveway; being stuck is worse than a hand-priced line.
+    MANUAL_PW = {"pw_driveway": "Pressure Wash Driveway",
+                 "pw_patio": "Pressure Wash Patio",
+                 "pw_sidewalk": "Pressure Wash Sidewalk",
+                 "pw_deck": "Pressure Wash Deck",
+                 "pw_house": "House Wash"}
+    manual_rows = ""
+    for svc in (b.get("services") or []):
+        label = MANUAL_PW.get(svc)
+        if not label:
+            continue
+        if _service_key(label) in have:
+            continue                      # already a line on the bid
+        if price_one_service(b, svc):
+            continue                      # engine can price it → already above
+        manual_rows += (
+            f"<label style='display:flex;align-items:center;gap:10px;"
+            f"padding:7px 10px;border:1px dashed var(--line);"
+            f"border-radius:10px;margin:4px 0;color:var(--ink)'>"
+            f"<span style='flex:1;color:var(--ink)'>{esc(label)} "
+            f"<span style='color:var(--sub);font-size:12px'>— they asked "
+            f"for it; no measurement, type the price</span></span>"
+            f"$<input type='number' name='mprice_{svc}' step='1' min='0' "
+            f"placeholder='0' class='addmprice' data-svc='{svc}' "
+            f"style='width:76px;padding:4px 6px'></label>")
+    if not rows and not manual_rows:
         return ""
+    rows += manual_rows
     cur_total = (b.get("draft") or {}).get("total") or 0
     debris_line = (f"debris/buildup priced from this home's imagery reads "
                    f"({esc(pi.get('debris_read'))})"
@@ -6588,6 +6639,7 @@ def add_service_card(b, back=""):
         """<script>
 (function(){
   var boxes = document.querySelectorAll('#addsvcform .addsvc');
+  var manual = document.querySelectorAll('#addsvcform .addmprice');
   var tot = document.getElementById('addsvctotal');
   var btn = document.getElementById('addsvcbtn');
   if (!tot) return;
@@ -6596,6 +6648,9 @@ def add_service_card(b, back=""):
     var add = 0, n = 0;
     boxes.forEach(function(b){ if (b.checked){
       add += parseFloat(b.getAttribute('data-price')) || 0; n++; } });
+    manual.forEach(function(m){
+      var v = parseFloat(m.value) || 0;
+      if (v > 0){ add += v; n++; } });
     btn.disabled = n === 0;
     tot.textContent = n === 0
       ? 'quote stays $' + base.toLocaleString()
@@ -6603,6 +6658,7 @@ def add_service_card(b, back=""):
         + (base + add).toLocaleString();
   }
   boxes.forEach(function(b){ b.addEventListener('change', upd); });
+  manual.forEach(function(m){ m.addEventListener('input', upd); });
   upd();
 })();
 </script>"""
@@ -6643,10 +6699,13 @@ GUIDE_FAQ = [
   "then approve. The system remembers what it originally guessed, so "
   "it learns from your correction."),
  ("Customer asks for MORE services mid-conversation",
-  "Open their entry → Line items fold → <b>➕ Add another service</b>. "
+  "Open their entry → Line items fold → <b>➕ Add more services</b>. "
   "Every service is pre-priced for that exact home; one click adds the "
-  "line. Pressure washing appears when the sky-measurement exists — "
-  "the 📐 button fetches it. Still verify PW with pictures before "
+  "line. Pressure washing appears with a price when the sky-measurement "
+  "exists — the 📐 button fetches it. If they asked for a pressure-wash "
+  "surface we couldn't measure, it still shows up with an empty <b>price "
+  "box — just type the amount</b> and add it (you know the driveway; no "
+  "need to jump into Jobber). Still verify PW with pictures before "
   "booking (office rule)."),
  ("They already HAVE a quote",
   "A gold <b>📋 Their Jobber quote</b> panel shows on the pinned card — "
@@ -8008,7 +8067,15 @@ def _tax_glance(address, services=None):
         cache[slug] = hit
         _blob_save("tax_glance", cache)
     if not hit.get("code"):
-        return ""
+        # A silent empty chip read as "no tax here" and hid it from the
+        # profile (Jessica, Jul 16: "tax was not added"). When the DOR
+        # lookup can't resolve THIS address string, say so out loud rather
+        # than vanish — the office confirms the rate in Jobber.
+        return ("<span class='chip' style='font-size:11.5px;"
+                "color:var(--mut)' title='Sales tax applies, but the WA "
+                "Dept of Revenue lookup could not resolve this exact "
+                "address — confirm the rate on the Jobber quote'>"
+                "🧾 tax — confirm in Jobber</span>")
     # Dallon's ruling (Jul 10 pm): the ADDRESS is always charged its city
     # rate — window lines are just non-taxable. So the chip always shows
     # the rate; windows-only adds '$0 — windows exempt' for clarity.
@@ -11177,6 +11244,36 @@ class Handler(BaseHTTPRequestHandler):
                     rec["draft"]["total"] = sum(s["price"] for s in svcs)
                     rec["services"] = sorted(set((rec.get("services") or [])
                                                  + [svc]))
+            # MANUAL-PRICE PW lines (Jessica/Dallon Jul 16): a requested
+            # surface with no measurement — the office TYPED the price in the
+            # add-services card. Build the line at their number; the added_by
+            # stamp makes it survive any later reprice/sweep.
+            MANUAL_PW_NAMES = {"pw_driveway": "Pressure Wash Driveway",
+                               "pw_patio": "Pressure Wash Patio",
+                               "pw_sidewalk": "Pressure Wash Sidewalk",
+                               "pw_deck": "Pressure Wash Deck",
+                               "pw_house": "House Wash"}
+            if rec and not rec.get("dns_match"):
+                bid_d = rec.setdefault("draft", {}).setdefault("bid", {})
+                svcs = bid_d.setdefault("services", [])
+                names = {s["name"] for s in svcs}
+                for msvc, lname in MANUAL_PW_NAMES.items():
+                    raw = (form.get("mprice_" + msvc, [""]) or [""])[0]
+                    try:
+                        price = round(float(str(raw).strip()), 2)
+                    except (TypeError, ValueError):
+                        continue
+                    if price <= 0 or lname in names:
+                        continue
+                    li = {"name": lname, "price": price,
+                          "added_by": _user or "office", "manual_price": True}
+                    svcs.append(li)
+                    names.add(lname)
+                    all_added.append(li)
+                    all_names.append(msvc)
+                    rec["draft"]["total"] = sum(s["price"] for s in svcs)
+                    rec["services"] = sorted(set((rec.get("services") or [])
+                                                 + [msvc]))
             if all_added:
                 svc = ", ".join(all_names)
                 added = all_added
