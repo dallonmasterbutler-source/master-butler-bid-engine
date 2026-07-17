@@ -238,7 +238,7 @@ def main():
     # ── unit suites ──
     print("\n  — unit suites —")
     for t in ("test_pricing.py", "test_tax.py", "test_lastpaid.py",
-              "test_seasons.py", "test_spam_filter.py"):
+              "test_seasons.py", "test_spam_filter.py", "test_parser.py"):
         if not (BASE / t).exists():
             continue
         r = subprocess.run([sys.executable, t], cwd=BASE,
