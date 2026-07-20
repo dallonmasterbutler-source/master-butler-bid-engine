@@ -263,17 +263,28 @@ try:
                 h = urllib.request.urlopen(urllib.request.Request(
                     f"{url.rstrip('/')}/bid/{r['stamp']}", headers=hdr),
                     timeout=45).read().decode()
-                if "Small hiccup" in h or len(h) < 2000:
+                # ONLY a genuine error page counts (Dallon, Jul 20). The old
+                # "len < 2000" guess false-flagged sparse-but-healthy pages —
+                # that noise plus a never-clearing alert nagged for days after
+                # the real breaks were long fixed.
+                if "Small hiccup" in h:
                     bad.append(r["stamp"])
             except Exception:
-                bad.append(r["stamp"])
+                bad.append(r["stamp"])           # HTTP fail / timeout = real
         msg = (f"   QA: {len(recs)} bid pages checked, "
                f"{len(bad)} broken" + (f" -> {bad[:5]}" if bad else " ✅"))
         print(msg)
-        if bad:
-            Path("data/brief_pin.txt").write_text(
-                f"🔴 QA ALERT: {len(bad)} bid page(s) failing to render: "
-                f"{', '.join(bad[:6])} — tell Claude.\n")
+        # Write the result to the SHARED store (the brief reads the blob, not
+        # this ephemeral file) and CLEAR it when everything's healthy, so a
+        # fixed page stops nagging.
+        alert = (f"🔴 QA ALERT: {len(bad)} bid page(s) failing to render: "
+                 f"{', '.join(bad[:6])} — tell Claude.\n") if bad else ""
+        try:
+            import clouddb
+            clouddb.put_blob("brief_pin", alert)
+        except Exception:
+            pass
+        Path("data/brief_pin.txt").write_text(alert)
 except Exception as e:
     print(f"   QA check skipped ({e})")
 
