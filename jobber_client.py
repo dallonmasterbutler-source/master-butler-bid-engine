@@ -395,7 +395,52 @@ query Props($id: EncodedId!) {
 """
 
 
+_ADDR_ABBR = {
+    "st": "street", "ave": "avenue", "av": "avenue", "pl": "place",
+    "rd": "road", "dr": "drive", "ln": "lane", "ct": "court",
+    "blvd": "boulevard", "ter": "terrace", "cir": "circle",
+    "pkwy": "parkway", "hwy": "highway", "sq": "square", "trl": "trail",
+    "n": "north", "s": "south", "e": "east", "w": "west",
+    "ne": "northeast", "nw": "northwest", "se": "southeast", "sw": "southwest",
+}
+
+
+def _addr_tokens(a):
+    import re
+    s = re.sub(r"[^a-z0-9 ]", " ", (a or "").lower())
+    return [_ADDR_ABBR.get(t, t) for t in s.split() if t]
+
+
+def _same_property(a1, a2):
+    """True if two street addresses are the same home despite formatting
+    differences ('166th Pl NE' vs '166th Place Northeast', 'SE' vs
+    'Southeast'). House NUMBER must match exactly and the normalized street
+    words must be the same set — strong enough to reuse the existing home,
+    strict enough never to grab a different one on the same street."""
+    t1, t2 = _addr_tokens(a1), _addr_tokens(a2)
+    if not t1 or not t2:
+        return False
+    if t1[0] != t2[0]:                     # house number must match
+        return False
+    return set(t1[1:]) == set(t2[1:])      # normalized street words match
+
+
 def create_property(client_id, address):
+    """Return the client's property id for this address. REUSE their
+    existing home when the address matches — do NOT create a duplicate
+    'home' (LaRee, Jul 17: existing customers were getting a second
+    property; the quote hung off it, read as the billing address, and
+    missed the tax their real home carries). Only create when the address
+    is genuinely new to this client."""
+    want_street = split_address(address).get("street1") or ""
+    # 1) REUSE FIRST — look up the client's existing properties and match.
+    if want_street.strip():
+        data = _post(_CLIENT_PROPERTIES, {"id": client_id}, "list properties")
+        for p in (data.get("client") or {}).get("properties") or []:
+            st = (p.get("address") or {}).get("street1") or ""
+            if _same_property(st, want_street):
+                return p["id"]
+    # 2) Genuinely new address for this client → create it.
     variables = {"clientId": client_id,
                  "input": {"properties": [{"address": split_address(address)}]}}
     data = _post(CREATE_PROPERTY, variables, "create property")
@@ -404,15 +449,9 @@ def create_property(client_id, address):
     props = data.get("propertyCreate", {}).get("properties") or []
     if props:
         return props[0]["id"]
-    # duplicate address (e.g. a double-click re-push) — REUSE the
-    # client's existing property instead of sending a null id into
-    # quoteCreate (the Martha double-approve lesson, Jul 9)
-    want = split_address(address)["street1"].lower()[:20]
+    # 3) Create returned nothing (Jobber deduped it) → last-resort reuse
+    #    the client's first existing property so we never send a null id.
     data = _post(_CLIENT_PROPERTIES, {"id": client_id}, "list properties")
-    for p in (data.get("client") or {}).get("properties") or []:
-        st = ((p.get("address") or {}).get("street1") or "").lower()
-        if want and st.startswith(want):
-            return p["id"]
     plist = (data.get("client") or {}).get("properties") or []
     return plist[0]["id"] if plist else None
 
