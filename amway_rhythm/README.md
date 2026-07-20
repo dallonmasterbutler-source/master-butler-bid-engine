@@ -32,6 +32,20 @@ folder, its own data, nothing to do with customers or Jobber.
   lives only in their own browser. Send it to a team member, they “Add to Home
   Screen,” done. Open the file in any browser to try it — nothing to install.
   It never scrapes amway.com; the product cards are baked into the page.
+  - **Today** rotates one product a day (talk-starter + learned-today streak).
+  - **Study** tab lets anyone browse the whole library on their own — search
+    and category filters — *without* touching the daily card or the streak.
+  - **Progress** tab: day/month totals, goal ring, per-kind, 6-month history.
+
+### The product library
+Both editions read the same **`products.json`** — one source of truth, 55 cards
+covering Nutrilite, XS/BodyKey fitness, Artistry/beauty, and Amway Home/durables.
+Granularity is **one card per distinct product or family**, never per
+shade/flavor/scent (all lipsticks are one “Artistry Makeup” card; XS gets
+separate cards for its genuinely different types). Facts are Amway’s own,
+factual, non-medical. To add or edit cards, change `products.json`; the Python
+app picks it up automatically. To refresh the shareable page’s inlined copy,
+re-run the build step that injects `products.json` into `team_edition.html`.
 
 ## Run it locally (your Mac)
 ```
