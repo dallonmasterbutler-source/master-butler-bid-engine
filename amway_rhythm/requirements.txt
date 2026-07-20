@@ -1,0 +1,8 @@
+# Rhythm runs on the Python standard library alone — nothing to install to run
+# it on your Mac or to try it out.
+#
+# Only needed if you host it with a shared cloud database (optional):
+#   psycopg — lets the app store its data in Postgres so both phones share
+#             one source of truth. Without DATABASE_URL set, it uses a local
+#             JSON file and this dependency is never imported.
+psycopg[binary]>=3.1
