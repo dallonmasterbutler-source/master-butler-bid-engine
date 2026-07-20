@@ -34,7 +34,7 @@ query Recent($first: Int!, $after: String) {
             salesperson { name { full } }
             client { name emails { address } }
             property { address { street city } }
-            amounts { total }
+            amounts { total subtotal }
             lineItems { nodes { name totalPrice } } }
   }
 }
@@ -215,16 +215,24 @@ def run(limit=60):
                "system_total": s["draft"]["total"]}
         if q:
             matched += 1
+            # DISPLAY the real quote total (with tax — matches what the
+            # office sees in Jobber), but compute the accuracy gap against
+            # the office's PRE-TAX subtotal — our engine total is pre-tax,
+            # so comparing to the with-tax total made us look ~10% low on
+            # every taxable job across the whole board (Dallon, Jul 20 —
+            # the Irfan dryer-vent tell). Apples to apples now.
             office = q["amounts"]["total"]
+            office_sub = q["amounts"].get("subtotal") or office
             row.update({
                 "office_quote": q["quoteNumber"], "office_total": office,
+                "office_subtotal": office_sub,
                 "office_status": q["quoteStatus"], "matched_by": how,
                 "salesperson": ((q.get("salesperson") or {}).get("name")
                                 or {}).get("full"),
                 "jobber_url": q.get("jobberWebUri"),
-                "gap": round(s["draft"]["total"] - office, 2),
-                "gap_pct": (round(100 * (s["draft"]["total"] - office) / office, 1)
-                            if office else None),
+                "gap": round(s["draft"]["total"] - office_sub, 2),
+                "gap_pct": (round(100 * (s["draft"]["total"] - office_sub)
+                                  / office_sub, 1) if office_sub else None),
                 "office_lines": [{"name": li["name"], "price": li["totalPrice"]}
                                  for li in q["lineItems"]["nodes"]],
             })

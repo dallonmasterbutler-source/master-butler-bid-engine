@@ -147,7 +147,13 @@ def _bids_section(clouddb):
             "service": s, "n": len(gaps),
             "avg_abs_gap": round(sum(abs(g) for g in gaps) / len(gaps), 1),
             "bias": round(sum(gaps) / len(gaps), 1)})
-    svc_rank.sort(key=lambda x: -x["avg_abs_gap"])
+    # RANK BY BIAS, not scatter (Dallon, Jul 20). avg_abs_gap punished
+    # correctly-flat services like dryer vent for the natural spread around
+    # a set price — and each service inherits the WHOLE bid's gap, so a
+    # cheap consistent line took the blame for big bids' misses. Bias (the
+    # systematic over/under direction) is what says "we're actually
+    # mispricing this"; that's what should top the list.
+    svc_rank.sort(key=lambda x: -abs(x["bias"]))
     cl = clouddb.get_blob("calibration_ledger") or {}
     rulings = {s: len(v) for s, v in cl.items() if v}
     matched = [r for r in (sb.get("rows") or []) if r.get("office_total")
