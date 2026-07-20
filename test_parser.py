@@ -7,6 +7,7 @@ In & out is priced ~2x exterior, so a miss here is real money.
 Run:  python3 test_parser.py
 """
 import email_parser
+# part of the office-fix smoke test
 
 passed = failed = 0
 
