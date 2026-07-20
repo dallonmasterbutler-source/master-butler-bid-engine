@@ -22,6 +22,17 @@ A small, private web app for the two of you to run your Amway life together:
 It's completely separate from the Master Butler bidding system — its own
 folder, its own data, nothing to do with customers or Jobber.
 
+## Two editions
+
+- **Couple edition** (this Python app) — the full thing for you and your wife:
+  meals/shopping, outings, calendar OAuth, the works. Runs on a server.
+- **Team edition** (`team_edition.html`) — a single self-contained web page with
+  just **daily training + tracking**, made to *share*. No accounts, no server,
+  no you-as-admin: each person opens the link on their phone and their data
+  lives only in their own browser. Send it to a team member, they “Add to Home
+  Screen,” done. Open the file in any browser to try it — nothing to install.
+  It never scrapes amway.com; the product cards are baked into the page.
+
 ## Run it locally (your Mac)
 ```
 cd amway_rhythm

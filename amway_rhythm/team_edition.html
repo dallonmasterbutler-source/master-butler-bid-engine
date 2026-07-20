@@ -1,0 +1,547 @@
+<title>Rhythm — Daily Training &amp; Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f7a63">
+<style>
+:root{
+  --bg:#f5f7f5; --surface:#ffffff; --surface-2:#eef2ef; --ink:#16211c;
+  --muted:#5f6f68; --line:#e3e9e5; --accent:#0f7a63; --accent-2:#0c6552;
+  --on-accent:#ffffff; --amber:#c9781f; --amber-tint:#fbeed8; --tint:#e6f1ec;
+  --ring-track:#e3e9e5; --shadow:0 1px 2px rgba(16,40,30,.05),0 6px 20px rgba(16,40,30,.04);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0d1411; --surface:#141e1a; --surface-2:#1b2620; --ink:#e9f1ed;
+    --muted:#8fa39a; --line:#26332d; --accent:#2fb695; --accent-2:#37c9a5;
+    --on-accent:#07130f; --amber:#f0a94a; --amber-tint:#2a2114; --tint:#15241e;
+    --ring-track:#26332d; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f5f7f5; --surface:#ffffff; --surface-2:#eef2ef; --ink:#16211c;
+  --muted:#5f6f68; --line:#e3e9e5; --accent:#0f7a63; --accent-2:#0c6552;
+  --on-accent:#ffffff; --amber:#c9781f; --amber-tint:#fbeed8; --tint:#e6f1ec;
+  --ring-track:#e3e9e5; --shadow:0 1px 2px rgba(16,40,30,.05),0 6px 20px rgba(16,40,30,.04);
+}
+:root[data-theme="dark"]{
+  --bg:#0d1411; --surface:#141e1a; --surface-2:#1b2620; --ink:#e9f1ed;
+  --muted:#8fa39a; --line:#26332d; --accent:#2fb695; --accent-2:#37c9a5;
+  --on-accent:#07130f; --amber:#f0a94a; --amber-tint:#2a2114; --tint:#15241e;
+  --ring-track:#26332d; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:ui-rounded,"SF Pro Rounded","Segoe UI",system-ui,-apple-system,sans-serif;
+  background:var(--bg); color:var(--ink);
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  font-variant-numeric:tabular-nums;
+}
+.app{max-width:460px; margin:0 auto; min-height:100vh; padding:0 16px 108px;
+  background:var(--bg);}
+.tnum{font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1;}
+
+/* header */
+header{display:flex; align-items:center; justify-content:space-between;
+  padding:18px 2px 8px; position:sticky; top:0; z-index:5;
+  background:linear-gradient(var(--bg) 78%, transparent);}
+.brand{display:flex; align-items:center; gap:9px; font-weight:800; letter-spacing:-.02em;
+  font-size:19px;}
+.brand .dot{width:12px; height:12px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, var(--accent-2), var(--accent));
+  box-shadow:0 0 0 4px var(--tint);}
+.hbtns{display:flex; gap:8px; align-items:center;}
+.streak{display:inline-flex; align-items:center; gap:5px; font-weight:800; font-size:13px;
+  color:var(--amber); background:var(--amber-tint); border-radius:999px;
+  padding:5px 11px;}
+.iconbtn{width:38px; height:38px; border-radius:12px; border:1px solid var(--line);
+  background:var(--surface); color:var(--ink); font-size:17px; cursor:pointer;
+  display:grid; place-items:center;}
+.iconbtn:active{transform:scale(.94)}
+
+.eyebrow{text-transform:uppercase; letter-spacing:.12em; font-size:11px; font-weight:800;
+  color:var(--muted);}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:20px;
+  padding:18px; margin:12px 0; box-shadow:var(--shadow);}
+
+/* daily training */
+.train .toprow{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+.pline{display:inline-block; font-size:12px; font-weight:800; color:var(--accent);
+  background:var(--tint); border-radius:999px; padding:4px 11px; letter-spacing:.01em;}
+.pname{font-size:23px; font-weight:800; letter-spacing:-.02em; line-height:1.1;
+  margin:12px 0 2px; text-wrap:balance;}
+.pcat{color:var(--muted); font-size:13px; font-weight:600;}
+.pblurb{margin:12px 0 0; font-size:15.5px; line-height:1.5;}
+.facts{list-style:none; padding:0; margin:14px 0 0;}
+.facts li{position:relative; padding:7px 0 7px 26px; font-size:14.5px; line-height:1.45;
+  border-top:1px solid var(--line);}
+.facts li:first-child{border-top:0}
+.facts li::before{content:""; position:absolute; left:4px; top:13px; width:8px; height:8px;
+  border-radius:50%; background:var(--accent);}
+.starter{margin-top:16px; background:var(--amber-tint); border-radius:14px; padding:13px 15px;
+  font-size:14.5px; line-height:1.45;}
+.starter b{color:var(--amber);}
+.learnrow{display:flex; gap:10px; margin-top:16px;}
+.btn{flex:1; border:0; border-radius:14px; padding:14px 16px; font-size:15px; font-weight:800;
+  cursor:pointer; font-family:inherit; letter-spacing:-.01em; transition:transform .08s;
+  text-decoration:none; text-align:center; display:inline-flex; align-items:center;
+  justify-content:center;}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--accent); color:var(--on-accent);}
+.btn.subtle{background:var(--surface-2); color:var(--ink); border:1px solid var(--line);
+  flex:0 0 auto;}
+.btn.done{background:var(--tint); color:var(--accent); cursor:default;}
+.btn:focus-visible,.iconbtn:focus-visible,.tap:focus-visible{outline:3px solid var(--accent);
+  outline-offset:2px;}
+a{color:var(--accent);}
+
+/* quick log */
+.section-h{display:flex; align-items:baseline; justify-content:space-between; margin:22px 4px 8px;}
+.section-h h2{font-size:16px; margin:0; letter-spacing:-.01em;}
+.todaycount{font-weight:800; color:var(--accent);}
+.taps{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+.tap{background:var(--surface); border:1px solid var(--line); border-radius:18px;
+  padding:15px 8px 13px; text-align:center; cursor:pointer; color:var(--ink);
+  font-family:inherit; box-shadow:var(--shadow); transition:transform .08s;}
+.tap:active{transform:scale(.95)}
+.tap .n{font-size:30px; font-weight:800; line-height:1; letter-spacing:-.03em;}
+.tap .l{display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-top:7px;
+  line-height:1.2;}
+.tap.pop .n{animation:pop .35s ease;}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.28); color:var(--accent)}100%{transform:scale(1)}}
+.undo{text-align:center; margin:10px 0 0; font-size:13px; color:var(--muted); min-height:18px;}
+.undo button{background:none; border:0; color:var(--accent); font-weight:700; cursor:pointer;
+  font-family:inherit; font-size:13px;}
+
+/* progress */
+.hero{display:flex; align-items:center; gap:18px;}
+.ring{--p:0; width:104px; height:104px; border-radius:50%; flex:0 0 auto;
+  background:conic-gradient(var(--accent) calc(var(--p)*1%), var(--ring-track) 0);
+  display:grid; place-items:center; position:relative;}
+.ring::after{content:""; position:absolute; inset:11px; border-radius:50%; background:var(--surface);}
+.ring .inner{position:relative; z-index:1; text-align:center;}
+.ring .pct{font-size:23px; font-weight:800; line-height:1;}
+.ring .lab{font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase;
+  letter-spacing:.08em;}
+.herostat .big{font-size:44px; font-weight:800; letter-spacing:-.03em; line-height:1;}
+.herostat .sub{color:var(--muted); font-size:14px; margin-top:4px;}
+.breakdown{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:6px;}
+.bd{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px 6px;
+  text-align:center;}
+.bd .n{font-size:24px; font-weight:800; letter-spacing:-.02em;}
+.bd .l{font-size:11px; color:var(--muted); font-weight:700; margin-top:4px;}
+.hist{margin-top:4px;}
+.histrow{display:flex; align-items:center; gap:12px; margin:9px 0;}
+.histrow .m{width:38px; font-size:12px; color:var(--muted); font-weight:700; text-transform:uppercase;
+  letter-spacing:.04em;}
+.track{flex:1; height:12px; background:var(--surface-2); border-radius:999px; overflow:hidden;}
+.track > span{display:block; height:100%; border-radius:999px;
+  background:linear-gradient(90deg, var(--accent-2), var(--accent));}
+.histrow .v{width:38px; text-align:right; font-weight:800; font-size:14px;}
+
+/* bottom nav */
+nav{position:fixed; left:0; right:0; bottom:0; z-index:10;
+  padding:8px 12px calc(8px + env(safe-area-inset-bottom));
+  background:color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter:saturate(1.4) blur(12px);
+  border-top:1px solid var(--line);}
+.navinner{max-width:460px; margin:0 auto; display:flex; gap:8px;}
+.navbtn{flex:1; border:0; background:none; color:var(--muted); font-family:inherit;
+  font-weight:800; font-size:12px; padding:8px 4px; border-radius:14px; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:4px;}
+.navbtn svg{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:2;
+  stroke-linecap:round; stroke-linejoin:round;}
+.navbtn.on{color:var(--accent); background:var(--tint);}
+
+/* settings sheet */
+.scrim{position:fixed; inset:0; background:rgba(8,16,13,.5); z-index:20; opacity:0;
+  pointer-events:none; transition:opacity .2s;}
+.scrim.open{opacity:1; pointer-events:auto;}
+.sheet{position:fixed; left:0; right:0; bottom:0; z-index:21; background:var(--surface);
+  border-radius:22px 22px 0 0; padding:8px 18px calc(24px + env(safe-area-inset-bottom));
+  max-width:460px; margin:0 auto; transform:translateY(102%); transition:transform .25s ease;
+  box-shadow:0 -10px 40px rgba(0,0,0,.2);}
+.sheet.open{transform:translateY(0);}
+.grab{width:40px; height:5px; border-radius:999px; background:var(--line); margin:8px auto 14px;}
+.sheet h3{margin:0 0 4px; font-size:18px;}
+label{display:block; font-size:12px; font-weight:800; color:var(--muted); margin:16px 0 6px;
+  text-transform:uppercase; letter-spacing:.06em;}
+input{width:100%; padding:13px; border:1px solid var(--line); border-radius:13px; font-size:16px;
+  background:var(--bg); color:var(--ink); font-family:inherit;}
+.note{font-size:12.5px; color:var(--muted); line-height:1.5; margin:16px 0 0;}
+.sheetbtns{display:flex; gap:10px; margin-top:18px;}
+.hide{display:none !important;}
+@media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important;}}
+</style>
+
+<div class="app">
+  <header>
+    <div class="brand"><span class="dot"></span> Rhythm</div>
+    <div class="hbtns">
+      <span class="streak" id="streakChip">🔥 <span id="streakN">0</span></span>
+      <button class="iconbtn" id="themeBtn" title="Switch theme" aria-label="Switch theme">◐</button>
+      <button class="iconbtn" id="gearBtn" title="Settings" aria-label="Settings">⚙</button>
+    </div>
+  </header>
+
+  <!-- TODAY -->
+  <section id="view-today">
+    <div class="eyebrow" style="margin:6px 4px 0">Today · <span id="todayDate"></span></div>
+
+    <div class="card train">
+      <div class="toprow">
+        <div class="eyebrow" style="color:var(--accent)">🎓 Product of the day</div>
+        <span class="pline" id="pLine"></span>
+      </div>
+      <div class="pname" id="pName"></div>
+      <div class="pcat" id="pCat"></div>
+      <p class="pblurb" id="pBlurb"></p>
+      <ul class="facts" id="pFacts"></ul>
+      <div class="starter" id="pStarterWrap"><b>💬 Talk-starter:</b> <span id="pStarter"></span></div>
+      <div class="learnrow">
+        <button class="btn primary" id="learnBtn">Mark learned today</button>
+        <a class="btn subtle" id="pLink" target="_blank" rel="noreferrer" style="display:none">Learn more ↗</a>
+      </div>
+    </div>
+
+    <div class="section-h">
+      <h2>Log your activity</h2>
+      <span class="todaycount"><span id="todayTotal">0</span> today</span>
+    </div>
+    <div class="taps" id="taps">
+      <button class="tap" data-kind="conversation"><span class="n" id="c-conversation">0</span>
+        <span class="l">Conversations</span></button>
+      <button class="tap" data-kind="interaction"><span class="n" id="c-interaction">0</span>
+        <span class="l">Interactions</span></button>
+      <button class="tap" data-kind="contact"><span class="n" id="c-contact">0</span>
+        <span class="l">New contacts</span></button>
+    </div>
+    <div class="undo" id="undoRow"></div>
+  </section>
+
+  <!-- PROGRESS -->
+  <section id="view-progress" class="hide">
+    <div class="eyebrow" style="margin:6px 4px 0">This month · <span id="monthName"></span></div>
+    <div class="card">
+      <div class="hero">
+        <div class="ring" id="goalRing"><div class="inner">
+          <div class="pct" id="goalPct">0%</div><div class="lab">of goal</div></div></div>
+        <div class="herostat">
+          <div class="big" id="monthTotal">0</div>
+          <div class="sub">contacts logged this month<br><span id="goalLine"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-h"><h2>Breakdown</h2></div>
+    <div class="breakdown">
+      <div class="bd"><div class="n" id="m-conversation">0</div><div class="l">Conversations</div></div>
+      <div class="bd"><div class="n" id="m-interaction">0</div><div class="l">Interactions</div></div>
+      <div class="bd"><div class="n" id="m-contact">0</div><div class="l">New contacts</div></div>
+    </div>
+
+    <div class="section-h"><h2>Last 6 months</h2></div>
+    <div class="card hist" id="hist"></div>
+
+    <div class="section-h"><h2>Training</h2></div>
+    <div class="card">
+      <div class="hero" style="gap:22px">
+        <div class="herostat"><div class="big" id="learnedTotal">0</div>
+          <div class="sub">products learned</div></div>
+        <div class="herostat"><div class="big" id="streakBig">0</div>
+          <div class="sub">day streak 🔥</div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<nav>
+  <div class="navinner">
+    <button class="navbtn on" data-view="today">
+      <svg viewBox="0 0 24 24"><path d="M3 12l2-2 5 5 9-9"/><path d="M4 20h16"/></svg>Today</button>
+    <button class="navbtn" data-view="progress">
+      <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Progress</button>
+  </div>
+</nav>
+
+<!-- settings -->
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-label="Settings" aria-modal="true">
+  <div class="grab"></div>
+  <h3>Settings</h3>
+  <div class="note">Everything you track lives only on this phone — no account, nothing sent anywhere.</div>
+  <label for="nameIn">Your name (optional)</label>
+  <input id="nameIn" placeholder="Add your name" autocomplete="off">
+  <label for="goalIn">Monthly contact goal</label>
+  <input id="goalIn" type="number" inputmode="numeric" min="0" placeholder="200">
+  <div class="sheetbtns">
+    <button class="btn primary" id="saveBtn">Save</button>
+    <button class="btn subtle" id="exportBtn">Export data</button>
+  </div>
+  <div class="sheetbtns">
+    <button class="btn subtle" id="resetBtn" style="flex:1; color:var(--amber)">Reset everything</button>
+  </div>
+  <div class="note" id="tipNote">Tip: tap the Share button in your browser, then “Add to Home Screen,”
+    and Rhythm opens like a real app.</div>
+</div>
+
+<script>
+"use strict";
+
+/* ---- product library (same accurate cards as the couple's app) ---- */
+const PRODUCTS = [
+  {id:"nutrilite", name:"Nutrilite (the brand)", line:"Nutrilite", cat:"Health & wellness",
+   blurb:"Amway's vitamin, mineral and dietary-supplement brand.",
+   facts:["The world's #1 selling brand of vitamins and dietary supplements (Euromonitor).",
+     "Grows many of its own plants on 6,000+ acres of certified-organic farmland.",
+     "Natural farming — ladybugs instead of pesticides, compost instead of synthetic fertilizer.",
+     "Traceable from seed to supplement."],
+   starter:"Do you take a daily vitamin? Most people have no idea where the ingredients come from.",
+   link:"https://www.google.com/search?q=amway+nutrilite"},
+  {id:"doublex", name:"Nutrilite Double X", line:"Nutrilite", cat:"Health & wellness",
+   blurb:"The flagship multivitamin — vitamins, minerals and plant nutrients.",
+   facts:["22 vitamins and minerals plus 22 plant concentrates.",
+     "Includes the PhytoProtect blend for antioxidant support.",
+     "Supports heart, brain, bone, eye, immune and skin health with 40+ nutrients.",
+     "NSF certified — independently tested for what's on the label."],
+   starter:"If one thing could cover your whole day's nutrition gaps, would you want to see it?",
+   link:"https://www.amway.com/en_US/Nutrilite%E2%84%A2-Double-X%E2%84%A2-Multivitamin---31-Day-Supply-Refill-p-A0244"},
+  {id:"protein", name:"Nutrilite Organics Plant Protein", line:"Nutrilite", cat:"Health & wellness",
+   blurb:"Organic plant protein from brown rice, peas and chia.",
+   facts:["21 g of organic plant protein with all 9 essential amino acids.",
+     "No added sugar, no artificial flavors, colors, preservatives or sweeteners.",
+     "Sourced partly from Nutrilite's own organic farms.",
+     "Unflavored, chocolate and vanilla — mixes into anything."],
+   starter:"What do you usually have for breakfast? A lot of folks are short on protein.",
+   link:"https://www.google.com/search?q=amway+nutrilite+organics+plant+protein"},
+  {id:"artistry", name:"Artistry Skincare", line:"Artistry", cat:"Beauty",
+   blurb:"Amway's premium skincare and color-cosmetics brand.",
+   facts:["Among the world's top-5 largest-selling premium skincare brands (Euromonitor).",
+     "Launched in 1968; holds 250+ patents and patents pending.",
+     "Backed by a network of 900+ scientists.",
+     "Sold entirely person-to-person — not in any retail store."],
+   starter:"What's your skincare routine like right now — happy with it, or always tweaking?",
+   link:"https://www.google.com/search?q=amway+artistry+skincare"},
+  {id:"espring", name:"eSpring Water Purifier", line:"Amway Home", cat:"Home / water",
+   blurb:"Under-counter water purifier with UV-C LED + carbon filter.",
+   facts:["First and only UV-C LED purifier certified by NSF to all four standards (42, 53, 55, 401).",
+     "Reduces 170+ contaminants including microplastics, PFOA/PFOS and pharmaceuticals.",
+     "Destroys up to 99.9999% of bacteria and 99.99% of viruses.",
+     "UV-C LEDs last up to 10 years — no annual lamp to replace."],
+   starter:"Ever wonder what's actually in your tap water? The list surprised me.",
+   link:"https://www.amway.com/en_US/espring"},
+  {id:"xs", name:"XS Energy Drink", line:"XS", cat:"Health / energy",
+   blurb:"Sugar-free energy drink with B vitamins and lots of flavors.",
+   facts:["Sugar-free and only about 15 calories per can.",
+     "A megadose of B vitamins and ~114 mg caffeine — like a 10 oz coffee.",
+     "Colors come from natural ingredients, not artificial dyes.",
+     "Certified kosher, with 20+ flavors including caffeine-free."],
+   starter:"Do you drink energy drinks? Have you ever looked at the sugar in the popular ones?",
+   link:"https://www.google.com/search?q=amway+xs+energy+drink"},
+  {id:"sa8", name:"Amway Home SA8 Laundry", line:"Amway Home", cat:"Home / cleaning",
+   blurb:"Concentrated laundry detergent from the Legacy of Clean line.",
+   facts:["Concentrated triple-action formula — you use less per load.",
+     "Biodegradable with no phosphates or chlorine.",
+     "Recognized by the EPA Safer Choice program.",
+     "Rinses clean in any water temperature; safe for HE washers."],
+   starter:"How much do you spend on laundry stuff a month? Concentrated changes the math.",
+   link:"https://www.amway.com/en_US/Amway-Home%E2%84%A2-SA8%E2%84%A2-Liquid-Laundry-Detergent-p-110478"},
+  {id:"dishdrops", name:"Amway Home Dish Drops", line:"Amway Home", cat:"Home / cleaning",
+   blurb:"Highly concentrated dishwashing liquid.",
+   facts:["Very concentrated — a small amount makes a lot of suds, so a bottle lasts.",
+     "Biodegradable surfactants and no phosphates.",
+     "Cuts grease in hot or cold water.",
+     "Part of the Legacy of Clean / Amway Home family."],
+   starter:"Do you go through dish soap fast? The concentrated kind lasts us months.",
+   link:"https://www.google.com/search?q=amway+home+dish+drops"},
+  {id:"glister", name:"Glister Multi-Action Toothpaste", line:"Glister", cat:"Personal care",
+   blurb:"Fluoride toothpaste with plant-based ingredients.",
+   facts:["Contains fluoride to help prevent cavities, consistent with FDA rules.",
+     "Uses a silica polishing agent and Nutrilite-certified peppermint.",
+     "Removes plaque and helps minimize buildup with regular brushing.",
+     "A little goes a long way — a small strip is enough."],
+   starter:"Random one — do you ever think about what's in your toothpaste?",
+   link:"https://www.google.com/search?q=amway+glister+toothpaste"},
+  {id:"gh", name:"G&H Body Care", line:"G&H", cat:"Personal care",
+   blurb:"Body wash, lotion and hand care with naturally derived ingredients.",
+   facts:["Built on naturally derived ingredients like orange-blossom honey and shea butter.",
+     "Uses Nutrilite white chia seed oil to support skin health.",
+     "Includes a patented anti-irritant complex — gentle for the whole family.",
+     "A full line: wash, scrub, lotion and hand care."],
+   starter:"What body wash do you use? We switched to one that doesn't dry us out in winter.",
+   link:"https://www.google.com/search?q=amway+g%26h+body+care"},
+  {id:"atmosphere", name:"Atmosphere Sky Air Purifier", line:"Atmosphere", cat:"Home / air",
+   blurb:"Air treatment system with multi-stage HEPA filtration.",
+   facts:["Three-stage filtration: pre-filter, particulate/HEPA and odor/carbon.",
+     "Designed to capture very small airborne particles including many allergens.",
+     "Senses air quality and adjusts fan speed automatically.",
+     "Sized for a large room — bedrooms and living spaces."],
+   starter:"Anyone in your house deal with allergies? Indoor air is usually worse than people think.",
+   link:"https://www.google.com/search?q=amway+atmosphere+sky+air+purifier"},
+  {id:"satinique", name:"Satinique Hair Care", line:"Satinique", cat:"Personal care",
+   blurb:"Shampoo, conditioner and treatments for healthy-looking hair.",
+   facts:["A full system made to work together.",
+     "Cleanses gently while adding shine and manageability.",
+     "Options for volume, smoothing and scalp care.",
+     "Part of Amway's beauty portfolio alongside Artistry."],
+   starter:"Are you a one-and-done shampoo person or do you have a whole routine?",
+   link:"https://www.google.com/search?q=amway+satinique+hair+care"}
+];
+
+const KINDS=["conversation","interaction","contact"];
+const KEY="rhythm_team_v1";
+
+/* ---- state ---- */
+function blank(){return {activity:[], learned:[], config:{name:"", goal:200}};}
+function load(){
+  try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.activity) return Object.assign(blank(),s);}
+  catch(e){}
+  return blank();
+}
+function save(){localStorage.setItem(KEY, JSON.stringify(state));}
+let state=load();
+
+/* ---- date helpers (local time) ---- */
+function pad(n){return String(n).padStart(2,"0");}
+function isoDay(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+function today(){return isoDay(new Date());}
+function monthKey(day){return day.slice(0,7);}
+function dayIndex(day){
+  const [y,m,d]=day.split("-").map(Number);
+  return Math.floor((Date.UTC(y,m-1,d)-Date.UTC(2000,0,1))/86400000);
+}
+function productOfDay(day){return PRODUCTS[((dayIndex(day)%PRODUCTS.length)+PRODUCTS.length)%PRODUCTS.length];}
+
+/* ---- computed ---- */
+function countBy(scope){ // scope: "day" today, or "month"
+  const t=today(), mk=monthKey(t), out={conversation:0,interaction:0,contact:0};
+  for(const a of state.activity){
+    if(!KINDS.includes(a.kind)) continue;
+    if(scope==="day" ? a.day===t : monthKey(a.day)===mk) out[a.kind]++;
+  }
+  return out;
+}
+function total(o){return o.conversation+o.interaction+o.contact;}
+function learnedToday(){const t=today(); const p=productOfDay(t);
+  return state.learned.some(l=>l.day===t && l.pid===p.id);}
+function streak(){
+  const days=new Set(state.learned.map(l=>l.day));
+  let d=new Date(); if(!days.has(isoDay(d))) d.setDate(d.getDate()-1);
+  let n=0; while(days.has(isoDay(d))){n++; d.setDate(d.getDate()-1);} return n;
+}
+function history(months){
+  const out=[]; const now=new Date(); now.setDate(1);
+  for(let i=months-1;i>=0;i--){
+    const d=new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const mk=d.getFullYear()+"-"+pad(d.getMonth()+1);
+    const count=state.activity.filter(a=>KINDS.includes(a.kind)&&monthKey(a.day)===mk).length;
+    out.push({label:d.toLocaleDateString(undefined,{month:"short"}), count});
+  }
+  return out;
+}
+
+/* ---- render ---- */
+const $=id=>document.getElementById(id);
+function renderTraining(){
+  const p=productOfDay(today());
+  $("pLine").textContent=p.line; $("pName").textContent=p.name; $("pCat").textContent=p.cat;
+  $("pBlurb").textContent=p.blurb;
+  $("pFacts").innerHTML=p.facts.map(f=>"<li>"+escapeHtml(f)+"</li>").join("");
+  $("pStarter").textContent=p.starter;
+  const link=$("pLink");
+  if(p.link){link.href=p.link; link.style.display="";} else link.style.display="none";
+  const done=learnedToday(), b=$("learnBtn");
+  if(done){b.textContent="✓ Learned today"; b.className="btn done"; b.disabled=true;}
+  else{b.textContent="Mark learned today"; b.className="btn primary"; b.disabled=false;}
+}
+function renderToday(){
+  $("todayDate").textContent=new Date().toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
+  const c=countBy("day");
+  for(const k of KINDS) $("c-"+k).textContent=c[k];
+  $("todayTotal").textContent=total(c);
+  const s=streak(); $("streakN").textContent=s;
+  $("streakChip").style.visibility=s>0?"visible":"hidden";
+}
+function renderProgress(){
+  $("monthName").textContent=new Date().toLocaleDateString(undefined,{month:"long",year:"numeric"});
+  const m=countBy("month"), tot=total(m), goal=state.config.goal||0;
+  for(const k of KINDS) $("m-"+k).textContent=m[k];
+  $("monthTotal").textContent=tot;
+  const pct=goal?Math.min(100,Math.round(100*tot/goal)):0;
+  $("goalPct").textContent=pct+"%"; $("goalRing").style.setProperty("--p",pct);
+  $("goalLine").textContent=goal?(tot+" of "+goal+" goal"):"set a goal in settings";
+  const h=history(6), mx=Math.max(1,...h.map(x=>x.count));
+  $("hist").innerHTML=h.map(x=>
+    '<div class="histrow"><div class="m">'+escapeHtml(x.label)+'</div>'+
+    '<div class="track"><span style="width:'+Math.round(100*x.count/mx)+'%"></span></div>'+
+    '<div class="v">'+x.count+'</div></div>').join("");
+  $("learnedTotal").textContent=new Set(state.learned.map(l=>l.day+"|"+l.pid)).size;
+  $("streakBig").textContent=streak();
+}
+function renderAll(){renderTraining(); renderToday(); renderProgress();}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+
+/* ---- actions ---- */
+let lastLog=null, undoTimer=null;
+function logKind(kind){
+  state.activity.push({ts:Date.now(), day:today(), kind}); save();
+  lastLog=state.activity.length-1;
+  const tile=document.querySelector('.tap[data-kind="'+kind+'"]');
+  tile.classList.remove("pop"); void tile.offsetWidth; tile.classList.add("pop");
+  renderToday();
+  const row=$("undoRow");
+  row.innerHTML='Logged 1 '+kind+'. <button id="undoBtn">Undo</button>';
+  $("undoBtn").onclick=()=>{ if(lastLog!=null){state.activity.splice(lastLog,1); save(); lastLog=null;
+    renderToday(); row.textContent="";} };
+  clearTimeout(undoTimer); undoTimer=setTimeout(()=>{row.textContent=""; lastLog=null;}, 5000);
+}
+document.querySelectorAll(".tap").forEach(t=>t.addEventListener("click",()=>logKind(t.dataset.kind)));
+$("learnBtn").addEventListener("click",()=>{
+  if(learnedToday()) return;
+  const p=productOfDay(today());
+  state.learned.push({day:today(), pid:p.id}); save();
+  renderTraining(); renderToday(); renderProgress();
+});
+
+/* ---- nav ---- */
+document.querySelectorAll(".navbtn").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll(".navbtn").forEach(x=>x.classList.toggle("on",x===b));
+  const v=b.dataset.view;
+  $("view-today").classList.toggle("hide",v!=="today");
+  $("view-progress").classList.toggle("hide",v!=="progress");
+  if(v==="progress") renderProgress();
+  window.scrollTo(0,0);
+}));
+
+/* ---- settings ---- */
+function openSheet(o){$("scrim").classList.toggle("open",o); $("sheet").classList.toggle("open",o);}
+$("gearBtn").addEventListener("click",()=>{
+  $("nameIn").value=state.config.name||""; $("goalIn").value=state.config.goal||"";
+  openSheet(true);
+});
+$("scrim").addEventListener("click",()=>openSheet(false));
+$("saveBtn").addEventListener("click",()=>{
+  state.config.name=$("nameIn").value.trim();
+  const g=parseInt($("goalIn").value,10); state.config.goal=isNaN(g)?0:Math.max(0,g);
+  save(); renderProgress(); openSheet(false);
+});
+$("exportBtn").addEventListener("click",()=>{
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob); const a=document.createElement("a");
+  a.href=url; a.download="rhythm-data-"+today()+".json"; a.click(); URL.revokeObjectURL(url);
+});
+$("resetBtn").addEventListener("click",()=>{
+  if(confirm("Erase all your tracking and training history on this phone? This can't be undone.")){
+    state=blank(); save(); openSheet(false); renderAll();
+  }
+});
+
+/* ---- theme toggle ---- */
+$("themeBtn").addEventListener("click",()=>{
+  const cur=document.documentElement.getAttribute("data-theme");
+  const dark=cur?cur==="dark":matchMedia("(prefers-color-scheme:dark)").matches;
+  document.documentElement.setAttribute("data-theme", dark?"light":"dark");
+});
+
+renderAll();
+</script>
