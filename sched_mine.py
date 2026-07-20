@@ -288,6 +288,13 @@ def run(verbose=False):
     K = analyze(visits, verbose=verbose)
     _save_blob("sched_knowledge", K)
     (BASE / "data" / "sched_mine.json").write_text(json.dumps(K, indent=1))
+    # SHADOW SCORECARD: match the dates the shadow OFFERED against the days
+    # the office actually booked — proof-before-power (never schedules).
+    try:
+        import sched_scorecard
+        sched_scorecard.match(visits)
+    except Exception:
+        pass
     # lights homes roster → the footage measurer (Dallon, Jul 14:
     # "measure linear feet on the front … do like 100 homes")
     seen, homes = set(), {}

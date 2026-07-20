@@ -7188,6 +7188,70 @@ def working_page():
     return page("Build board", body)
 
 
+def _sched_scorecard_card():
+    """🗓 Shadow scheduling scorecard — does its date-pick match the office?"""
+    try:
+        import sched_scorecard
+        r = sched_scorecard.report()
+    except Exception:
+        return ""
+    if not r or not r.get("total"):
+        return card("🗓 Scheduling scorecard — proof before power",
+                    "<div class='subtext'>No date-offers captured yet. As "
+                    "customers approve and want a date, each shadow offer is "
+                    "logged here the moment it's made, then checked against "
+                    "the day the office actually books. The numbers start "
+                    "filling in from today — nothing is scheduled by the "
+                    "system.</div>")
+
+    def tile(big, lbl):
+        return (f"<div class='stat'><b style='font-size:20px'>{esc(str(big))}"
+                f"</b><span>{lbl}</span></div>")
+    cov = f"{r['coverage_pct']}%" if r.get("coverage_pct") is not None else "—"
+    agr = (f"{r['agreement_pct']}%" if r.get("agreement_pct") is not None
+           else "n/a yet")
+    dm = f"{r['avg_drive_min']} min" if r.get("avg_drive_min") is not None \
+        else "—"
+    tiles = ("<div class='stats' style='margin:0 0 10px'>"
+             + tile(cov, f"offered a firm date ({r['firm_offers']}/"
+                    f"{r['total']})")
+             + tile(agr, f"same week as the office ({r['same_week']}/"
+                    f"{r['booked_and_firm']})")
+             + tile(dm, "avg drive to the route")
+             + tile(r["pending"], "offered, awaiting a booking")
+             + "</div>")
+    import sched_scorecard as _sc
+    rows = ""
+    for x in r["rows"][:20]:
+        kind = x.get("kind")
+        offered = x.get("offered_date") or {"week": "Area Week",
+                                            "standby": "Tom standby"}.get(
+            kind, "—")
+        actual = x.get("actual_date") or "—"
+        if kind == "date" and x.get("actual_date"):
+            same = _sc._iso_week(x["offered_date"]) == \
+                _sc._iso_week(x["actual_date"])
+            mk = "✅ same week" if same else "↔ different week"
+        elif x.get("actual_date"):
+            mk = "booked"
+        else:
+            mk = "· pending"
+        rows += (f"<tr><td>{esc((x.get('name') or '')[:28])}</td>"
+                 f"<td>{esc(str(offered))}</td>"
+                 f"<td>{esc(str(actual))}</td>"
+                 f"<td class='subtext'>{mk}</td></tr>")
+    tbl = ("<table style='width:100%;font-size:13px'><tr><th>Customer</th>"
+           "<th>It would offer</th><th>Office booked</th><th></th></tr>"
+           + rows + "</table>")
+    note = ("<div class='subtext' style='margin-top:8px'>Every date the "
+            "shadow would offer is logged the instant it's made, then matched "
+            "to what the office actually books — no hindsight. When these hold "
+            "up over enough real customers, that's the signal it's earned the "
+            "right to fill dates for real.</div>")
+    return card("🗓 Scheduling scorecard — proof before power",
+                tiles + tbl + note)
+
+
 def autodrafts_page(user=None):
     """AUTO-RESPOND STAGE 1 — the shadow review page (Dallon's GO,
     Jul 14). Shows what the pre-filled reply box WOULD say: live
@@ -7307,6 +7371,16 @@ def autodrafts_page(user=None):
                                 "🗓 stage-2 shadow — the date it would "
                                 "offer", _off.get("why") or "",
                                 "#e8c76a")
+                            # SCORECARD: snapshot this offer once, at the
+                            # moment it's made — proof-before-power. Never
+                            # let it break the render.
+                            try:
+                                import sched_scorecard
+                                sched_scorecard.capture(
+                                    e, name or e,
+                                    (recs.get(e) or {}).get("address"), _off)
+                            except Exception:
+                                pass
                     pulse_live.append({
                         "name": name or e, "type": d["type"],
                         "auto": bool(d.get("auto")),
@@ -7340,6 +7414,7 @@ def autodrafts_page(user=None):
         + (lambda _s: _reply_wheel(
             [x["acc"] for x in _s] if _s else accs, live=bool(_s)))(
             _blob_rw("draft_sends", []) or [])
+        + _sched_scorecard_card()
         + card(f"Would draft RIGHT NOW ({len(live_rows)}) — threads "
                f"awaiting a reply · {gated} inbound threads correctly "
                f"left blank",
