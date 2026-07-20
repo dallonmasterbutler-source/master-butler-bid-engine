@@ -48,7 +48,9 @@ folder, its own data, nothing to do with customers or Jobber.
     area) so you shop in one loop — then one-tap **Add to Google Calendar**
     (a client-side deep link, no account). Also holds plans/appointments
     (follow-ups, Show-the-Plan, coach meeting, outings), each with its own
-    calendar button. Stores/categories are seeded for the Monroe area.
+    calendar button. Stores are fully editable (name, area, which categories
+    each covers, and the order = your run order); seeded with Fred Meyer,
+    Costco and Walmart for the Monroe area, with a reset button.
   - **Study** tab lets anyone browse the whole library on their own — search
     and category filters — *without* touching the daily card or the streak.
   - **Progress** tab: day/month totals, goal ring, per-kind, 6-month history.
