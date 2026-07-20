@@ -11,8 +11,13 @@ A small, private web app for the two of you to run your Amway life together:
 3. **Numbers** — tap **+1** every time either of you has a conversation, an
    interaction, or picks up a new contact. It rolls up daily and monthly with
    a goal and a 6-month trend. This is the engine of the business.
-4. **Shared calendar** — link both Google calendars once and it finds your
-   shared openings and can put outings/shopping on both of your calendars.
+4. **Daily training** — one Amway product a day, cycling through your library:
+   a short fact card plus a ready-to-use "talk-starter" question, with a
+   "trained today" streak. Manage the products in Settings, or have Claude
+   research more cards for the lines you sell.
+5. **Shared calendar** — link both Google calendars once (OAuth) so Rhythm
+   reads when you're *really* both free; adding an event opens the Google app
+   with it pre-filled, so your calendar stays the source of truth.
 
 It's completely separate from the Master Butler bidding system — its own
 folder, its own data, nothing to do with customers or Jobber.
@@ -62,3 +67,7 @@ Screen*. It behaves like an app.
   anything customer-facing.
 - Start simple. Meal planning stays light on purpose — no calorie math, just
   "what's for dinner and who buys what where."
+- Product training sticks to Amway's official, factual claims — no health/
+  medical cures and no income promises. The app carries a reminder of that.
+- It doesn't scrape amway.com. The product library is curated (seeded here and
+  editable in Settings), so it never breaks when their website changes.

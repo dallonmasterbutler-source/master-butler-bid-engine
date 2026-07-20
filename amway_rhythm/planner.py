@@ -88,6 +88,49 @@ def month_history(activity, months=6, today=None):
     return [{"month": k, "count": totals[k]} for k in keys]
 
 
+# ── 1b. DAILY PRODUCT TRAINING ────────────────────────────────────────────
+def _day_index(day):
+    """Whole days since a fixed epoch — a stable, ever-increasing counter."""
+    d = datetime.strptime(day, "%Y-%m-%d").date()
+    return (d - date(2000, 1, 1)).days
+
+
+def product_of_day(products, day=None):
+    """
+    Pick one product for the given day, rotating through the whole library so
+    every product comes up before any repeats. Same product for both spouses.
+    """
+    if not products:
+        return None
+    if day is None:
+        day = date.today().isoformat()
+    return products[_day_index(day) % len(products)]
+
+
+def trained_today(training_log, day, product_id):
+    return any(r.get("day") == day and r.get("product_id") == product_id
+               for r in training_log)
+
+
+def training_streak(training_log, today=None):
+    """
+    Count consecutive days (ending today or yesterday) with at least one
+    training logged. Today not-yet-done doesn't break a streak until tomorrow.
+    """
+    if today is None:
+        today = date.today().isoformat()
+    days = {r.get("day") for r in training_log if r.get("day")}
+    cur = datetime.strptime(today, "%Y-%m-%d").date()
+    # if today isn't done yet, start counting from yesterday
+    if cur.isoformat() not in days:
+        cur = cur - timedelta(days=1)
+    streak = 0
+    while cur.isoformat() in days:
+        streak += 1
+        cur = cur - timedelta(days=1)
+    return streak
+
+
 # ── 2. GROCERY SPLIT ──────────────────────────────────────────────────────
 def grocery_list(meal_names, meal_library):
     """Collect + combine ingredients for the chosen meals."""

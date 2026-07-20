@@ -37,6 +37,8 @@ def test_store():
     check("store: seeds two people", s["config"]["person_a"] and s["config"]["person_b"])
     check("store: seeds meals", len(s["meal_library"]) >= 3)
     check("store: seeds stores", len(s["stores"]) >= 2)
+    check("store: seeds products", len(s["products"]) >= 5)
+    check("store: training_log starts empty", s["training_log"] == [])
 
     store.update(lambda st: st["activity"].append({"x": 1}))
     check("store: write persists", len(store.get()["activity"]) == 1)
@@ -66,6 +68,35 @@ def test_rollup():
 
     r2 = planner.rollup(acts, "2026-07-20", goal=3)
     check("rollup: goal hit at 3", r2["goal_hit"])
+
+
+def test_training():
+    products = [{"id": "p0", "name": "A"}, {"id": "p1", "name": "B"},
+                {"id": "p2", "name": "C"}]
+    # deterministic rotation: consecutive days advance by one, and wrap
+    d0 = planner.product_of_day(products, "2026-07-20")
+    d1 = planner.product_of_day(products, "2026-07-21")
+    d3 = planner.product_of_day(products, "2026-07-23")
+    check("training: rotates each day", d0["id"] != d1["id"])
+    check("training: wraps after len", d3["id"] == d0["id"])
+    check("training: same product same day", d0["id"]
+          == planner.product_of_day(products, "2026-07-20")["id"])
+    check("training: empty library -> None", planner.product_of_day([]) is None)
+
+    log = [{"day": "2026-07-20", "product_id": "p0"}]
+    check("training: trained_today true", planner.trained_today(log, "2026-07-20", "p0"))
+    check("training: trained_today false", not planner.trained_today(log, "2026-07-20", "p1"))
+
+    # streak: three days in a row ending today
+    log2 = [{"day": "2026-07-18"}, {"day": "2026-07-19"}, {"day": "2026-07-20"}]
+    check("training: streak counts run", planner.training_streak(log2, "2026-07-20") == 3)
+    # today not done yet, but yesterday+before were -> streak still holds
+    check("training: today-not-done keeps streak",
+          planner.training_streak(log2, "2026-07-21") == 3)
+    # a gap breaks it
+    log3 = [{"day": "2026-07-15"}, {"day": "2026-07-20"}]
+    check("training: gap breaks streak", planner.training_streak(log3, "2026-07-20") == 1)
+    check("training: no log -> 0", planner.training_streak([], "2026-07-20") == 0)
 
 
 def test_history():
@@ -144,8 +175,8 @@ def test_outings():
 
 def main():
     print("RHYTHM TEST GATE")
-    for fn in (test_store, test_rollup, test_history, test_grocery,
-               test_windows, test_outings):
+    for fn in (test_store, test_rollup, test_training, test_history,
+               test_grocery, test_windows, test_outings):
         print(f"\n{fn.__name__}:")
         fn()
     print(f"\n{'='*40}\n{PASS} passed, {FAIL} failed")
