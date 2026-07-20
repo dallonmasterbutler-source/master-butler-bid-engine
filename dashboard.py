@@ -2758,11 +2758,14 @@ def save_ideas(ideas):
     IDEAS_FILE.write_text(json.dumps(ideas, indent=1))
 
 
-def add_idea(who, text):
+def add_idea(who, text, shot_ref=None):
     ideas = load_ideas()
-    ideas.append({"at": datetime.now().isoformat(timespec="seconds"),
-                  "who": who or "office", "text": text.strip(),
-                  "status": "open"})
+    entry = {"at": datetime.now().isoformat(timespec="seconds"),
+             "who": who or "office", "text": text.strip(),
+             "status": "open"}
+    if shot_ref:
+        entry["shot"] = shot_ref          # a screenshot the office attached
+    ideas.append(entry)
     save_ideas(ideas)
 
 
@@ -2774,7 +2777,11 @@ def ideas_card():
     rows = "".join(
         f"<div style='padding:6px 0;border-bottom:1px dashed #eee'>"
         f"💡 <b>{esc(x['who'])}</b>: {esc(x['text'])[:120]}"
-        f"<form method='POST' action='/idea_done' style='display:inline'>"
+        + (f"<a href='/img/{esc(x['shot'])}/idea/0' target='_blank'>"
+           f"<img src='/img/{esc(x['shot'])}/idea/0' style='display:block;"
+           f"max-width:220px;max-height:150px;border-radius:8px;margin:6px 0;"
+           f"border:1px solid var(--line)'></a>" if x.get('shot') else "")
+        + f"<form method='POST' action='/idea_done' style='display:inline'>"
         f"<input type='hidden' name='idx' value='{i}'>"
         f"<button class='gray' style='padding:2px 8px;font-size:11px;"
         f"margin-left:6px'>done</button></form></div>"
@@ -4966,12 +4973,14 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
     <button style='background:var(--gold);color:#1c2b23'>🚩 Still stuck —
      email Dallon &amp; Tom</button>
    </form>
-   <form method='POST' action='/idea_send' style='margin-top:10px;
-        border-top:1px dashed var(--line);padding-top:10px'>
+   <form method='POST' action='/idea_send' enctype='multipart/form-data'
+        style='margin-top:10px;border-top:1px dashed var(--line);padding-top:10px'>
     <input type='hidden' name='context'
      value='while working on {esc((nb.get("from") or "").split("<")[0].strip())} — open them: https://masterbutler-dashboard.onrender.com/?c={urllib.parse.quote(key)}'>
     <input type='hidden' name='back' value='{esc(back)}'>
     <input type='text' name='text' placeholder='💡 Idea to make this better? Tell Dallon &amp; Claude — one line is plenty'>
+    <label class='subtext' style='display:block;margin-top:5px'>📷 Add a screenshot (optional):
+     <input type='file' name='shot' accept='image/*'></label>
     <button class='gray'>💡 Send the idea</button>
     <div class='subtext' style='margin-top:3px'>Emails Dallon instantly;
      Claude reads every idea overnight and pre-plans the fix.</div>
@@ -10567,7 +10576,34 @@ class Handler(BaseHTTPRequestHandler):
                                               "error": str(e)[:200]}).encode(),
                                   code=500, ctype="application/json")
 
-        form = urllib.parse.parse_qs(body.decode())
+        # PICTURE UPLOAD (office screenshots on "Send an idea", Dallon
+        # Jul 20): a multipart POST carries text fields AND file bytes,
+        # which parse_qs can't read (binary). Parse it by hand; text goes
+        # in `form`, uploaded files in `_files` {name: (filename, bytes)}.
+        _files = {}
+        _ctype = self.headers.get("Content-Type", "")
+        if _ctype.startswith("multipart/form-data") and "boundary=" in _ctype:
+            form = {}
+            bnd = ("--" + _ctype.split("boundary=", 1)[1].strip().strip('"'))
+            for part in body.split(bnd.encode()):
+                part = part.strip(b"\r\n")
+                if not part or part == b"--" or b"\r\n\r\n" not in part:
+                    continue
+                head, content = part.split(b"\r\n\r\n", 1)
+                content = content.rstrip(b"\r\n")
+                hs = head.decode("utf-8", "replace")
+                nm = re.search(r'name="([^"]+)"', hs)
+                if not nm:
+                    continue
+                if 'filename="' in hs:
+                    fnm = re.search(r'filename="([^"]*)"', hs)
+                    if (fnm and fnm.group(1)) and content:
+                        _files[nm.group(1)] = (fnm.group(1), content)
+                else:
+                    form.setdefault(nm.group(1), []).append(
+                        content.decode("utf-8", "replace"))
+        else:
+            form = urllib.parse.parse_qs(body.decode())
         get = lambda k: form.get(k, [""])[0]
 
         # WHO'S WORKING: stamp every decision with the header name-tag
@@ -11523,9 +11559,37 @@ class Handler(BaseHTTPRequestHandler):
                 who = _user or "the office"
                 full = text + (f" — {get('context')}" if get("context")
                                else "")
-                add_idea(who, full)
+                # SCREENSHOT (Dallon Jul 20): the office can attach a picture
+                # so they can SHOW the problem. Convert to a web JPEG, cap
+                # size, store it, and hang the ref on the idea.
+                shot_ref = None
+                _shot = _files.get("shot")
+                if _shot and 0 < len(_shot[1]) <= 12_000_000:
+                    img = _shot[1]
+                    try:
+                        from PIL import Image
+                        import io as _io
+                        im = Image.open(_io.BytesIO(img)).convert("RGB")
+                        im.thumbnail((1600, 1600))
+                        _b = _io.BytesIO()
+                        im.save(_b, "JPEG", quality=82)
+                        img = _b.getvalue()
+                    except Exception:
+                        pass                 # store as-is if Pillow is absent
+                    try:
+                        shot_ref = "idea-" + datetime.now().strftime(
+                            "%Y%m%d-%H%M%S")
+                        if clouddb.available():
+                            clouddb.put_photo(shot_ref, "idea", 0, img)
+                        else:
+                            shot_ref = None
+                    except Exception:
+                        shot_ref = None
+                add_idea(who, full, shot_ref=shot_ref)
                 save_review({"stamp": "", "action": "office_idea",
-                             "customer": who, "note": text[:250]})
+                             "customer": who,
+                             "note": text[:250] + (" [📷 screenshot]"
+                                                   if shot_ref else "")})
                 # straight onto the build board too (Dallon, Jul 14:
                 # 'when someone puts an idea through, throw it directly
                 # on the build board') — visible to the whole office
