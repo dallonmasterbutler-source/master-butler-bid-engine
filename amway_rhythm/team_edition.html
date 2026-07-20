@@ -295,6 +295,37 @@ input{width:100%; padding:13px; border:1px solid var(--line); border-radius:13px
   text-decoration:none;}
 .bookrow input{width:100%; border:1px solid var(--line); background:var(--surface); color:var(--ink);
   border-radius:10px; padding:9px 11px; font-family:inherit; font-size:14px;}
+/* plan tab */
+.planrow2{display:flex; gap:8px; margin-top:8px;}
+.planrow2 input{flex:1; min-width:0; border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  border-radius:11px; padding:10px 12px; font-family:inherit; font-size:14px;}
+.eitem{display:flex; align-items:center; gap:9px; padding:9px 0; border-bottom:1px solid var(--line);}
+.eitem:last-child{border-bottom:0;}
+.eitem .etext{flex:1; min-width:0; font-size:14.5px;}
+.eitem .ecat{font-size:11px; color:var(--muted); font-weight:700; text-transform:capitalize;}
+.eitem select{border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:8px;
+  padding:5px 6px; font-family:inherit; font-size:12px; max-width:38vw;}
+.eitem .del{color:var(--muted); cursor:pointer; padding:0 5px; font-size:18px;}
+.storegrp{margin:10px 0; padding:13px 15px; border:1px solid var(--line); border-radius:16px; background:var(--surface-2);}
+.storegrp h4{margin:0; font-size:15px; font-weight:800; letter-spacing:-.01em;}
+.storegrp .area{font-size:12px; color:var(--muted); font-weight:600; margin-top:1px;}
+.storegrp ul{list-style:none; margin:9px 0 0; padding:0;}
+.storegrp li{font-size:14px; padding:3px 0; padding-left:16px; position:relative;}
+.storegrp li:before{content:"•"; position:absolute; left:2px; color:var(--accent);}
+.stepnum{display:inline-grid; place-items:center; width:22px; height:22px; border-radius:50%;
+  background:var(--accent); color:var(--on-accent); font-size:12px; font-weight:800; margin-right:9px; vertical-align:middle;}
+.pitem{display:flex; justify-content:space-between; gap:12px; align-items:flex-start; padding:12px 0;
+  border-bottom:1px solid var(--line);}
+.pitem:last-child{border-bottom:0;}
+.pitem.done .ptitle{text-decoration:line-through; color:var(--muted);}
+.pwhen{font-size:12px; color:var(--accent); font-weight:800;}
+.ptitle{font-weight:700; font-size:14.5px; margin:1px 0;}
+.pkind{font-size:11px; color:var(--muted); font-weight:700;}
+.pacts{display:flex; flex-direction:column; gap:7px; align-items:flex-end; flex:0 0 auto;}
+.pacts a{font-size:12px; font-weight:800; white-space:nowrap;}
+.pacts .prow{display:flex; gap:7px;}
+.minibtn{border:1px solid var(--line); background:var(--surface); color:var(--muted); border-radius:8px;
+  padding:3px 9px; font-size:13px; cursor:pointer; font-family:inherit;}
 @media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important;}}
 </style>
 
@@ -409,6 +440,46 @@ input{width:100%; padding:13px; border:1px solid var(--line); border-radius:13px
     <div class="card" id="programCard"></div>
   </section>
 
+  <!-- PLAN — errand run (food list -> stores -> calendar) + appointments -->
+  <section id="view-plan" class="hide">
+    <div class="card">
+      <div class="eyebrow">Errand run — food &amp; to-dos</div>
+      <p class="note" style="margin:6px 0 10px">Drop in what you need — one per line, or comma-separated.
+        I'll sort it by store so you can knock it out in one loop.</p>
+      <div class="addrow"><input id="errIn" placeholder="e.g. chicken, milk, paper towels"
+        enterkeyhint="done"><button id="errAdd" aria-label="Add">+</button></div>
+      <div id="errList"></div>
+    </div>
+
+    <div class="card" id="runPlanCard" style="display:none">
+      <div class="eyebrow">Your run</div>
+      <div id="runPlan"></div>
+      <div class="planrow2" style="margin-top:14px"><input id="errDate" type="date" aria-label="Date">
+        <input id="errTime" type="time" aria-label="Time"></div>
+      <a class="btn primary" id="errCal" target="_blank" rel="noreferrer"
+        style="margin-top:10px; display:block; text-align:center; text-decoration:none">📅 Add run to Google Calendar</a>
+      <button class="btn subtle" id="errClear" style="margin-top:8px">Clear list</button>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Plans &amp; appointments</div>
+      <div class="addrow" style="margin-top:10px"><input id="planTitle"
+        placeholder="What's the plan? (e.g. Follow up with Jared)" enterkeyhint="done"></div>
+      <div class="planrow2"><input id="planDate" type="date" aria-label="Date">
+        <input id="planTime" type="time" aria-label="Time"></div>
+      <div class="chips" id="planKinds">
+        <button class="chip-f on" data-kind="Follow-up">Follow-up</button>
+        <button class="chip-f" data-kind="Show the Plan">Show the Plan</button>
+        <button class="chip-f" data-kind="Core time">Core time</button>
+        <button class="chip-f" data-kind="Coach">Coach</button>
+        <button class="chip-f" data-kind="Outing">Outing</button>
+        <button class="chip-f" data-kind="Other">Other</button>
+      </div>
+      <button class="btn primary" id="planAdd" style="margin-top:12px">Add plan</button>
+      <div id="planList" style="margin-top:8px"></div>
+    </div>
+  </section>
+
   <!-- STUDY LIBRARY (browse-only; never affects the daily card or streak) -->
   <section id="view-study" class="hide">
     <div class="eyebrow" style="margin:6px 4px 0">Study library · <span id="studyCount"></span></div>
@@ -442,6 +513,8 @@ input{width:100%; padding:13px; border:1px solid var(--line); border-radius:13px
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.5"/></svg>Core</button>
     <button class="navbtn" data-view="run">
       <svg viewBox="0 0 24 24"><path d="M5 3v18l7-5 7 5V3z"/><path d="M9 8h6M9 12h6"/></svg>Run</button>
+    <button class="navbtn" data-view="plan">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Plan</button>
     <button class="navbtn" data-view="study">
       <svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h7M8 11h7"/></svg>Study</button>
     <button class="navbtn" data-view="progress">
@@ -2372,7 +2445,8 @@ const KINDS=["conversation","interaction","contact"];
 const KEY="rhythm_team_v1";
 
 /* ---- state ---- */
-function blank(){return {activity:[], learned:[], config:{name:"", goal:200}, core:coreDefaults()};}
+function blank(){return {activity:[], learned:[], config:{name:"", goal:200}, core:coreDefaults(),
+  errands:[], stores:seedStores(), plans:[]};}
 function load(){
   try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.activity) return Object.assign(blank(),s);}
   catch(e){}
@@ -2490,12 +2564,14 @@ document.querySelectorAll(".navbtn").forEach(b=>b.addEventListener("click",()=>{
   $("view-today").classList.toggle("hide",v!=="today");
   $("view-core").classList.toggle("hide",v!=="core");
   $("view-run").classList.toggle("hide",v!=="run");
+  $("view-plan").classList.toggle("hide",v!=="plan");
   $("view-study").classList.toggle("hide",v!=="study");
   $("view-progress").classList.toggle("hide",v!=="progress");
   if(v==="progress") renderProgress();
   if(v==="study") renderStudy();
   if(v==="core") renderCore();
   if(v==="run") renderProgram();
+  if(v==="plan") renderPlanTab();
   window.scrollTo(0,0);
 }));
 
@@ -2964,6 +3040,126 @@ $("themeBtn").addEventListener("click",()=>{
   const dark=cur?cur==="dark":matchMedia("(prefers-color-scheme:dark)").matches;
   document.documentElement.setAttribute("data-theme", dark?"light":"dark");
 });
+
+/* ================= PLAN: errand run (list -> stores -> calendar) + appointments ============= */
+function seedStores(){return [
+  {id:"s1", name:"Fred Meyer", area:"Monroe", cats:["produce","pantry","dairy","bakery","deli","household","frozen","pharmacy"]},
+  {id:"s2", name:"Costco", area:"Woodinville", cats:["meat","bulk","produce","household","frozen"]},
+  {id:"s3", name:"Safeway", area:"Snohomish", cats:["pantry","dairy","deli","bakery","produce"]},
+];}
+const CATWORDS={
+  produce:["lettuce","tomato","apple","banana","spinach","broccoli","onion","potato","carrot","pepper","cucumber","berry","berries","grape","lemon","lime","avocado","garlic","celery","kale","salad","fruit","veggie","veg","greens","mushroom","corn","zucchini"],
+  meat:["chicken","beef","pork","turkey","bacon","fish","salmon","steak","ground","sausage","ham","shrimp","meat","hot dog","deli meat"],
+  dairy:["milk","cheese","egg","eggs","yogurt","butter","cream","sour cream","half and half"],
+  pantry:["pasta","rice","bread","cereal","sauce","oil","flour","sugar","can","beans","soup","peanut butter","jelly","coffee","tea","snack","chips","cracker","spice","salt","ketchup","mustard","honey","oats","tortilla"],
+  frozen:["frozen","ice cream","pizza","popsicle"],
+  household:["paper towel","toilet paper","detergent","soap","trash","dish","cleaner","foil","wrap","battery","napkin","sponge","bag","laundry"],
+  pharmacy:["vitamin","medicine","shampoo","toothpaste","deodorant","lotion","bandage","supplement","ibuprofen","tylenol","conditioner","razor"],
+  bulk:["bulk","case","costco","warehouse"],
+};
+function catOf(text){ const t=text.toLowerCase();
+  for(const c in CATWORDS){ if(CATWORDS[c].some(w=>t.includes(w))) return c; }
+  return "other"; }
+function storeById(id){ return state.stores.find(s=>s.id===id)||null; }
+function storeForItem(it){
+  if(it.store){ const s=storeById(it.store); if(s) return s; }
+  for(const s of state.stores){ if(s.cats.includes(it.cat)) return s; }
+  return null;
+}
+function addErrands(raw){
+  raw.split(/[\n,]/).map(x=>x.trim()).filter(Boolean).forEach(text=>{
+    state.errands.push({id:"e"+Date.now().toString(36)+state.errands.length, text, cat:catOf(text), store:""});
+  });
+  save();
+}
+function gcalLink(title, dateStr, timeStr, details){
+  if(!dateStr) dateStr=today();
+  let dates;
+  if(timeStr){
+    const [h,m]=timeStr.split(":").map(Number);
+    const s=dateStr.replace(/-/g,"")+"T"+pad(h)+pad(m)+"00";
+    const e=dateStr.replace(/-/g,"")+"T"+pad((h+1)%24)+pad(m)+"00";
+    dates=s+"/"+e;
+  } else { dates=dateStr.replace(/-/g,"")+"/"+addDays(dateStr,1).replace(/-/g,""); }
+  return "https://calendar.google.com/calendar/render?action=TEMPLATE&text="+encodeURIComponent(title)+
+    "&dates="+dates+(details?"&details="+encodeURIComponent(details):"");
+}
+function renderPlanTab(){ renderErrands(); renderPlans(); }
+function renderErrands(){
+  const list=$("errList");
+  if(!state.errands.length){ list.innerHTML='<p class="note" style="margin-top:10px">Nothing on the list yet.</p>';
+    $("runPlanCard").style.display="none"; return; }
+  const opts=s=>state.stores.map(st=>'<option value="'+st.id+'"'+(s===st.id?' selected':'')+'>'+escapeHtml(st.name)+'</option>').join("");
+  list.innerHTML='<div style="margin-top:8px"></div>'+state.errands.map(it=>
+    '<div class="eitem" data-id="'+it.id+'"><div class="etext">'+escapeHtml(it.text)+
+      ' <span class="ecat">'+escapeHtml(it.cat)+'</span></div>'+
+      '<select data-store="'+it.id+'"><option value="">Auto</option>'+opts(it.store)+'</select>'+
+      '<span class="del" data-del="'+it.id+'">×</span></div>').join("");
+  list.querySelectorAll("[data-store]").forEach(sel=>sel.addEventListener("change",()=>{
+    const it=state.errands.find(x=>x.id===sel.dataset.store); if(it){ it.store=sel.value; save(); renderErrands(); }}));
+  list.querySelectorAll("[data-del]").forEach(d=>d.addEventListener("click",()=>{
+    state.errands=state.errands.filter(x=>x.id!==d.dataset.del); save(); renderErrands(); }));
+  // grouped run
+  const groups={}, any=[];
+  for(const it of state.errands){ const s=storeForItem(it);
+    if(!s){ any.push(it); continue; } (groups[s.id]||(groups[s.id]={store:s,items:[]})).items.push(it); }
+  const ordered=state.stores.filter(s=>groups[s.id]).map(s=>groups[s.id]);
+  let html="", step=0;
+  for(const g of ordered){ step++;
+    html+='<div class="storegrp"><h4><span class="stepnum">'+step+'</span>'+escapeHtml(g.store.name)+
+      '</h4><div class="area" style="margin-left:31px">'+escapeHtml(g.store.area)+' · '+g.items.length+' item'+(g.items.length>1?'s':'')+
+      '</div><ul>'+g.items.map(i=>'<li>'+escapeHtml(i.text)+'</li>').join("")+'</ul></div>';
+  }
+  if(any.length){ html+='<div class="storegrp"><h4>Anywhere</h4><ul>'+any.map(i=>'<li>'+escapeHtml(i.text)+'</li>').join("")+'</ul></div>'; }
+  $("runPlan").innerHTML=html;
+  $("runPlanCard").style.display=ordered.length||any.length?"":"none";
+  // calendar link for the whole run
+  const d=$("errDate").value, t=$("errTime").value;
+  const title="Errand run — "+ordered.map(g=>g.store.name).join(", ")+(any.length?(ordered.length?", +":"")+"other":"");
+  const details=ordered.map(g=>g.store.name+": "+g.items.map(i=>i.text).join(", ")).concat(any.length?["Anywhere: "+any.map(i=>i.text).join(", ")]:[]).join("\n");
+  $("errCal").href=gcalLink(title||"Errand run", d, t, details);
+}
+$("errAdd").addEventListener("click",()=>{ const v=$("errIn").value; if(!v.trim())return; addErrands(v); $("errIn").value=""; renderErrands(); });
+$("errIn").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("errAdd").click(); }});
+$("errDate").addEventListener("change",renderErrands);
+$("errTime").addEventListener("change",renderErrands);
+$("errClear").addEventListener("click",()=>{ if(confirm("Clear the whole errand list?")){ state.errands=[]; save(); renderErrands(); }});
+
+let planKind="Follow-up";
+document.querySelectorAll("#planKinds .chip-f").forEach(c=>c.addEventListener("click",()=>{
+  planKind=c.dataset.kind;
+  document.querySelectorAll("#planKinds .chip-f").forEach(x=>x.classList.toggle("on",x===c));
+}));
+$("planAdd").addEventListener("click",()=>{
+  const title=$("planTitle").value.trim(); if(!title) return;
+  state.plans.push({id:"p"+Date.now().toString(36), title, date:$("planDate").value||today(),
+    time:$("planTime").value||"", kind:planKind, done:false});
+  $("planTitle").value=""; $("planTime").value=""; save(); renderPlans();
+});
+function fmtWhen(date,time){
+  const t=today(), tm=addDays(t,1);
+  let day = date===t?"Today" : date===tm?"Tomorrow" :
+    new Date(date+"T00:00:00").toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
+  if(time){ const [h,m]=time.split(":").map(Number); const ap=h<12?"am":"pm"; const h12=(h%12)||12;
+    day+=" · "+h12+(m?":"+pad(m):"")+ap; }
+  return day;
+}
+function renderPlans(){
+  const ps=[...state.plans].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  if(!ps.length){ $("planList").innerHTML='<p class="note">No plans yet — add follow-ups, a coach meeting, or an outing.</p>'; return; }
+  $("planList").innerHTML=ps.map(p=>
+    '<div class="pitem'+(p.done?' done':'')+'" data-id="'+p.id+'"><div style="min-width:0">'+
+      '<div class="pwhen">'+escapeHtml(fmtWhen(p.date,p.time))+'</div>'+
+      '<div class="ptitle">'+escapeHtml(p.title)+'</div>'+
+      '<div class="pkind">'+escapeHtml(p.kind)+'</div></div>'+
+      '<div class="pacts"><a href="'+gcalLink(p.kind+": "+p.title, p.date, p.time, "")+'" target="_blank" rel="noreferrer">📅 Calendar</a>'+
+      '<div class="prow"><button class="minibtn" data-done="'+p.id+'">'+(p.done?"↩":"✓")+'</button>'+
+      '<button class="minibtn" data-pdel="'+p.id+'">×</button></div></div></div>').join("");
+  $("planList").querySelectorAll("[data-done]").forEach(b=>b.addEventListener("click",()=>{
+    const p=state.plans.find(x=>x.id===b.dataset.done); if(p){ p.done=!p.done; save(); renderPlans(); }}));
+  $("planList").querySelectorAll("[data-pdel]").forEach(b=>b.addEventListener("click",()=>{
+    state.plans=state.plans.filter(x=>x.id!==b.dataset.pdel); save(); renderPlans(); }));
+}
 
 renderAll();
 </script>

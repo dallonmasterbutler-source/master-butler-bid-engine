@@ -43,6 +43,12 @@ folder, its own data, nothing to do with customers or Jobber.
     assignments and prescribed audios as check-offs, a book field, and the
     fill-ins (standing order / digital delivery). Shows overall % complete,
     plus sponsor/coach and the recommended starter-book list.
+  - **Plan** tab turns a food/to-do list into an errand run: type or paste
+    items, it auto-categorizes each and groups them **by store** (ordered by
+    area) so you shop in one loop — then one-tap **Add to Google Calendar**
+    (a client-side deep link, no account). Also holds plans/appointments
+    (follow-ups, Show-the-Plan, coach meeting, outings), each with its own
+    calendar button. Stores/categories are seeded for the Monroe area.
   - **Study** tab lets anyone browse the whole library on their own — search
     and category filters — *without* touching the daily card or the streak.
   - **Progress** tab: day/month totals, goal ring, per-kind, 6-month history.
