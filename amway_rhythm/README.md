@@ -48,8 +48,9 @@ folder, its own data, nothing to do with customers or Jobber.
   - **Progress** tab: day/month totals, goal ring, per-kind, 6-month history.
 
 ### The product library
-Both editions read the same **`products.json`** — one source of truth, 55 cards
-covering Nutrilite, XS/BodyKey fitness, Artistry/beauty, and Amway Home/durables.
+Both editions read the same **`products.json`** — one source of truth, ~100
+cards covering Nutrilite (incl. n by Nutrilite), the full XS brand + BodyKey,
+Artistry/beauty, Amway personal care, and Amway Home/durables.
 Granularity is **one card per distinct product or family**, never per
 shade/flavor/scent (all lipsticks are one “Artistry Makeup” card; XS gets
 separate cards for its genuinely different types). Facts are Amway’s own,
