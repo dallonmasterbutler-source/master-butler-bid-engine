@@ -21,12 +21,18 @@ name: Auto-fix office issues
 
 on:
   issues:
-    types: [opened, labeled]
+    types: [labeled]     # 'labeled' fires once even when created with the
+                         # label — avoids the double-run 'opened' caused.
 
 permissions:
   contents: write        # create the branch + commit
   pull-requests: write   # open the draft PR
   issues: write          # read the ticket + comment the PR link back
+  id-token: write        # REQUIRED by claude-code-action (OIDC auth)
+
+concurrency:
+  group: office-fix-${{ github.event.issue.number }}
+  cancel-in-progress: true
 
 jobs:
   fix:
