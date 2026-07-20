@@ -256,6 +256,35 @@ input{width:100%; padding:13px; border:1px solid var(--line); border-radius:13px
   border-bottom:1px solid var(--line);}
 .mlist li:last-child{border-bottom:0;}
 .mlist .del{color:var(--muted); cursor:pointer; padding:0 4px; flex:0 0 auto;}
+/* 90-day run weekly program */
+.recbooks summary{font-size:13px; font-weight:800; color:var(--accent); cursor:pointer;}
+.recbooks .mlist li{border-bottom:0; padding:4px 0; color:var(--muted);}
+.wk{border:1px solid var(--line); border-radius:14px; margin:10px 0; overflow:hidden; background:var(--surface);}
+.wk.cur{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent);}
+.wkhd{display:flex; align-items:center; gap:8px; padding:14px; cursor:pointer;}
+.wkhd b{font-weight:800;}
+.wkdates{font-size:12px; color:var(--muted); font-weight:700;}
+.wktag{font-size:10px; font-weight:800; color:var(--on-accent); background:var(--accent);
+  padding:2px 7px; border-radius:999px; letter-spacing:.03em;}
+.wkprog{margin-left:auto; font-size:12.5px; font-weight:800; color:var(--muted);}
+.wk .chev{color:var(--muted); font-size:13px; transition:transform .2s;}
+.wk.open .chev{transform:rotate(180deg);}
+.wkbody{display:none; padding:0 14px 14px;}
+.wk.open .wkbody{display:block;}
+.crow{display:flex; gap:11px; align-items:flex-start; padding:10px 0; border-bottom:1px solid var(--line);
+  cursor:pointer; -webkit-tap-highlight-color:transparent;}
+.crow:last-child{border-bottom:0;}
+.cbox{width:22px; height:22px; border-radius:7px; border:2px solid var(--line); flex:0 0 auto;
+  display:grid; place-items:center; color:var(--on-accent); font-size:13px; font-weight:800; margin-top:1px;}
+.crow.on .cbox{background:var(--accent); border-color:var(--accent);}
+.ctext{font-size:13.5px; line-height:1.45; min-width:0;}
+.crow.on .ctext{color:var(--muted); text-decoration:line-through;}
+.crow.on .wkfill{text-decoration:none;}
+.wkfill{display:block; width:100%; margin-top:7px; border:1px solid var(--line); background:var(--surface);
+  color:var(--ink); border-radius:9px; padding:8px 10px; font-family:inherit; font-size:13.5px;
+  text-decoration:none;}
+.bookrow input{width:100%; border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  border-radius:10px; padding:9px 11px; font-family:inherit; font-size:14px;}
 @media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important;}}
 </style>
 
@@ -365,6 +394,11 @@ input{width:100%; padding:13px; border:1px solid var(--line); border-radius:13px
     </div>
   </section>
 
+  <!-- 90 DAY CORE RUN — the WWG 12-week program -->
+  <section id="view-run" class="hide">
+    <div class="card" id="programCard"></div>
+  </section>
+
   <!-- STUDY LIBRARY (browse-only; never affects the daily card or streak) -->
   <section id="view-study" class="hide">
     <div class="eyebrow" style="margin:6px 4px 0">Study library · <span id="studyCount"></span></div>
@@ -391,6 +425,8 @@ input{width:100%; padding:13px; border:1px solid var(--line); border-radius:13px
       <svg viewBox="0 0 24 24"><path d="M3 12l2-2 5 5 9-9"/><path d="M4 20h16"/></svg>Today</button>
     <button class="navbtn" data-view="core">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.5"/></svg>Core</button>
+    <button class="navbtn" data-view="run">
+      <svg viewBox="0 0 24 24"><path d="M5 3v18l7-5 7 5V3z"/><path d="M9 8h6M9 12h6"/></svg>Run</button>
     <button class="navbtn" data-view="study">
       <svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h7M8 11h7"/></svg>Study</button>
     <button class="navbtn" data-view="progress">
@@ -1372,11 +1408,13 @@ document.querySelectorAll(".navbtn").forEach(b=>b.addEventListener("click",()=>{
   const v=b.dataset.view;
   $("view-today").classList.toggle("hide",v!=="today");
   $("view-core").classList.toggle("hide",v!=="core");
+  $("view-run").classList.toggle("hide",v!=="run");
   $("view-study").classList.toggle("hide",v!=="study");
   $("view-progress").classList.toggle("hide",v!=="progress");
   if(v==="progress") renderProgress();
   if(v==="study") renderStudy();
   if(v==="core") renderCore();
+  if(v==="run") renderProgram();
   window.scrollTo(0,0);
 }));
 
@@ -1457,6 +1495,7 @@ function coreDefaults(){return {
   ],
   custom:[], daily:{}, monthly:{}, numbers:{}, grades:{},
   lists:{books:[],audios:[],functions:[],customers:[],stp:[]},
+  program:{checks:{}, book:{}, fill:{}, sponsor:"", coach:""},
 };}
 function ensureCore(){
   if(!state.core) state.core=coreDefaults();
@@ -1464,6 +1503,8 @@ function ensureCore(){
   for(const k in d) if(state.core[k]===undefined) state.core[k]=d[k];
   if(!state.core.habits||!state.core.habits.length) state.core.habits=d.habits;
   for(const k in d.lists) if(!Array.isArray(state.core.lists[k])) state.core.lists[k]=[];
+  if(!state.core.program) state.core.program=d.program;
+  for(const k of ["checks","book","fill"]) if(!state.core.program[k]) state.core.program[k]={};
 }
 ensureCore();
 let coreDate=today();
@@ -1523,7 +1564,7 @@ function renderRunCard(){
     cells+='<div class="'+cls+'" data-day="'+day+'" title="'+day+'"></div>';
   }
   el.innerHTML=
-    '<div class="run-top"><div class="run-day"><b>Day '+st.dayNum+'</b> <span>of '+st.len+'</span></div>'+flag+'</div>'+
+    '<div class="run-top"><div class="run-day"><b>Day '+st.dayNum+'</b> <span>of '+st.len+' · Week '+currentWeek()+' of 12</span></div>'+flag+'</div>'+
     '<div class="run-bar"><span style="width:'+pct+'%"></span></div>'+
     '<div class="run-stats">'+
       '<div class="s"><b>'+st.core+'</b><i>core days</i></div>'+
@@ -1634,6 +1675,181 @@ function renderLogs(){
   $("logsWrap").querySelectorAll(".del").forEach(d=>d.addEventListener("click",()=>{
     const id=d.dataset.list, ts=Number(d.dataset.ts);
     state.core.lists[id]=state.core.lists[id].filter(x=>x.ts!==ts); save(); renderLogs();
+  }));
+}
+
+/* ============== 90 DAY CORE RUN — the WWG 12-week guided program ============== */
+const REC_BOOKS=[
+  "15 Invaluable Laws of Growth — John Maxwell (BK 187)",
+  "How to Win Friends & Influence People — Dale Carnegie (BK 34)",
+  "The One Thing — Gary Keller (BK 182)",
+  "Atomic Habits — James Clear (BK 234)",
+  "You Win in the Locker Room First — Gordon & Smith (BK 201)",
+  "Extreme Ownership — Willink & Babin (BK 208)",
+];
+const TXT_PHOTO="Text a photo of your Core Monthly Tracking Sheet to your upline Platinum and everyone in between.";
+const MEET_COACH="Meet up with your Coach.";
+const WEEKS=[
+  {n:1, assignments:[
+    "Ask your upline Platinum who your coach is; set up daily communication with your sponsor, coach and everyone in between.",
+    "Create a journal — one place for notes, details and questions.",
+    "Start a Name List of people to share the opportunity with; bring it to your coach meeting (use the Building Your List pdf).",
+    "Use the Core Monthly Tracking Sheet to establish your CORE habits; text a photo to your upline Sunday night.",
+    MEET_COACH],
+   audios:["Ewing Seminar WW1225 (1st Half)","Ewing Seminar WW1225 (2nd Half)","Ewing Rally WW1224",
+    "Ambassador > 90 Day Core Run > Ewing Plan",
+    "Ambassador > Connecting > Trevor Baker Approach > Trevor Baker 90 Day & MAWA",
+    "Ambassador > Connecting > Clinics > Conference Call 08-11-17",
+    "Ambassador > Connecting > Clinics > Warm Market Training"]},
+  {n:2, assignments:[TXT_PHOTO,"Study the Conversation Flow Chart / People Skills Ladder.",MEET_COACH],
+   audios:["Ambassador > Connecting > Clinics > Haddad Clinic",
+    "Ambassador > Connecting > Bill Hawkins & FAQs and Making Connections (WW923)",
+    "Ambassador > Connecting > Clinics > Forest Contacting Clinic – 1st Hour",
+    "Ambassador > Connecting > Clinics > Forest Contacting Clinic – 2nd Hour",
+    "Ambassador > Connecting > Clinics > Forest Contacting Clinic – 3rd Hour",
+    "Ambassador > Connecting > Invite/Dialogue and Connecting Training",
+    {fill:"standing", label:"This week's Standing Order"}]},
+  {n:3, assignments:[TXT_PHOTO,
+    "Write out your “Microstory” / verbiage for making people aware and dropping the message; send it to your coach through Kate to review.",
+    MEET_COACH],
+   audios:["Ambassador > Connecting > Huddles",
+    "Ambassador > Connecting > MAWA Make People Aware and Trevor Baker Approach",
+    "Common Sense and People Skills — Brad Duncan (WW781)",
+    "Build Your Foundation — Baker/Duncan (WW659)",
+    "The Pump In The Desert (WW762A)","The Pump In The Desert (WW762B)",
+    {fill:"digital", label:"This week's Digital Delivery (WW App)"}]},
+  {n:4, assignments:[TXT_PHOTO,MEET_COACH],
+   audios:["Compared To What (WW751A)","Ambassador > The Process > MG 1 & MG 2 (study)",
+    "Ambassador > The Process > Posture","Ambassador > The Process > All other info",
+    "Mentally Strong People (MM0820) Part 1","Mentally Strong People (MM0920) Part 2",
+    {fill:"digital", label:"This week's Digital Delivery (WW App)"}]},
+  {n:5, assignments:[TXT_PHOTO],
+   audios:["Ambassador > 90 Day Core Run > Rosario Seminar (1st Half)",
+    "Ambassador > 90 Day Core Run > Rosario Seminar (2nd Half)",
+    "Ambassador > 90 Day Core Run > Rosario Rally","Ambassador > 90 Day Core Run > Rosario Plan",
+    "Get Honest with Yourself (WW1011)","Whatever It Takes As Long As It Takes (WW834)",
+    {fill:"digital", label:"This week's Digital Delivery (WW App)"}]},
+  {n:6, assignments:[TXT_PHOTO],
+   audios:["Ambassador > 90 Day Core Run > Tuitupou Seminar (1st Half)",
+    "Ambassador > 90 Day Core Run > Tuitupou Seminar (2nd Half)",
+    "Ambassador > 90 Day Core Run > Tuitupou Rally","Ambassador > 90 Day Core Run > Tuitupou Plan",
+    "The Problem Lies Within the Mirror (WW787B)","Business Mentality (WW715)",
+    {fill:"digital", label:"This week's Digital Delivery (WW App)"}]},
+  {n:7, assignments:[TXT_PHOTO],
+   audios:["Ambassador > Training > Nuts & Bolts (1st Hour)","Ambassador > Training > Nuts & Bolts (2nd Hour)",
+    "Ambassador > Training > Nuts & Bolts (3rd Hour)","One Percent Better Daily (WW1110)",
+    "10 Points That Make Amway Special (AM106)","Try or Cry — Rich DeVos (AM108)",
+    {fill:"digital", label:"This week's Digital Delivery (WW App)"}]},
+  {n:8, assignments:[TXT_PHOTO,MEET_COACH],
+   audios:["Ambassador > 90 Day Core Run > Ensley Seminar (1st Half)",
+    "Ambassador > 90 Day Core Run > Ensley Seminar (2nd Half)",
+    "Ambassador > 90 Day Core Run > Ensley Rally","Ambassador > 90 Day Core Run > Ensley Plan",
+    "Time Matters (MT1110)","Association (WW1039)",
+    {fill:"digital", label:"This week's Digital Delivery (WW App)"}]},
+  {n:9, assignments:[TXT_PHOTO],
+   audios:["Ambassador > 90 Day Core Run > Whalen Seminar (1st Half)",
+    "Ambassador > 90 Day Core Run > Whalen Seminar (2nd Half)",
+    "Ambassador > 90 Day Core Run > Whalen Rally","Ambassador > 90 Day Core Run > Whalen Plan",
+    "Fear / Test Your Limits — Yuen/Baker (WW893)","The Ideal Business (WW651)",
+    {fill:"digital", label:"This week's Digital Delivery (WW App)"}]},
+  {n:10, assignments:[TXT_PHOTO],
+   audios:["Equal Opportunity — Trevor Baker (WW870B)","Dead Fish Float / First Season — Severn/Yuen (WW707)",
+    "Growth & Resistance — Whalen (WW780)","The Battle Goes On (AM109)",
+    "Poverty Thinking / Raise the Bar — Eatons (WW891)","Cardinal Rules (WW529)",
+    {fill:"digital", label:"This week's Digital Delivery (WW App)"}]},
+  {n:11, assignments:[TXT_PHOTO],
+   audios:["Stay Committed To The Cause / Process of Change (WW792B)","Response-Ability (WW1011)",
+    "Prove Them Wrong / Mindset Before Skill Set / Path of Unfamiliar (WW899)",
+    "You're Living the Life You Tolerate — Eaton (WW818B)",
+    "Shake Things Up So You Can Wake Things Up / Coach & Be Coached (WW799A)",
+    "Ron & Georgia Lee Puryear Crown Rally (WW394A)",
+    {fill:"digital", label:"This week's Digital Delivery (WW App)"}]},
+  {n:12, assignments:[TXT_PHOTO],
+   audios:["David and Darlene Duncan Rally (WW11)","Belief — Paul Tsika (MT0611)",
+    "Game Player or Practice Player — Whalen/Crandell (WW910A)",
+    "Let The Popcorn Pop / Can't Shake My Tree — Herschelman/Olynyk (WW913)",
+    "Work Trumps Everything — Trevor & Lexi Baker (WW909)",
+    "Josh & Lauren Trudgeon — Lean into Resistance (WW1117)",
+    {fill:"digital", label:"This week's Digital Delivery (WW App)"}]},
+];
+function currentWeek(){
+  const r=state.core.run; if(!r.start) return 0;
+  return Math.max(1, Math.min(12, Math.floor(daysBetween(r.start,today())/7)+1));
+}
+function programStats(){
+  let done=0,total=0;
+  for(const w of WEEKS){ total+=w.assignments.length+w.audios.length;
+    done+=(state.core.program.checks[w.n]||[]).length; }
+  return {done, total, pct: total?Math.round(100*done/total):0};
+}
+let openWeek=0;
+function renderProgram(){
+  ensureCore();
+  const p=state.core.program, ps=programStats(), cw=currentWeek();
+  if(!openWeek) openWeek=cw||1;
+  const fmt=d=>new Date(d+"T00:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  const started=!!state.core.run.start;
+  let html='<div class="eyebrow">90 Day Core Run</div>'+
+    '<p class="note" style="margin:6px 0 0">The WWG 12-week program — weekly assignments, audios and a '+
+    'book. '+(started?('You\'re in <b>Week '+cw+' of 12</b> · '+ps.pct+'% complete ('+ps.done+'/'+ps.total+' items).')
+      :'Start your run to date each week.')+'</p>'+
+    '<div class="run-bar" style="margin:12px 0 2px"><span style="width:'+ps.pct+'%"></span></div>'+
+    (started?'':'<button class="btn primary" id="startRunBtn2" style="margin-top:12px">Start my 90-day run</button>')+
+    '<div class="nums" style="margin-top:14px">'+
+      '<div><label>Sponsor</label><input id="spInput" value="'+escapeHtml(p.sponsor||"")+'"></div>'+
+      '<div><label>Coach</label><input id="coInput" value="'+escapeHtml(p.coach||"")+'"></div></div>'+
+    '<details class="recbooks" style="margin-top:14px"><summary>Recommended starter books</summary>'+
+      '<ul class="mlist">'+REC_BOOKS.map(b=>'<li><span>'+escapeHtml(b)+'</span></li>').join("")+'</ul></details>'+
+    '<div id="weeksWrap" style="margin-top:10px">';
+  for(const w of WEEKS){
+    const checks=new Set(p.checks[w.n]||[]);
+    const tot=w.assignments.length+w.audios.length;
+    const wkStart=started?addDays(state.core.run.start,(w.n-1)*7):null;
+    const dates=wkStart?(fmt(wkStart)+" – "+fmt(addDays(wkStart,6))):"";
+    const open=w.n===openWeek, isCur=started&&w.n===cw;
+    let body='<div class="subhd">Assignments</div>';
+    w.assignments.forEach((a,i)=>{ const k="a"+i, on=checks.has(k);
+      body+='<div class="crow'+(on?' on':'')+'" data-w="'+w.n+'" data-k="'+k+'"><div class="cbox">'+(on?'✓':'')+
+        '</div><div class="ctext">'+escapeHtml(a)+'</div></div>'; });
+    body+='<div class="subhd">Audios</div>';
+    w.audios.forEach((a,i)=>{ const k="u"+i, on=checks.has(k);
+      if(typeof a==="object"){ const fk=w.n+"|"+a.fill, val=escapeHtml(p.fill[fk]||"");
+        body+='<div class="crow'+(on?' on':'')+'" data-w="'+w.n+'" data-k="'+k+'"><div class="cbox">'+(on?'✓':'')+
+          '</div><div class="ctext" style="flex:1"><b>'+escapeHtml(a.label)+'</b>'+
+          '<input class="wkfill" data-fill="'+fk+'" value="'+val+'" placeholder="Enter…"></div></div>';
+      } else {
+        body+='<div class="crow'+(on?' on':'')+'" data-w="'+w.n+'" data-k="'+k+'"><div class="cbox">'+(on?'✓':'')+
+          '</div><div class="ctext">'+escapeHtml(a)+'</div></div>'; }
+    });
+    body+='<div class="subhd">Book — read 15 min/day</div>'+
+      '<div class="bookrow"><input data-book="'+w.n+'" value="'+escapeHtml(p.book[w.n]||"")+'" placeholder="Book title"></div>';
+    html+='<div class="wk'+(open?' open':'')+(isCur?' cur':'')+'" data-wk="'+w.n+'">'+
+      '<div class="wkhd"><b>Week '+w.n+'</b>'+(dates?'<span class="wkdates">'+dates+'</span>':'')+
+      (isCur?'<span class="wktag">THIS WEEK</span>':'')+'<span class="wkprog">'+checks.size+'/'+tot+'</span>'+
+      '<span class="chev">▾</span></div><div class="wkbody">'+body+'</div></div>';
+  }
+  html+='</div>';
+  $("programCard").innerHTML=html;
+  if(!started) $("startRunBtn2").onclick=()=>{ state.core.run.start=today(); save(); renderProgram(); };
+  $("spInput").addEventListener("change",e=>{ p.sponsor=e.target.value.trim(); save(); });
+  $("coInput").addEventListener("change",e=>{ p.coach=e.target.value.trim(); save(); });
+  const wrap=$("weeksWrap");
+  wrap.querySelectorAll(".wkhd").forEach(h=>h.addEventListener("click",()=>{
+    const n=Number(h.parentNode.dataset.wk); openWeek=(openWeek===n?0:n); renderProgram();
+  }));
+  wrap.querySelectorAll(".crow").forEach(r=>r.addEventListener("click",e=>{
+    if(e.target.classList.contains("wkfill")) return;
+    const n=r.dataset.w, k=r.dataset.k, arr=p.checks[n]||(p.checks[n]=[]);
+    const i=arr.indexOf(k); if(i>=0) arr.splice(i,1); else arr.push(k);
+    if(!arr.length) delete p.checks[n]; save(); renderProgram();
+  }));
+  wrap.querySelectorAll("[data-fill]").forEach(inp=>{
+    inp.addEventListener("click",e=>e.stopPropagation());
+    inp.addEventListener("change",()=>{ const fk=inp.dataset.fill, v=inp.value.trim();
+      if(v) p.fill[fk]=v; else delete p.fill[fk]; save(); });
+  });
+  wrap.querySelectorAll("[data-book]").forEach(inp=>inp.addEventListener("change",()=>{
+    const n=inp.dataset.book, v=inp.value.trim(); if(v) p.book[n]=v; else delete p.book[n]; save();
   }));
 }
 

@@ -38,6 +38,11 @@ folder, its own data, nothing to do with customers or Jobber.
     **90-day core run** (start date → day N of 90, a 90-day grid, streak,
     consistency %, on-pace flag), the monthly habits, critical numbers, overall
     grades, and running lists (books, audios, functions, customers, STPs).
+  - **Run** tab is the WWG **90 Day Core Run** — the 12-week guided program.
+    Each week auto-dates from your start date (current week flagged), with its
+    assignments and prescribed audios as check-offs, a book field, and the
+    fill-ins (standing order / digital delivery). Shows overall % complete,
+    plus sponsor/coach and the recommended starter-book list.
   - **Study** tab lets anyone browse the whole library on their own — search
     and category filters — *without* touching the daily card or the streak.
   - **Progress** tab: day/month totals, goal ring, per-kind, 6-month history.
