@@ -7188,8 +7188,9 @@ def working_page():
     return page("Build board", body)
 
 
-def _sched_scorecard_card():
-    """🗓 Shadow scheduling scorecard — does its date-pick match the office?"""
+def _sched_scorecard_card(card):
+    """🗓 Shadow scheduling scorecard — does its date-pick match the office?
+    `card` is passed in — it's a local helper of autodrafts_page."""
     try:
         import sched_scorecard
         r = sched_scorecard.report()
@@ -7414,7 +7415,7 @@ def autodrafts_page(user=None):
         + (lambda _s: _reply_wheel(
             [x["acc"] for x in _s] if _s else accs, live=bool(_s)))(
             _blob_rw("draft_sends", []) or [])
-        + _sched_scorecard_card()
+        + _sched_scorecard_card(card)
         + card(f"Would draft RIGHT NOW ({len(live_rows)}) — threads "
                f"awaiting a reply · {gated} inbound threads correctly "
                f"left blank",

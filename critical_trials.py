@@ -165,6 +165,7 @@ def main():
             ("/guide", "?", "Guide page"),
             ("/drafts", "", "Drafts page"),
             ("/brief", "", "Morning brief"),
+            ("/autodrafts", "grading room", "Auto-drafts + sched scorecard"),
             ("/newbid", "Estimated total", "NEW-DESIGN preview /newbid"),
         ]:
             try:
