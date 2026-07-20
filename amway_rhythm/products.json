@@ -119,7 +119,8 @@
     ],
     "starter": "Do you use a protein shake after workouts, or skip it?",
     "link": "https://www.amway.com/en_US/XS%E2%84%A2-Sports-Protein-Powder-%E2%80%93-Chocolate-Milkshake-p-110375",
-    "dv": "Protein — Daily Value 50 g/day"
+    "dv": "Protein — Daily Value 50 g/day",
+    "amt": "~23 g protein/serving"
   },
   {
     "id": "pr_protein",
@@ -181,7 +182,8 @@
     ],
     "starter": "Does where your protein comes from, like grass-fed, matter to you?",
     "link": "https://www.amway.com/en_US/XS%E2%84%A2-Grass-Fed-Whey-Protein-%E2%80%93-Chocolate-p-128154",
-    "dv": "Protein — Daily Value 50 g/day"
+    "dv": "Protein — Daily Value 50 g/day",
+    "amt": "30 g protein/serving"
   },
   {
     "id": "nl_daily",
@@ -243,7 +245,8 @@
     ],
     "starter": "Have you ever seen protein that comes in a dissolvable pod?",
     "link": "https://www.amway.com/XS%E2%84%A2-Protein-Pods-%E2%80%93-Chocolate-p-300856",
-    "dv": "Protein — Daily Value 50 g/day"
+    "dv": "Protein — Daily Value 50 g/day",
+    "amt": "20 g protein/pod"
   },
   {
     "id": "nl_womens",
@@ -381,7 +384,8 @@
     ],
     "starter": "When you take vitamin C, is it the slow-release kind or one-and-done?",
     "link": "https://www.amway.com/en_US/Nutrilite-Vitamin-C-Extended-Release-p-109747",
-    "dv": "90 mg vitamin C"
+    "dv": "90 mg vitamin C",
+    "amt": "500 mg vitamin C"
   },
   {
     "id": "ar_supreme_lx",
@@ -503,7 +507,8 @@
     ],
     "starter": "Do you eat enough fatty fish for omega-3s, or do you supplement?",
     "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Advanced-Omega--p-126136",
-    "dv": "No set DV; common guidance ~250–500 mg EPA+DHA"
+    "dv": "No set DV; common guidance ~250–500 mg EPA+DHA",
+    "amt": "1,000+ mg EPA/DHA/ALA"
   },
   {
     "id": "ar_men",
@@ -971,7 +976,8 @@
     ],
     "starter": "Need protein on the go? These come chilled and ready to drink.",
     "link": "https://www.amway.com/en_US/XS%E2%84%A2-Sports-Protein-Shakes-%E2%80%93-Rich-Chocolate-p-110369",
-    "dv": "Protein — Daily Value 50 g/day"
+    "dv": "Protein — Daily Value 50 g/day",
+    "amt": "25 g protein/shake"
   },
   {
     "id": "nl_joint",
@@ -1032,7 +1038,8 @@
     ],
     "starter": "Want a grab-and-go protein bar? Which flavor sounds best?",
     "link": "https://www.amway.com/en_US/XS%E2%84%A2-Sports-Protein-Bars-%E2%80%93-Chocolate-Peanut-Butter-p-110385",
-    "dv": "Protein — Daily Value 50 g/day"
+    "dv": "Protein — Daily Value 50 g/day",
+    "amt": "20 g protein/bar"
   },
   {
     "id": "nl_vitb",
@@ -1048,7 +1055,8 @@
     ],
     "starter": "Do you hit an afternoon slump, and how do you push through it?",
     "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Vitamin-B-Dual%E2%80%93Action-p-110171",
-    "dv": "B-vitamins — e.g. 1.7 mg B6, 2.4 mcg B12, 400 mcg folate"
+    "dv": "B-vitamins — e.g. 1.7 mg B6, 2.4 mcg B12, 400 mcg folate",
+    "amt": "all 8 B vitamins"
   },
   {
     "id": "pc_gh_nourish",
@@ -1094,7 +1102,8 @@
     ],
     "starter": "Craving something savory? Crisps come in Barbeque and Sriracha Lime.",
     "link": "https://www.amway.com/en_US/XS%E2%84%A2-Protein-Crisps-%E2%80%93-Barbeque-p-110627",
-    "dv": "Protein — Daily Value 50 g/day"
+    "dv": "Protein — Daily Value 50 g/day",
+    "amt": "12 g protein/serving"
   },
   {
     "id": "nl_coq10",
@@ -1110,7 +1119,8 @@
     ],
     "starter": "Have you heard of CoQ10? It's a big one for heart and energy support.",
     "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Heart-Health-CoQ10-p-A8601",
-    "dv": "No official requirement — the body makes CoQ10"
+    "dv": "No official requirement — the body makes CoQ10",
+    "amt": "30 mg CoQ10"
   },
   {
     "id": "pc_gh_refresh",
@@ -1233,7 +1243,8 @@
     ],
     "starter": "Do you get enough magnesium from diet alone?",
     "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Magnesium-p-128032",
-    "dv": "420 mg magnesium"
+    "dv": "420 mg magnesium",
+    "amt": "200 mg magnesium"
   },
   {
     "id": "nl_digestive_enzyme",
@@ -1264,7 +1275,8 @@
     ],
     "starter": "Struggling to hit your daily fiber goal?",
     "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Fiber-Powder-p-102736",
-    "dv": "28 g dietary fiber"
+    "dv": "28 g dietary fiber",
+    "amt": "4 g fiber/serving"
   },
   {
     "id": "nl_liver_support",
@@ -1434,7 +1446,8 @@
     ],
     "starter": "Want to add omega-3s to your child's routine?",
     "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Kids-Brainiums-DHA-%E2%80%93-Fruit-Punch-p-104282",
-    "dv": "No set DV; general kids guidance ~250 mg DHA"
+    "dv": "No set DV; general kids guidance ~250 mg DHA",
+    "amt": "250 mg DHA (+50 EPA)"
   },
   {
     "id": "nl_kids_probiotic",
@@ -1465,7 +1478,8 @@
     ],
     "starter": "Need an easy vitamin C for your child?",
     "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Kids-Chewable-Vitamin-C-p-A5353",
-    "dv": "Kids 4+: 90 mg vitamin C (younger children need less)"
+    "dv": "Kids 4+: 90 mg vitamin C (younger children need less)",
+    "amt": "100% Daily Value"
   },
   {
     "id": "nl_kids_immunity_fastmelt",
@@ -1481,6 +1495,7 @@
     ],
     "starter": "Want quick immune support your kid can take without water?",
     "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Kids-Complete-Immunity-Fast-Melt-Powder--p-123046",
-    "dv": "Kids 4+: ~90 mg vitamin C · 11 mg zinc"
+    "dv": "Kids 4+: ~90 mg vitamin C · 11 mg zinc",
+    "amt": "30 mg vit C · 2.6 mg zinc"
   }
 ]
