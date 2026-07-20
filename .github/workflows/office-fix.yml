@@ -54,7 +54,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: >-
             --allowedTools "Read,Edit,Write,Bash(git:*),Bash(python3:*),Bash(gh:*)"
-            --max-turns 15
+            --max-turns 30
             --model claude-haiku-4-5-20251001
           prompt: |
             You are the Master Butler auto-fixer. An office staff member
