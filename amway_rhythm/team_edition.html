@@ -193,6 +193,69 @@ input{width:100%; padding:13px; border:1px solid var(--line); border-radius:13px
 .sblurb{margin:2px 0 0; font-size:14.5px; line-height:1.5;}
 .slink{display:inline-block; margin-top:12px; font-weight:800;}
 .empty{color:var(--muted); text-align:center; padding:30px 10px; font-size:14px;}
+/* core tab */
+.eyebrow input[type=date]{margin-left:8px; border:1px solid var(--line); background:var(--surface);
+  color:var(--ink); border-radius:9px; padding:4px 8px; font-family:inherit; font-size:12.5px;
+  font-weight:800; letter-spacing:normal; text-transform:none;}
+.hrow{display:flex; align-items:center; gap:13px; padding:13px 2px; border-bottom:1px solid var(--line);
+  cursor:pointer; -webkit-tap-highlight-color:transparent;}
+.hrow:last-child{border-bottom:0;}
+.hbox{width:26px; height:26px; border-radius:8px; border:2px solid var(--line); flex:0 0 auto;
+  display:grid; place-items:center; color:var(--on-accent); font-size:15px; font-weight:800; transition:.15s;}
+.hrow.on .hbox{background:var(--accent); border-color:var(--accent);}
+.hlabel{flex:1; min-width:0;}
+.hlabel b{font-weight:800; letter-spacing:-.01em;}
+.hrow.on .hlabel b{color:var(--muted); text-decoration:line-through;}
+.hlabel i{display:block; font-size:12px; color:var(--muted); font-weight:600; font-style:normal; margin-top:1px;}
+.hx{color:var(--muted); font-size:20px; line-height:1; padding:2px 8px;}
+.corebadge{font-size:13px; font-weight:800; color:var(--muted); margin-top:13px;}
+.corebadge.win{color:var(--accent);}
+.run-top{display:flex; align-items:flex-end; justify-content:space-between; gap:12px;}
+.run-day b{font-size:40px; font-weight:900; letter-spacing:-.03em; line-height:1;}
+.run-day span{font-size:13px; color:var(--muted); font-weight:800;}
+.paceflag{font-size:12px; font-weight:800; padding:6px 11px; border-radius:999px; white-space:nowrap;
+  background:var(--tint); color:var(--accent);}
+.paceflag.behind{background:var(--amber-tint); color:var(--amber);}
+.run-bar{height:9px; border-radius:999px; background:var(--ring-track); overflow:hidden; margin:14px 0 2px;}
+.run-bar>span{display:block; height:100%; background:var(--accent); border-radius:999px;}
+.run-stats{display:flex; gap:18px; margin-top:14px;}
+.run-stats .s b{font-size:22px; font-weight:900; display:block; letter-spacing:-.02em;}
+.run-stats .s i{font-size:10.5px; color:var(--muted); font-weight:800; text-transform:uppercase;
+  letter-spacing:.04em; font-style:normal;}
+.grid90{display:grid; grid-template-columns:repeat(15,1fr); gap:4px; margin-top:16px;}
+.gc{aspect-ratio:1; border-radius:3px; background:var(--surface-2); cursor:pointer;}
+.gc.part{background:color-mix(in srgb, var(--accent) 42%, var(--surface-2));}
+.gc.done{background:var(--accent);}
+.gc.today{outline:2px solid var(--ink); outline-offset:1px;}
+.gc.future{background:transparent; border:1px solid var(--line); cursor:default;}
+.gridkey{display:flex; gap:14px; margin-top:11px; font-size:11.5px; color:var(--muted); font-weight:700;}
+.gridkey i{width:11px; height:11px; border-radius:3px; display:inline-block; vertical-align:-1px; margin-right:5px; font-style:normal;}
+.subhd{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
+  font-weight:800; margin:20px 0 9px;}
+.nums{display:grid; grid-template-columns:1fr 1fr; gap:9px;}
+.nums label{font-size:11.5px; font-weight:800; color:var(--muted); display:block; margin-bottom:3px;}
+.nums input{width:100%; border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  border-radius:10px; padding:9px 10px; font-family:inherit; font-size:15px;}
+.grades{display:flex; gap:9px;}
+.grades .g{flex:1;}
+.grades label{font-size:11.5px; font-weight:800; color:var(--muted); display:block; margin-bottom:4px;}
+.grades select{width:100%; border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  border-radius:10px; padding:9px 8px; font-family:inherit; font-weight:800;}
+.mini{margin-bottom:18px;}
+.mini:last-child{margin-bottom:0;}
+.mini .mh{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:7px;}
+.mini .mh b{font-weight:800;}
+.mini .mh em{font-size:12px; color:var(--accent); font-weight:800; font-style:normal;}
+.addrow{display:flex; gap:8px;}
+.addrow input{flex:1; border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  border-radius:11px; padding:10px 12px; font-family:inherit; font-size:14px;}
+.addrow button{flex:0 0 auto; border:0; border-radius:11px; padding:0 16px; font-weight:800;
+  background:var(--accent); color:var(--on-accent); font-family:inherit; font-size:20px; cursor:pointer;}
+.mlist{list-style:none; margin:9px 0 0; padding:0;}
+.mlist li{display:flex; justify-content:space-between; gap:10px; font-size:14px; padding:6px 0;
+  border-bottom:1px solid var(--line);}
+.mlist li:last-child{border-bottom:0;}
+.mlist .del{color:var(--muted); cursor:pointer; padding:0 4px; flex:0 0 auto;}
 @media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important;}}
 </style>
 
@@ -276,6 +339,32 @@ input{width:100%; padding:13px; border:1px solid var(--line); border-radius:13px
     </div>
   </section>
 
+  <!-- CORE: daily 5, 90-day run, monthly sheet, running lists -->
+  <section id="view-core" class="hide">
+    <div class="card" id="runCard"></div>
+
+    <div class="card">
+      <div class="eyebrow">Daily core<input id="coreDate" type="date" aria-label="Date to track"></div>
+      <div id="dailyList"></div>
+      <div class="corebadge" id="coreBadge"></div>
+      <button class="btn subtle" id="addHabitBtn" style="margin-top:14px">+ Add a personal habit</button>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Monthly · <span id="monthLbl"></span></div>
+      <div id="monthlyList"></div>
+      <div class="subhd">Critical numbers</div>
+      <div class="nums" id="numsGrid"></div>
+      <div class="subhd">Overall grades</div>
+      <div class="grades" id="gradesRow"></div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Track &amp; tally</div>
+      <div id="logsWrap"></div>
+    </div>
+  </section>
+
   <!-- STUDY LIBRARY (browse-only; never affects the daily card or streak) -->
   <section id="view-study" class="hide">
     <div class="eyebrow" style="margin:6px 4px 0">Study library · <span id="studyCount"></span></div>
@@ -300,6 +389,8 @@ input{width:100%; padding:13px; border:1px solid var(--line); border-radius:13px
   <div class="navinner">
     <button class="navbtn on" data-view="today">
       <svg viewBox="0 0 24 24"><path d="M3 12l2-2 5 5 9-9"/><path d="M4 20h16"/></svg>Today</button>
+    <button class="navbtn" data-view="core">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.5"/></svg>Core</button>
     <button class="navbtn" data-view="study">
       <svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h7M8 11h7"/></svg>Study</button>
     <button class="navbtn" data-view="progress">
@@ -1164,7 +1255,7 @@ const KINDS=["conversation","interaction","contact"];
 const KEY="rhythm_team_v1";
 
 /* ---- state ---- */
-function blank(){return {activity:[], learned:[], config:{name:"", goal:200}};}
+function blank(){return {activity:[], learned:[], config:{name:"", goal:200}, core:coreDefaults()};}
 function load(){
   try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.activity) return Object.assign(blank(),s);}
   catch(e){}
@@ -1280,10 +1371,12 @@ document.querySelectorAll(".navbtn").forEach(b=>b.addEventListener("click",()=>{
   document.querySelectorAll(".navbtn").forEach(x=>x.classList.toggle("on",x===b));
   const v=b.dataset.view;
   $("view-today").classList.toggle("hide",v!=="today");
+  $("view-core").classList.toggle("hide",v!=="core");
   $("view-study").classList.toggle("hide",v!=="study");
   $("view-progress").classList.toggle("hide",v!=="progress");
   if(v==="progress") renderProgress();
   if(v==="study") renderStudy();
+  if(v==="core") renderCore();
   window.scrollTo(0,0);
 }));
 
@@ -1327,6 +1420,222 @@ document.querySelectorAll("#studyChips .chip-f").forEach(c=>c.addEventListener("
   document.querySelectorAll("#studyChips .chip-f").forEach(x=>x.classList.toggle("on",x===c));
   renderStudy();
 }));
+
+/* ================= CORE: daily 5, 90-day run, monthly sheet, lists ================= */
+/* Modeled on the WWG Core Monthly Tracking Sheet. All device-local, like the rest. */
+const MONTHLY=[
+  {id:"cust_vol",label:"Customer Volume",desc:"Retail volume — 60% VCS of first-circle volume (goal 300+ PV)"},
+  {id:"personal_use",label:"Personal Use",desc:"DITTO; ~150 PV basic volume; know your products"},
+  {id:"functions",label:"Functions",desc:"Local WWG meetings, team/upline meetings, major functions"},
+  {id:"counsel",label:"Counsel",desc:"Counsel with your upline at least once this month"},
+  {id:"premier",label:"Premier Membership",desc:"Use the system"},
+  {id:"accountability",label:"Accountability",desc:"Monthly budget; be a person of your word"},
+];
+const NUMS=[
+  {id:"ditto",label:"1st Day DITTO"},{id:"gpv1",label:"1st Day Group PV"},
+  {id:"gpvt",label:"Total Group PV"},{id:"ppv",label:"Personal PV"},
+  {id:"vcs",label:"% VCS"},{id:"nextfn",label:"# at Next Major Function"},
+  {id:"ontopics",label:"# of Businesses on Topics"},{id:"pm",label:"# of P.M. / Digital Delivery"},
+];
+const GRADES=[{id:"dream",label:"Dream"},{id:"attitude",label:"Attitude"},{id:"work",label:"Work Habit"}];
+const GOPT=["","A","B","C","D","F"];
+const LISTS=[
+  {id:"books",label:"Books I've read",ph:"Book title"},
+  {id:"audios",label:"Audios that impacted me",ph:"Audio or speaker"},
+  {id:"functions",label:"Functions & upline meetings",ph:"Event attended"},
+  {id:"customers",label:"Customers",ph:"Customer name"},
+  {id:"stp",label:"Start the Process (STP)",ph:"Person you showed"},
+];
+function coreDefaults(){return {
+  run:{start:null, len:90},
+  habits:[
+    {id:"audio",label:"Audio",sub:"30+ minutes"},
+    {id:"read",label:"Read",sub:"15+ minutes"},
+    {id:"topics",label:"Topics / Message Coach",sub:"Listen & connect"},
+    {id:"dream",label:"DreamStream",sub:""},
+    {id:"stp",label:"STP / DTM / Connect",sub:"Show the Plan / Drop the Message"},
+  ],
+  custom:[], daily:{}, monthly:{}, numbers:{}, grades:{},
+  lists:{books:[],audios:[],functions:[],customers:[],stp:[]},
+};}
+function ensureCore(){
+  if(!state.core) state.core=coreDefaults();
+  const d=coreDefaults();
+  for(const k in d) if(state.core[k]===undefined) state.core[k]=d[k];
+  if(!state.core.habits||!state.core.habits.length) state.core.habits=d.habits;
+  for(const k in d.lists) if(!Array.isArray(state.core.lists[k])) state.core.lists[k]=[];
+}
+ensureCore();
+let coreDate=today();
+
+/* -- date + run math -- */
+function addDays(day,n){const dt=new Date(day+"T00:00:00");dt.setDate(dt.getDate()+n);return isoDay(dt);}
+function daysBetween(a,b){return Math.round((Date.parse(b+"T00:00:00")-Date.parse(a+"T00:00:00"))/86400000);}
+function habitDone(day,id){return (state.core.daily[day]||[]).includes(id);}
+function toggleHabit(day,id){
+  const arr=state.core.daily[day]||(state.core.daily[day]=[]);
+  const i=arr.indexOf(id); if(i>=0) arr.splice(i,1); else arr.push(id);
+  if(!arr.length) delete state.core.daily[day];
+  save();
+}
+function dayDone(day){return state.core.habits.every(h=>habitDone(day,h.id));}   // all Daily-5 done
+function dayFilled(day){return state.core.habits.some(h=>habitDone(day,h.id));}
+function runStats(){
+  const r=state.core.run; if(!r.start) return null;
+  const t=today();
+  const n=daysBetween(r.start,t)+1;                 // today's day number, 1-based
+  if(n<1) return {pending:true, start:r.start};
+  const elapsed=Math.min(r.len,n);
+  let core=0; for(let i=0;i<elapsed;i++) if(dayDone(addDays(r.start,i))) core++;
+  const consistency=elapsed?Math.round(100*core/elapsed):0;
+  let s=0, d=t; if(!dayDone(d)) d=addDays(t,-1);
+  while(daysBetween(r.start,d)>=0 && dayDone(d)){s++; d=addDays(d,-1);}
+  return {dayNum:Math.min(r.len,n), len:r.len, elapsed, core, consistency, streak:s,
+    finished:n>r.len, left:Math.max(0, r.len-n+1)};
+}
+
+/* -- renderers -- */
+function renderCore(){ ensureCore(); renderRunCard(); renderDaily(); renderMonthly(); renderLogs(); }
+
+function renderRunCard(){
+  const el=$("runCard"), st=runStats();
+  if(!st){
+    el.innerHTML='<div class="eyebrow">90-day core run</div>'+
+      '<p class="note" style="margin-top:6px">Commit to your daily core for 90 days straight. '+
+      'Start today as day 1 and watch the grid fill in.</p>'+
+      '<button class="btn primary" id="startRunBtn" style="margin-top:14px">Start my 90-day run</button>';
+    $("startRunBtn").onclick=()=>{ state.core.run.start=today(); save(); renderCore(); };
+    return;
+  }
+  if(st.pending){
+    el.innerHTML='<div class="eyebrow">90-day core run</div><p class="note" style="margin-top:6px">Starts '+
+      escapeHtml(st.start)+'.</p><button class="btn subtle" id="resetRunBtn" style="margin-top:12px">Reset</button>';
+    $("resetRunBtn").onclick=resetRun; return;
+  }
+  const pct=Math.round(100*st.dayNum/st.len);
+  const behind=!st.finished && st.dayNum>=3 && st.consistency<80;
+  const flag=st.finished?'<span class="paceflag">Complete 🎉</span>'
+    :'<span class="paceflag'+(behind?' behind':'')+'">'+(behind?'Keep pushing':'On pace')+'</span>';
+  const t=today(); let cells='';
+  for(let i=0;i<st.len;i++){ const day=addDays(state.core.run.start,i); let cls='gc';
+    if(day>t) cls+=' future'; else if(dayDone(day)) cls+=' done'; else if(dayFilled(day)) cls+=' part';
+    if(day===t) cls+=' today';
+    cells+='<div class="'+cls+'" data-day="'+day+'" title="'+day+'"></div>';
+  }
+  el.innerHTML=
+    '<div class="run-top"><div class="run-day"><b>Day '+st.dayNum+'</b> <span>of '+st.len+'</span></div>'+flag+'</div>'+
+    '<div class="run-bar"><span style="width:'+pct+'%"></span></div>'+
+    '<div class="run-stats">'+
+      '<div class="s"><b>'+st.core+'</b><i>core days</i></div>'+
+      '<div class="s"><b>'+st.consistency+'%</b><i>consistency</i></div>'+
+      '<div class="s"><b>'+st.streak+'</b><i>streak 🔥</i></div>'+
+      '<div class="s"><b>'+st.left+'</b><i>days left</i></div></div>'+
+    '<div class="grid90">'+cells+'</div>'+
+    '<div class="gridkey"><span><i style="background:var(--accent)"></i>all 5</span>'+
+      '<span><i style="background:color-mix(in srgb,var(--accent) 42%,var(--surface-2))"></i>partial</span>'+
+      '<span><i style="background:var(--surface-2)"></i>missed</span></div>'+
+    '<button class="btn subtle" id="resetRunBtn" style="margin-top:14px; color:var(--muted)">Reset run</button>';
+  el.querySelectorAll(".gc:not(.future)").forEach(c=>c.addEventListener("click",()=>{
+    coreDate=c.dataset.day; renderDaily();
+    $("dailyList").scrollIntoView({behavior:"smooth", block:"center"});
+  }));
+  $("resetRunBtn").onclick=resetRun;
+}
+function resetRun(){ if(confirm("Reset the 90-day run? Your daily check-offs stay — only the start date clears.")){
+  state.core.run.start=null; save(); renderCore(); } }
+
+function renderDaily(){
+  const inp=$("coreDate"); inp.max=today(); inp.value=coreDate;
+  const rows=state.core.habits.map(h=>({...h,custom:false}))
+    .concat(state.core.custom.map(c=>({id:c.id,label:c.label,sub:"",custom:true})));
+  $("dailyList").innerHTML=rows.map(h=>{
+    const on=habitDone(coreDate,h.id);
+    return '<div class="hrow'+(on?' on':'')+'" data-id="'+escapeHtml(h.id)+'">'+
+      '<div class="hbox">'+(on?'✓':'')+'</div>'+
+      '<div class="hlabel"><b>'+escapeHtml(h.label)+'</b>'+(h.sub?'<i>'+escapeHtml(h.sub)+'</i>':'')+'</div>'+
+      (h.custom?'<span class="hx" data-del="'+escapeHtml(h.id)+'">×</span>':'')+'</div>';
+  }).join("");
+  const done=state.core.habits.filter(h=>habitDone(coreDate,h.id)).length, n=state.core.habits.length;
+  const win=done===n, b=$("coreBadge");
+  b.className="corebadge"+(win?" win":"");
+  b.textContent=win?"✓ Daily 5 complete — that's a core day!":done+" of "+n+" daily habits done";
+  $("dailyList").querySelectorAll(".hrow").forEach(r=>r.addEventListener("click",e=>{
+    if(e.target.dataset.del){ removeHabit(e.target.dataset.del); return; }
+    toggleHabit(coreDate, r.dataset.id); renderDaily(); renderRunCard();
+  }));
+}
+function removeHabit(id){
+  state.core.custom=state.core.custom.filter(c=>c.id!==id);
+  for(const day in state.core.daily){ state.core.daily[day]=state.core.daily[day].filter(x=>x!==id);
+    if(!state.core.daily[day].length) delete state.core.daily[day]; }
+  save(); renderDaily(); renderRunCard();
+}
+$("coreDate").addEventListener("change",e=>{ coreDate=e.target.value||today(); renderDaily(); });
+$("addHabitBtn").addEventListener("click",()=>{
+  const label=prompt("Add a personal habit to track daily (e.g. Prayer, Gym, Prospecting):");
+  if(!label||!label.trim()) return;
+  state.core.custom.push({id:"c"+Date.now().toString(36), label:label.trim()});
+  save(); renderDaily();
+});
+
+function renderMonthly(){
+  const mk=monthKey(today());
+  $("monthLbl").textContent=new Date().toLocaleDateString(undefined,{month:"long",year:"numeric"});
+  const done=state.core.monthly[mk]||[];
+  $("monthlyList").innerHTML=MONTHLY.map(m=>{
+    const on=done.includes(m.id);
+    return '<div class="hrow'+(on?' on':'')+'" data-mid="'+m.id+'">'+
+      '<div class="hbox">'+(on?'✓':'')+'</div>'+
+      '<div class="hlabel"><b>'+escapeHtml(m.label)+'</b><i>'+escapeHtml(m.desc)+'</i></div></div>';
+  }).join("");
+  $("monthlyList").querySelectorAll(".hrow").forEach(r=>r.addEventListener("click",()=>{
+    const arr=state.core.monthly[mk]||(state.core.monthly[mk]=[]);
+    const id=r.dataset.mid, i=arr.indexOf(id); if(i>=0) arr.splice(i,1); else arr.push(id);
+    if(!arr.length) delete state.core.monthly[mk];
+    save(); renderMonthly();
+  }));
+  const nv=state.core.numbers[mk]||{};
+  $("numsGrid").innerHTML=NUMS.map(x=>
+    '<div><label>'+escapeHtml(x.label)+'</label>'+
+    '<input data-nid="'+x.id+'" inputmode="text" value="'+escapeHtml(nv[x.id]||"")+'"></div>').join("");
+  $("numsGrid").querySelectorAll("input").forEach(i=>i.addEventListener("change",()=>{
+    const o=state.core.numbers[mk]||(state.core.numbers[mk]={});
+    const v=i.value.trim(); if(v) o[i.dataset.nid]=v; else delete o[i.dataset.nid];
+    if(!Object.keys(o).length) delete state.core.numbers[mk]; save();
+  }));
+  const gv=state.core.grades[mk]||{};
+  $("gradesRow").innerHTML=GRADES.map(g=>
+    '<div class="g"><label>'+g.label+'</label><select data-gid="'+g.id+'">'+
+    GOPT.map(o=>'<option value="'+o+'"'+(gv[g.id]===o?' selected':'')+'>'+(o||"—")+'</option>').join("")+
+    '</select></div>').join("");
+  $("gradesRow").querySelectorAll("select").forEach(s=>s.addEventListener("change",()=>{
+    const o=state.core.grades[mk]||(state.core.grades[mk]={});
+    if(s.value) o[s.dataset.gid]=s.value; else delete o[s.dataset.gid];
+    if(!Object.keys(o).length) delete state.core.grades[mk]; save();
+  }));
+}
+
+function renderLogs(){
+  $("logsWrap").innerHTML=LISTS.map(L=>{
+    const items=state.core.lists[L.id]||[];
+    const recent=items.slice(-5).reverse().map(it=>
+      '<li><span>'+escapeHtml(it.text)+'</span><span class="del" data-list="'+L.id+'" data-ts="'+it.ts+'">×</span></li>').join("");
+    return '<div class="mini"><div class="mh"><b>'+escapeHtml(L.label)+'</b><em>'+items.length+'</em></div>'+
+      '<div class="addrow"><input data-add="'+L.id+'" placeholder="'+escapeHtml(L.ph)+'" enterkeyhint="done">'+
+      '<button data-addbtn="'+L.id+'" aria-label="Add">+</button></div>'+
+      (recent?'<ul class="mlist">'+recent+'</ul>':'')+'</div>';
+  }).join("");
+  const add=id=>{ const inp=$("logsWrap").querySelector('input[data-add="'+id+'"]');
+    const v=inp.value.trim(); if(!v) return;
+    state.core.lists[id].push({ts:Date.now(), text:v}); inp.value=""; save(); renderLogs(); };
+  $("logsWrap").querySelectorAll("[data-addbtn]").forEach(b=>b.addEventListener("click",()=>add(b.dataset.addbtn)));
+  $("logsWrap").querySelectorAll("input[data-add]").forEach(i=>i.addEventListener("keydown",e=>{
+    if(e.key==="Enter"){ e.preventDefault(); add(i.dataset.add); }}));
+  $("logsWrap").querySelectorAll(".del").forEach(d=>d.addEventListener("click",()=>{
+    const id=d.dataset.list, ts=Number(d.dataset.ts);
+    state.core.lists[id]=state.core.lists[id].filter(x=>x.ts!==ts); save(); renderLogs();
+  }));
+}
 
 /* ---- settings ---- */
 function openSheet(o){$("scrim").classList.toggle("open",o); $("sheet").classList.toggle("open",o);}

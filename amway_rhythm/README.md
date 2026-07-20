@@ -33,6 +33,11 @@ folder, its own data, nothing to do with customers or Jobber.
   Screen,” done. Open the file in any browser to try it — nothing to install.
   It never scrapes amway.com; the product cards are baked into the page.
   - **Today** rotates one product a day (talk-starter + learned-today streak).
+  - **Core** tab is a digital version of the WWG Core Monthly Tracking Sheet:
+    the Daily 5 habits (plus your own custom habits) with per-day check-offs, a
+    **90-day core run** (start date → day N of 90, a 90-day grid, streak,
+    consistency %, on-pace flag), the monthly habits, critical numbers, overall
+    grades, and running lists (books, audios, functions, customers, STPs).
   - **Study** tab lets anyone browse the whole library on their own — search
     and category filters — *without* touching the daily card or the streak.
   - **Progress** tab: day/month totals, goal ring, per-kind, 6-month history.
