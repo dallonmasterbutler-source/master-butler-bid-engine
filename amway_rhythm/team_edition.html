@@ -177,6 +177,8 @@ label{display:block; font-size:12px; font-weight:800; color:var(--muted); margin
 input{width:100%; padding:13px; border:1px solid var(--line); border-radius:13px; font-size:16px;
   background:var(--bg); color:var(--ink); font-family:inherit;}
 .note{font-size:12.5px; color:var(--muted); line-height:1.5; margin:16px 0 0;}
+.legal{font-size:11px; color:var(--muted); line-height:1.5; margin:22px 4px 8px; padding-top:14px;
+  border-top:1px solid var(--line); opacity:.9;}
 .sheetbtns{display:flex; gap:10px; margin-top:18px;}
 .hide{display:none !important;}
 /* study library */
@@ -319,10 +321,6 @@ input{width:100%; padding:13px; border:1px solid var(--line); border-radius:13px
       <div class="pcat" id="pCat"></div>
       <p class="pblurb" id="pBlurb"></p>
       <ul class="facts" id="pFacts"></ul>
-      <div class="dv" id="pDV" style="display:none">
-        <div class="dvrow" id="pDVprovRow" style="display:none"><span class="lbl">This product provides</span><span class="amt" id="pDVprov"></span></div>
-        <div class="dvrow"><span class="lbl">Recommended daily</span><span class="amt" id="pDVamt"></span></div>
-        <small>General adult Daily Value (FDA reference). Needs vary by age, sex, pregnancy and health — not medical advice.</small></div>
       <div class="starter" id="pStarterWrap"><b>💬 Talk-starter:</b> <span id="pStarter"></span></div>
       <div class="learnrow">
         <button class="btn primary" id="learnBtn">Mark learned today</button>
@@ -429,6 +427,11 @@ input{width:100%; padding:13px; border:1px solid var(--line); border-radius:13px
       change your daily card or streak.</p>
     <div id="studyList"></div>
   </section>
+
+  <p class="legal">Private study &amp; tracking tool for personal use — not for distribution. Not
+    official Amway or World Wide Group material. Product notes are researched summaries, not Amway's
+    approved wording; check the current product page on amway.com before repeating anything to a
+    customer, and mention you're an IBO when you do.</p>
 </div>
 
 <nav>
@@ -451,7 +454,8 @@ input{width:100%; padding:13px; border:1px solid var(--line); border-radius:13px
 <div class="sheet" id="sheet" role="dialog" aria-label="Settings" aria-modal="true">
   <div class="grab"></div>
   <h3>Settings</h3>
-  <div class="note">Everything you track lives only on this phone — no account, nothing sent anywhere.</div>
+  <div class="note">Everything you track lives only on this phone — no account, nothing sent anywhere.
+    This is a private personal tool, not official Amway or World Wide Group material, and not for distribution.</div>
   <label for="nameIn">Your name (optional)</label>
   <input id="nameIn" placeholder="Add your name" autocomplete="off">
   <label for="goalIn">Monthly contact goal</label>
@@ -545,8 +549,7 @@ const PRODUCTS = [
     ],
     "starter": "If you could cover your whole day's nutrition gaps with one thing, would you want to see it?",
     "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Double-X%E2%84%A2-Multivitamin---31-Day-Supply-Refill-p-A0244",
-    "cat": "Health & wellness",
-    "dv": "A full multivitamin — helps cover many vitamin & mineral Daily Values"
+    "cat": "Health & wellness"
   },
   {
     "id": "pr_glister",
@@ -591,9 +594,7 @@ const PRODUCTS = [
       "Sold in chocolate and vanilla."
     ],
     "starter": "Do you use a protein shake after workouts, or skip it?",
-    "link": "https://www.amway.com/en_US/XS%E2%84%A2-Sports-Protein-Powder-%E2%80%93-Chocolate-Milkshake-p-110375",
-    "dv": "Protein — Daily Value 50 g/day",
-    "amt": "~23 g protein/serving"
+    "link": "https://www.amway.com/en_US/XS%E2%84%A2-Sports-Protein-Powder-%E2%80%93-Chocolate-Milkshake-p-110375"
   },
   {
     "id": "pr_protein",
@@ -608,8 +609,7 @@ const PRODUCTS = [
     ],
     "starter": "What do you usually have for breakfast? A lot of folks are surprised how little protein they get.",
     "link": "https://www.google.com/search?q=amway+nutrilite+organics+plant+protein",
-    "cat": "Health & wellness",
-    "dv": "Protein — Daily Value 50 g/day"
+    "cat": "Health & wellness"
   },
   {
     "id": "pr_gh",
@@ -654,9 +654,7 @@ const PRODUCTS = [
       "Cows not treated with rBGH growth hormone."
     ],
     "starter": "Does where your protein comes from, like grass-fed, matter to you?",
-    "link": "https://www.amway.com/en_US/XS%E2%84%A2-Grass-Fed-Whey-Protein-%E2%80%93-Chocolate-p-128154",
-    "dv": "Protein — Daily Value 50 g/day",
-    "amt": "30 g protein/serving"
+    "link": "https://www.amway.com/en_US/XS%E2%84%A2-Grass-Fed-Whey-Protein-%E2%80%93-Chocolate-p-128154"
   },
   {
     "id": "nl_daily",
@@ -671,8 +669,7 @@ const PRODUCTS = [
       "One tablet daily with a meal; sold in 60/180-tablet sizes."
     ],
     "starter": "Do you take a daily multivitamin, or is that something you've meant to start?",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Daily-p-A4230",
-    "dv": "A full multivitamin — helps cover many vitamin & mineral Daily Values"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Daily-p-A4230"
   },
   {
     "id": "pr_satinique",
@@ -717,9 +714,7 @@ const PRODUCTS = [
       "Drop one pod into water or milk."
     ],
     "starter": "Have you ever seen protein that comes in a dissolvable pod?",
-    "link": "https://www.amway.com/XS%E2%84%A2-Protein-Pods-%E2%80%93-Chocolate-p-300856",
-    "dv": "Protein — Daily Value 50 g/day",
-    "amt": "20 g protein/pod"
+    "link": "https://www.amway.com/XS%E2%84%A2-Protein-Pods-%E2%80%93-Chocolate-p-300856"
   },
   {
     "id": "nl_womens",
@@ -734,8 +729,7 @@ const PRODUCTS = [
       "NSF certified; vegetarian and free of gluten, dairy and lactose."
     ],
     "starter": "Have you found a multivitamin that's actually made for a woman's needs?",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Women%E2%80%99s-Daily-Multivitamin-Tablets-p-125559",
-    "dv": "A full multivitamin — helps cover many vitamin & mineral Daily Values"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Women%E2%80%99s-Daily-Multivitamin-Tablets-p-125559"
   },
   {
     "id": "ar_skin_nutrition",
@@ -795,8 +789,7 @@ const PRODUCTS = [
       "NSF certified; also offered as Organics daily multi gummies."
     ],
     "starter": "What do you currently do to fill the gaps in your daily nutrition?",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Men%E2%80%99s-Daily-Multivitamin-Tablets-p-125557",
-    "dv": "A full multivitamin — helps cover many vitamin & mineral Daily Values"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Men%E2%80%99s-Daily-Multivitamin-Tablets-p-125557"
   },
   {
     "id": "ar_signature_select",
@@ -856,9 +849,7 @@ const PRODUCTS = [
       "Not intended for pregnant/breastfeeding women or children under 12."
     ],
     "starter": "When you take vitamin C, is it the slow-release kind or one-and-done?",
-    "link": "https://www.amway.com/en_US/Nutrilite-Vitamin-C-Extended-Release-p-109747",
-    "dv": "90 mg vitamin C",
-    "amt": "500 mg vitamin C"
+    "link": "https://www.amway.com/en_US/Nutrilite-Vitamin-C-Extended-Release-p-109747"
   },
   {
     "id": "ar_supreme_lx",
@@ -918,8 +909,7 @@ const PRODUCTS = [
       "NSF certified; take one tablet daily with or without food."
     ],
     "starter": "Have you ever had your vitamin D checked? A lot of people run low.",
-    "link": "https://www.google.com/search?q=amway+nutrilite+vitamin+d",
-    "dv": "20 mcg (800 IU) vitamin D"
+    "link": "https://www.google.com/search?q=amway+nutrilite+vitamin+d"
   },
   {
     "id": "ar_studio",
@@ -979,9 +969,7 @@ const PRODUCTS = [
       "Two softgels per serving with reduced fishy aftertaste."
     ],
     "starter": "Do you eat enough fatty fish for omega-3s, or do you supplement?",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Advanced-Omega--p-126136",
-    "dv": "No set DV; common guidance ~250–500 mg EPA+DHA",
-    "amt": "1,000+ mg EPA/DHA/ALA"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Advanced-Omega--p-126136"
   },
   {
     "id": "ar_men",
@@ -1041,8 +1029,7 @@ const PRODUCTS = [
       "NSF certified; available in 180 and 360 tablet sizes."
     ],
     "starter": "Are you getting enough calcium and magnesium, or is that one you skip?",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Cal-Mag-D-p-110610",
-    "dv": "1,300 mg calcium · 420 mg magnesium · 20 mcg vitamin D"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Cal-Mag-D-p-110610"
   },
   {
     "id": "ar_makeup",
@@ -1402,8 +1389,7 @@ const PRODUCTS = [
       "One tablet daily; NSF certified, gluten free, no artificial additives."
     ],
     "starter": "Honestly, how many servings of fruits and veggies do you get in a day?",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Concentrated-Fruits-and-Vegetables-p-100648",
-    "dv": "Guideline: 5+ servings of produce daily"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Concentrated-Fruits-and-Vegetables-p-100648"
   },
   {
     "id": "pc_satinique_intensive_repair",
@@ -1448,9 +1434,7 @@ const PRODUCTS = [
       "Ready to drink; contains milk and soy."
     ],
     "starter": "Need protein on the go? These come chilled and ready to drink.",
-    "link": "https://www.amway.com/en_US/XS%E2%84%A2-Sports-Protein-Shakes-%E2%80%93-Rich-Chocolate-p-110369",
-    "dv": "Protein — Daily Value 50 g/day",
-    "amt": "25 g protein/shake"
+    "link": "https://www.amway.com/en_US/XS%E2%84%A2-Sports-Protein-Shakes-%E2%80%93-Rich-Chocolate-p-110369"
   },
   {
     "id": "nl_joint",
@@ -1510,9 +1494,7 @@ const PRODUCTS = [
       "Contains peanut, soy, milk and almonds."
     ],
     "starter": "Want a grab-and-go protein bar? Which flavor sounds best?",
-    "link": "https://www.amway.com/en_US/XS%E2%84%A2-Sports-Protein-Bars-%E2%80%93-Chocolate-Peanut-Butter-p-110385",
-    "dv": "Protein — Daily Value 50 g/day",
-    "amt": "20 g protein/bar"
+    "link": "https://www.amway.com/en_US/XS%E2%84%A2-Sports-Protein-Bars-%E2%80%93-Chocolate-Peanut-Butter-p-110385"
   },
   {
     "id": "nl_vitb",
@@ -1527,9 +1509,7 @@ const PRODUCTS = [
       "One tablet daily; do not chew or cut it. NSF certified."
     ],
     "starter": "Do you hit an afternoon slump, and how do you push through it?",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Vitamin-B-Dual%E2%80%93Action-p-110171",
-    "dv": "B-vitamins — e.g. 1.7 mg B6, 2.4 mcg B12, 400 mcg folate",
-    "amt": "all 8 B vitamins"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Vitamin-B-Dual%E2%80%93Action-p-110171"
   },
   {
     "id": "pc_gh_nourish",
@@ -1574,9 +1554,7 @@ const PRODUCTS = [
       "Made without genetically engineered ingredients."
     ],
     "starter": "Craving something savory? Crisps come in Barbeque and Sriracha Lime.",
-    "link": "https://www.amway.com/en_US/XS%E2%84%A2-Protein-Crisps-%E2%80%93-Barbeque-p-110627",
-    "dv": "Protein — Daily Value 50 g/day",
-    "amt": "12 g protein/serving"
+    "link": "https://www.amway.com/en_US/XS%E2%84%A2-Protein-Crisps-%E2%80%93-Barbeque-p-110627"
   },
   {
     "id": "nl_coq10",
@@ -1591,9 +1569,7 @@ const PRODUCTS = [
       "Also offered as a CoQ10 Plus variant with taurine and L-carnitine."
     ],
     "starter": "Have you heard of CoQ10? It's a big one for heart and energy support.",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Heart-Health-CoQ10-p-A8601",
-    "dv": "No official requirement — the body makes CoQ10",
-    "amt": "30 mg CoQ10"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Heart-Health-CoQ10-p-A8601"
   },
   {
     "id": "pc_gh_refresh",
@@ -1668,8 +1644,7 @@ const PRODUCTS = [
       "A grab-and-go daily supplement foundation."
     ],
     "starter": "Want a grab-and-go way to take your core supplements daily?",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Perfect-Pack-p-123377",
-    "dv": "A full multivitamin — helps cover many vitamin & mineral Daily Values"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Perfect-Pack-p-123377"
   },
   {
     "id": "pc_glister_power_toothbrush",
@@ -1699,8 +1674,7 @@ const PRODUCTS = [
       "NSF certified."
     ],
     "starter": "Looking for a plant-supported iron supplement?",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Iron-Folic-p-102046",
-    "dv": "18 mg iron · 400 mcg folate"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Iron-Folic-p-102046"
   },
   {
     "id": "nl_magnesium",
@@ -1715,9 +1689,7 @@ const PRODUCTS = [
       "Designed for adults 18+."
     ],
     "starter": "Do you get enough magnesium from diet alone?",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Magnesium-p-128032",
-    "dv": "420 mg magnesium",
-    "amt": "200 mg magnesium"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Magnesium-p-128032"
   },
   {
     "id": "nl_digestive_enzyme",
@@ -1747,9 +1719,7 @@ const PRODUCTS = [
       "One stick pack in 8-12 oz liquid."
     ],
     "starter": "Struggling to hit your daily fiber goal?",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Fiber-Powder-p-102736",
-    "dv": "28 g dietary fiber",
-    "amt": "4 g fiber/serving"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Fiber-Powder-p-102736"
   },
   {
     "id": "nl_liver_support",
@@ -1809,8 +1779,7 @@ const PRODUCTS = [
       "One tablet twice daily with meals."
     ],
     "starter": "Looking for a zinc supplement with immune-supporting botanicals?",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Immunity-Defense-Zinc-%2B-Holy-Basil---60-tablets-p-124692",
-    "dv": "11 mg zinc · 55 mcg selenium · 0.9 mg copper"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Immunity-Defense-Zinc-%2B-Holy-Basil---60-tablets-p-124692"
   },
   {
     "id": "nl_n_focus",
@@ -1825,8 +1794,7 @@ const PRODUCTS = [
       "Sold on Amway US."
     ],
     "starter": "Need an afternoon focus boost?",
-    "link": "https://www.amway.com/en_US/n-by-Nutrilite%E2%84%A2-Slay-the-Day-%E2%80%93-Focus-Gummies-p-124556",
-    "dv": "1.7 mg B6 · 2.4 mcg B12 daily"
+    "link": "https://www.amway.com/en_US/n-by-Nutrilite%E2%84%A2-Slay-the-Day-%E2%80%93-Focus-Gummies-p-124556"
   },
   {
     "id": "nl_n_relax",
@@ -1856,8 +1824,7 @@ const PRODUCTS = [
       "Sold on Amway US."
     ],
     "starter": "Prefer your immunity support as a gummy?",
-    "link": "https://www.amway.com/en_US/n-by-Nutrilite%E2%84%A2-Go-Shield-%E2%80%93-Immunity%C2%A0Gummies-p-124555",
-    "dv": "90 mg vitamin C · 11 mg zinc"
+    "link": "https://www.amway.com/en_US/n-by-Nutrilite%E2%84%A2-Go-Shield-%E2%80%93-Immunity%C2%A0Gummies-p-124555"
   },
   {
     "id": "nl_n_collagen",
@@ -1887,8 +1854,7 @@ const PRODUCTS = [
       "Ready-to-drink shot format."
     ],
     "starter": "Want a quick B-vitamin reset shot?",
-    "link": "https://www.amway.com/en_US/n-by-Nutrilite%E2%84%A2-Hit-Reset-Shots-%E2%80%93-Vitamin-B-&-Milk-Thistle-Shot-p-124937",
-    "dv": "B12 2.4 mcg · B6 1.7 mg · B1 1.2 mg daily"
+    "link": "https://www.amway.com/en_US/n-by-Nutrilite%E2%84%A2-Hit-Reset-Shots-%E2%80%93-Vitamin-B-&-Milk-Thistle-Shot-p-124937"
   },
   {
     "id": "nl_n_kombucha",
@@ -1918,9 +1884,7 @@ const PRODUCTS = [
       "For children 4 years and older."
     ],
     "starter": "Want to add omega-3s to your child's routine?",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Kids-Brainiums-DHA-%E2%80%93-Fruit-Punch-p-104282",
-    "dv": "No set DV; general kids guidance ~250 mg DHA",
-    "amt": "250 mg DHA (+50 EPA)"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Kids-Brainiums-DHA-%E2%80%93-Fruit-Punch-p-104282"
   },
   {
     "id": "nl_kids_probiotic",
@@ -1950,9 +1914,7 @@ const PRODUCTS = [
       "Natural immune support for children."
     ],
     "starter": "Need an easy vitamin C for your child?",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Kids-Chewable-Vitamin-C-p-A5353",
-    "dv": "Kids 4+: 90 mg vitamin C (younger children need less)",
-    "amt": "100% Daily Value"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Kids-Chewable-Vitamin-C-p-A5353"
   },
   {
     "id": "nl_kids_immunity_fastmelt",
@@ -1967,9 +1929,7 @@ const PRODUCTS = [
       "Sold on Amway US."
     ],
     "starter": "Want quick immune support your kid can take without water?",
-    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Kids-Complete-Immunity-Fast-Melt-Powder--p-123046",
-    "dv": "Kids 4+: ~90 mg vitamin C · 11 mg zinc",
-    "amt": "30 mg vit C · 2.6 mg zinc"
+    "link": "https://www.amway.com/en_US/Nutrilite%E2%84%A2-Kids-Complete-Immunity-Fast-Melt-Powder--p-123046"
   }
 ];
 
@@ -2032,13 +1992,6 @@ function renderTraining(){
   $("pLine").textContent=p.line; $("pName").textContent=p.name; $("pCat").textContent=p.cat;
   $("pBlurb").textContent=p.blurb;
   $("pFacts").innerHTML=p.facts.map(f=>"<li>"+escapeHtml(f)+"</li>").join("");
-  const dv=$("pDV");
-  if(p.dv){
-    $("pDVamt").textContent=p.dv;
-    const pr=$("pDVprovRow");
-    if(p.amt){ $("pDVprov").textContent=p.amt; pr.style.display=""; } else pr.style.display="none";
-    dv.style.display="";
-  } else dv.style.display="none";
   $("pStarter").textContent=p.starter;
   const link=$("pLink");
   if(p.link){link.href=p.link; link.style.display="";} else link.style.display="none";
@@ -2138,10 +2091,6 @@ function renderStudy(){
       '<span class="chev">▾</span></div>'+
       '<div class="sdetail"><p class="sblurb">'+escapeHtml(p.blurb)+'</p>'+
       '<ul class="facts">'+facts+'</ul>'+
-      (p.dv?'<div class="dv">'+
-        (p.amt?'<div class="dvrow"><span class="lbl">This product provides</span><span class="amt">'+escapeHtml(p.amt)+'</span></div>':"")+
-        '<div class="dvrow"><span class="lbl">Recommended daily</span><span class="amt">'+escapeHtml(p.dv)+'</span></div>'+
-        '<small>General adult Daily Value (FDA reference). Needs vary by age, sex, pregnancy and health.</small></div>':"")+
       '<div class="starter"><b>💬 Talk-starter:</b> '+escapeHtml(p.starter)+'</div>'+
       link+'</div></div>';
   }).join("");
@@ -2239,7 +2188,7 @@ function renderRunCard(){
   const el=$("runCard"), st=runStats();
   if(!st){
     el.innerHTML='<div class="eyebrow">90-day core run</div>'+
-      '<p class="note" style="margin-top:6px">Commit to your daily core for 90 days straight. '+
+      '<p class="note" style="margin-top:6px">Your own goal: keep your daily core going for 90 days. '+
       'Start today as day 1 and watch the grid fill in.</p>'+
       '<button class="btn primary" id="startRunBtn" style="margin-top:14px">Start my 90-day run</button>';
     $("startRunBtn").onclick=()=>{ state.core.run.start=today(); save(); renderCore(); };
@@ -2487,8 +2436,9 @@ function renderProgram(){
   const fmt=d=>new Date(d+"T00:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"});
   const started=!!state.core.run.start;
   let html='<div class="eyebrow">90 Day Core Run</div>'+
-    '<p class="note" style="margin:6px 0 0">The WWG 12-week program — weekly assignments, audios and a '+
-    'book. '+(started?('You\'re in <b>Week '+cw+' of 12</b> · '+ps.pct+'% complete ('+ps.done+'/'+ps.total+' items).')
+    '<p class="note" style="margin:6px 0 0">Your personal tracker for the 12-week Core Run, adapted from '+
+    'World Wide Group materials for your own use (not for redistribution). '+
+    (started?('You\'re in <b>Week '+cw+' of 12</b> · '+ps.pct+'% complete ('+ps.done+'/'+ps.total+' items).')
       :'Start your run to date each week.')+'</p>'+
     '<div class="run-bar" style="margin:12px 0 2px"><span style="width:'+ps.pct+'%"></span></div>'+
     (started?'':'<button class="btn primary" id="startRunBtn2" style="margin-top:12px">Start my 90-day run</button>')+
