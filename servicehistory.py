@@ -197,13 +197,24 @@ def refresh(recent=120):
     """Nightly incremental (Jul 10 cycle): sweep only the newest
     invoices and MERGE into the existing history so the 'Past here'
     column and LaRee's per-service card stay current without the
-    2-3 hour full sweep."""
+    2-3 hour full sweep.
+
+    Jul 20 fix (#33 YoY 2025 vanished): the OLD base must come from
+    load_history() — the local file on the Mac, the cloud BLOB on Render
+    — NOT the local file alone. On Render the file never exists, so the
+    old code fell straight to a recent-only sweep and CLOBBERED the
+    multi-year blob (last July's numbers disappeared from the Scoreboard).
+    Merging into load_history() preserves every prior year on both hosts."""
     path = Path("data") / "service_history.json"
-    if not path.exists():
-        return sweep(limit=recent)
-    old = json.loads(path.read_text())
-    sweep(limit=recent)                # writes a recent-only file
-    new = json.loads(path.read_text())
+    old = load_history()               # Mac file OR cloud blob — years intact
+    sweep(limit=recent)                # writes a recent-only file (+recent blob)
+    try:
+        new = json.loads(path.read_text())
+    except Exception:
+        new = {}
+    if not old:                        # first-ever run — the sweep IS the history
+        print(f"service history seeded (recent {recent} invoices)")
+        return
     for side in ("by_property", "by_client"):
         merged = old.get(side, {})
         for k, svcs in new.get(side, {}).items():
@@ -216,7 +227,7 @@ def refresh(recent=120):
     path.write_text(json.dumps(old, indent=0))
     try:
         from cloudpush import push
-        push(blobs={"service_history": old})
+        push(blobs={"service_history": old})   # re-push the FULL merged blob
     except Exception:
         pass
     print(f"service history merged (+recent {recent} invoices)")
