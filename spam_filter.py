@@ -36,6 +36,20 @@ PROTECTED_SENDERS = ("squarespace", "form-submission", "copycall",
                      "getjobber", "masterbutlerinc.com",
                      "@txn.", "jobber")
 
+# AUTOMATED NON-CUSTOMER SENDERS (Jul 21): robots that were sitting in the
+# queue looking like customers — Squarespace ACCOUNT notices (distinct
+# from form leads, which arrive from the CUSTOMER's own address, never
+# from no-reply@squarespace.com), NiceJob review-request bot, a wire-mesh
+# vendor's sales blasts, Verizon account notices. A real customer never
+# writes from any of these, so filtering the exact address/domain can't
+# hide a person. Checked BEFORE brand-protection so the squarespace
+# no-reply doesn't ride the form-lead shield.
+ROBOT_SENDERS = (
+    "no-reply@squarespace.com", "no-reply@notifications.nicejob.co",
+    "notifications.nicejob.co", "@nicejob.co",
+    "verizonwireless.com", "maishimfg.com",
+)
+
 # a homeowner talking about THEIR property (any one clears the email)
 _HOMEOWNER_PATS = [
     r"\b(quote|estimate|bid|price|pricing)\b.{0,30}\b(my|our|the)\s+"
@@ -117,6 +131,13 @@ def looks_spam(sender, subject, body, has_address=False,
     sender = (sender or "").lower()
     text = f"{subject or ''} {body or ''}"
     low = text.lower()
+
+    # ── automated non-customer robots (checked FIRST — these exact
+    #    addresses/domains are never a person, so no customer can hide
+    #    behind them, and the squarespace no-reply must not ride the
+    #    form-lead protection below) ──
+    if any(r in sender for r in ROBOT_SENDERS):
+        return True, "automated notification — not a customer"
 
     # ── the guards: anything homeowner-shaped is never spam ──
     if has_address or kind in ("phone_lead", "jobber_event"):
