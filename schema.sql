@@ -151,6 +151,11 @@ CREATE TABLE IF NOT EXISTS shadow_records (
     record      JSONB NOT NULL,
     ingested_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Fast 'is this exact email already a record?' dedup lookup
+-- (clouddb.has_message_id) — the poller gates every ingest on it, so it
+-- must be an index scan, not a full-table scan.
+CREATE INDEX IF NOT EXISTS idx_shadow_message_id
+    ON shadow_records ((record->>'message_id'));
 
 -- ── REVIEW LOG (office decisions, cloud edition) ─────────────
 -- Append-only, one row per decision (approve/adjusted/hold/escalated/
