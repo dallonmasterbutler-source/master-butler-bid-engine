@@ -274,6 +274,8 @@ def build_data():
     except Exception:
         pass
 
+    # (Jul 21 audit: dropped the 'Messages send stays OFF' line — replies
+    # have been ON and threading correctly; the flag was stale and wrong.)
     sec("📌", "Standing flags for Dallon", "", [
         "Jobber: archive TEST quotes #36600/01/02 + tech tests "
         "#36577/78, #36582-87, #36593; then client "
@@ -281,7 +283,6 @@ def build_data():
         "QUOTING IS LIVE for everyone (drafts only — a human sends "
         "from Jobber)",
         "Martha: roof-blow-off-solo policy · Techs: grades #36582-87",
-        "Messages send stays OFF (REPLIES_ENABLED) until you rule",
         "Lights labor evidence: data/lights_calibration.json — set the "
         "anchor with Tom"])
     return data
