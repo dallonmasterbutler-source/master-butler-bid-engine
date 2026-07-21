@@ -251,14 +251,21 @@ def poll_once():
     #  · Jobber delta: a quote was created/sent/approved/converted →
     #    its record's status refreshes
     # The heavy hourly reconcile below stays as the backstop.
+    import gmail_mirror
+    # The legacy IMAP archive-clear (kill-switched, usually a no-op) runs
+    # on its OWN try — when IMAP is OVERQUOTA it must NOT take the API
+    # mirror down with it (Jul 20 bug: sync() raised first and skipped the
+    # whole block, so archived-in-Gmail rows never filed).
     try:
-        import gmail_mirror
         gmail_mirror.sync(verbose=False)
-        # THE MIRROR (Jessica, Jul 20): archived/trashed in Gmail = done.
-        # Prefer the API version (works from the cloud, catches ARCHIVES,
-        # doesn't burn the IMAP quota) — throttled to ~15 min since it
-        # reads every inbox header. Falls back to the IMAP state_sync
-        # (trash-only) when the API can't read. Display-only either way.
+    except Exception as _e:
+        print(f"  (gmail IMAP mirror skipped: {_e})")
+    # THE MIRROR (Jessica, Jul 20): archived/trashed in Gmail = done.
+    # The API version works from the cloud, catches ARCHIVES, and doesn't
+    # touch the IMAP quota — so it runs even while IMAP is locked out.
+    # Throttled to ~15 min (it reads every inbox header). Falls back to
+    # the IMAP state_sync (trash-only) only if the API can't read.
+    try:
         import time as _t
         global _API_MIRROR_AT
         if _t.time() - _API_MIRROR_AT >= 900:
@@ -274,7 +281,7 @@ def poll_once():
                 gmail_mirror.state_sync(verbose=False)
             _API_MIRROR_AT = _t.time()
     except Exception as _e:
-        print(f"  (gmail mirror skipped: {_e})")
+        print(f"  (gmail state mirror skipped: {_e})")
     try:
         import jobber_delta
         jobber_delta.sync()
