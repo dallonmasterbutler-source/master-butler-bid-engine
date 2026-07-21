@@ -10481,25 +10481,44 @@ class Handler(BaseHTTPRequestHandler):
             # queue, decisions, and learning history restore from here.
             if not clouddb.available():
                 return self._send(b"{}", ctype="application/json")
-            import clouddb as cdb
-            dump = {"at": datetime.now().isoformat(timespec="seconds"),
-                    "shadow_records": {}, "reviews": load_reviews(),
-                    "blobs": {}, "photo_index": []}
-            for stamp, rec in cdb.all_shadow():
-                dump["shadow_records"][stamp] = rec
-            with cdb._conn() as conn:
-                for (k, v) in conn.execute(
-                        "select key, value from kv_blobs").fetchall():
-                    if isinstance(v, str):
-                        try:
-                            v = json.loads(v)
-                        except ValueError:
-                            pass              # plain-text blob (the brief)
-                    dump["blobs"][k] = v
-                dump["photo_index"] = [list(r) for r in conn.execute(
-                    "select ref, kind, idx from photos").fetchall()]
-            return self._send(json.dumps(dump).encode(),
-                              ctype="application/json")
+            # ROBUST (Jul 20: this was 500-ing, so the nightly restore
+            # point silently stopped saving). A single non-serializable
+            # value (bytes/Decimal/datetime in some blob or record) used
+            # to sink the whole dump. Now: a tolerant encoder turns any
+            # such value into a string instead of raising, and the whole
+            # build is guarded so a partial dump still returns 200.
+            try:
+                import clouddb as cdb
+                dump = {"at": datetime.now().isoformat(timespec="seconds"),
+                        "shadow_records": {}, "reviews": load_reviews(),
+                        "blobs": {}, "photo_index": []}
+                for stamp, rec in cdb.all_shadow():
+                    dump["shadow_records"][stamp] = rec
+                with cdb._conn() as conn:
+                    for (k, v) in conn.execute(
+                            "select key, value from kv_blobs").fetchall():
+                        if isinstance(v, (bytes, bytearray)):
+                            try:
+                                v = v.decode("utf-8")
+                            except Exception:
+                                continue       # skip un-decodable binary blob
+                        if isinstance(v, str):
+                            try:
+                                v = json.loads(v)
+                            except ValueError:
+                                pass          # plain-text blob (the brief)
+                        dump["blobs"][k] = v
+                    dump["photo_index"] = [list(r) for r in conn.execute(
+                        "select ref, kind, idx from photos").fetchall()]
+                body = json.dumps(dump, default=str).encode()
+                return self._send(body, ctype="application/json")
+            except Exception as _be:
+                import traceback
+                print("BACKUP FAILED:\n" + traceback.format_exc()[-800:])
+                return self._send(
+                    json.dumps({"error": f"{type(_be).__name__}: {_be}"}
+                               ).encode(),
+                    ctype="application/json", code=500)
         if self.path == "/api/pulse":
             # cheap change token: the queue page reloads ONLY when this
             # changes, so reading/scrolling is never interrupted
