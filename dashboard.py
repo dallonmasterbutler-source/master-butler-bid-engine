@@ -3509,6 +3509,16 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # 30 min after being marked done). A genuinely NEW message
         # clears this — last_at then beats the mark, so unread is True.
         acknowledged = bool(read_marks.get(key)) and not unread
+        # A pending Jobber CHANGE-REQUEST is a LIVE action even when a quote
+        # already exists — it must not be swallowed by the 'handled in
+        # Jobber' or 'already-quoted' branches below, which hid it so it
+        # only showed under Customers (Jessica/Rishanki #36680, Jul 20). It
+        # still clears normally once the office marks it done.
+        _chg = bool(nb) and any(
+            p in ((nb.get("office_alert") or "").lower())
+            for p in ("requested changes", "changes requested",
+                      "requested a change", "changes on quote",
+                      "change on quote"))
         word, wstyle = _status_word(nb, live_holds, flags_open, sbs, claims)
         needs = (nb and not nb["reviewed"] and not sbs.get(nb["stamp"])
                  and nb["stamp"] not in live_holds
@@ -3590,7 +3600,7 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             grp = 0
         # HANDLED IN JOBBER (proven: booked today / recent quote / won):
         # its own lane with the reason — unless the customer wrote back
-        elif (nb and nb["stamp"] in handled_jb and not new_msg
+        elif (nb and nb["stamp"] in handled_jb and not new_msg and not _chg
               and not unread and nb["stamp"] not in live_holds
               and nb["stamp"] not in flags_open):
             grp = 3
@@ -3599,6 +3609,7 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # still needs scheduling, and a new customer reply always
         # resurfaces, so both are excluded — nothing real gets buried.
         elif ((oq or qno) and not won and not unread and not new_msg
+              and not _chg
               and nb and nb["stamp"] not in live_holds
               and nb["stamp"] not in flags_open):
             grp = 4
@@ -3607,7 +3618,7 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # (reviewed) OR an explicit ✓ from the office (acknowledged),
         # with nothing new since → the drawer. ANY new message
         # resurfaces them (the branch below wins) — nobody stays buried.
-        elif (nb and (nb.get("reviewed") or acknowledged)
+        elif (nb and (acknowledged or (nb.get("reviewed") and not _chg))
               and not unread and not new_msg
               and nb["stamp"] not in live_holds
               and nb["stamp"] not in flags_open):
