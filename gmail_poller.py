@@ -115,6 +115,46 @@ def _use_api():
     return _API_OK["ok"]
 
 
+def reconcile_inbox(verbose=True):
+    """BACKSTOP for the 2-day poll window (#49, Jul 21): the normal poll
+    only looks at `newer_than:2d`, so any inbox email missed during its
+    window — a transient fetch error, an outage longer than the window,
+    a message that arrived while the poller was wedged — is never
+    revisited and simply vanishes from the dashboard (a Squarespace lead
+    went missing exactly this way). This walks the ENTIRE current Gmail
+    inbox + spam and ingests anything we have no record for. Read-only
+    against Gmail; the _already_have gate makes it idempotent, so
+    re-runs are cheap no-ops. Meant for a nightly cadence."""
+    import email as _email
+    import gmail_api
+    if not gmail_api.can_read():
+        return 0
+    seen = _processed()
+    found = 0
+    for folder, q in (("INBOX", "in:inbox"), ("[Gmail]/Spam", "in:spam")):
+        try:
+            ids = gmail_api.list_ids(q, cap=600)      # NO date window
+        except Exception as e:
+            print(f"  (reconcile {folder} skipped: {e})")
+            continue
+        for gid in ids:
+            try:
+                raw = gmail_api.get_raw(gid)
+            except Exception:
+                continue
+            m = _email.message_from_bytes(raw)
+            msg_id = (m.get("Message-ID") or f"gmail-{gid}").strip()
+            if _already_have(msg_id, seen):
+                continue
+            found += 1
+            shadow_process(raw, msg_id, folder=folder)
+            _remember(msg_id)
+            seen.add(msg_id)
+    if verbose:
+        print(f"inbox reconcile: {found} missed message(s) recovered")
+    return found
+
+
 def _poll_via_api(seen):
     """Fetch new mail over the Gmail API — same Message-ID dedup as the
     IMAP path, so nothing is ever re-processed on cutover."""

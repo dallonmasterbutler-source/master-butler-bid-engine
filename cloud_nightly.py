@@ -68,6 +68,15 @@ def run(verbose=True):
         winback.save()
     step("winback", _wb)
 
+    # 4 · inbox reconcile — recover anything the 2-day poll window missed
+    #     (#49: a Squarespace lead that landed in neither dashboard nor
+    #     the office's working view). Idempotent; usually a no-op.
+    def _recon():
+        import gmail_poller
+        n = gmail_poller.reconcile_inbox(verbose=False)
+        return f"recovered {n}" if n else "0 missed"
+    step("inbox_reconcile", _recon)
+
     try:
         import clouddb
         clouddb.put_blob("cloud_nightly_last",
