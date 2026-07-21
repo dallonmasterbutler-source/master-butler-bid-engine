@@ -75,7 +75,11 @@ def sync(verbose=False):
             new_status = q.get("quoteStatus")
             if ctx.get("status") == new_status and ctx:
                 continue
-            rec["open_quote_ctx"] = {
+            # MERGE, don't replace (Jul 21 audit): the delta's slim query
+            # has no createdAt, and replacing the ctx erased `created` —
+            # which the 90-day stale-quote review flag depends on. Keep
+            # every field the delta doesn't refresh (created, via, …).
+            rec["open_quote_ctx"] = {**ctx,
                 "number": q.get("quoteNumber"),
                 "status": new_status,
                 "total": (q.get("amounts") or {}).get("total"),
