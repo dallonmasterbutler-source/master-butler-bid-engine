@@ -3649,15 +3649,14 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
         # VOICEMAIL AUTO-FILE (Dallon, Jul 21: 'a voicemail links to an
         # existing or a new customer, and we can SEE if that's been done —
         # we don't have to wait for Gmail'). A voicemail leaves the inbox
-        # on its own when it's a HANG-UP (0:00–0:02, nothing recorded) or
-        # when its caller has since become a Jobber quote (handled, existing
-        # OR new customer). A REAL voicemail with no follow-up STAYS — that
-        # callback is still owed. A newer message/voicemail resurfaces it.
+        # on its own ONLY once its caller has become a Jobber quote (handled,
+        # existing OR new customer). EVERY voicemail otherwise STAYS visible
+        # and mark-done-able — INCLUDING hang-ups: a hang-up means someone
+        # called and the office normally TEXTS them back, so it's real work,
+        # not noise (Dallon, Jul 21 correction). Cleared by ✓ Done or by a
+        # Jobber quote; a newer call/message resurfaces it.
         elif (nb and nb.get("kind") == "phone_lead" and not unread
-              and not new_msg
-              and (((c.get("vm") or {}).get("dur") in ("0:00", "0:01",
-                                                       "0:02"))
-                   or oq)):
+              and not new_msg and oq):
             grp = 4
         # HANDLED IN JOBBER (proven: booked today / recent quote / won):
         # its own lane with the reason — unless the customer wrote back
