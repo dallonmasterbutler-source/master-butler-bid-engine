@@ -3646,6 +3646,19 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             grp = -1                 # field mail OR office↔Dallon internal
         elif nb and nb.get("dns_match"):
             grp = 0
+        # VOICEMAIL AUTO-FILE (Dallon, Jul 21: 'a voicemail links to an
+        # existing or a new customer, and we can SEE if that's been done —
+        # we don't have to wait for Gmail'). A voicemail leaves the inbox
+        # on its own when it's a HANG-UP (0:00–0:02, nothing recorded) or
+        # when its caller has since become a Jobber quote (handled, existing
+        # OR new customer). A REAL voicemail with no follow-up STAYS — that
+        # callback is still owed. A newer message/voicemail resurfaces it.
+        elif (nb and nb.get("kind") == "phone_lead" and not unread
+              and not new_msg
+              and (((c.get("vm") or {}).get("dur") in ("0:00", "0:01",
+                                                       "0:02"))
+                   or oq)):
+            grp = 4
         # HANDLED IN JOBBER (proven: booked today / recent quote / won):
         # its own lane with the reason — unless the customer wrote back
         elif (nb and nb["stamp"] in handled_jb and not new_msg and not _chg
