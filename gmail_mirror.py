@@ -235,6 +235,15 @@ def api_state_sync(verbose=True):
             # not in the inbox at all → the office archived or trashed it
             state[e] = {"state": "done", "at": now}
     clouddb.put_blob("gmail_state", state)
+    # PER-MESSAGE MIRROR (Dallon, Jul 21): the sender-keyed state above
+    # can't speak for rows whose sender ISN'T the customer — voicemails
+    # (from the copycall phone system) and website forms. So also publish
+    # the raw set of Message-IDs currently sitting in the Gmail inbox. A
+    # record whose own message_id has LEFT this set was archived by the
+    # office in Gmail = done, no matter who it came from. Only written when
+    # the inbox read succeeded (we returned early otherwise), so it's never
+    # a stale/empty set that would mass-hide rows.
+    clouddb.put_blob("gmail_inbox_mids", sorted(inbox_msgids))
     if verbose:
         cts = {}
         for v in state.values():

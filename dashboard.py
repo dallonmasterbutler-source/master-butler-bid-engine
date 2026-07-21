@@ -3436,6 +3436,12 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
     # to the bottom of the group, never a cleared row (Jul-13 kill
     # switch stands). A new inbound message always outranks it.
     gmail_state = _blob_rw("gmail_state", {})
+    # Message-IDs currently in the Gmail inbox (per-message mirror): a
+    # record whose own message_id is NOT in here was archived in Gmail by
+    # the office = done — works for voicemails & forms, whose sender isn't
+    # the customer so the sender-keyed gmail_state can't cover them. Empty
+    # set ⇒ the mirror hasn't run; treated as "can't vouch", nothing hidden.
+    _gmail_inbox_mids = set(_blob_rw("gmail_inbox_mids", []) or [])
     # 📵 YAHOO/AOL BOUNCE FLAG (Dallon, Jul 16): while the domain's DNS
     # is unauthenticated, mail to Yahoo-run providers bounces — flag
     # those customers to call instead. One switch clears it everywhere
@@ -3646,17 +3652,26 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             grp = -1                 # field mail OR office↔Dallon internal
         elif nb and nb.get("dns_match"):
             grp = 0
-        # VOICEMAIL AUTO-FILE (Dallon, Jul 21: 'a voicemail links to an
-        # existing or a new customer, and we can SEE if that's been done —
-        # we don't have to wait for Gmail'). A voicemail leaves the inbox
-        # on its own ONLY once its caller has become a Jobber quote (handled,
-        # existing OR new customer). EVERY voicemail otherwise STAYS visible
-        # and mark-done-able — INCLUDING hang-ups: a hang-up means someone
-        # called and the office normally TEXTS them back, so it's real work,
-        # not noise (Dallon, Jul 21 correction). Cleared by ✓ Done or by a
-        # Jobber quote; a newer call/message resurfaces it.
+        # VOICEMAIL AUTO-FILE (Dallon, Jul 21). A voicemail leaves the
+        # inbox on its own when EITHER:
+        #   (a) its caller has become a Jobber quote (followed up), or
+        #   (b) the office ARCHIVED its Gmail notification — the copycall
+        #       voicemail email — in Gmail (Dallon, Jul 21: 'the office
+        #       marks it done in gmail, it should link to gmail + dashboard
+        #       so it removes as well'). Detected by the voicemail's own
+        #       message_id no longer being in the Gmail inbox.
+        # Otherwise EVERY voicemail STAYS visible and mark-done-able —
+        # hang-ups included: a hang-up means someone called and the office
+        # normally TEXTS them back, so it's real work, not noise. A newer
+        # call/message resurfaces it.
         elif (nb and nb.get("kind") == "phone_lead" and not unread
-              and not new_msg and oq):
+              and not new_msg
+              and (oq
+                   or (nb.get("folder") == "INBOX"
+                       and "@" in (nb.get("message_id") or "")
+                       and _gmail_inbox_mids
+                       and nb["message_id"].strip()
+                       not in _gmail_inbox_mids))):
             grp = 4
         # HANDLED IN JOBBER (proven: booked today / recent quote / won):
         # its own lane with the reason — unless the customer wrote back
