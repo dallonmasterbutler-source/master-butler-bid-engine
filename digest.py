@@ -90,45 +90,58 @@ def build_data():
             sb = json.loads(p.read_text()) if p.exists() else None
     except Exception:
         sb = None
-    if sb:
-        matched = [r for r in sb["rows"] if r.get("office_quote")]
-        if matched:
-            close = sum(1 for r in matched
-                        if r.get("gap_pct") is not None
-                        and abs(r["gap_pct"]) <= 10)
-            sec("📊", f"Scoreboard: {len(matched)} compared",
-                f"{close} within 10% of the office",
-                [f"{(r.get('customer') or '?')[:34]}: system "
-                 f"${r['system_total']:,.0f} vs office "
-                 f"${r['office_total']:,.0f} ({r['gap_pct']:+.0f}%)"
-                 for r in matched[:6]])
-        else:
-            waiting = sum(1 for r in sb["rows"] if not r.get("office_quote"))
-            sec("📊", "Scoreboard",
-                f"{waiting} shadow draft(s) waiting for office quotes")
+    # SECTION-PROOF (Jul 21 audit): a single row with a None total crashed
+    # an f-format here and killed the ENTIRE brief email last night. The
+    # formats below are None-guarded AND the whole section is fenced — a
+    # bad row may cost one section, never the email.
+    try:
+        if sb:
+            matched = [r for r in sb["rows"] if r.get("office_quote")]
+            if matched:
+                close = sum(1 for r in matched
+                            if r.get("gap_pct") is not None
+                            and abs(r["gap_pct"]) <= 10)
+                sec("📊", f"Scoreboard: {len(matched)} compared",
+                    f"{close} within 10% of the office",
+                    [f"{(r.get('customer') or '?')[:34]}: system "
+                     f"${(r.get('system_total') or 0):,.0f} vs office "
+                     f"${(r.get('office_total') or 0):,.0f} "
+                     f"({(r.get('gap_pct') or 0):+.0f}%)"
+                     for r in matched[:6]])
+            else:
+                waiting = sum(1 for r in sb["rows"]
+                              if not r.get("office_quote"))
+                sec("📊", "Scoreboard",
+                    f"{waiting} shadow draft(s) waiting for office quotes")
+    except Exception:
+        pass
 
     # quotes out but quiet — the follow-up money (pre-lights ops, Jul 10)
-    if sb:
-        from datetime import datetime as _dt
-        nudge = []
-        for r in sb["rows"]:
-            if (r.get("office_status") or "").lower() != "awaiting_response":
-                continue
-            try:
-                age = (datetime.now() - _dt.strptime(
-                    r["stamp"][:8], "%Y%m%d")).days
-            except (KeyError, ValueError):
-                continue
-            if age >= 5:
-                nudge.append((age, r))
-        if nudge:
-            nudge.sort(reverse=True, key=lambda x: x[0])
-            sec("📤", f"Open quotes, no reply yet ({len(nudge)})",
-                "sent 5+ days ago",
-                [f"{(r.get('customer') or '?')[:32]} — "
-                 f"${r['office_total']:,.0f} · quote "
-                 f"#{r['office_quote']} · {age}d since request"
-                 for age, r in nudge[:8]])
+    try:
+        if sb:
+            from datetime import datetime as _dt
+            nudge = []
+            for r in sb["rows"]:
+                if (r.get("office_status")
+                        or "").lower() != "awaiting_response":
+                    continue
+                try:
+                    age = (datetime.now() - _dt.strptime(
+                        r["stamp"][:8], "%Y%m%d")).days
+                except (KeyError, ValueError):
+                    continue
+                if age >= 5:
+                    nudge.append((age, r))
+            if nudge:
+                nudge.sort(reverse=True, key=lambda x: x[0])
+                sec("📤", f"Open quotes, no reply yet ({len(nudge)})",
+                    "sent 5+ days ago",
+                    [f"{(r.get('customer') or '?')[:32]} — "
+                     f"${(r.get('office_total') or 0):,.0f} · quote "
+                     f"#{r['office_quote']} · {age}d since request"
+                     for age, r in nudge[:8]])
+    except Exception:
+        pass
 
     try:                     # the churn counterpunch (Jul 10 cycle)
         due = (db._blob_rw("due_soon", []) or [])
@@ -274,9 +287,9 @@ def build_data():
     return data
 
 
-def build():
+def build(data=None):
     """Text render — the nightly email + data/briefs/ file."""
-    d = build_data()
+    d = data or build_data()
     lines = [f"MASTER BUTLER — MORNING BRIEF · {d['date']}", "=" * 56, ""]
     if d["pin"]:
         lines.append("📌 NOTES:")
@@ -392,7 +405,7 @@ def build_html(data=None):
 def write():
     BRIEFS.mkdir(parents=True, exist_ok=True)
     data = build_data()
-    text = build()
+    text = build(data)
     html = build_html(data)
     path = BRIEFS / f"brief-{datetime.now():%Y%m%d}.txt"
     path.write_text(text)
