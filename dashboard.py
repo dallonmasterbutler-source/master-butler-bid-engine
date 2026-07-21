@@ -10494,22 +10494,24 @@ class Handler(BaseHTTPRequestHandler):
                         "blobs": {}, "photo_index": []}
                 for stamp, rec in cdb.all_shadow():
                     dump["shadow_records"][stamp] = rec
-                with cdb._conn() as conn:
-                    for (k, v) in conn.execute(
-                            "select key, value from kv_blobs").fetchall():
-                        if isinstance(v, (bytes, bytearray)):
-                            try:
-                                v = v.decode("utf-8")
-                            except Exception:
-                                continue       # skip un-decodable binary blob
-                        if isinstance(v, str):
-                            try:
-                                v = json.loads(v)
-                            except ValueError:
-                                pass          # plain-text blob (the brief)
-                        dump["blobs"][k] = v
-                    dump["photo_index"] = [list(r) for r in conn.execute(
-                        "select ref, kind, idx from photos").fetchall()]
+                # clouddb exposes _exec(sql, fetch=...), NOT _conn() — the
+                # old code called a function that never existed, so this
+                # endpoint 500-ed every night (Jul 20 fix).
+                for (k, v) in (cdb._exec(
+                        "SELECT key, value FROM kv_blobs", fetch="all") or []):
+                    if isinstance(v, (bytes, bytearray)):
+                        try:
+                            v = v.decode("utf-8")
+                        except Exception:
+                            continue           # skip un-decodable binary blob
+                    if isinstance(v, str):
+                        try:
+                            v = json.loads(v)
+                        except ValueError:
+                            pass              # plain-text blob (the brief)
+                    dump["blobs"][k] = v
+                dump["photo_index"] = [list(r) for r in (cdb._exec(
+                    "SELECT ref, kind, idx FROM photos", fetch="all") or [])]
                 body = json.dumps(dump, default=str).encode()
                 return self._send(body, ctype="application/json")
             except Exception as _be:
