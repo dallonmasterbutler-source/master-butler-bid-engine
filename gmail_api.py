@@ -85,6 +85,55 @@ def get_raw(msg_id):
     return base64.urlsafe_b64decode(d["raw"])
 
 
+def _thread_of(gid):
+    try:
+        return _get("https://gmail.googleapis.com/gmail/v1/users/me/"
+                    "messages/" + gid + "?format=minimal").get("threadId")
+    except Exception:
+        return None
+
+
+def thread_for_message_id(mid):
+    """The Gmail threadId of the message carrying this RFC822 Message-ID,
+    or None if that exact message isn't in the mailbox."""
+    mid = (mid or "").strip().strip("<>")
+    if not mid:
+        return None
+    try:
+        ids = list_ids("rfc822msgid:" + mid, cap=1)
+    except Exception:
+        return None
+    return _thread_of(ids[0]) if ids else None
+
+
+def thread_for_reply(to_addr, message_id=None):
+    """The Gmail threadId to send a customer reply INTO, so it nests in
+    their conversation (reply arrow + their original stays in view). The
+    header/In-Reply-To alone orphaned ~40% of replies on the Gmail API
+    (Jessica, Jul 20). Strategy: (1) the exact message being replied to;
+    (2) fall back to the customer's own most-recent thread by email —
+    Squarespace form notices arrive via SparkPost with a Message-ID that
+    isn't in the mailbox to match, but the customer's address always finds
+    their conversation. None if the customer has no thread yet."""
+    tid = thread_for_message_id(message_id) if message_id else None
+    if tid:
+        return tid
+    to_addr = (to_addr or "").strip().lower()
+    if not to_addr:
+        return None
+    # their inbound first (the form / their replies), then any thread
+    for q in ("from:" + to_addr, "to:" + to_addr):
+        try:
+            ids = list_ids(q, cap=1)
+        except Exception:
+            ids = []
+        if ids:
+            tid = _thread_of(ids[0])
+            if tid:
+                return tid
+    return None
+
+
 def get_meta(msg_id):
     """Cheap header-only fetch (From + Message-ID + labelIds), no body.
     Used by the archive mirror to see who is still in the inbox and

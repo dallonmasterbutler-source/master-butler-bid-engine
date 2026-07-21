@@ -76,10 +76,16 @@ def test_reply_threading():
     import mailer
     captured = {}
 
-    def fake_api_send(msg):
+    def fake_api_send(msg, thread_id=None):
         captured["msg"] = msg
+        captured["thread_id"] = thread_id
         return True, "ok (test)"
 
+    # stub the Gmail thread lookup so the test never hits the network
+    fake_ga = types.ModuleType("gmail_api")
+    fake_ga.thread_for_reply = lambda to, mid=None: "THREAD123" if mid else None
+    old_ga = sys.modules.get("gmail_api")
+    sys.modules["gmail_api"] = fake_ga
     old_creds, old_send = mailer._creds, mailer._api_send
     mailer._creds = lambda: ("care@masterbutlerinc.com", "pw")
     mailer._api_send = fake_api_send
@@ -102,14 +108,24 @@ def test_reply_threading():
                   "Original Squarespace submission" in body)
             check("original is quoted with '>'",
                   "> Original Squarespace submission" in body)
-        # no threading headers when we have no Message-ID
+        # THE THREADING FIX: the send must carry the Gmail threadId, not
+        # just the header — the header alone orphaned ~40% of replies
+        check("threadId looked up + passed to the Gmail send",
+              captured.get("thread_id") == "THREAD123")
+        # no threading headers or thread lookup when we have no Message-ID
         captured.clear()
         mailer.send_reply("jane@x.com", "Re: hi", "hello", "LaRee")
         m2 = captured.get("msg")
         check("no In-Reply-To without a source id",
               m2 is not None and m2["In-Reply-To"] is None)
+        check("no threadId without a source id",
+              captured.get("thread_id") is None)
     finally:
         mailer._creds, mailer._api_send = old_creds, old_send
+        if old_ga is not None:
+            sys.modules["gmail_api"] = old_ga
+        else:
+            sys.modules.pop("gmail_api", None)
 
 
 def run():

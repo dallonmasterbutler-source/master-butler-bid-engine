@@ -66,9 +66,11 @@ def _oauth_env():
     return None
 
 
-def _api_send(msg):
+def _api_send(msg, thread_id=None):
     """Gmail API send (HTTPS 443 — works from the cloud, where SMTP
-    ports are blocked). Send-only OAuth scope; reading stays on IMAP."""
+    ports are blocked). Send-only OAuth scope; reading stays on IMAP.
+    thread_id nests the message INTO the customer's existing Gmail thread
+    (the header alone doesn't reliably thread — Jessica's Jul-20 report)."""
     import base64
     import json
     import urllib.parse
@@ -86,9 +88,12 @@ def _api_send(msg):
             "https://oauth2.googleapis.com/token", body, timeout=20))
         access = tok["access_token"]
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        payload = {"raw": raw}
+        if thread_id:
+            payload["threadId"] = thread_id
         req = urllib.request.Request(
             "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
-            data=json.dumps({"raw": raw}).encode(),
+            data=json.dumps(payload).encode(),
             headers={"Authorization": f"Bearer {access}",
                      "Content-Type": "application/json"})
         urllib.request.urlopen(req, timeout=30)
@@ -118,7 +123,7 @@ def _smtp_send(msg, addr, pw):
     return False, f"{type(last).__name__}: {last}"
 
 
-def send_internal(subject, body, to=(TOM, DALLON)):
+def send_internal(subject, body, to=(TOM, DALLON), html=None):
     to = [t for t in to if t in ALLOWED]
     if not to:
         return False, "no allowed recipients"
@@ -129,7 +134,9 @@ def send_internal(subject, body, to=(TOM, DALLON)):
     msg["From"] = f"Master Butler Bidding <{addr}>"
     msg["To"] = ", ".join(to)
     msg["Subject"] = subject
-    msg.set_content(body)
+    msg.set_content(body)                 # plain-text fallback
+    if html:                              # richer, scannable version
+        msg.add_alternative(html, subtype="html")
     ok, why = _api_send(msg)          # works everywhere, cloud included
     if not ok:
         ok, why = _smtp_send(msg, addr, pw)
@@ -286,16 +293,27 @@ def send_reply(to_addr, subject, body, by, in_reply_to="", orig=None):
     # THREAD IT (Jessica, Jul 20): a bare Message-ID in In-Reply-To +
     # References is what Gmail matches on to draw the reply arrow and
     # nest the message under the customer's thread.
+    thread_id = None
     mid = (in_reply_to or "").strip()
     if mid:
         if not mid.startswith("<"):
             mid = "<" + mid.strip("<>") + ">"
         msg["In-Reply-To"] = mid
         msg["References"] = mid
+    # RELIABLE THREADING: look up the customer's Gmail thread so the send
+    # lands INSIDE it — the header alone orphaned ~40% of replies (Jessica,
+    # Jul 20: no reply arrow, customer's message not shown). Falls back to
+    # the customer's address when the referenced Message-ID isn't in the
+    # mailbox (Squarespace forms arrive via SparkPost).
+    try:
+        import gmail_api
+        thread_id = gmail_api.thread_for_reply(to_addr, mid)
+    except Exception:
+        thread_id = None
     msg.set_content(body + "\n\n" + _signature(by) + _quote_block(orig))
-    ok, why = _api_send(msg)
+    ok, why = _api_send(msg, thread_id=thread_id)
     if not ok:
-        ok, why = _smtp_send(msg, addr, pw)
+        ok, why = _smtp_send(msg, addr, pw)   # SMTP: header-only threading
     return ok, why
 
 
