@@ -190,11 +190,33 @@ def _poll_via_api(seen):
     return new_count
 
 
+def _sent_ledger():
+    """Durable already-swept ledger for SENT mail (Jul 21 audit): the file
+    ledger is wiped on every cloud restart and sent mail never becomes a
+    shadow record, so the DB record-check can't vouch for it either. Each
+    deploy re-recorded the same ~40 sent messages into the message log —
+    23-26 copies each — and the flood evicted weeks of real history
+    through the cap. This blob survives restarts. (set, save_fn)."""
+    try:
+        import clouddb
+        if clouddb.available():
+            cur = set(clouddb.get_blob("sent_seen") or [])
+
+            def save(s):
+                clouddb.put_blob("sent_seen", sorted(s)[-800:])
+            return cur, save
+    except Exception:
+        pass
+    return set(), lambda s: None
+
+
 def _sweep_sent_api(seen):
     """Office replies sent from Gmail → the message log, via the API."""
     import email as _email
     import gmail_api
     import msglog
+    durable, _save_durable = _sent_ledger()
+    dirty = False
     for gid in gmail_api.list_ids("newer_than:3d in:sent", cap=40):
         _k = "sent-api-" + gid
         if _k in _API_SEEN:
@@ -206,10 +228,12 @@ def _sweep_sent_api(seen):
             continue
         msg = _email.message_from_bytes(raw, policy=_email.policy.default)
         mid = "sent-" + (msg.get("Message-ID") or gid).strip()
-        if mid in seen:
+        if mid in seen or mid in durable:
             continue
         seen.add(mid)
         _remember(mid)
+        durable.add(mid)
+        dirty = True
         to_addr = _email.utils.parseaddr(msg.get("To", ""))[1]
         body = ""
         plain = msg.get_body(preferencelist=("plain",))
@@ -229,6 +253,8 @@ def _sweep_sent_api(seen):
             pass
         msglog.record("out", to_addr, subject=msg.get("Subject", ""),
                       body=body, at=sent_at)
+    if dirty:
+        _save_durable(durable)
 
 
 def poll_once():
@@ -486,12 +512,16 @@ def _sweep_sent(M, seen):
     typ, data = M.search(None, f'SINCE {since}')
     ids = data[0].split() if data and data[0] else []
     import msglog
+    durable, _save_durable = _sent_ledger()
+    dirty = False
     for num in ids[-40:]:
         typ, hdr = M.fetch(num, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
         mid = "sent-" + (hdr[0][1].decode(errors="replace")
                          .split(":", 1)[-1].strip() or num.decode())
-        if mid in seen:
+        if mid in seen or mid in durable:
             continue
+        durable.add(mid)
+        dirty = True
         typ, full = M.fetch(num, "(BODY.PEEK[])")
         msg = _email.message_from_bytes(full[0][1],
                                         policy=_email.policy.default)
@@ -516,6 +546,8 @@ def _sweep_sent(M, seen):
                       body=body, at=sent_at)
         _remember(mid)
         seen.add(mid)
+    if dirty:
+        _save_durable(durable)
 
 
 def _bid_for_quote(quote_number):

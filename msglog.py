@@ -20,7 +20,8 @@ from pathlib import Path
 
 BASE = Path(__file__).parent
 LOCAL = BASE / "data" / "message_log.json"
-CAP = 600
+CAP = 2000       # was 600 — a Jul-20/21 duplicate burst evicted weeks of
+                 # real history through the smaller cap (Jul 21 audit)
 
 # senders that are machines, not customers — never worth a thread
 ROBOT_HINTS = ("noreply", "no-reply", "notifications@", "mailer-daemon",
@@ -115,10 +116,16 @@ def record(direction, addr, name="", subject="", body="", by="",
     if not addr or any(h in addr for h in ROBOT_HINTS):
         return False
     log, channel = _load()
+    # WHOLE-LOG de-dupe (Jul 21 audit): the old 80-entry window let the
+    # restart-swept Sent mail re-record the same message 20+ times — a
+    # burst pushed earlier copies past the window, and the flood evicted
+    # weeks of real history through the cap. 600 entries is cheap to scan.
     key = (direction, addr, (subject or "")[:60], (body or "")[:80])
-    for m in log[-80:]:                       # cheap de-dupe window
+    cleaned = clean_body(body)
+    ckey = (direction, addr, (subject or "")[:60], cleaned[:80])
+    for m in log:
         if (m["dir"], m["addr"], (m.get("subject") or "")[:60],
-                (m.get("body") or "")[:80]) == key:
+                (m.get("body") or "")[:80]) in (key, ckey):
             return False
     log.append({"at": at or datetime.now(timezone.utc)
                 .isoformat(timespec="seconds"),
