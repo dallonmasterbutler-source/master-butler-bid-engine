@@ -3822,6 +3822,14 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
             lane = "nudge"
             word = f"🚫 declined · {mv.get('by') or 'office'}"
             wstyle = "color:var(--alarm);font-weight:800"
+        elif mv and mv.get("lane") == "help":
+            # 🙋 the office asked Dallon/Tom a question about this one
+            # (#44). Off the working queue, in its own visible spot with
+            # the question shown; a customer reply resurfaces it.
+            lane = "nudge"
+            _hq = (mv.get("q") or "").strip()
+            word = "🙋 asked the office" + (f": “{_hq[:70]}”" if _hq else "")
+            wstyle = "color:#6d28d9;font-weight:800"
         elif mv and mv.get("lane") == "later":
             lane = "nudge"
             word, wstyle = ("⏰ parked — resurfaces in a week",
@@ -12042,16 +12050,36 @@ class Handler(BaseHTTPRequestHandler):
                          "hold_reason": get("hold_reason"),
                          "hold_until": get("hold_until") or None})
         elif self.path == "/escalate":
+            _q = (get("question") or "").strip()
             path = templates.draft_escalation(
                 bid_ref=get("stamp"), customer=get("customer"),
                 address=get("address"),
-                question=get("question") or "(no question written)",
+                question=_q or "(no question written)",
                 to="dallon")
             save_review({"stamp": get("stamp"), "action": "escalated",
                          "customer": get("customer"),
-                         "note": get("question") or "(no question written)"})
+                         "note": _q or "(no question written)"})
             # Dallon's ruling: the OFFICE reviews second-looks on the
             # dashboard; Dallon & Tom only get the 🚩 when they're stuck.
+            # #44 FIX (Jessica, Jul 20: 'Help went blank and the item
+            # stayed in the inbox'): Help must also MOVE the row into a
+            # visible 'asked the office' state carrying the question, so
+            # it leaves the working queue and is trackable. A customer
+            # reply resurfaces it; Move ▾ → 'let the system sort it'
+            # (or ✓ Done) clears it once answered.
+            if _q:
+                _em = ((re.search(r"<([^>]+)>", get("customer")) or [None, ""])[1]
+                       or get("customer")).strip().lower()
+                _hk = _canon_email(_em) or ("stamp:" + get("stamp"))
+                cm = re.search(r"office_user=([^;]+)",
+                               self.headers.get("Cookie") or "")
+                _hby = urllib.parse.unquote(cm.group(1)) if cm else "office"
+                from datetime import timezone as _tzq
+                _ml = _blob_rw("manual_lanes", {})
+                _ml[_hk] = {"lane": "help", "by": _hby, "q": _q[:200],
+                            "at": datetime.now(_tzq.utc)
+                            .isoformat(timespec="seconds")}
+                _blob_save("manual_lanes", _ml)
         elif self.path == "/photo_request":
             services = [s for s in get("services").split(",") if s]
             path = templates.draft_photo_request(
