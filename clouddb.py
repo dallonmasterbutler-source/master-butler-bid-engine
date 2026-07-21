@@ -118,6 +118,21 @@ def seen_message_ids():
     return {r[0] for r in rows if r[0]}
 
 
+def has_message_id(msg_id):
+    """Authoritative 'is this exact email already a record?' check — one
+    indexed lookup, straight to the DB, no cache. The poller's in-memory
+    `seen` set can go stale/empty (local ledger wiped on a cloud restart,
+    or a transient DB error swallowed), and when it did the whole 2-day
+    window got re-ingested as fresh duplicate records (Jul 20: 200+ dupes).
+    Gating each ingest on this closes that hole regardless of `seen`."""
+    if not msg_id:
+        return False
+    row = _exec("SELECT 1 FROM shadow_records "
+                "WHERE record->>'message_id' = %s LIMIT 1",
+                (msg_id,), fetch="one")
+    return row is not None
+
+
 # ── review log ───────────────────────────────────────────────
 
 def add_review(entry):

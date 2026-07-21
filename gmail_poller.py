@@ -67,6 +67,26 @@ def _remember(msg_id):
         f.write(msg_id + "\n")
 
 
+def _already_have(msg_id, seen):
+    """True if this exact email is already captured. Checks the fast
+    in-memory `seen` set first, then falls back to an AUTHORITATIVE DB
+    lookup — because `seen` can be stale/empty (local ledger wiped on a
+    cloud restart, or seen_message_ids() silently failed), and when it
+    was, the poller re-ingested the whole 2-day window as duplicate
+    records (Jul 20: 200+ dupes). The DB check only runs for messages
+    that LOOK new, so it's cheap."""
+    if msg_id in seen:
+        return True
+    try:
+        import clouddb
+        if clouddb.available() and clouddb.has_message_id(msg_id):
+            seen.add(msg_id)        # backfill so we don't re-query it
+            return True
+    except Exception:
+        pass
+    return False
+
+
 # Real bid requests land in spam sometimes (seen in the Takeout mining) —
 # sweep it too, same readonly guarantee. Spam-found requests get flagged
 # so the office knows to fish the original out.
@@ -117,7 +137,7 @@ def _poll_via_api(seen):
             _API_SEEN.add(gid)
             m = _email.message_from_bytes(raw)
             msg_id = (m.get("Message-ID") or f"gmail-{gid}").strip()
-            if msg_id in seen:
+            if _already_have(msg_id, seen):
                 continue
             new_count += 1
             shadow_process(raw, msg_id, folder=folder)
@@ -207,7 +227,7 @@ def poll_once():
                     raw_hdr = hdr[0][1].decode(errors="replace")
                     msg_id = raw_hdr.split(":", 1)[-1].strip() \
                         or f"no-id-{num.decode()}"
-                    if msg_id in seen:
+                    if _already_have(msg_id, seen):
                         continue
                     typ, full = M.fetch(num, "(BODY.PEEK[])")
                     raw = full[0][1]
