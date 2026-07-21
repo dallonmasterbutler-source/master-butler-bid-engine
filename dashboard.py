@@ -12061,9 +12061,34 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/must_know":
             set_must_know(get("address"), get("text").strip())
         elif self.path == "/duplicate":
-            save_review({"stamp": get("stamp"), "action": get("verdict"),
+            # #12 FIX (Jessica, Jul 20: '13 duplicates I had to delete by
+            # hand'): this used to only LOG the verdict — 'Same job (link
+            # & close)' never closed and 'New job (keep)' never stopped
+            # nagging, so confirmed dupes lingered forever. Now the
+            # office's choice actually mutates the record.
+            _vd = get("verdict")
+            _st = get("stamp")
+            _rec = dict(_shadow_source()).get(_st)
+            if _rec:
+                if _vd == "duplicate_same":
+                    _rec["merged_into"] = get("linked")   # hide it; primary lives
+                elif _vd == "duplicate_new":
+                    _rec.pop("duplicate_of", None)         # real job — stop nagging
+                if clouddb.available():
+                    clouddb.ingest_shadow(_st, _rec)
+                else:
+                    (SHADOW / f"{_st}.json").write_text(
+                        json.dumps(_rec, indent=1))
+                    try:
+                        from cloudpush import push_or_queue
+                        push_or_queue(_st, _rec)
+                    except Exception:
+                        pass
+            save_review({"stamp": _st, "action": _vd,
                          "customer": get("customer"),
-                         "note": f"linked to {get('linked')}"})
+                         "note": (f"linked to {get('linked')} — closed"
+                                  if _vd == "duplicate_same"
+                                  else "kept as a separate job")})
         elif self.path == "/hold":
             _mark_done_for(get("customer"))
             save_review({"stamp": get("stamp"), "action": "hold",
