@@ -11658,12 +11658,19 @@ class Handler(BaseHTTPRequestHandler):
             return
         elif self.path == "/mark_done":
             # explicit 'seen it' (Dallon's read-flow ruling): greys the
-            # entry for the whole office; decisions do this automatically
-            d = _msg_read()
+            # entry for the whole office; decisions do this automatically.
+            # STICKY (Jessica, Jul 20: 'I clear it and it comes back'): also
+            # record it in the 'cleared' blob so the 30-min walk-away net
+            # can't creep it back — only a NEW customer message resurfaces
+            # it. Before, single Done set only the read flag and re-bolded.
             from datetime import timezone as _tzd
-            d[get("addr")] = datetime.now(_tzd.utc).isoformat(
-                timespec="seconds")
+            _dn = datetime.now(_tzd.utc).isoformat(timespec="seconds")
+            d = _msg_read()
+            d[get("addr")] = _dn
             _msg_read_save(d)
+            cl = _blob_rw("cleared", {})
+            cl[get("addr")] = _dn
+            _blob_save("cleared", cl)
             back = get("back")
             self.send_response(303)
             self.send_header("Location", back if back.startswith("/")
@@ -11683,6 +11690,12 @@ class Handler(BaseHTTPRequestHandler):
                 for k in keys:
                     d[k] = now
                 _msg_read_save(d)
+                # STICKY like /lane_clear (Jessica, Jul 20): survive the
+                # 30-min walk-away net; only a new message resurfaces.
+                cl = _blob_rw("cleared", {})
+                for k in keys:
+                    cl[k] = now
+                _blob_save("cleared", cl)
             self.send_response(303)
             self.send_header("Location", "/")
             self.end_headers()
