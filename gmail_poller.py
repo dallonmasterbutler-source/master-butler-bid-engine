@@ -77,6 +77,7 @@ FOLDERS = ["INBOX", "[Gmail]/Spam"]
 # poll (in-memory; a restart re-checks the recent window once, cheap).
 _API_SEEN = set()
 _API_OK = {"checked": False, "ok": False}
+_API_MIRROR_AT = 0.0        # last Gmail archive-mirror run (throttle ~15m)
 
 
 def _use_api():
@@ -253,9 +254,25 @@ def poll_once():
     try:
         import gmail_mirror
         gmail_mirror.sync(verbose=False)
-        # LaRee's signals (Jul 14): trash = done, greyed = being worked.
-        # Display-only blob — never clears a row (kill switch honored).
-        gmail_mirror.state_sync(verbose=False)
+        # THE MIRROR (Jessica, Jul 20): archived/trashed in Gmail = done.
+        # Prefer the API version (works from the cloud, catches ARCHIVES,
+        # doesn't burn the IMAP quota) — throttled to ~15 min since it
+        # reads every inbox header. Falls back to the IMAP state_sync
+        # (trash-only) when the API can't read. Display-only either way.
+        import time as _t
+        global _API_MIRROR_AT
+        if _t.time() - _API_MIRROR_AT >= 900:
+            did_api = False
+            try:
+                import gmail_api
+                if gmail_api.can_read():
+                    gmail_mirror.api_state_sync(verbose=False)
+                    did_api = True
+            except Exception as _ae:
+                print(f"  (gmail API mirror skipped: {_ae})")
+            if not did_api:                 # API down — old trash-only signal
+                gmail_mirror.state_sync(verbose=False)
+            _API_MIRROR_AT = _t.time()
     except Exception as _e:
         print(f"  (gmail mirror skipped: {_e})")
     try:

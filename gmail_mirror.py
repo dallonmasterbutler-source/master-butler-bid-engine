@@ -176,6 +176,74 @@ def state_sync(verbose=True):
     return len(state)
 
 
+def api_state_sync(verbose=True):
+    """THE MIRROR, DONE RIGHT (Jessica, Jul 20: 'mirror our box… we delete
+    things and they show back up… done needs to stay done').
+
+    Two fixes over state_sync():
+      1. Runs over the Gmail API, not IMAP — so it works from the CLOUD
+         and doesn't depend on Dallon's Mac or burn the IMAP quota (the
+         reason the old mirror kept going stale).
+      2. GONE-FROM-INBOX = DONE. The office's real flow is inbox → reply →
+         ARCHIVE (not trash). state_sync only caught trashed threads, so
+         archived-and-handled mail sat in the dashboard Inbox for days
+         (Dallon, Jul 20: 'I still see things done 13 days ago'). Here,
+         anything no longer in the Gmail inbox is 'done'.
+
+    Still NON-DESTRUCTIVE and display-only: it only writes the
+    `gmail_state` blob. The dashboard files a 'done' row to the drawer
+    (recoverable), and ANY new customer message resurfaces it. An open
+    Jobber quote (awaiting_response) still outranks this in the dashboard
+    ladder, so money-in-flight never gets filed.
+    """
+    import clouddb
+    if not clouddb.available():
+        return 0
+    import gmail_api
+    from datetime import datetime, timezone
+    if not gmail_api.can_read():
+        return 0
+    inbox_senders, inbox_msgids = gmail_api.inbox_index()
+    if inbox_senders is None:               # couldn't read — change nothing
+        return 0
+
+    # map each queue customer to a state — by Message-ID first (forms
+    # arrive From Squarespace; the Amanda Gentry lesson), sender second
+    mids_by_email, emails = {}, set()
+    for _s, _r in clouddb.all_shadow():
+        if _r.get("merged_into") or _r.get("spam_auto") \
+                or _r.get("tech_sender") or _r.get("kind") == "jobber_event":
+            continue
+        m = re.search(r"<([^>]+)>", _r.get("from") or "")
+        e = m.group(1).lower() if m else None
+        if not e:
+            continue
+        emails.add(e)
+        mid = (_r.get("message_id") or "").strip()
+        if mid:
+            mids_by_email.setdefault(e, set()).add(mid)
+
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    state = {}
+    for e in emails:
+        mids = mids_by_email.get(e, set())
+        in_inbox_by_mid = any(m in inbox_msgids for m in mids)
+        if in_inbox_by_mid or e in inbox_senders:
+            unread = e in inbox_senders and inbox_senders.get(e, False)
+            state[e] = {"state": "unread" if unread else "working", "at": now}
+        else:
+            # not in the inbox at all → the office archived or trashed it
+            state[e] = {"state": "done", "at": now}
+    clouddb.put_blob("gmail_state", state)
+    if verbose:
+        cts = {}
+        for v in state.values():
+            cts[v["state"]] = cts.get(v["state"], 0) + 1
+        print(f"gmail API mirror: {cts} across {len(emails)} customers "
+              "(display-only; archived/trashed = done)")
+    return len(state)
+
+
 # KILL SWITCH (Dallon, Jul 13 — URGENT): auto-clearing rows from the
 # queue because a Gmail thread was archived kept making live rows vanish
 # under the office's hands (Squarespace-form leads; and draft rows for

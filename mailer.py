@@ -245,11 +245,32 @@ def _signature(by):
     return tmpl.replace("{name}", by or "").strip()
 
 
-def send_reply(to_addr, subject, body, by):
+def _quote_block(orig):
+    """Gmail-style quoted original so the SENT copy carries the customer's
+    words (Jessica, Jul 20: 'replying to a Squarespace… it doesn't show
+    the previous submission — we're losing that in actual gmail'). orig =
+    {"from","date","text"}. Renders the familiar 'On <date>, <who> wrote:'
+    header + '> ' quoted lines."""
+    if not orig or not (orig.get("text") or "").strip():
+        return ""
+    who = (orig.get("from") or "").strip()
+    date = (orig.get("date") or "").strip()
+    head = "On " + ", ".join(x for x in (date, who) if x) + " wrote:"
+    quoted = "\n".join("> " + ln for ln
+                       in (orig["text"].strip().splitlines() or [""]))
+    return "\n\n" + head + "\n" + quoted
+
+
+def send_reply(to_addr, subject, body, by, in_reply_to="", orig=None):
     """OFFICE-DRIVEN customer reply from the dashboard Messages page.
     This is a compose tool for a HUMAN — it requires a named office
     user, exactly one recipient, and never runs from automation.
-    Sent via Gmail API (falls back to SMTP on the Mac)."""
+    Sent via Gmail API (falls back to SMTP on the Mac).
+
+    in_reply_to = the customer's last-inbound Message-ID: sets the
+    In-Reply-To/References headers so Gmail THREADS the reply (shows the
+    ↩ reply arrow) instead of orphaning it. orig = their original message
+    for the quoted tail. Both fixes Jessica's Jul-20 report."""
     to_addr = (to_addr or "").strip()
     if not by:
         return False, "pick your name in the top bar first"
@@ -262,7 +283,16 @@ def send_reply(to_addr, subject, body, by):
     msg["From"] = f"Master Butler <{addr}>"
     msg["To"] = to_addr
     msg["Subject"] = subject
-    msg.set_content(body + "\n\n" + _signature(by))
+    # THREAD IT (Jessica, Jul 20): a bare Message-ID in In-Reply-To +
+    # References is what Gmail matches on to draw the reply arrow and
+    # nest the message under the customer's thread.
+    mid = (in_reply_to or "").strip()
+    if mid:
+        if not mid.startswith("<"):
+            mid = "<" + mid.strip("<>") + ">"
+        msg["In-Reply-To"] = mid
+        msg["References"] = mid
+    msg.set_content(body + "\n\n" + _signature(by) + _quote_block(orig))
     ok, why = _api_send(msg)
     if not ok:
         ok, why = _smtp_send(msg, addr, pw)

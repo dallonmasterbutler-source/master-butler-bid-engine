@@ -3054,6 +3054,54 @@ def _bid_email(b):
     return (e or "").strip().lower() or None
 
 
+def _latest_inbound_for(to_email):
+    """The customer's most-recent INBOUND record — used to thread and
+    quote a reply (Jessica, Jul 20). Returns {message_id, from, date,
+    text} or None. Matches on the primary (aliased) address so a reply
+    to someone who wrote from two accounts still threads."""
+    want = _canon_email((to_email or "").strip().lower())
+    if not want:
+        return None
+    best = None
+    for stamp, r in _shadow_source():
+        if r.get("merged_into") or r.get("kind") == "jobber_event" \
+                or r.get("tech_sender"):
+            continue
+        e = _canon_email((_bid_email(r) or ""))
+        if e != want:
+            continue
+        when = r.get("received") or stamp
+        if best is None or when > best[0]:
+            best = (when, r)
+    if not best:
+        return None
+    _, r = best
+    # the customer's own words for the quote tail: prefer the msglog
+    # thread's last inbound (already cleaned + form-aware — a Squarespace
+    # submission renders as '📋 Website quote request / Services… /
+    # Address… / "their message"'), fall back to the record's parsed
+    # newest_message. Message-ID always comes from the record (msglog
+    # doesn't keep it).
+    text = ""
+    try:
+        import msglog
+        for _addr, _n, _ms in msglog.threads():
+            if _canon_email((_addr or "").lower()) != want:
+                continue
+            _in = [m for m in _ms if m.get("dir") == "in"]
+            if _in:
+                text = (_in[-1].get("body") or "").strip()
+            break
+    except Exception:
+        text = ""
+    if not text:
+        text = (r.get("newest_message") or "").strip()
+    return {"message_id": (r.get("message_id") or "").strip(),
+            "from": r.get("from") or want,
+            "date": (r.get("received") or best[0] or "")[:16].replace("T", " "),
+            "text": text}
+
+
 _ALIAS_CACHE = {"at": 0.0, "v": {}}
 
 
@@ -11891,7 +11939,14 @@ class Handler(BaseHTTPRequestHandler):
                              "note": "sending disabled (REPLIES_ENABLED off)"})
                 text = ""
             if text:
-                ok, why = mailer.send_reply(to, subj, text, _user)
+                # THREAD + QUOTE (Jessica, Jul 20): pull the customer's
+                # last inbound so Gmail shows the reply arrow and the Sent
+                # copy carries their original message.
+                _orig = _latest_inbound_for(to)
+                ok, why = mailer.send_reply(
+                    to, subj, text, _user,
+                    in_reply_to=(_orig or {}).get("message_id", ""),
+                    orig=_orig)
                 if ok:
                     msglog.record("out", to, subject=subj, body=text,
                                   by=_user or "")

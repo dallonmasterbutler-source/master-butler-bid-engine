@@ -83,3 +83,45 @@ def get_raw(msg_id):
     d = _get("https://gmail.googleapis.com/gmail/v1/users/me/messages/"
              + msg_id + "?format=raw")
     return base64.urlsafe_b64decode(d["raw"])
+
+
+def get_meta(msg_id):
+    """Cheap header-only fetch (From + Message-ID + labelIds), no body.
+    Used by the archive mirror to see who is still in the inbox and
+    whether their mail is unread — a few units per call vs a full
+    download (Jul 20: mirror moved off IMAP onto the API)."""
+    d = _get("https://gmail.googleapis.com/gmail/v1/users/me/messages/"
+             + msg_id + "?format=metadata&metadataHeaders=From"
+             "&metadataHeaders=Message-ID")
+    hdrs = {h["name"].lower(): h["value"]
+            for h in (d.get("payload", {}) or {}).get("headers", [])}
+    return {"from": hdrs.get("from", ""),
+            "message_id": (hdrs.get("message-id", "") or "").strip(),
+            "labels": d.get("labelIds", []) or []}
+
+
+def inbox_index(cap=600):
+    """Everyone currently sitting in the Gmail INBOX, by sender address:
+        { sender_email: {"unread": bool} }  plus  set(message_ids)
+    'In the inbox' is the office's open-work set; anything NOT here has
+    been archived or trashed = handled (Jessica's mirror, Jul 20). None
+    on any read failure so the caller changes nothing."""
+    import email.utils
+    try:
+        ids = list_ids("in:inbox", cap=cap)
+    except Exception:
+        return None, None
+    senders, msgids = {}, set()
+    for mid in ids:
+        try:
+            m = get_meta(mid)
+        except Exception:
+            continue
+        _, em = email.utils.parseaddr(m["from"])
+        unread = "UNREAD" in m["labels"]
+        if em:
+            em = em.lower()
+            senders[em] = senders.get(em, False) or unread
+        if m["message_id"]:
+            msgids.add(m["message_id"])
+    return senders, msgids
