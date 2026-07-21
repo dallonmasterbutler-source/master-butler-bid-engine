@@ -123,7 +123,11 @@ def _smtp_send(msg, addr, pw):
     return False, f"{type(last).__name__}: {last}"
 
 
-def send_internal(subject, body, to=(TOM, DALLON), html=None):
+def send_internal(subject, body, to=(TOM, DALLON), html=None,
+                  attachment=None):
+    """attachment = (filename, bytes) — used by the nightly backup so the
+    restore point lands OFF-SITE in Gmail even when no Mac is awake to
+    pull it (Jul 21 audit: the Mac's pull had been dead since Jul 16)."""
     to = [t for t in to if t in ALLOWED]
     if not to:
         return False, "no allowed recipients"
@@ -137,6 +141,10 @@ def send_internal(subject, body, to=(TOM, DALLON), html=None):
     msg.set_content(body)                 # plain-text fallback
     if html:                              # richer, scannable version
         msg.add_alternative(html, subtype="html")
+    if attachment:
+        fname, blob = attachment
+        msg.add_attachment(blob, maintype="application",
+                           subtype="gzip", filename=fname)
     ok, why = _api_send(msg)          # works everywhere, cloud included
     if not ok:
         ok, why = _smtp_send(msg, addr, pw)

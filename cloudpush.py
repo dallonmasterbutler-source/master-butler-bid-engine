@@ -20,10 +20,17 @@ PENDING = BASE / "data" / "pending_cloud"
 
 
 def _cfg(name):
-    for line in (BASE / ".env").read_text().splitlines():
-        if line.startswith(name + "="):
-            return line.split("=", 1)[1].strip()
-    return ""
+    """Config value: .env file on the Mac, os.environ on the cloud.
+    (Jul 21 audit: this read the .env FILE unconditionally, so every
+    night_run section that used it — review pull, QA self-check, backup,
+    cloud mirror — crashed on the cron with FileNotFoundError.)"""
+    import os
+    env_file = BASE / ".env"
+    if env_file.exists():
+        for line in env_file.read_text().splitlines():
+            if line.startswith(name + "="):
+                return line.split("=", 1)[1].strip()
+    return os.environ.get(name, "")
 
 
 def push(records=None, blobs=None, photos=None, timeout=60):

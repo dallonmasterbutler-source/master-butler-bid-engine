@@ -198,8 +198,14 @@ try:
 except Exception as e:
     print(f"   backup skipped ({e})")
 # CLOUD-MEMORY BACKUP: pull the database's whole brain down nightly.
+# On the Mac the .gz lands in data/backups (14 kept). On the CRON the
+# disk is ephemeral — writing there was a restore point that vanished
+# with the container — so the .gz is EMAILED to Dallon instead: Gmail is
+# off-site storage that's always awake (Jul 21 audit: the Mac's pull had
+# been dead since Jul 16 — five days with no restore point).
 try:
     import gzip
+    import os as _os
     import urllib.request
     from base64 import b64encode
     from pathlib import Path
@@ -211,12 +217,28 @@ try:
             headers={"Authorization": "Basic "
                      + b64encode(f"office:{pw}".encode()).decode()})
         raw = urllib.request.urlopen(req, timeout=300).read()
-        bdir = Path("data/backups"); bdir.mkdir(parents=True, exist_ok=True)
-        out = bdir / f"cloud-{datetime.now():%Y%m%d}.json.gz"
-        out.write_bytes(gzip.compress(raw))
-        print(f"   cloud backup -> {out} ({out.stat().st_size//1024} KB)")
-        for o in sorted(bdir.glob("cloud-*.json.gz"))[:-14]:
-            o.unlink()
+        gz = gzip.compress(raw)
+        if _os.environ.get("RENDER"):        # cloud → email it off-site
+            import mailer
+            ok, why = mailer.send_internal(
+                f"💾 Master Butler nightly backup — {datetime.now():%b %d}",
+                "Attached: tonight's full cloud-memory restore point "
+                "(records, decisions, learning — photos regenerate). "
+                "If the database ever dies, this file brings it back.\n\n"
+                "Nothing to do — just let it sit in Gmail.",
+                to=["dallon.masterbutler@gmail.com"],
+                attachment=(f"masterbutler-backup-{datetime.now():%Y%m%d}"
+                            ".json.gz", gz))
+            print(f"   cloud backup emailed to Dallon "
+                  f"({len(gz)//1024} KB): {why}")
+        else:                                # Mac → keep the local shelf
+            bdir = Path("data/backups")
+            bdir.mkdir(parents=True, exist_ok=True)
+            out = bdir / f"cloud-{datetime.now():%Y%m%d}.json.gz"
+            out.write_bytes(gz)
+            print(f"   cloud backup -> {out} ({len(gz)//1024} KB)")
+            for o in sorted(bdir.glob("cloud-*.json.gz"))[:-14]:
+                o.unlink()
 except Exception as e:
     print(f"   cloud backup skipped ({e})")
 
