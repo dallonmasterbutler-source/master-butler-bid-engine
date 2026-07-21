@@ -3439,9 +3439,18 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
     # Message-IDs currently in the Gmail inbox (per-message mirror): a
     # record whose own message_id is NOT in here was archived in Gmail by
     # the office = done — works for voicemails & forms, whose sender isn't
-    # the customer so the sender-keyed gmail_state can't cover them. Empty
-    # set ⇒ the mirror hasn't run; treated as "can't vouch", nothing hidden.
-    _gmail_inbox_mids = set(_blob_rw("gmail_inbox_mids", []) or [])
+    # the customer so the sender-keyed gmail_state can't cover them.
+    # TIMESTAMPED (Jul 21 audit): only the dict shape {"at","mids"} is
+    # trusted, and "gone" only counts for records OLDER than the snapshot
+    # — a voicemail newer than the last mirror pass isn't in the set yet
+    # and must NOT be read as archived (it was being hidden for up to
+    # 15 minutes). Missing/legacy blob ⇒ "can't vouch", nothing hidden.
+    _gm_blob = _blob_rw("gmail_inbox_mids", {}) or {}
+    if isinstance(_gm_blob, dict) and _gm_blob.get("at"):
+        _gmail_inbox_mids = set(_gm_blob.get("mids") or [])
+        _gmail_mids_at = _gm_blob["at"]
+    else:
+        _gmail_inbox_mids, _gmail_mids_at = set(), ""
     # 📵 YAHOO/AOL BOUNCE FLAG (Dallon, Jul 16): while the domain's DNS
     # is unauthenticated, mail to Yahoo-run providers bounces — flag
     # those customers to call instead. One switch clears it everywhere
@@ -3670,6 +3679,11 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                    or (nb.get("folder") == "INBOX"
                        and "@" in (nb.get("message_id") or "")
                        and _gmail_inbox_mids
+                       # the record must PREDATE the snapshot — a
+                       # voicemail newer than the last mirror pass isn't
+                       # in the set yet and is NOT archived (Jul 21 audit)
+                       and _stamp_utc(nb["stamp"])
+                       and _stamp_utc(nb["stamp"]) < _gmail_mids_at
                        and nb["message_id"].strip()
                        not in _gmail_inbox_mids))):
             grp = 4

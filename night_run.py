@@ -230,13 +230,13 @@ except Exception as e:
 brief_text = None
 try:
     import digest
-    path, brief_text = digest.write()
+    path, brief_text, brief_html = digest.write()
     print(f"   morning brief -> {path}")
     try:
         import mailer
         ok, why = mailer.send_internal(
             f"☀️ Master Butler morning brief — {datetime.now():%b %d}",
-            brief_text, to=[mailer.DALLON, mailer.TOM])
+            brief_text, to=[mailer.DALLON, mailer.TOM], html=brief_html)
         print(f"   brief emailed to Dallon + Tom: {why}")
     except Exception as e:
         print(f"   (brief email skipped: {e})")

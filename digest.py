@@ -68,16 +68,17 @@ def build_data():
     # robots/internal/spam sit in the drawer, not the morning number
     new_requests = [b for b in queue if b.get("kind") == "new_request"]
     oldest = max((b["age_hours"] for b in queue), default=0)
-    sec("📥", f"Queue: {len(queue)} waiting",
-        f"{len(new_requests)} real requests · oldest {oldest:.0f}h"
-        + ("  ⚠ past 24h SLA" if oldest >= 24 else ""),
+    # NEUTRAL TONE (Dallon, Jul 21): the brief informs, it never tells the
+    # office what to do or implies they're behind — just the facts.
+    sec("📥", f"Inbox: {len(queue)} open",
+        f"{len(new_requests)} new request(s) · oldest {oldest:.0f}h",
         [f"{(b['from'] or '')[:44]} — {b.get('kind')}"
-         + (" ⚠ alert" if b.get("office_alert") else "")
-         + (" [dup?]" if b.get("duplicate_of") else "")
+         + (" · change requested" if b.get("office_alert") else "")
+         + (" · possible duplicate" if b.get("duplicate_of") else "")
          + f" ({b['age_hours']:.0f}h)" for b in queue[:8]])
 
     if resurfaced:
-        sec("⏰", "Back from hold — answer these first", "",
+        sec("⏰", f"Back from hold ({len(resurfaced)})", "",
             [f"{h.get('customer', s)} — {h.get('hold_reason')}"
              for s, h in resurfaced.items()])
 
@@ -122,8 +123,8 @@ def build_data():
                 nudge.append((age, r))
         if nudge:
             nudge.sort(reverse=True, key=lambda x: x[0])
-            sec("📤", f"Quotes gone quiet ({len(nudge)}) — worth a nudge",
-                "sent, no customer response, 5+ days",
+            sec("📤", f"Open quotes, no reply yet ({len(nudge)})",
+                "sent 5+ days ago",
                 [f"{(r.get('customer') or '?')[:32]} — "
                  f"${r['office_total']:,.0f} · quote "
                  f"#{r['office_quote']} · {age}d since request"
@@ -133,8 +134,8 @@ def build_data():
         due = (db._blob_rw("due_soon", []) or [])
         if due:
             sec("📅", f"Due for their annual: {len(due)} customers",
-                f"${sum(r['lifetime'] for r in due):,} lifetime value "
-                "inside their own service window — see Win-back",
+                f"${sum(r['lifetime'] for r in due):,} lifetime value · "
+                "in their usual service window",
                 [f"{r['name'][:28]} — last {r['last']} "
                  f"(${r['last_total']:,}), ${r['lifetime']:,} lifetime"
                  for r in due[:5]])
@@ -169,6 +170,46 @@ def build_data():
         pass
     if glance:
         sec("👀", "At a glance", "", glance)
+
+    # 🎓 WHAT THE SYSTEM LEARNED FROM THE OFFICE (Dallon, Jul 21: 'a small
+    # section showing what the brain learned from their hard work — it
+    # shows how valuable they are'). Real numbers only, never flattery:
+    # the system is only as good as the office's corrections, and this
+    # makes that visible.
+    try:
+        from datetime import timedelta as _td7
+        wk = (datetime.now() - _td7(days=7)).date().isoformat()
+        learned = []
+        revs = db.load_reviews()
+        taught = [r for r in revs if (r.get("at") or "")[:10] >= wk
+                  and (r.get("reason") or r.get("note"))
+                  and (r.get("action") or "") in
+                  ("adjusted", "price_edit", "combined", "duplicate_same",
+                   "duplicate_new", "lane_move", "customer_flag",
+                   "escalated", "must_know")]
+        if taught:
+            learned.append(
+                f"You corrected or filed {len(taught)} thing(s) this week — "
+                "the system studies every one and adjusts.")
+        n_spam = len(db._learned_spam() or [])
+        if n_spam:
+            learned.append(
+                f"{n_spam} junk sender(s) you've flagged now get filtered "
+                "automatically, so they stay out of your inbox for good.")
+        if sb:
+            _m = [r for r in sb["rows"] if r.get("gap_pct") is not None]
+            if len(_m) >= 5:
+                _c = round(sum(1 for r in _m if abs(r["gap_pct"]) <= 10)
+                           / len(_m) * 100)
+                learned.append(
+                    f"The system's quotes now land within 10% of yours on "
+                    f"{_c}% of bids — because it's calibrated to how YOU "
+                    "price, not a generic formula.")
+        if learned:
+            sec("🎓", "What the system learned from you",
+                "it's smart because you taught it", learned)
+    except Exception:
+        pass
 
     try:                       # tomorrow's day sheets, precomputed
         from datetime import timedelta
@@ -238,7 +279,7 @@ def build():
     d = build_data()
     lines = [f"MASTER BUTLER — MORNING BRIEF · {d['date']}", "=" * 56, ""]
     if d["pin"]:
-        lines.append("📌 FOR THE OFFICE THIS MORNING:")
+        lines.append("📌 NOTES:")
         for b in d["pin"]:
             lines.append(f"  · {b}")
         lines += ["", "=" * 56, ""]
@@ -253,15 +294,112 @@ def build():
     return "\n".join(lines)
 
 
+# sections that are Dallon-only plumbing — the office shouldn't have to
+# read past them. Everything else is office-facing.
+_DALLON_ONLY = {"Standing flags for Dallon"}
+
+
+def _esc(s):
+    return (str(s).replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;"))
+
+
+def build_html(data=None):
+    """The brief as a scannable HTML email (Dallon, Jul 21: 'a huge block
+    of text that was hard for the office to understand'). Reuses the same
+    build_data() structure the dashboard's Brief tab renders — clean
+    cards, one glanceable number per section, office info first and
+    Dallon's plumbing fenced off at the bottom. Email-safe: inline styles
+    only, table-centered, no fl* layout."""
+    d = data or build_data()
+    G, GOLD, INK, MUT, LINE, BG = ("#1f6b47", "#b8860b", "#16211b",
+                                   "#5c6b62", "#e2e7e1", "#f4f6f3")
+
+    def card(s, dallon=False):
+        acc = GOLD if dallon else G
+        items = ""
+        for it in s["items"]:
+            items += (
+                f"<tr><td style='padding:5px 0;border-top:1px solid {LINE};"
+                f"font-size:14px;line-height:1.45;color:{INK}'>"
+                f"{_esc(it)}</td></tr>")
+        sub = (f"<div style='font-size:13px;color:{MUT};margin-top:2px'>"
+               f"{_esc(s['sub'])}</div>" if s.get("sub") else "")
+        body = (f"<table width='100%' cellpadding='0' cellspacing='0' "
+                f"style='margin-top:8px'>{items}</table>" if s["items"]
+                else "")
+        return (
+            f"<tr><td style='padding:16px 20px'>"
+            f"<table width='100%' cellpadding='0' cellspacing='0'>"
+            f"<tr><td style='font-size:20px;width:30px;vertical-align:top'>"
+            f"{s['icon']}</td>"
+            f"<td><div style='font-size:16px;font-weight:700;color:{acc}'>"
+            f"{_esc(s['title'])}</div>{sub}{body}</td></tr></table>"
+            f"</td></tr>")
+
+    office = [s for s in d["sections"] if s["title"] not in _DALLON_ONLY]
+    dallon = [s for s in d["sections"] if s["title"] in _DALLON_ONLY]
+
+    pin = ""
+    if d["pin"]:
+        rows = "".join(
+            f"<div style='font-size:14.5px;line-height:1.5;color:{INK};"
+            f"margin:3px 0'>• {_esc(b)}</div>" for b in d["pin"])
+        pin = (f"<tr><td style='padding:14px 20px'>"
+               f"<table width='100%' cellpadding='0' cellspacing='0' "
+               f"style='background:#f7efd8;border:1px solid #e8d9a8;"
+               f"border-radius:10px'><tr><td style='padding:12px 15px'>"
+               f"<div style='font-size:12px;font-weight:800;color:{GOLD};"
+               f"text-transform:uppercase;letter-spacing:.5px;"
+               f"margin-bottom:6px'>📌 Notes</div>"
+               f"{rows}</td></tr></table></td></tr>")
+
+    divider = ("" if not dallon else
+               f"<tr><td style='padding:18px 20px 4px'>"
+               f"<div style='border-top:1px solid {LINE};padding-top:10px;"
+               f"font-size:11px;font-weight:800;color:{MUT};"
+               f"text-transform:uppercase;letter-spacing:1px'>"
+               f"— just for Dallon —</div></td></tr>")
+
+    return (
+        f"<!doctype html><html><body style='margin:0;background:{BG};'>"
+        f"<table width='100%' cellpadding='0' cellspacing='0' "
+        f"style='background:{BG};padding:24px 12px'>"
+        f"<tr><td align='center'>"
+        f"<table width='600' cellpadding='0' cellspacing='0' "
+        f"style='max-width:600px;background:#fff;border-radius:14px;"
+        f"overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"
+        f"Segoe UI,Roboto,Helvetica,Arial,sans-serif;"
+        f"box-shadow:0 1px 3px rgba(16,33,27,.08)'>"
+        # header
+        f"<tr><td style='background:{G};padding:18px 20px'>"
+        f"<div style='font-size:12px;color:#cfe6d9;font-weight:700;"
+        f"text-transform:uppercase;letter-spacing:1px'>Master Butler</div>"
+        f"<div style='font-size:22px;color:#fff;font-weight:800'>"
+        f"☀️ Morning Brief</div>"
+        f"<div style='font-size:13px;color:#cfe6d9'>{_esc(d['date'])}</div>"
+        f"</td></tr>"
+        + pin
+        + "".join(card(s) for s in office)
+        + divider
+        + "".join(card(s, dallon=True) for s in dallon)
+        + f"<tr><td style='padding:14px 20px;background:{BG};"
+        f"font-size:11px;color:{MUT};text-align:center'>"
+        f"Master Butler bidding system · generated overnight</td></tr>"
+        f"</table></td></tr></table></body></html>")
+
+
 def write():
     BRIEFS.mkdir(parents=True, exist_ok=True)
+    data = build_data()
     text = build()
+    html = build_html(data)
     path = BRIEFS / f"brief-{datetime.now():%Y%m%d}.txt"
     path.write_text(text)
-    return path, text
+    return path, text, html
 
 
 if __name__ == "__main__":
-    path, text = write()
+    path, text, html = write()
     print(text)
     print(f"(saved -> {path})")

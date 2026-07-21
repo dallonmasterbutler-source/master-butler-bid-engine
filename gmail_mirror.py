@@ -243,7 +243,13 @@ def api_state_sync(verbose=True):
     # office in Gmail = done, no matter who it came from. Only written when
     # the inbox read succeeded (we returned early otherwise), so it's never
     # a stale/empty set that would mass-hide rows.
-    clouddb.put_blob("gmail_inbox_mids", sorted(inbox_msgids))
+    # TIMESTAMPED (Jul 21 audit): the snapshot must carry WHEN it was
+    # taken — a voicemail that arrives AFTER the last mirror pass isn't in
+    # the set yet, and without the timestamp the dashboard read "absent"
+    # as "archived" and hid brand-new voicemails for up to 15 minutes.
+    # The dashboard only trusts "gone" for records OLDER than `at`.
+    clouddb.put_blob("gmail_inbox_mids", {"at": now,
+                                          "mids": sorted(inbox_msgids)})
     if verbose:
         cts = {}
         for v in state.values():
