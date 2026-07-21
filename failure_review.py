@@ -64,17 +64,31 @@ def _customer_emails(clouddb):
     return ok
 
 
-def _time_section(now, customers=None, gmail_done=()):
+def _time_section(now, customers=None, gmail_done=(), spam_senders=()):
     """Inbound → first reply latency, 30 days. Threads the office
     finished in Gmail (trash) or answered via a Jobber quote email
-    don't count as ignored — no EMAIL reply is not no reply."""
+    don't count as ignored — no EMAIL reply is not no reply. SPAM never
+    counts as a missed customer either (Jessica #17: Elaine Delaney was
+    flagged as 'never replied' — she was a solicitation we correctly
+    ignored)."""
     import msglog
+    import spam_filter
     lat, unanswered, jobber_answered = [], [], []
     for addr, name, msgs in msglog.threads():
         a = (addr or "").lower()
         if not a or a.startswith("vm:") or any(x in a for x in INTERNAL):
             continue
         if customers is not None and a not in customers:
+            continue
+        # SPAM is not a missed lead — skip office-taught junk senders and
+        # anything the solicitation/robot filter flags (uses the newest
+        # inbound's words). We never owed them a reply.
+        if any(s and s in a for s in spam_senders):
+            continue
+        _li = next((m for m in reversed(msgs)
+                    if m.get("dir") == "in"), None)
+        if _li and spam_filter.looks_spam(
+                a, _li.get("subject"), _li.get("body"))[0]:
             continue
         pend = None
         for m in msgs:
@@ -266,7 +280,8 @@ def run(verbose=False):
              now, _customer_emails(clouddb),
              {e for e, s in (clouddb.get_blob("gmail_state")
                              or {}).items()
-              if (s or {}).get("state") == "done"}),
+              if (s or {}).get("state") == "done"},
+             spam_senders=tuple(clouddb.get_blob("learned_spam") or [])),
          "bids": _bids_section(clouddb),
          "facts": _facts_section(clouddb),
          "language": _language_section(clouddb),
