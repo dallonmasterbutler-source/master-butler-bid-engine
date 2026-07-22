@@ -72,6 +72,17 @@ g, _ = ms._gmail_verdict(
     {"at": "2099-01-01T00:00:00+00:00", "mids": [REC["message_id"]]})
 check("...but NOT while the mid still sits in the inbox", not g)
 
+print("── Gmail verdict: aliased customer (state is raw-keyed) ──")
+_state = {"a@x.com": {"state": "done", "at": "2099-01-01T00:00:00+00:00"},
+          "b@x.com": {"state": "unread", "at": "2099-01-01T00:00:00+00:00"}}
+g, _ = ms._gmail_verdict(["a@x.com", "b@x.com"], [REC], _state, {})
+check("secondary address unread → NOT filed (primary 'done' ignored)",
+      not g)
+g, _ = ms._gmail_verdict(
+    ["a@x.com", "b@x.com"], [REC],
+    {"a@x.com": {"state": "done", "at": "2099-01-01T00:00:00+00:00"}}, {})
+check("one raw address missing from state → can't vouch", not g)
+
 print("── Jobber verdict: approved quote with no quote date ──")
 import jobber_client as jc
 _orig = jc.client_jobs

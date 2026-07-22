@@ -32,6 +32,12 @@ def _database_url():
 
 
 def available():
+    # MB_SANDBOX blocks the HTTP courier (cloudpush) but direct DB writes
+    # sailed straight past it — a trials run on any machine whose .env
+    # carried DATABASE_URL could overwrite live office blobs (Jul 21
+    # night sweep). Sandbox = file mode, full stop.
+    if os.environ.get("MB_SANDBOX"):
+        return False
     if not _database_url():
         return False
     try:
@@ -85,14 +91,26 @@ _TTL = 45      # was 10 (Jul 21 perf hunt): every office click 20s apart
                # still show INSTANTLY; only cross-process writes (the
                # nightly cron) can lag by up to 45s, which is nothing.
 _CACHE = {}                       # key -> (fetched_at, value)
+# Write-generation counter (Jul 21 night sweep): three threads share this
+# cache (HTTP server, poller, background sweep). Without it, a read that
+# was IN FLIGHT when a write invalidated its key would store its pre-write
+# snapshot with a fresh timestamp — hiding the office's own action for up
+# to 45s, exactly what the TTL comment above promises can't happen.
+_GEN = [0]
+
+
+def _bump():
+    _GEN[0] += 1
 
 
 def _cached(key, fn):
     hit = _CACHE.get(key)
     if hit and time.time() - hit[0] < _TTL:
         return hit[1]
+    gen = _GEN[0]
     v = fn()
-    _CACHE[key] = (time.time(), v)
+    if _GEN[0] == gen:            # no write raced this fetch — safe to keep
+        _CACHE[key] = (time.time(), v)
     return v
 
 
@@ -104,6 +122,17 @@ def ingest_shadow(stamp, record):
           "ON CONFLICT (stamp) DO UPDATE SET record = EXCLUDED.record",
           (stamp, json.dumps(record)))
     _CACHE.pop("shadow", None)
+    _bump()
+
+
+def get_shadow(stamp):
+    """ONE record, fresh from the DB (no cache) — for read-modify-write
+    callers that must not base their write on a minutes-old snapshot
+    (Jul 21 night sweep: the delta backfill clobbered office edits made
+    mid-pass with loop-start copies)."""
+    row = _exec("SELECT record FROM shadow_records WHERE stamp = %s",
+                (stamp,), fetch="one")
+    return dict(row[0]) if row else None
 
 
 def all_shadow():
@@ -145,6 +174,7 @@ def add_review(entry):
     _exec("INSERT INTO review_log (entry) VALUES (%s)",
           (json.dumps(entry),))
     _CACHE.pop("reviews", None)
+    _bump()
 
 
 def all_reviews():
@@ -182,7 +212,24 @@ def put_blob(key, value):
     _exec("INSERT INTO kv_blobs (key, value) VALUES (%s, %s) "
           "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "
           "updated_at = now()", (key, json.dumps(value)))
+    _bump()
     _CACHE[f"blob:{key}"] = (time.time(), copy.deepcopy(value))
+
+
+def merge_blob(key, updates):
+    """Atomically fold {k: v} pairs into a JSON-object blob IN THE
+    DATABASE (jsonb ||) — no read-modify-write, so concurrent writers
+    (dashboard clicks, hourly sweep thread, the nightly's separate
+    process) can never overwrite each other's additions (Jul 21 night
+    sweep: the cleared/msg_read lost-update races)."""
+    if not updates:
+        return
+    _exec("INSERT INTO kv_blobs (key, value) VALUES (%s, %s) "
+          "ON CONFLICT (key) DO UPDATE SET "
+          "value = kv_blobs.value || EXCLUDED.value, updated_at = now()",
+          (key, json.dumps(updates)))
+    _CACHE.pop(f"blob:{key}", None)
+    _bump()
 
 
 def get_blob(key):

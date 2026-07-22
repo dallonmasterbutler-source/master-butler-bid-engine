@@ -51,8 +51,12 @@ try:
         except Exception as e:
             print(f"   (learning-record update skipped: {e})")
     for row in matched:
-        print(f"     {row['customer'][:34]:<34} sys ${row['system_total']:.0f}"
-              f" / office ${row['office_total']:.0f} ({row['gap_pct']:+.0f}%)")
+        # None-guarded like the digest (a None total here TypeError'd the
+        # step and masked the real log line — Jul 21 night sweep)
+        print(f"     {(row.get('customer') or '?')[:34]:<34} "
+              f"sys ${row.get('system_total') or 0:.0f}"
+              f" / office ${row.get('office_total') or 0:.0f} "
+              f"({row.get('gap_pct') or 0:+.0f}%)")
 except Exception as e:
     print(f"   skipped ({e})")
 
@@ -217,6 +221,12 @@ try:
             headers={"Authorization": "Basic "
                      + b64encode(f"office:{pw}".encode()).decode()})
         raw = urllib.request.urlopen(req, timeout=300).read()
+        # a dump this small is no restore point (an unreachable DB
+        # returns '{}' — gzipping and mailing that as 'the full backup'
+        # is a quiet lie; Jul 21 night sweep)
+        if len(raw) < 10_000:
+            raise RuntimeError(f"dump suspiciously small ({len(raw)} B) "
+                               "— NOT a restore point, not emailed")
         gz = gzip.compress(raw)
         if _os.environ.get("RENDER"):        # cloud → email it off-site
             import mailer
@@ -229,8 +239,12 @@ try:
                 to=["dallon.masterbutler@gmail.com"],
                 attachment=(f"masterbutler-backup-{datetime.now():%Y%m%d}"
                             ".json.gz", gz))
-            print(f"   cloud backup emailed to Dallon "
-                  f"({len(gz)//1024} KB): {why}")
+            if ok:
+                print(f"   cloud backup emailed to Dallon "
+                      f"({len(gz)//1024} KB): {why}")
+            else:
+                print(f"   ⚠️ CLOUD BACKUP EMAIL FAILED — no restore "
+                      f"point tonight ({len(gz)//1024} KB ready): {why}")
         else:                                # Mac → keep the local shelf
             bdir = Path("data/backups")
             bdir.mkdir(parents=True, exist_ok=True)

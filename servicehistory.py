@@ -113,7 +113,7 @@ def _looks_discounted(line_name):
     return bool(_DISC_RX.search(line_name or ""))
 
 
-def sweep(limit=100000):
+def sweep(limit=100000, publish=True):
     jc.DRY_RUN = False
     by_prop, by_client = {}, {}
     factors = _discount_factors()
@@ -184,12 +184,18 @@ def sweep(limit=100000):
     print(f"scanned {scanned} invoices → {len(by_prop)} properties, "
           f"{len(by_client)} clients → {path} "
           f"({undiscounted} discounted invoices scaled to pre-discount)")
-    try:
-        from cloudpush import push
-        push(blobs={"service_history": out})
-        print("mirrored to the cloud dashboard")
-    except Exception as e:
-        print(f"(cloud mirror skipped: {e})")
+    # publish=False when called from refresh(): pushing the recent-only
+    # sweep here left the cloud's multi-year blob TRUNCATED to ~120
+    # invoices until the merge below re-pushed it — and a crash or the
+    # 9pm cron/web overlap in that window made the truncation permanent
+    # (Jul 21 night sweep; same family as the '#33 YoY vanished' bug)
+    if publish:
+        try:
+            from cloudpush import push
+            push(blobs={"service_history": out})
+            print("mirrored to the cloud dashboard")
+        except Exception as e:
+            print(f"(cloud mirror skipped: {e})")
     return out
 
 
@@ -207,12 +213,31 @@ def refresh(recent=120):
     Merging into load_history() preserves every prior year on both hosts."""
     path = Path("data") / "service_history.json"
     old = load_history()               # Mac file OR cloud blob — years intact
-    sweep(limit=recent)                # writes a recent-only file (+recent blob)
+    sweep(limit=recent, publish=False)  # recent-only file; blob untouched
     try:
         new = json.loads(path.read_text())
     except Exception:
         new = {}
-    if not old:                        # first-ever run — the sweep IS the history
+    if not old:
+        # EMPTY base can mean 'first-ever run' — or a transient DB error
+        # (load_history swallows those and returns {}). Seeding on an
+        # error night would discard years of archive (Jul 21 night
+        # sweep), so re-check the cloud directly before believing it.
+        try:
+            import clouddb
+            if clouddb.available() and clouddb.get_blob("service_history"):
+                print("service history refresh ABORTED — base read failed "
+                      "but a cloud archive exists (left untouched)")
+                return
+        except Exception:
+            print("service history refresh ABORTED — cloud unreachable "
+                  "(archive left untouched)")
+            return
+        try:
+            from cloudpush import push
+            push(blobs={"service_history": new})
+        except Exception:
+            pass
         print(f"service history seeded (recent {recent} invoices)")
         return
     for side in ("by_property", "by_client"):

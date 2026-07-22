@@ -79,13 +79,18 @@ def sync(verbose=False):
             # has no createdAt, and replacing the ctx erased `created` —
             # which the 90-day stale-quote review flag depends on. Keep
             # every field the delta doesn't refresh (created, via, …).
-            rec["open_quote_ctx"] = {**ctx,
+            # WRITE ON A FRESH COPY (Jul 21 night sweep): writing back
+            # the loop-start `rec` reverted any office edit made while
+            # this pass ran.
+            fresh = clouddb.get_shadow(stamp) or rec
+            fctx = fresh.get("open_quote_ctx") or ctx
+            fresh["open_quote_ctx"] = {**fctx,
                 "number": q.get("quoteNumber"),
                 "status": new_status,
                 "total": (q.get("amounts") or {}).get("total"),
                 "url": q.get("jobberWebUri"),
-                "lines": ctx.get("lines") or []}
-            clouddb.ingest_shadow(stamp, rec)
+                "lines": fctx.get("lines") or []}
+            clouddb.ingest_shadow(stamp, fresh)
             updated += 1
             break
     if verbose:
@@ -169,7 +174,15 @@ def backfill_drafts(verbose=False):
             if status == "draft" or (newest.get("createdAt")
                                      or "")[:10] < cutoff:
                 continue                 # old history ≠ this request
-            rec["open_quote_ctx"] = {
+            # WRITE ON A FRESH COPY (Jul 21 night sweep): this pass makes
+            # one Jobber call per candidate — minutes of loop time. The
+            # loop-start `rec` is stale by now; writing it back reverted
+            # office edits (mark-spam, merges, price edits) made mid-pass.
+            fresh = clouddb.get_shadow(stamp) or rec
+            if fresh.get("merged_into") or fresh.get("reviewed") \
+                    or fresh.get("spam_auto"):
+                continue                 # the office handled it mid-pass
+            fresh["open_quote_ctx"] = {
                 "number": newest.get("quoteNumber"),
                 "status": newest.get("quoteStatus"),
                 "total": (newest.get("amounts") or {}).get("total"),
@@ -177,7 +190,7 @@ def backfill_drafts(verbose=False):
                 "created": (newest.get("createdAt") or "")[:10],
                 "lines": [],
                 "via": "backfill (office quoted directly in Jobber)"}
-            clouddb.ingest_shadow(stamp, rec)
+            clouddb.ingest_shadow(stamp, fresh)
             updated += 1
             if verbose:
                 print(f"  linked {em} → #{newest.get('quoteNumber')} "

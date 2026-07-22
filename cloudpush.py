@@ -115,6 +115,11 @@ def push_or_queue(stamp, record):
         push(records=[(stamp, record)], photos=gather_photos(stamp, record))
         return True
     except Exception:
+        # a SANDBOX refusal must not queue either — the trial-mutated
+        # record would sit in pending_cloud/ and the next REAL poller
+        # cycle would flush it to production (Jul 21 night sweep)
+        if os.environ.get("MB_SANDBOX"):
+            return False
         PENDING.mkdir(parents=True, exist_ok=True)
         (PENDING / f"{stamp}.json").write_text(json.dumps(record))
         return False
@@ -139,7 +144,9 @@ def flush_pending():
     """Retry everything that queued while offline. Returns count sent."""
     if not PENDING.exists():
         return 0
-    sent = 0
+    if os.environ.get("MB_SANDBOX"):
+        return 0             # sandbox never ships queued work anywhere
+    sent = failed = 0
     for p in sorted(PENDING.glob("*.json")):
         try:
             rec = json.loads(p.read_text())
@@ -147,5 +154,10 @@ def flush_pending():
             p.unlink()
             sent += 1
         except Exception:
-            break            # still unreachable — try again next time
+            # keep going: one poison record (payload too big, a 400) used
+            # to `break` and jam EVERY record queued after it, forever
+            # (Jul 21 night sweep). Cap the wasted attempts per pass.
+            failed += 1
+            if failed >= 5:
+                break        # server likely down — try again next time
     return sent

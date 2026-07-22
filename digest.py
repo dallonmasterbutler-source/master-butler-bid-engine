@@ -28,15 +28,17 @@ def build_data():
 
     pin = BASE / "data" / "brief_pin.txt"
     txt = ""
-    if pin.exists():
-        txt = pin.read_text()
-    else:
-        try:                       # the cloud has no files — blob copy
+    try:
+        if pin.exists():
+            txt = pin.read_text()
+        else:                      # the cloud has no files — blob copy
             import clouddb
             if clouddb.available():
                 txt = clouddb.get_blob("brief_pin") or ""
-        except Exception:
-            pass
+    except Exception:
+        pass
+    if not isinstance(txt, str):   # a non-string blob must not kill the brief
+        txt = ""
     if txt.strip():
         # the pin file is hand-written with '· ' bullets over wrapped
         # lines — reflow into one string per bullet
@@ -60,27 +62,34 @@ def build_data():
         data["sections"].append({"icon": icon, "title": title,
                                  "sub": sub, "items": items or []})
 
-    bids = db.load_bids()
-    live_holds, resurfaced = db.active_holds()
-    queue = [b for b in bids if not b["reviewed"]
-             and b["stamp"] not in live_holds
-             and db.classify_row(b)[0] == "main"]  # office work only —
-    # robots/internal/spam sit in the drawer, not the morning number
-    new_requests = [b for b in queue if b.get("kind") == "new_request"]
-    oldest = max((b["age_hours"] for b in queue), default=0)
-    # NEUTRAL TONE (Dallon, Jul 21): the brief informs, it never tells the
-    # office what to do or implies they're behind — just the facts.
-    sec("📥", f"Inbox: {len(queue)} open",
-        f"{len(new_requests)} new request(s) · oldest {oldest:.0f}h",
-        [f"{(b['from'] or '')[:44]} — {b.get('kind')}"
-         + (" · change requested" if b.get("office_alert") else "")
-         + (" · possible duplicate" if b.get("duplicate_of") else "")
-         + f" ({b['age_hours']:.0f}h)" for b in queue[:8]])
+    # FENCED like every later section (Jul 21 night sweep: these first
+    # sections had no fence, so one malformed record — a missing 'from',
+    # a hold row without a stamp, a transient DB error — killed the
+    # ENTIRE brief email while later sections were bulletproof)
+    try:
+        bids = db.load_bids()
+        live_holds, resurfaced = db.active_holds()
+        queue = [b for b in bids if not b.get("reviewed")
+                 and b.get("stamp") not in live_holds
+                 and db.classify_row(b)[0] == "main"]  # office work only —
+        # robots/internal/spam sit in the drawer, not the morning number
+        new_requests = [b for b in queue if b.get("kind") == "new_request"]
+        oldest = max((b.get("age_hours") or 0 for b in queue), default=0)
+        # NEUTRAL TONE (Dallon, Jul 21): the brief informs, it never tells
+        # the office what to do or implies they're behind — just the facts.
+        sec("📥", f"Inbox: {len(queue)} open",
+            f"{len(new_requests)} new request(s) · oldest {oldest:.0f}h",
+            [f"{(b.get('from') or '')[:44]} — {b.get('kind')}"
+             + (" · change requested" if b.get("office_alert") else "")
+             + (" · possible duplicate" if b.get("duplicate_of") else "")
+             + f" ({b.get('age_hours') or 0:.0f}h)" for b in queue[:8]])
 
-    if resurfaced:
-        sec("⏰", f"Back from hold ({len(resurfaced)})", "",
-            [f"{h.get('customer', s)} — {h.get('hold_reason')}"
-             for s, h in resurfaced.items()])
+        if resurfaced:
+            sec("⏰", f"Back from hold ({len(resurfaced)})", "",
+                [f"{h.get('customer', s)} — {h.get('hold_reason')}"
+                 for s, h in resurfaced.items()])
+    except Exception as _e:
+        sec("📥", "Inbox: (section unavailable)", str(_e)[:80])
 
     try:
         sb = (db.clouddb.get_blob("scoreboard")
@@ -248,13 +257,19 @@ def build_data():
     except Exception:
         pass
 
-    reviews = db.load_reviews()
-    today = datetime.now().date().isoformat()
-    recent = [r for r in reviews if (r.get("at") or "").startswith(today)]
-    if recent:
-        taught = [r for r in recent if r.get("reason") or r.get("note")]
-        sec("✅", f"Decisions logged today: {len(recent)}",
-            f"{len(taught)} came with a teaching reason" if taught else "")
+    try:
+        reviews = db.load_reviews()
+        today = datetime.now().date().isoformat()
+        recent = [r for r in reviews
+                  if (r.get("at") or "").startswith(today)]
+        if recent:
+            taught = [r for r in recent
+                      if r.get("reason") or r.get("note")]
+            sec("✅", f"Decisions logged today: {len(recent)}",
+                f"{len(taught)} came with a teaching reason"
+                if taught else "")
+    except Exception:
+        pass
 
     try:
         flagged = db.flagged_for_review()

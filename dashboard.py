@@ -20,6 +20,7 @@ Run:  python3 dashboard.py     then open  http://localhost:8765
 Local prototype — reads/writes the repo's data/ folder only.
 """
 
+import copy
 import json
 import re
 import time as _time
@@ -284,6 +285,15 @@ def classify_row(rec):
     # often come through as 'other'; hiding a customer is the one
     # unforgivable failure).
     return "main", None
+
+
+def _shadow_rec(stamp):
+    """ONE record as a DEEP copy — the cached shadow rows share their
+    nested dicts (draft, services, notes); handlers that mutate a record
+    in place were tearing the copy every other thread renders from and
+    leaving phantom edits in the cache when a write failed (Jul 21
+    night sweep). Single-record deepcopy is microseconds."""
+    return copy.deepcopy(dict(_shadow_source()).get(stamp))
 
 
 def _shadow_source():
@@ -11371,7 +11381,7 @@ class Handler(BaseHTTPRequestHandler):
             # approving AFTER editing prices = an 'adjusted' decision —
             # the calibration ledger learns from the edit, automatically
             if get("action") == "approve":
-                _rec0 = dict(_shadow_source()).get(get("stamp")) or {}
+                _rec0 = _shadow_rec(get("stamp")) or {}
                 if any(s.get("orig_price") is not None for s in
                        (((_rec0.get("draft") or {}).get("bid") or {})
                         .get("services") or [])):
@@ -11383,7 +11393,7 @@ class Handler(BaseHTTPRequestHandler):
             if get("action") == "approve" and (
                     _push_enabled()
                     or get("stamp") in _blob_rw("push_allow", [])):
-                _rec_g = dict(_shadow_source()).get(get("stamp")) or {}
+                _rec_g = _shadow_rec(get("stamp")) or {}
                 _oqg = _rec_g.get("open_quote_ctx") or {}
                 # block a second quote only when one is genuinely LIVE
                 # (open or approved) — archived/converted quotes are
@@ -11434,7 +11444,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_header("Location", f"/bid/{get('stamp')}")
                     self.end_headers()
                     return
-                rec = dict(_shadow_source()).get(get("stamp")) or {}
+                rec = _shadow_rec(get("stamp")) or {}
                 d = rec.get("draft")
                 if rec.get("dns_match"):     # HARD BLOCK, even when live
                     entry["note"] = ("REFUSED: do-not-service match — "
@@ -11605,7 +11615,7 @@ class Handler(BaseHTTPRequestHandler):
                               if m.get("stamp")), None)
                 ctx = ""
                 if stamp:
-                    rec = dict(_shadow_source()).get(stamp) or {}
+                    rec = _shadow_rec(stamp) or {}
                     d = rec.get("draft") or {}
                     if d.get("total"):
                         ctx = (f"Our draft quote for them totals "
@@ -11894,7 +11904,7 @@ class Handler(BaseHTTPRequestHandler):
             # corrects pitch/stories/debris/roof → draft reprices AND
             # the house remembers the correction forever (facts_edit).
             stamp_ = get("stamp")
-            rec_ = dict(_shadow_source()).get(stamp_)
+            rec_ = _shadow_rec(stamp_)
             if not rec_:
                 return self._send(b"record not found", 404)
             edits = {k: get(k) for k in
@@ -11971,7 +11981,7 @@ class Handler(BaseHTTPRequestHandler):
             # so calibration compares office-final vs SYSTEM, not vs
             # the office's own edit.
             stamp = get("stamp")
-            rec = dict(_shadow_source()).get(stamp)
+            rec = _shadow_rec(stamp)
             bid_d = ((rec or {}).get("draft") or {}).get("bid") or {}
             svcs = bid_d.get("services") or []
             changes = []
@@ -12033,7 +12043,7 @@ class Handler(BaseHTTPRequestHandler):
             # ON-DEMAND aerial measure (older records lack the persisted
             # reads): one Vision survey (~2¢) → real PW areas + debris.
             stamp = get("stamp")
-            rec = dict(_shadow_source()).get(stamp)
+            rec = _shadow_rec(stamp)
             if rec and rec.get("address"):
                 try:
                     from aerial import cross_check
@@ -12108,7 +12118,7 @@ class Handler(BaseHTTPRequestHandler):
             # price the checked service(s) from the record and append —
             # no full pipeline re-run.
             stamp = get("stamp")
-            rec = dict(_shadow_source()).get(stamp)
+            rec = _shadow_rec(stamp)
             picked = [s for s in form.get("svc", []) if s]
             all_added, all_names = [], []
             if rec and picked and not rec.get("dns_match"):
@@ -12265,7 +12275,7 @@ class Handler(BaseHTTPRequestHandler):
                 _blob_save("tom_days", days)
                 st2 = get("stamp")
                 if st2:
-                    rec2 = dict(_shadow_source()).get(st2)
+                    rec2 = _shadow_rec(st2)
                     if rec2:
                         (rec2.setdefault("draft", {})
                          .setdefault("notes", [])).append(
@@ -12743,7 +12753,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
         elif self.path == "/combine":
             if _push_enabled():
-                rec_src = dict(_shadow_source()).get(get("stamp")) or {}
+                rec_src = _shadow_rec(get("stamp")) or {}
                 lines = ((rec_src.get("draft") or {}).get("bid") or {}) \
                     .get("services") or []
                 if lines:
@@ -12766,7 +12776,7 @@ class Handler(BaseHTTPRequestHandler):
             # office's choice actually mutates the record.
             _vd = get("verdict")
             _st = get("stamp")
-            _rec = dict(_shadow_source()).get(_st)
+            _rec = _shadow_rec(_st)
             if _rec:
                 if _vd == "duplicate_same":
                     _rec["merged_into"] = get("linked")   # hide it; primary lives

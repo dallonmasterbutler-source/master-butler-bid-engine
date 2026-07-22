@@ -152,6 +152,12 @@ def send_internal(subject, body, to=(TOM, DALLON), html=None,
         return ok, why
     # SMTP blocked here (Render free tier blocks mail ports): queue the
     # message in the cloud DB; the Mac relays it next time it checks in.
+    # NEVER queue a message that carries an attachment — the outbox only
+    # stores subject/body, so the relay would deliver a 'backup attached'
+    # email with NO backup while the log claimed success (Jul 21 night
+    # sweep). A loud failure the caller must handle beats a quiet lie.
+    if attachment:
+        return False, f"SEND FAILED — attachment NOT queued ({why})"
     queued = _queue_outbox(subject, body, to)
     return False, (f"queued for Mac relay ({why})" if queued
                    else f"send failed, queue failed ({why})")

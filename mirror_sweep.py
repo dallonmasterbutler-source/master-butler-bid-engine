@@ -38,6 +38,7 @@ demand via POST /mirror_sweep (the office/Dallon can trigger a pass).
 
 import json
 import re
+import threading
 import time
 from datetime import datetime, timezone
 
@@ -88,9 +89,17 @@ def _jobber_verdict(email, newest_ctx, sleep_s=2.0):
     return False, f"quote #{number} status '{status}' (left alone)", False
 
 
-def _gmail_verdict(email, recs, gmail_state, mids_blob):
-    """(done?, evidence) from Gmail's point of view."""
+def _gmail_verdict(raws, recs, gmail_state, mids_blob):
+    """(done?, evidence) from Gmail's point of view. `raws` = every RAW
+    sender address in this customer's group — gmail_state is keyed by
+    raw address while the sweep groups by _canon_email, and consulting
+    only the canonical one read the PRIMARY address's 'done' for an
+    aliased customer whose NEW request came from the secondary (Jul 21
+    night sweep)."""
     import dashboard as _db
+    if isinstance(raws, str):
+        raws = [raws]
+    raws = list(raws)
     inbox_recs = [r for r in recs if r.get("folder") == "INBOX"]
     if not inbox_recs:
         # a real request the poller rescued from Spam never sat in the
@@ -107,16 +116,17 @@ def _gmail_verdict(email, recs, gmail_state, mids_blob):
         return False, "Gmail can't vouch (unmatchable Message-ID)"
     newest_seen = max((_db._stamp_utc(r.get("received") or r.get("stamp")
                                       or "") or "" for r in inbox_recs))
-    ste = gmail_state.get(email) or {}
-    if ste.get("state") == "done":
+    states = [gmail_state.get(a) or {} for a in raws]
+    if any(s.get("state") in ("unread", "working") for s in states):
+        return False, "still sitting in the Gmail inbox"
+    if states and all(s.get("state") == "done" for s in states):
         # FRESHNESS (Jul 21 night sweep): 'done' observed BEFORE their
         # newest email proves nothing about that email — a returning
         # customer in the 15-min mirror gap was filed permanently here
-        if ste.get("at") and newest_seen and ste["at"] >= newest_seen:
+        newest_at = max((s.get("at") or "") for s in states)
+        if newest_at and newest_seen and newest_at >= newest_seen:
             return True, "thread archived in Gmail"
         # stale 'done' → fall through to the per-message check
-    elif ste.get("state") in ("unread", "working"):
-        return False, "still sitting in the Gmail inbox"
     # per-message: every mid gone AND every record predates the snapshot
     if isinstance(mids_blob, dict) and mids_blob.get("at"):
         mids = set(mids_blob.get("mids") or [])
@@ -128,11 +138,29 @@ def _gmail_verdict(email, recs, gmail_state, mids_blob):
     return False, "Gmail can't vouch (left alone)"
 
 
+_SWEEPING = threading.Lock()
+
+
 def sweep(verbose=True, limit=80):
     """One reconciliation pass. Returns the list of filed lines."""
     import clouddb
     if not clouddb.available():
         return []
+    if not _SWEEPING.acquire(blocking=False):
+        # hourly poller pass + office /mirror_sweep clicks + the nightly
+        # can overlap — stacked passes hammer Jobber (2s-per-client each)
+        # and double-file; one at a time is plenty (Jul 21 night sweep)
+        if verbose:
+            print("mirror sweep: another pass is already running — skipped")
+        return []
+    try:
+        return _sweep_inner(verbose, limit)
+    finally:
+        _SWEEPING.release()
+
+
+def _sweep_inner(verbose, limit):
+    import clouddb
     import dashboard as _db
 
     gmail_state = clouddb.get_blob("gmail_state") or {}
@@ -141,8 +169,9 @@ def sweep(verbose=True, limit=80):
     marks = clouddb.get_blob("msg_read") or {}
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
-    # group records per customer email (same keying as the roster)
-    by_email = {}
+    # group records per customer email (same keying as the roster);
+    # remember every RAW address too — gmail_state is raw-keyed
+    by_email, raws_of = {}, {}
     for stamp, r in clouddb.all_shadow():
         if r.get("merged_into") or r.get("spam_auto") \
                 or r.get("tech_sender") or r.get("kind") == "jobber_event":
@@ -150,7 +179,9 @@ def sweep(verbose=True, limit=80):
         e = _email_of(r)
         if not e or "masterbutlerinc" in e:
             continue
-        by_email.setdefault(_db._canon_email(e), []).append((stamp, r))
+        canon = _db._canon_email(e)
+        by_email.setdefault(canon, []).append((stamp, r))
+        raws_of.setdefault(canon, set()).add(e)
 
     filed = []
     for email, pairs in list(by_email.items())[:1000]:
@@ -172,7 +203,8 @@ def sweep(verbose=True, limit=80):
         j_done, j_why, j_sure = _jobber_verdict(email, newest_ctx)
         if not j_done:
             continue
-        g_done, g_why = _gmail_verdict(email, recs, gmail_state, mids_blob)
+        g_done, g_why = _gmail_verdict(raws_of.get(email) or [email],
+                                       recs, gmail_state, mids_blob)
         if not g_done:
             continue
         # POSITIVE EVIDENCE REQUIRED (first-run lesson): two vacuous
@@ -196,19 +228,13 @@ def sweep(verbose=True, limit=80):
         if verbose:
             print(f"  filed {email} | Jobber: {j_why} | Gmail: {g_why}")
     if filed:
-        # MERGE-ON-WRITE (Jul 21 night sweep): a pass sleeps 2s per
-        # approved client, so the blobs read at the top are minutes old
-        # by now — writing them back wholesale reverted every ✓ Done /
-        # hand-back the office clicked mid-sweep. Re-read (the dashboard
-        # shares this process, so its writes are in the cache) and add
-        # ONLY our filed customers.
-        cleared = clouddb.get_blob("cleared") or {}
-        marks = clouddb.get_blob("msg_read") or {}
-        for f in filed:
-            cleared[f["email"]] = now
-            marks[f["email"]] = now
-        clouddb.put_blob("cleared", cleared)
-        clouddb.put_blob("msg_read", marks)
+        # ATOMIC MERGE (Jul 21 night sweep, round 2): jsonb || in the DB
+        # adds ONLY our filed customers — concurrent office clicks and
+        # the nightly's separate process can never be overwritten by a
+        # stale wholesale write.
+        ups = {f["email"]: now for f in filed}
+        clouddb.merge_blob("cleared", ups)
+        clouddb.merge_blob("msg_read", ups)
     if verbose:
         print(f"mirror sweep: {len(filed)} line(s) filed "
               f"({len(by_email)} customers checked)")
