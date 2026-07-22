@@ -4606,14 +4606,16 @@ document.addEventListener('DOMContentLoaded', function(){
 
         def _fstage(r):
             nb = r.get("nb") or {}
+            # a voicemail's ACTION is calling them back — even when the
+            # engine already priced a draft for it (tag = the action)
+            if nb.get("kind") == "phone_lead":
+                return ("📞 CALL BACK", "#79aede")
+            if "change" in ((nb.get("office_alert") or "").lower()):
+                return ("✏️ CHANGES REQUESTED", "#f2b8b5")
             if r["lane"] == "won":
                 return ("📅 SCHEDULE", "#8fc7a6")
             if r["lane"] == "drafts":
                 return ("🖊 DRAFT — needs your yes", "#e8c76a")
-            if "change" in ((nb.get("office_alert") or "").lower()):
-                return ("✏️ CHANGES REQUESTED", "#f2b8b5")
-            if nb.get("kind") == "phone_lead":
-                return ("📞 CALL BACK", "#79aede")
             if nb.get("services"):
                 return ("📋 QUOTE — needs a price", "#8fc7a6")
             return ("💬 REPLY", "#79aede")
@@ -4622,7 +4624,7 @@ document.addEventListener('DOMContentLoaded', function(){
         _funread = sum(1 for r in _fmain if r["unread"])
 
         def _frow(r):
-            h = row(r).replace("href='/?c=", "href='/?flat=1&c=")
+            h = row(r)          # the mirror IS the default — plain links
             tag, col = _fstage(r)
             chip = (f"<div style='font-size:10px;font-weight:800;"
                     f"letter-spacing:.5px;color:{col};padding:6px 10px 0'>"
@@ -4669,6 +4671,9 @@ document.addEventListener('DOMContentLoaded', function(){
                   or "<div class='subtext' style='padding:12px'>No open "
                      "tech questions.</div>")
                + "</details>")
+            + ("<div class='subtext' style='text-align:center;"
+               "padding:16px 0 4px'><a href='/?classic=1' "
+               "style='color:var(--mut)'>old view (tabs)</a></div>")
             + """<script>
 function rowDone(ev, btn){
   ev.stopPropagation(); ev.preventDefault();
@@ -4677,7 +4682,7 @@ function rowDone(ev, btn){
   var a = document.createElement('input');
   a.name = 'addr'; a.value = btn.dataset.k; f.appendChild(a);
   var b = document.createElement('input');
-  b.name = 'back'; b.value = '/?flat=1'; f.appendChild(b);
+  b.name = 'back'; b.value = '/'; f.appendChild(b);
   document.body.appendChild(f);
   if (window.__saveScroll) window.__saveScroll();
   f.submit();
@@ -10533,10 +10538,14 @@ class Handler(BaseHTTPRequestHandler):
                         "qno": q.get("bq", [""])[0],
                         "status": q.get("bs", [""])[0],
                         "customer": q.get("bc", [""])[0]}
+            # THE MIRROR IS THE FRONT DOOR (morning of Jul 22 — the view
+            # the office voted for unanimously). The old lane view stays
+            # reachable at /?classic=1 as the safety hatch; /?flat=1
+            # still works and means the same as /.
             return self._send(inbox_page(q.get("c", [None])[0], user=u,
                                          pushed=q.get("pushed", [None])[0],
                                          blocked=_blk,
-                                         flat=bool(q.get("flat"))))
+                                         flat=not q.get("classic")))
         if self.path.startswith("/newbid"):
             # NEW-DESIGN PREVIEW (Dallon's Stitch 'Unified Command
             # Center', Jul 10) — parallel route; office pages untouched

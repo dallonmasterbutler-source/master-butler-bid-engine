@@ -96,23 +96,26 @@ def main():
         check("Login page has show-password toggle",
               "Show password" in login_html or "👁" in login_html)
 
-        # ── THE INBOX (the office's home) ──
+        # ── THE INBOX (the office's home = THE MIRROR since Jul 22) ──
         h = get("/")
         check("Inbox renders", "Bid" in h and "irow" in h)
-        check("Bulk mark-seen: checkboxes on rows", "class='rowsel'" in h)
+        check("Search box on the mirror (Jessica)", "fsearch" in h)
+        # the classic lane view survives at /?classic=1 (safety hatch)
+        hc = get("/?classic=1")
+        check("Bulk mark-seen: checkboxes on rows", "class='rowsel'" in hc)
         check("Bulk mark-seen: action bar + already-quoted selector",
-              "bulkbar" in h and "already-quoted" in h.lower()
-              or "bulkQuoted" in h)
-        check("Search box (Jessica)", "isearch" in h)
+              "bulkbar" in hc and "already-quoted" in hc.lower()
+              or "bulkQuoted" in hc)
+        check("Classic search box (Jessica)", "isearch" in hc)
         # FIVE BUBBLES (Dallon's approved collapse, built Jul 14 night):
         # fix-its ride Inbox, nudges ride Waiting, in-Jobber rides the
         # Handled fold — so the chips are exactly these five.
         check("Lanes (5 bubbles: inbox/drafts/won/waiting/techs)",
-              "lanechip" in h and "lane-inbox" in h
-              and "lane-drafts" in h and "lane-won" in h
-              and "lane-waiting" in h
-              and "data-l='nudge'" not in h
-              and "data-l='fixits'" not in h)
+              "lanechip" in hc and "lane-inbox" in hc
+              and "lane-drafts" in hc and "lane-won" in hc
+              and "lane-waiting" in hc
+              and "data-l='nudge'" not in hc
+              and "data-l='fixits'" not in hc)
         check("Scroll keeper (LaRee's jump-to-top fix)",
               "KEEP MY PLACE" in h or "__saveScroll" in h)
         check("Pulse auto-refresh wiring", "/api/pulse" in h)
@@ -167,7 +170,8 @@ def main():
             ("/brief", "", "Morning brief"),
             ("/autodrafts", "grading room", "Auto-drafts + sched scorecard"),
             ("/newbid", "Estimated total", "NEW-DESIGN preview /newbid"),
-            ("/?flat=1", "Tech Questions", "MIRROR preview /?flat=1"),
+            ("/", "Tech Questions", "MIRROR is the default view"),
+            ("/?classic=1", "laneSwap", "classic lanes at /?classic=1"),
         ]:
             try:
                 pg = get(path)
