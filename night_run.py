@@ -144,6 +144,41 @@ try:
 except Exception as e:
     print(f"   (sched mine skipped: {e})")
 
+# 4c-bis ── SHADOW OFFERS FOR EVERY APPROVED CUSTOMER (Dallon, Jul 22:
+#   "we've locked in multiple jobs since this went live — how can the
+#   scorecard show zero?" Because capture only fired when someone
+#   VIEWED the grading room. Now every approved-awaiting-schedule
+#   customer gets their shadow offer logged nightly, automatically —
+#   capture() is first-seen-wins, so views and nights never overwrite.)
+try:
+    import re as _re4
+    import clouddb as _cdb4
+    import sched_offers as _so4
+    import sched_scorecard as _sc4
+    _cap = 0
+    if _cdb4.available():
+        for _st4, _r4 in _cdb4.all_shadow():
+            if _r4.get("merged_into") or _r4.get("spam_auto") \
+                    or _r4.get("tech_sender") \
+                    or _r4.get("kind") == "jobber_event":
+                continue
+            _cx4 = _r4.get("open_quote_ctx") or {}
+            if (_cx4.get("status") or "").lower() != "approved":
+                continue
+            _m4 = _re4.search(r"<([^>]+)>", _r4.get("from") or "")
+            _em4 = (_m4.group(1).lower() if _m4 else "")
+            if "@" not in _em4:
+                continue
+            _o4 = _so4.offer(_r4)
+            if _o4:
+                _nm4 = (_r4.get("from") or "").split("<")[0].strip()
+                _sc4.capture(_em4, _nm4 or _em4,
+                             _r4.get("address"), _o4)
+                _cap += 1
+    print(f"   shadow offers swept for {_cap} approved customer(s)")
+except Exception as e:
+    print(f"   (shadow offer sweep skipped: {e})")
+
 # 4d ── LIGHTS DEEP MINE (Dallon, Jul 14): seasonal/early-bird pricing
 #       tiers from invoices + front-footage v1 on ~100 lights homes
 try:
