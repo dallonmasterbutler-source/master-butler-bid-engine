@@ -6638,7 +6638,17 @@ if (t) t.scrollTop = t.scrollHeight;
   },true);
 })();
 </script>"""
-    body = (f"<div class='mock'>{_chrome_bar('Customers')}"
+    # WHITE like the mirror (Dallon, Jul 21 night: 'make the customer
+    # page match the white color so the difference is minimal') — the
+    # dkroom-opt-out marker skips the site-wide dark force, and the
+    # small override snaps the light base palette to the mirror's exact
+    # whites (#f8f9fa surface, white cards, slate lines).
+    body = ("<span style='display:none'>dkroom-opt-out</span>"
+            "<style>:root{--bg:#f8f9fa!important;--card:#ffffff!important;"
+            "--soft:#f8fafc!important;--line:#e2e8f0!important;"
+            "--ink:#0f172a!important;--mut:#64748b!important}"
+            ".mock{background:#f8f9fa}</style>"
+            f"<div class='mock'>{_chrome_bar('Customers')}"
             f"<div class='inboxgrid'>"
             f"<div class='ilist'>{lst}</div>"
             "<div class='iresize' title='Drag to widen the list'></div>"
