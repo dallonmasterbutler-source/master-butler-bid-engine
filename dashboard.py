@@ -8400,20 +8400,20 @@ def _guide_training():
     chip = lambda t, c="#e8c76a": (f"<span style='color:{c};font-weight:"
                                    f"800;font-size:11px'>{t}</span>")
     row_mock = _t_mock(
-        "<div style='padding:10px;border-radius:10px;background:"
-        "var(--card)'><div style='font-size:14.5px;font-weight:800'>"
-        "<span style='display:inline-block;width:8px;height:8px;"
-        "border-radius:50%;background:#c9a227;margin-right:6px'></span>"
-        "Karen R</div><div style='margin:2px 0'>"
-        + chip("📋 bid request", "#8fc7a6") + " "
-        + chip("🏘 realtor", "#79aede") + " "
-        + chip("🪔 Diwali lights") + " "
-        + chip("🗑 done in Gmail", "var(--mut)")
-        + "<span style='float:right;font-weight:700;color:var(--mut)'>"
-        "$225</span></div>"
-        "<div style='color:var(--mut);font-size:12.5px'>← Hi Martha, I "
-        "think I'd like to go ahead and schedule the driveway…</div>"
-        "</div>")
+        "<div style='padding:10px 12px;border-radius:10px;background:#fff;"
+        "border:1px solid #e2e8f0;color:#0f172a'>"
+        "<div style='display:flex;align-items:center;gap:10px'>"
+        "<span style='font-size:10px;font-weight:900;letter-spacing:.4px;"
+        "text-transform:uppercase;border-radius:6px;padding:4px 8px;"
+        "background:#e7f4ec;color:#1f6b47'>📅 Schedule</span>"
+        "<b style='font-size:14.5px'>Karen R</b>"
+        "<span style='font-size:10px;font-weight:900;border-radius:6px;"
+        "padding:3px 7px;background:#fee2e2;color:#dc2626'>URGENT</span>"
+        "<span style='margin-left:auto;font-weight:900;color:#1f6b47;"
+        "font-variant-numeric:tabular-nums'>$225</span></div>"
+        "<div style='color:#64748b;font-size:12.5px;margin-top:4px'>"
+        "Gutters, Roof Blow Off — returning customer · <i>“I'd like to "
+        "go ahead and schedule the driveway…”</i></div></div>")
     reply_mock = _t_mock(
         "<div style='background:rgba(201,162,39,.12);color:var(--goldink);"
         "font-size:12px;font-weight:800;border-radius:8px;padding:6px "
@@ -8445,21 +8445,25 @@ def _guide_training():
         "<button class='gray' type='button' onclick='window.print()' "
         "style='font-size:12px'>🖨 Print / save as PDF</button></div>"
 
-        + _t_step(1, "Start in 📬 Inbox — it mirrors Gmail",
-            "Bold rows with a gold dot are <b>unhandled</b> — same as "
-            "unread in Gmail. <b>Work bottom to top — oldest first</b>, "
-            "exactly like you did in Gmail, so nobody waits longest. "
-            "The chips on each row tell you what you're walking into "
-            "before you click:"
+        + _t_step(1, "One list — it IS your Gmail inbox, labeled",
+            "The front page shows a line for every customer who has "
+            "mail sitting in our Gmail inbox right now — no more, no "
+            "less. <b>Bold = nobody's handled it.</b> Work oldest "
+            "first, exactly like Gmail. The colored tag on the left "
+            "says what KIND of work each line is, before you click:"
             + row_mock +
-            "<b>📋 bid request</b> = they want a quote · <b>💬 question"
-            "</b> = answer, don't quote · <b>✅ approved — wants a date"
-            "</b> = money asking to be scheduled · <b>🏘 realtor</b> = "
-            "price PER HOUSE, ask their deadline · <b>🪔 Diwali lights"
-            "</b> = offer early-October install · <b>🗑 done in Gmail"
-            "</b> = someone already finished this in Gmail (it sinks to "
-            "the bottom by itself) · <b>🖐 office on it</b> = a teammate "
-            "is working it.")
+            "<b>📞 Call back</b> = voicemail, they're waiting on a "
+            "call/text · <b>✏️ Changes</b> = they asked to change their "
+            "quote · <b>📅 Schedule</b> = approved! money asking for a "
+            "date · <b>🖊 Draft</b> = the engine priced it, wants your "
+            "yes · <b>📋 Quote</b> = office is quoting it · <b>💬 Reply"
+            "</b> = answer, don't quote. A red <b>URGENT</b> chip means "
+            "their own words sounded urgent — read those first. Click "
+            "any line and the customer's whole card opens on the "
+            "right, same page. The 🔎 box by the filters finds ANY "
+            "customer, even years-old history. (Miss the old five-"
+            "bubble view? It still lives at the “old view (tabs)” link "
+            "at the bottom.)")
 
         + _t_step(2, "Open the customer — everything lives on one card",
             "The conversation (emails AND voicemails), their draft "
@@ -8506,24 +8510,27 @@ def _guide_training():
             "really about pricing a customer, open that customer's card "
             "and handle it there.")
 
-        + _t_step(7, "The five bubbles, Move ▾, and ✓ Done",
-            "Just five boxes now: <b>📬 Inbox</b> (messages, voicemails, "
-            "and 🔧 fix-its — answered rows clear themselves), <b>🤖 "
-            "Drafts</b>, <b>📅 Won</b>, <b>📤 Waiting</b> (including ⏰ "
-            "gone-quiet nudges and 🚫 declines), and <b>👷 Techs</b>. "
-            "Rows a teammate is already quoting in Jobber live in the "
-            "<b>Handled in Jobber</b> fold at the bottom — don't "
-            "double-quote. <b>✓ Done</b> clears a row for the whole "
-            "office (a new customer message always brings it back — "
-            "nothing is ever lost). <b>Move ▾</b> files it, and every "
-            "move teaches the sorter. <b>🏜 Tom's dry-day standby</b> "
-            "(bottom fold) holds every high-risk/Tom-only home waiting "
-            "for a dry window — any season, his call; nobody falls out "
-            "of it until the job converts. Tom works it from his own "
-            "board (link on the fold): he picks a date, the office gets "
-            "notified to book it in Jobber. The 🕵️ hourly review re-checks "
-            "every bubble and posts anything odd on the "
-            "<a href='/working'>build board</a>.")
+        + _t_step(7, "Finishing a line — two ways, both count",
+            "A line leaves the list when the work is done, and BOTH "
+            "of your habits work: <b>archive the email in Gmail</b> "
+            "(the dashboard notices within 15 minutes and files it "
+            "once Jobber agrees it's handled), or click <b>✓ Done</b> "
+            "on the line (instant, for the whole office). Voicemail "
+            "hang-ups you've texted back: ✓ Done is the way — there's "
+            "no email to archive. <b>Made a mistake?</b> Open the "
+            "customer and hit <b>mark unread</b> — that un-files it "
+            "for everyone. <b>Stepping away mid-customer?</b> The "
+            "step-away button un-files it too and shows “🚶 stepped "
+            "away — pick up” so a teammate grabs it warm. A held "
+            "customer (⏸ hold until a date) comes back BOLD on that "
+            "date with “⏰ back from hold” — you can't forget them. "
+            "And the standing promise: <b>any new customer message "
+            "always brings their line back</b>, no matter what filed "
+            "it — nothing is ever lost. The 🕵️ hourly review re-checks "
+            "everything and posts anything odd on the "
+            "<a href='/working'>build board</a>; every night the "
+            "system also re-compares itself against Gmail and emails "
+            "Dallon if they ever disagree.")
 
         + "<div class='card' style='background:rgba(11,61,46,.06);"
           "border-left:4px solid #0b3d2e'><b>The golden rules</b>"
