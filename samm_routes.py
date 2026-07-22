@@ -254,3 +254,112 @@ if __name__ == "__main__":
               f"<= {r['max_mi_from_center']} mi · {r['tech']}")
     (BASE / "data" / "samm_routes.json").write_text(json.dumps(o))
     print("-> data/samm_routes.json")
+
+
+# ── SEASON MOCK SCHEDULE (Dallon, Jul 22: "use last years routes as
+# the standard, using past data as a helper... give me a mock schedule
+# for jessica"). Each ACTIVE home lands in the SAME season-week it was
+# installed last year (customers expect their date); undated homes join
+# their route's median week. Capacity: 8 installs/tech/day, Mon-Sat in
+# Oct-Nov (the sheet's Saturday shifts), Mon-Fri otherwise. Overflow
+# spills into the next open day and is flagged for Jessica.
+
+from datetime import date as _date, timedelta as _td
+
+
+def _season_dates(all_lines):
+    out = {}
+    for li in all_lines:
+        if (li.get("kind") or "") == "takedown":
+            continue
+        c = _nkey(li.get("client"))
+        d = (li.get("date") or "")[:10]
+        if c and "2025-08" <= d <= "2026-03":
+            out[c] = max(out.get(c, ""), d)
+    return out
+
+
+def build_schedule(routes_blob):
+    cal = json.loads((BASE / "data" / "lights_calibration.json")
+                     .read_text())
+    when = _season_dates(cal.get("all_lines") or [])
+    sched = {"routes": [], "cap_per_day": 8}
+    for r in routes_blob["routes"]:
+        actives = [h for h in r["homes"] if h.get("active")]
+        anchored = []
+        undated = []
+        for h in actives:
+            d = when.get(_nkey(h["client"]))
+            if d:
+                # same ISO week, one year later
+                try:
+                    d0 = _date.fromisoformat(d)
+                    tgt = d0.replace(year=d0.year + 1)
+                except ValueError:            # Feb 29 etc.
+                    tgt = _date.fromisoformat(d) + _td(days=365)
+                anchored.append((tgt, h))
+            else:
+                undated.append(h)
+        anchored.sort(key=lambda t: t[0])
+        if anchored:
+            med = anchored[len(anchored) // 2][0]
+        else:
+            med = _date(2026, 10, 15)
+        for h in undated:
+            anchored.append((med, h))
+        anchored.sort(key=lambda t: t[0])
+
+        # pack into working days at 8/day, spilling forward
+        def workday(d):
+            if d.weekday() == 6:
+                return False
+            if d.weekday() == 5:
+                return d.month in (10, 11)
+            return True
+        days = {}
+        spill = 0
+        for tgt, h in anchored:
+            d = tgt
+            while not workday(d) or len(days.get(d, [])) >= 8:
+                if len(days.get(d, [])) >= 8:
+                    spill += 1
+                d += _td(days=1)
+                spill = spill  # count once below
+            days.setdefault(d, []).append(h)
+        weeks = {}
+        for d, hs in days.items():
+            wk = d - _td(days=d.weekday())
+            weeks[wk] = weeks.get(wk, 0) + len(hs)
+        busiest = max(days, key=lambda d: len(days[d])) if days else None
+        sample = None
+        if busiest:
+            # order the day's stops nearest-neighbor from the first
+            stops = days[busiest][:]
+            chain = [stops.pop(0)]
+            while stops:
+                last = chain[-1]
+                nxt = min(stops, key=lambda h: _dist(
+                    (last["lat"], last["lng"]), (h["lat"], h["lng"])))
+                stops.remove(nxt)
+                chain.append(nxt)
+            t = 8 * 60
+            ss = []
+            for i, h in enumerate(chain):
+                ss.append({"arrive": f"{t // 60}:{t % 60:02d}",
+                           "client": h["client"],
+                           "address": h["address"]})
+                t += 45 + 8               # install + typical drive
+            sample = {"date": busiest.isoformat(),
+                      "label": busiest.strftime("%a %b %d"),
+                      "stops": ss,
+                      "done_by": f"{t // 60}:{t % 60:02d}"}
+        sched["routes"].append({
+            "name": r["name"], "color": r["color"], "tech": r["tech"],
+            "active": len(actives),
+            "weeks": sorted(
+                [[wk.isoformat(), n] for wk, n in weeks.items()]),
+            "first_day": min(days).isoformat() if days else None,
+            "last_day": max(days).isoformat() if days else None,
+            "workdays": len(days),
+            "sample_day": sample})
+    return sched

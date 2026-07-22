@@ -7886,6 +7886,85 @@ m.fitBounds(all.length ? all : [[47.6, -122.05]], {{padding: [30, 30]}});
     return page("Lights routes", body)
 
 
+def lightsched_page():
+    """📅 SEASON MOCK SCHEDULE for Jessica (Dallon, Jul 22: 'use last
+    years routes as the standard, using past data as a helper... give
+    me a mock schedule'). Every active home lands in the SAME week it
+    was installed last season; 8 installs/tech/day; Oct-Nov Saturdays
+    on. Nothing here books anything — it's the season laid flat."""
+    s = _blob_rw("samm_sched", None)
+    if not s:
+        return page("Lights schedule", "<div class='card'>Schedule "
+                    "isn't built yet — tell Dallon.</div>")
+    # week columns spanning the season
+    import datetime as _dtm
+    allw = sorted({w for r in s["routes"] for w, _ in r["weeks"]})
+    heads = "".join(
+        f"<th style='padding:4px 6px;font-size:10px;white-space:nowrap'>"
+        f"{_dtm.date.fromisoformat(w).strftime('%b %d')}</th>"
+        for w in allw)
+    rows = ""
+    for r in s["routes"]:
+        wk = dict(r["weeks"])
+        cells = ""
+        for w in allw:
+            n = wk.get(w, 0)
+            if not n:
+                cells += "<td style='padding:4px 6px'></td>"
+                continue
+            heat = ("#e7f4ec" if n <= 16 else
+                    "#faf3dc" if n <= 32 else "#fee2e2")
+            cells += (f"<td style='padding:4px 6px;text-align:center;"
+                      f"background:{heat};font-weight:800;"
+                      f"font-variant-numeric:tabular-nums'>{n}</td>")
+        rows += (f"<tr><td style='padding:4px 8px;white-space:nowrap'>"
+                 f"<b style='color:{r['color']}'>●</b> "
+                 f"{esc(r['name'].split('—')[0].strip())}"
+                 f"<div class='subtext'>{r['active']} installs · "
+                 f"{r['workdays']} days</div></td>{cells}</tr>")
+    days = ""
+    for r in s["routes"]:
+        sd = r.get("sample_day")
+        if not sd:
+            continue
+        srows = "".join(
+            f"<tr><td class='tab'>{esc(x['arrive'])}</td>"
+            f"<td>{esc(x['client'])[:28]}</td>"
+            f"<td class='subtext'>{esc(x['address'])[:46]}</td></tr>"
+            for x in sd["stops"])
+        days += (
+            f"<details class='card' style='border-left:4px solid "
+            f"{r['color']}'><summary style='cursor:pointer;list-style:"
+            f"none'><b>{esc(r['name'].split('—')[0].strip())}</b> — "
+            f"busiest day, {esc(sd['label'])} · {len(sd['stops'])} "
+            f"installs · done by {esc(sd['done_by'])} "
+            f"<span class='subtext'>· tap for the sheet</span></summary>"
+            f"<table style='margin-top:8px'><tr><th>Arrive</th>"
+            f"<th>Customer</th><th>Address</th></tr>{srows}</table>"
+            f"</details>")
+    body = f"""
+<div style='max-width:1150px'>
+ <h2 style='margin:2px 0 4px'>📅 Lights season — the mock schedule</h2>
+ <div class='subtext' style='margin-bottom:12px'>Every active home is
+  placed in the <b>same week it was installed last season</b> (that's
+  the standard customers expect), packed at <b>{s['cap_per_day']}
+  installs per tech per day</b>, Saturdays on in Oct–Nov. Green weeks
+  are comfortable, gold are full, red need a helper or a Saturday.
+  Nothing here is booked — it's the season laid flat so Jessica can
+  bend it before it bends her. Routes live on
+  <a href='/lightroutes'>the routes page</a>.</div>
+ <div class='card' style='overflow-x:auto'>
+  <table style='border-collapse:collapse;font-size:12px'>
+   <tr><th style='text-align:left;padding:4px 8px'>Route · week of</th>
+   {heads}</tr>{rows}</table>
+ </div>
+ <h3 style='margin:16px 0 6px'>One printed day per route — the sheet
+  a tech would carry</h3>
+ {days}
+</div>"""
+    return page("Lights schedule", body)
+
+
 def route_demo_page():
     """🚐 ROUTE MOCKUP (Dallon, Jul 9 pm: 'a mock up for jessica and
     tom what a route would look like based on the geomapping and
@@ -11303,6 +11382,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(route_demo_page())
         if self.path == "/lightroutes":
             return self._send(lightroutes_page())
+        if self.path == "/lightsched":
+            return self._send(lightsched_page())
         if self.path.startswith("/routes"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             return self._send(routes_page(
