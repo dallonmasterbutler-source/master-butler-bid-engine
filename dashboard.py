@@ -4534,8 +4534,18 @@ document.addEventListener('DOMContentLoaded', function(){
     # inbox/drafts/won (live customer action) show; waiting/handled/
     # drawer/standby (no customer action pending) don't exist as boxes.
     if flat:
+        # WHAT NEEDS A PERSON RIGHT NOW — nothing else (Dallon, Jul 21
+        # night, per Jessica's call: "if it's done and sent, they don't
+        # want to see it"). A SENT quote is Jobber's to chase and an
+        # APPROVED one is Jobber's to schedule — neither is dashboard
+        # work, so neither gets a line. The one exception: a won customer
+        # who WRITES ("I approve — what day?") shows, because the MESSAGE
+        # needs an answer — the line exists for the message, never for
+        # the quote status.
         _fmain = sorted((r for r in roster
-                         if r["lane"] in ("inbox", "drafts", "won")),
+                         if r["lane"] in ("inbox", "drafts")
+                         or (r["lane"] == "won"
+                             and (r["unread"] or r["new_msg"]))),
                         key=lambda r: r["age"])
         _ftech = sorted((r for r in roster if r["lane"] == "techs"),
                         key=lambda r: r["age"])
@@ -4562,8 +4572,9 @@ document.addEventListener('DOMContentLoaded', function(){
             + (f" <span style='background:#fca5a5;color:#5c1410;"
                f"border-radius:99px;padding:1px 8px;font-size:12px'>"
                f"{_funread}</span>" if _funread else "")
-            + f"</span><span class='subtext'>{len(_fmain)} line(s) · "
-            f"newest first · ✓ Done removes it until the customer "
+            + f"</span><span class='subtext'>{len(_fmain)} line(s) — only "
+            f"what needs a person right now · sent &amp; approved quotes "
+            f"live in Jobber · ✓ Done removes it until the customer "
             f"reaches out again</span></div>"
             "<input id='fsearch' placeholder='🔎 Find a customer…' "
             "style='width:100%;margin:0 0 10px;padding:8px 12px;"
