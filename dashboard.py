@@ -3387,6 +3387,7 @@ def _status_word(nb, holds, flags_open, sbs, claims):
 
 def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
                flat=False):
+    import time as _prf; _PT = {"t0": _prf.time()}
     """THE INBOX (Dallon picked direction A, Jul 9): bids + messages,
     one list, read/unread shared office-wide, pinned critical info,
     big folds. Scoreboard/Win-back/Settings live top-right."""
@@ -4639,6 +4640,7 @@ document.addEventListener('DOMContentLoaded', function(){
         # renders; picking a customer slides their detail card in on the
         # RIGHT, same design, no jump to the old dark room.
         if True:
+            _PT["flat_in"] = _prf.time()
             def _ago(h):
                 return (f"{h*60:.0f}m ago" if h < 1 else
                         f"{h:.0f}h ago" if h < 48 else f"{h/24:.0f}d ago")
@@ -4906,7 +4908,9 @@ document.addEventListener('DOMContentLoaded', function(){{
                                      convo_open, user)
                 _mir = (f"<div class='mirgrid'><div>{_mir}</div>"
                         f"<div class='mirdetail'>{_det}</div></div>"
-                        f"<!-- detail {_tmz.time()-_t0:.2f}s -->")
+                        f"<!-- phases pre={_PT.get('flat_in',0)-_PT['t0']:.2f}s "
+                        f"list={_t0-_PT.get('flat_in',_t0):.2f}s "
+                        f"detail={_tmz.time()-_t0:.2f}s -->")
             return page("Bids", _mir, chrome="bare")
 
     # ── NEW DESIGN (Dallon's Stitch system, Jul 10): the Bid Queue is
