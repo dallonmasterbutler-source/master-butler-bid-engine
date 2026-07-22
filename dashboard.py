@@ -7898,30 +7898,42 @@ def lightsched_page():
                     "isn't built yet — tell Dallon.</div>")
     # week columns spanning the season
     import datetime as _dtm
-    allw = sorted({w for r in s["routes"] for w, _ in r["weeks"]})
+    allw = sorted({w[0] for r in s["routes"] for w in r["weeks"]})
     heads = "".join(
         f"<th style='padding:4px 6px;font-size:10px;white-space:nowrap'>"
         f"{_dtm.date.fromisoformat(w).strftime('%b %d')}</th>"
         for w in allw)
     rows = ""
     for r in s["routes"]:
-        wk = dict(r["weeks"])
+        wk = {w[0]: w for w in r["weeks"]}
         cells = ""
         for w in allw:
-            n = wk.get(w, 0)
-            if not n:
+            e = wk.get(w)
+            if not e:
                 cells += "<td style='padding:4px 6px'></td>"
                 continue
-            heat = ("#e7f4ec" if n <= 16 else
-                    "#faf3dc" if n <= 32 else "#fee2e2")
+            _, planned, fri, pushed = e
+            n = planned + fri
+            heat = ("#fee2e2" if pushed else
+                    "#faf3dc" if fri else "#e7f4ec")
+            tag = (" ▸" if pushed else
+                   " F" if fri else "")
             cells += (f"<td style='padding:4px 6px;text-align:center;"
                       f"background:{heat};font-weight:800;"
-                      f"font-variant-numeric:tabular-nums'>{n}</td>")
+                      f"font-variant-numeric:tabular-nums' "
+                      f"title='{planned} planned Mon–Thu"
+                      + (f" + {fri} on the backup Friday" if fri else "")
+                      + (f" · {pushed} pushed to next week" if pushed
+                         else "")
+                      + f"'>{n}{tag}</td>")
+        _fu = r.get("fridays_used", 0)
         rows += (f"<tr><td style='padding:4px 8px;white-space:nowrap'>"
                  f"<b style='color:{r['color']}'>●</b> "
                  f"{esc(r['name'].split('—')[0].strip())}"
                  f"<div class='subtext'>{r['active']} installs · "
-                 f"{r['workdays']} days</div></td>{cells}</tr>")
+                 f"{r['workdays']} days · "
+                 f"{_fu} Friday{'s' if _fu != 1 else ''} used"
+                 f"</div></td>{cells}</tr>")
     days = ""
     for r in s["routes"]:
         sd = r.get("sample_day")
@@ -7945,13 +7957,15 @@ def lightsched_page():
     body = f"""
 <div style='max-width:1150px'>
  <h2 style='margin:2px 0 4px'>📅 Lights season — the mock schedule</h2>
- <div class='subtext' style='margin-bottom:12px'>Every active home is
-  placed in the <b>same week it was installed last season</b> (that's
-  the standard customers expect), packed at <b>{s['cap_per_day']}
-  installs per tech per day</b>, Saturdays on in Oct–Nov. Green weeks
-  are comfortable, gold are full, red need a helper or a Saturday.
-  Nothing here is booked — it's the season laid flat so Jessica can
-  bend it before it bends her. Routes live on
+ <div class='subtext' style='margin-bottom:12px'>Jessica's day model:
+  <b>{s['cap_per_day']} homes a day planned Mon–Thu, Friday held open
+  as backup/standby</b> — no-confirms can't overload a day, and a
+  fully-confirmed week uses its Friday to absorb the rest. Every
+  active home sits in the <b>same week it was installed last
+  season</b>. Green = fits Mon–Thu · gold <b>F</b> = the backup
+  Friday is in play · red <b>▸</b> = over 50 even with Friday, spills
+  into the next week — that's the helper signal. Hover any cell for
+  the split. Nothing here is booked. Routes live on
   <a href='/lightroutes'>the routes page</a>.</div>
  <div class='card' style='overflow-x:auto'>
   <table style='border-collapse:collapse;font-size:12px'>

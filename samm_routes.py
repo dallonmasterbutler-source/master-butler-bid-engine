@@ -280,10 +280,17 @@ def _season_dates(all_lines):
 
 
 def build_schedule(routes_blob):
+    """JESSICA'S DAY MODEL (Jul 22, via Dallon): 10 homes a day planned
+    Mon-Thu; FRIDAY STAYS OPEN as backup/standby — no-confirms can't
+    overload a day, and a fully-confirmed week uses Friday to absorb
+    the extra. A week therefore fits 40 planned (+10 on Friday when
+    needed); demand beyond 50 pushes into the next week and is flagged
+    RED for a helper."""
     cal = json.loads((BASE / "data" / "lights_calibration.json")
                      .read_text())
     when = _season_dates(cal.get("all_lines") or [])
-    sched = {"routes": [], "cap_per_day": 8}
+    sched = {"routes": [], "cap_per_day": 10,
+             "model": "Mon-Thu planned, Friday backup (Jessica)"}
     for r in routes_blob["routes"]:
         actives = [h for h in r["homes"] if h.get("active")]
         anchored = []
@@ -291,49 +298,54 @@ def build_schedule(routes_blob):
         for h in actives:
             d = when.get(_nkey(h["client"]))
             if d:
-                # same ISO week, one year later
                 try:
                     d0 = _date.fromisoformat(d)
                     tgt = d0.replace(year=d0.year + 1)
-                except ValueError:            # Feb 29 etc.
+                except ValueError:
                     tgt = _date.fromisoformat(d) + _td(days=365)
                 anchored.append((tgt, h))
             else:
                 undated.append(h)
         anchored.sort(key=lambda t: t[0])
-        if anchored:
-            med = anchored[len(anchored) // 2][0]
-        else:
-            med = _date(2026, 10, 15)
+        med = (anchored[len(anchored) // 2][0] if anchored
+               else _date(2026, 10, 15))
         for h in undated:
             anchored.append((med, h))
         anchored.sort(key=lambda t: t[0])
 
-        # pack into working days at 8/day, spilling forward
-        def workday(d):
-            if d.weekday() == 6:
-                return False
-            if d.weekday() == 5:
-                return d.month in (10, 11)
-            return True
-        days = {}
-        spill = 0
+        # group demand by anchor week, then fill week by week with a
+        # carried backlog: 4 planned days x 10, then Friday x 10
+        bywk = {}
         for tgt, h in anchored:
-            d = tgt
-            while not workday(d) or len(days.get(d, [])) >= 8:
-                if len(days.get(d, [])) >= 8:
-                    spill += 1
-                d += _td(days=1)
-                spill = spill  # count once below
-            days.setdefault(d, []).append(h)
-        weeks = {}
-        for d, hs in days.items():
-            wk = d - _td(days=d.weekday())
-            weeks[wk] = weeks.get(wk, 0) + len(hs)
+            wk = tgt - _td(days=tgt.weekday())
+            bywk.setdefault(wk, []).append(h)
+        weeks_out = []
+        days = {}
+        backlog = []
+        wk = min(bywk) if bywk else None
+        last_wk = max(bywk) if bywk else None
+        while wk and (backlog or wk <= last_wk):
+            queue = backlog + bywk.get(wk, [])
+            backlog = []
+            planned = fri = 0
+            for i, h in enumerate(queue):
+                if planned < 40:
+                    day = wk + _td(days=planned // 10)
+                    days.setdefault(day, []).append(h)
+                    planned += 1
+                elif fri < 10:
+                    days.setdefault(wk + _td(days=4), []).append(h)
+                    fri += 1
+                else:
+                    backlog = queue[i:]
+                    break
+            if planned or fri or backlog:
+                weeks_out.append([wk.isoformat(), planned, fri,
+                                  len(backlog)])
+            wk += _td(days=7)
         busiest = max(days, key=lambda d: len(days[d])) if days else None
         sample = None
         if busiest:
-            # order the day's stops nearest-neighbor from the first
             stops = days[busiest][:]
             chain = [stops.pop(0)]
             while stops:
@@ -344,11 +356,11 @@ def build_schedule(routes_blob):
                 chain.append(nxt)
             t = 8 * 60
             ss = []
-            for i, h in enumerate(chain):
+            for h in chain:
                 ss.append({"arrive": f"{t // 60}:{t % 60:02d}",
                            "client": h["client"],
                            "address": h["address"]})
-                t += 45 + 8               # install + typical drive
+                t += 40 + 7          # 10/day pace: 40 min + short hop
             sample = {"date": busiest.isoformat(),
                       "label": busiest.strftime("%a %b %d"),
                       "stops": ss,
@@ -356,10 +368,10 @@ def build_schedule(routes_blob):
         sched["routes"].append({
             "name": r["name"], "color": r["color"], "tech": r["tech"],
             "active": len(actives),
-            "weeks": sorted(
-                [[wk.isoformat(), n] for wk, n in weeks.items()]),
+            "weeks": weeks_out,
             "first_day": min(days).isoformat() if days else None,
             "last_day": max(days).isoformat() if days else None,
             "workdays": len(days),
+            "fridays_used": sum(1 for d in days if d.weekday() == 4),
             "sample_day": sample})
     return sched
