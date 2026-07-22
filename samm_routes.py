@@ -279,6 +279,31 @@ def _season_dates(all_lines):
     return out
 
 
+def _season_dollars(all_lines):
+    """Per-client last-season INSTALL dollars — sizes the job's slots
+    (Dallon, Jul 22: 'each job takes 1 per $300 slot')."""
+    out = {}
+    for li in all_lines:
+        if (li.get("kind") or "") == "takedown":
+            continue
+        c = _nkey(li.get("client"))
+        d = (li.get("date") or "")[:10]
+        if c and "2025-08" <= d <= "2026-03":
+            try:
+                out[c] = out.get(c, 0) + float(li.get("price") or 0)
+            except (TypeError, ValueError):
+                pass
+    return out
+
+
+def _slots(dollars):
+    """1 slot per $300 of install, minimum 1, capped at a full day."""
+    import math as _m
+    if not dollars or dollars <= 0:
+        return 1
+    return min(10, max(1, _m.ceil(dollars / 300)))
+
+
 def build_schedule(routes_blob):
     """JESSICA'S DAY MODEL (Jul 22, via Dallon): 10 homes a day planned
     Mon-Thu; FRIDAY STAYS OPEN as backup/standby — no-confirms can't
@@ -289,10 +314,14 @@ def build_schedule(routes_blob):
     cal = json.loads((BASE / "data" / "lights_calibration.json")
                      .read_text())
     when = _season_dates(cal.get("all_lines") or [])
+    dollars = _season_dollars(cal.get("all_lines") or [])
     sched = {"routes": [], "cap_per_day": 10,
-             "model": "Mon-Thu planned, Friday backup (Jessica)"}
+             "model": ("Mon-Thu planned, Friday backup (Jessica) · "
+                       "a day = 10 slots, 1 slot per $300 of install")}
     for r in routes_blob["routes"]:
         actives = [h for h in r["homes"] if h.get("active")]
+        for h in actives:
+            h["slots"] = _slots(dollars.get(_nkey(h["client"])))
         anchored = []
         undated = []
         for h in actives:
@@ -343,22 +372,30 @@ def build_schedule(routes_blob):
                     (h["lat"], h["lng"]), cx))
                 rest.remove(seed)
                 pod = [seed]
-                while len(pod) < 10 and rest:
+                pslots = seed.get("slots", 1)
+                while rest and pslots < 10:
                     last = pod[-1]
-                    nxt = min(rest, key=lambda h: _dist(
+                    # nearest neighbor THAT FITS the day's remaining slots
+                    fits = [h for h in rest
+                            if pslots + h.get("slots", 1) <= 10]
+                    if not fits:
+                        break
+                    nxt = min(fits, key=lambda h: _dist(
                         (last["lat"], last["lng"]),
                         (h["lat"], h["lng"])))
                     rest.remove(nxt)
                     pod.append(nxt)
+                    pslots += nxt.get("slots", 1)
                 pods.append(pod)
             planned = fri = 0
             for pi, pod in enumerate(pods):
+                pod_slots = sum(h.get("slots", 1) for h in pod)
                 if pi < 4:
                     day = wk + _td(days=pi)
-                    planned += len(pod)
+                    planned += pod_slots
                 elif pi == 4:
                     day = wk + _td(days=4)
-                    fri += len(pod)
+                    fri += pod_slots
                 else:
                     backlog.extend(pod)
                     continue
@@ -381,7 +418,8 @@ def build_schedule(routes_blob):
                                    "stops": chain}
             if planned or fri or backlog:
                 weeks_out.append([wk.isoformat(), planned, fri,
-                                  len(backlog)])
+                                  sum(h.get("slots", 1)
+                                      for h in backlog)])
             wk += _td(days=7)
         busiest = max(days, key=lambda d: len(days[d])) if days else None
         sample = None
@@ -400,7 +438,7 @@ def build_schedule(routes_blob):
                 ss.append({"arrive": f"{t // 60}:{t % 60:02d}",
                            "client": h["client"],
                            "address": h["address"]})
-                t += 40 + 7          # 10/day pace: 40 min + short hop
+                t += 45 * h.get("slots", 1) + 7   # slot-scaled pace
             sample = {"date": busiest.isoformat(),
                       "label": busiest.strftime("%a %b %d"),
                       "stops": ss,
@@ -414,8 +452,9 @@ def build_schedule(routes_blob):
                 st.append({"arrive": f"{t // 60}:{t % 60:02d}",
                            "client": h["client"],
                            "address": h["address"],
+                           "slots": h.get("slots", 1),
                            "lat": h["lat"], "lng": h["lng"]})
-                t += 40 + 7
+                t += 45 * h.get("slots", 1) + 7
             _daybook.append({"date": d.isoformat(),
                              "label": d.strftime("%a %b %d"),
                              "friday": d.weekday() == 4,

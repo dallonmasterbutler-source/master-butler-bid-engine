@@ -7930,7 +7930,8 @@ def lightsched_page():
         rows += (f"<tr><td style='padding:4px 8px;white-space:nowrap'>"
                  f"<b style='color:{r['color']}'>●</b> "
                  f"{esc(r['name'].split('—')[0].strip())}"
-                 f"<div class='subtext'>{r['active']} installs · "
+                 f"<div class='subtext'>{r['active']} installs = "
+                 f"{sum(w[1] + w[2] for w in r['weeks'])} slots · "
                  f"{r['workdays']} days · "
                  f"{_fu} Friday{'s' if _fu != 1 else ''} used"
                  f"</div></td>{cells}</tr>")
@@ -7957,15 +7958,15 @@ def lightsched_page():
     body = f"""
 <div style='max-width:1150px'>
  <h2 style='margin:2px 0 4px'>📅 Lights season — the mock schedule</h2>
- <div class='subtext' style='margin-bottom:12px'>Jessica's day model:
-  <b>{s['cap_per_day']} homes a day planned Mon–Thu, Friday held open
-  as backup/standby</b> — no-confirms can't overload a day, and a
-  fully-confirmed week uses its Friday to absorb the rest. Every
-  active home sits in the <b>same week it was installed last
-  season</b>. Green = fits Mon–Thu · gold <b>F</b> = the backup
-  Friday is in play · red <b>▸</b> = over 50 even with Friday, spills
-  into the next week — that's the helper signal. Hover any cell for
-  the split. Nothing here is booked. Routes live on
+ <div class='subtext' style='margin-bottom:12px'>Jessica's day model,
+  sized in dollars: <b>a day = {s['cap_per_day']} slots, one slot per
+  $300 of install</b> (a $900 house takes 3 slots) — planned Mon–Thu,
+  <b>Friday held open as backup/standby</b>. Every active home sits in
+  the <b>same week it was installed last season</b>, sized by its own
+  last invoice. Numbers below are SLOTS. Green = fits Mon–Thu · gold
+  <b>F</b> = the backup Friday is in play · red <b>▸</b> = over 50
+  slots even with Friday, spills forward — the helper signal. Hover
+  any cell for the split. Nothing here is booked. Routes live on
   <a href='/lightroutes'>the routes page</a>.</div>
  <div class='card' style='overflow-x:auto'>
   <table style='border-collapse:collapse;font-size:12px'>
