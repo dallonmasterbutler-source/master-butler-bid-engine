@@ -3805,7 +3805,12 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
         # come through') — field mail never mixes with customer bids
         if (nb and nb.get("tech_sender")) or c.get("internal"):
             grp = -1                 # field mail OR office↔Dallon internal
-        elif nb and nb.get("dns_match"):
+        elif nb and nb.get("dns_match") \
+                and not _sticky_cleared and not acknowledged:
+            # DNS screams UNTIL the office ✓ Done's it — then it files
+            # like anything else (Jul 22 race trace: an acknowledged
+            # do-not-service row sat greyed in the Inbox forever); the
+            # ⛔ alert itself stays on the record in the drawer
             grp = 0
         # VOICEMAIL AUTO-FILE (Dallon, Jul 21). A voicemail leaves the
         # inbox on its own when EITHER:
@@ -3835,8 +3840,12 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
             grp = 4
         # HANDLED IN JOBBER (proven: booked today / recent quote / won):
         # its own lane with the reason — unless the customer wrote back
+        # or the office already ✓ Done'd it (Jul 22 race trace: this
+        # branch fires BEFORE the marked-done one and was riding cleared
+        # rows around the Won lane again)
         elif (nb and nb["stamp"] in handled_jb and not new_msg and not _chg
-              and not unread and nb["stamp"] not in live_holds
+              and not unread and not _sticky_cleared and not acknowledged
+              and nb["stamp"] not in live_holds
               and nb["stamp"] not in flags_open):
             grp = 3
         # already-quoted + someone marked it seen = handled → Done & quiet
@@ -4175,6 +4184,20 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
                            "— pick up"
                     wstyle = "color:var(--goldink);font-weight:800"
                     lane = "inbox"          # warm pick-up belongs up top
+        # ⏰ EXPIRED HOLD OUTRANKS EVERY FILING RULE (Jul 22 race trace:
+        # hold-expiry resurfacing was computed and never used — the
+        # 15-min Gmail mirror re-buried held rows every pass, and the
+        # flat view had no line at all. The office set a DATE; when it
+        # arrives, the row comes back bold. Only an explicit ✓ Done
+        # AFTER expiry files it again.)
+        if nb and nb["stamp"] in resurfaced and not _sticky_cleared:
+            _hh = resurfaced[nb["stamp"]]
+            lane = "inbox"
+            grp = 0
+            unread = True
+            word = ("⏰ back from hold — "
+                    + (_hh.get("hold_reason") or "follow up today"))
+            wstyle = "color:var(--goldink);font-weight:800"
         roster.append({"key": key, "c": c, "nb": nb, "unread": unread,
                        "sticky": _sticky_cleared,
                        "grp": grp, "at": last_at, "word": word,
@@ -4305,6 +4328,12 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
                     # the snapshot — absence is unprovable, so show it
                     # (fail-VISIBLE; same guard grp-4 already has)
                     return True
+            # an EXPIRED hold is due NOW — the office set the date; the
+            # line exists even though the Gmail thread was archived
+            # weeks ago (Jul 22 race trace)
+            if any(b.get("stamp") in resurfaced
+                   for b in (r["c"].get("bids") or [])):
+                return True
             # folded same-day replies count too (Martha/Liuliu, Jul 22)
             for mid in _fold_mids.get(r["key"], ()):
                 if mid in _gmail_inbox_mids:
@@ -11555,8 +11584,14 @@ class Handler(BaseHTTPRequestHandler):
                 return
             d = _msg_read()
             from datetime import timezone as _tzz
-            d[m.group(1).lower()] = datetime.now(_tzz.utc).isoformat(
-                timespec="seconds")
+            _now_i = datetime.now(_tzz.utc).isoformat(timespec="seconds")
+            _raw_e = m.group(1).lower()
+            d[_raw_e] = _now_i
+            # the roster reads CANON keys — for an aliased customer the
+            # raw-only mark landed where nobody looked (Jul 22 trace)
+            _ck = _canon_email(_raw_e)
+            if _ck and _ck != _raw_e:
+                d[_ck] = _now_i
             _msg_read_save(d)
 
         if self.path == "/review":
@@ -11581,6 +11616,21 @@ class Handler(BaseHTTPRequestHandler):
                     or get("stamp") in _blob_rw("push_allow", [])):
                 _rec_g = _shadow_rec(get("stamp")) or {}
                 _oqg = _rec_g.get("open_quote_ctx") or {}
+                if not _oqg and not get("force_new"):
+                    # LIVE re-check (Jul 22 race trace): a quote the
+                    # office built in Jobber minutes ago isn't attached
+                    # until the next delta pass — the guard read only
+                    # the record and pushed a SECOND quote into the gap.
+                    # One Jobber lookup on the money path is worth it.
+                    try:
+                        import jobber_client as _jcg
+                        _eml_g = _bid_email(_rec_g)
+                        _live_q = (_jcg.find_open_quote(_eml_g)
+                                   if _eml_g else None)
+                        if _live_q:
+                            _oqg = _live_q
+                    except Exception:
+                        pass          # Jobber down → record-only guard
                 # block a second quote only when one is genuinely LIVE
                 # (open or approved) — archived/converted quotes are
                 # history context (Kevin Pham), not a conflict.
@@ -12790,6 +12840,14 @@ class Handler(BaseHTTPRequestHandler):
             d = _msg_read()
             d.pop(get("addr"), None)
             _msg_read_save(d)
+            # a hand-back must also UN-FILE (Jul 22 race trace: nothing
+            # ever removed a cleared key, so step-away after a sweep
+            # filing was a silent no-op — the row never rendered for
+            # the next person)
+            _cl2 = _blob_rw("cleared", {})
+            if _cl2.pop(_canon_email(get("addr")) or get("addr"), None) \
+                    is not None or _cl2.pop(get("addr"), None) is not None:
+                _blob_save("cleared", _cl2)
             cm = re.search(r"office_user=([^;]+)",
                            self.headers.get("Cookie") or "")
             _who = urllib.parse.unquote(cm.group(1)) if cm else "office"
@@ -12816,6 +12874,12 @@ class Handler(BaseHTTPRequestHandler):
             d = _msg_read()
             d.pop(get("addr"), None)
             _msg_read_save(d)
+            # and UN-FILE — mark-unread is the office's undo for an
+            # accidental ✓ Done / sweep filing (Jul 22 race trace)
+            _cl3 = _blob_rw("cleared", {})
+            if _cl3.pop(_canon_email(get("addr")) or get("addr"), None) \
+                    is not None or _cl3.pop(get("addr"), None) is not None:
+                _blob_save("cleared", _cl3)
             back = get("back")
             self.send_response(303)
             self.send_header("Location", back if back.startswith("/")
@@ -12965,7 +13029,18 @@ class Handler(BaseHTTPRequestHandler):
             _rec = _shadow_rec(_st)
             if _rec:
                 if _vd == "duplicate_same":
-                    _rec["merged_into"] = get("linked")   # hide it; primary lives
+                    # resolve to the ROOT like the poller does — linking
+                    # onto an already-merged record rebuilt the chains
+                    # (Jul 22 race trace)
+                    _lk = get("linked")
+                    _seen_lk = set()
+                    while _lk not in _seen_lk:
+                        _seen_lk.add(_lk)
+                        _lr = dict(_shadow_source()).get(_lk) or {}
+                        if not _lr.get("merged_into"):
+                            break
+                        _lk = _lr["merged_into"]
+                    _rec["merged_into"] = _lk   # hide it; primary lives
                 elif _vd == "duplicate_new":
                     _rec.pop("duplicate_of", None)         # real job — stop nagging
                 if clouddb.available():
