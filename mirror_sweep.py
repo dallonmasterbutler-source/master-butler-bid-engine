@@ -75,6 +75,23 @@ def _jobber_verdict(email, newest_ctx, sleep_s=2.0):
             return True, (f"approved #{number} → job "
                           f"#{j.get('jobNumber')} scheduled "
                           f"{(j.get('createdAt') or '')[:10]}"), True
+        # AGED APPROVAL (Dallon, Jul 21 night: 'if it's done and sent
+        # they don't want to see it'): the office schedules same-week,
+        # and job-matching misses clients booked under a different email.
+        # An approval ≥7 days old counts as handled — but ONLY when Gmail
+        # POSITIVELY vouches too (thread archived), which the caller
+        # enforces for this verdict. Fresh approvals (<7d) stay visible
+        # as real 📅 SCHEDULE work.
+        if created:
+            try:
+                from datetime import date, timedelta
+                if date.fromisoformat(created) <= (date.today()
+                                                   - timedelta(days=7)):
+                    return True, (f"approved #{number} on {created} "
+                                  f"(≥7d — office schedules same-week; "
+                                  f"needs archived Gmail too)"), True
+            except ValueError:
+                pass
         return False, f"approved #{number}, no job booked yet", True
     return False, f"quote #{number} status '{status}' (left alone)", False
 
@@ -155,6 +172,11 @@ def sweep(verbose=True, limit=80):
         # zero proof — e.g. a real request sitting in the spam folder
         # would match. At least one system must POSITIVELY vouch.
         if j_why == "no Jobber side" and g_why == "never came through Gmail":
+            continue
+        # an AGED-approval verdict is only half a proof — it requires
+        # Gmail to positively vouch (archived), never a vacuous pass
+        if "needs archived Gmail too" in j_why \
+                and "archived" not in g_why:
             continue
         # both systems vouch → file it (the exact writes ✓ Done makes:
         # the sticky cleared blob AND the office-wide read-mark — the
