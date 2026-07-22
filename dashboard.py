@@ -4578,12 +4578,22 @@ document.addEventListener('DOMContentLoaded', function(){
         # auto-drafted reply, stage tags. Existence from their behavior;
         # intelligence from ours.
         def _fpending(r):
-            if r["unread"] or r["new_msg"]:
-                return True              # fresh by our own live signals
+            # NO shortcuts from our own state (first-verify lesson: the
+            # 'unread' signal re-imported the whole historical backlog —
+            # 57 lines vs their real 9). Existence comes from THEIR box
+            # alone: a message sitting in the Gmail inbox now, or one too
+            # new for the snapshot to vouch for (the poller records fresh
+            # mail/voicemails within ~2 min, so new things still appear
+            # immediately).
+            if not _gmail_mids_at:
+                # mirror hasn't run since boot (≤15 min) — transitional
+                # fallback to the classic inbox/drafts signal so a cold
+                # boot never shows a falsely-empty list
+                return r["lane"] in ("inbox", "drafts")
             for b in (r["c"].get("bids") or []):
                 mid = (b.get("message_id") or "").strip()
                 st = _stamp_utc(b.get("received") or b.get("stamp") or "")
-                if _gmail_mids_at and st and st >= _gmail_mids_at:
+                if st and st >= _gmail_mids_at:
                     return True          # newer than the snapshot
                 if mid and mid in _gmail_inbox_mids:
                     return True          # sitting in their inbox NOW
