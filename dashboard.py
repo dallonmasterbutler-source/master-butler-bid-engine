@@ -3385,7 +3385,7 @@ def _status_word(nb, holds, flags_open, sbs, claims):
     return "review", "color:var(--green2)"
 
 
-def inbox_page(sel=None, draft="", user=None, pushed=None):
+def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None):
     """THE INBOX (Dallon picked direction A, Jul 9): bids + messages,
     one list, read/unread shared office-wide, pinned critical info,
     big folds. Scoreboard/Win-back/Settings live top-right."""
@@ -4220,6 +4220,34 @@ def inbox_page(sel=None, draft="", user=None, pushed=None):
                            f"border-radius:10px;padding:11px 14px;"
                            f"margin:0 0 10px;font-weight:700'>✅ Quote "
                            f"#{esc(str(_pn))} created{_lk}</div>")
+    # ⚠ VISIBLE REFUSAL + OVERRIDE (Martha/Saurin Shah, Jul 21): when the
+    # open-quote guard blocks an approve, SAY SO — the refusal used to
+    # live only in the review log, so the office clicked into silence.
+    # Multi-property customers are the legit case: the button pushes a
+    # second quote on explicit human say-so.
+    if blocked:
+        push_banner += (
+            f"<div style='background:#8a5a00;color:#fff;border-radius:10px;"
+            f"padding:12px 14px;margin:0 0 10px'>"
+            f"<div style='font-weight:800'>⚠️ No quote was created</div>"
+            f"<div style='font-size:13px;margin:4px 0 8px'>"
+            f"This customer already has open quote "
+            f"#{esc(blocked.get('qno') or '?')} "
+            f"({esc(blocked.get('status') or 'open')}). If their new "
+            f"request belongs on that quote, add it there in Jobber. "
+            f"If it's a <b>different job or property</b>, push a separate "
+            f"quote:</div>"
+            f"<form method='POST' action='/review' style='margin:0'>"
+            f"<input type='hidden' name='stamp' "
+            f"value='{esc(blocked.get('stamp') or '')}'>"
+            f"<input type='hidden' name='customer' "
+            f"value='{esc(blocked.get('customer') or '')}'>"
+            f"<input type='hidden' name='action' value='approve'>"
+            f"<input type='hidden' name='force_new' value='1'>"
+            f"<input type='hidden' name='back' value='/'>"
+            f"<button style='background:#fff;color:#8a5a00;font-weight:800;"
+            f"border:0;border-radius:8px;padding:8px 14px;cursor:pointer'>"
+            f"➕ Different job — push a second quote</button></form></div>")
     lst = (push_banner
            + f"<div style='display:flex;gap:8px;align-items:center;"
            f"padding:2px 4px 10px'>"
@@ -10320,8 +10348,15 @@ class Handler(BaseHTTPRequestHandler):
             cm = re.search(r"office_user=([^;]+)",
                            self.headers.get("Cookie") or "")
             u = urllib.parse.unquote(cm.group(1)) if cm else None
+            _blk = None
+            if q.get("blocked"):
+                _blk = {"stamp": q["blocked"][0],
+                        "qno": q.get("bq", [""])[0],
+                        "status": q.get("bs", [""])[0],
+                        "customer": q.get("bc", [""])[0]}
             return self._send(inbox_page(q.get("c", [None])[0], user=u,
-                                         pushed=q.get("pushed", [None])[0]))
+                                         pushed=q.get("pushed", [None])[0],
+                                         blocked=_blk))
         if self.path.startswith("/newbid"):
             # NEW-DESIGN PREVIEW (Dallon's Stitch 'Unified Command
             # Center', Jul 10) — parallel route; office pages untouched
@@ -10779,21 +10814,43 @@ class Handler(BaseHTTPRequestHandler):
                 _oqg = _rec_g.get("open_quote_ctx") or {}
                 # block a second quote only when one is genuinely LIVE
                 # (open or approved) — archived/converted quotes are
-                # history context (Kevin Pham), not a conflict
+                # history context (Kevin Pham), not a conflict.
+                # OVERRIDE (Martha/Saurin Shah, Jul 21: multi-property
+                # customer — an open quote on house #1 blocked the new
+                # quote for house #2, and the refusal was invisible, so
+                # she clicked into silence and gave up): force_new=1 (the
+                # banner's 'different job — push anyway' button) skips
+                # THIS guard only. DNS, double-click, and office-draft
+                # guards still apply.
                 if _oqg and _oqg.get("status") in (
                         "draft", "awaiting_response",
-                        "changes_requested", "approved"):
+                        "changes_requested", "approved") \
+                        and not get("force_new"):
                     entry["note"] = (f"NOT pushed — customer already has "
                                      f"quote #{_oqg.get('number')} "
                                      f"({_oqg.get('status')}). Work from "
-                                     "that one in Jobber.")
+                                     "that one in Jobber, or use 'push "
+                                     "anyway' if this is a different job.")
                     save_review(entry)
-                    self.send_response(303)
+                    # SHOW the refusal (it only lived in the review log —
+                    # invisible; the office saw a click do nothing)
                     back_g = get("back")
-                    self.send_header("Location", back_g if
-                                     back_g.startswith("/") else "/")
+                    back_g = back_g if back_g.startswith("/") else "/"
+                    _sep = "&" if "?" in back_g else "?"
+                    self.send_response(303)
+                    self.send_header(
+                        "Location",
+                        f"{back_g}{_sep}blocked={get('stamp')}"
+                        f"&bq={_oqg.get('number')}"
+                        f"&bs={urllib.parse.quote(str(_oqg.get('status')))}"
+                        f"&bc={urllib.parse.quote(get('customer') or '')}")
                     self.end_headers()
                     return
+                if get("force_new") and _oqg:
+                    entry["note"] = (f"second quote pushed on office "
+                                     f"override (different job/property) "
+                                     f"— existing #{_oqg.get('number')} "
+                                     "left open")
                 already_q = quote_numbers().get(get("stamp"))
                 if already_q:            # double-click guard: one bid,
                     entry["jobber_quote"] = already_q   # one quote, ever
