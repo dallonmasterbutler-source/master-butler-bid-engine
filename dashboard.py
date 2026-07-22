@@ -4414,6 +4414,8 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
 .mirgrid .mir .l2{{max-width:340px}}
 .mirdetail{{background:#fff;border:1px solid #e2e8f0;border-radius:16px;
   padding:16px 18px;max-height:calc(100vh - 46px);overflow:auto}}
+.mirdetail.dk{{background:#0d231b;border-color:#123527;
+  box-shadow:0 2px 14px rgba(11,61,46,.25)}}
 @media(max-width:1100px){{.mirgrid{{grid-template-columns:1fr}}
   .mirdetail{{max-height:none}}}}
 </style>
@@ -4539,11 +4541,24 @@ document.addEventListener('DOMContentLoaded', function(){{
 }});
 </script>""" + _WHO_JS
             if cur:
+                # THE CARD KEEPS ITS OWN DESIGN SYSTEM (Dallon, Jul 21
+                # screenshot: dropping the detail onto the white page
+                # without its CSS collapsed the layout — the photo hero
+                # lost its price overlay and everything stacked raw).
+                # The right panel ships WITH the dkroom stylesheet,
+                # wrapped in its .mock.dkroom scope: the emerald card —
+                # photo + price on the picture + info beside it — exactly
+                # as designed, sitting on the white page as a panel.
                 _det = _inbox_detail(cur, quotes, qurls, live_holds,
                                      flags_open, sbs, claims, draft,
                                      convo_open, user)
-                _mir = (f"<div class='mirgrid'><div>{_mir}</div>"
-                        f"<div class='mirdetail'>{_det}</div></div>")
+                _mir = (_DARKROOM_CSS
+                        + f"<div class='mirgrid'><div>{_mir}</div>"
+                        f"<div class='mirdetail dk'><div class='mock "
+                        f"dkroom' style='background:transparent;padding:0;"
+                        f"margin:0;border:0'>"
+                        f"<div class='idetail' style='padding:0'>{_det}"
+                        f"</div></div></div></div>")
             return page("Bids", _mir, chrome="bare")
     if cur:
         # OPENING NO LONGER GREYS IT (Dallon: 'if someone clicks out and
