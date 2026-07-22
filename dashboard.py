@@ -4056,6 +4056,7 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
                     wstyle = "color:var(--goldink);font-weight:800"
                     lane = "inbox"          # warm pick-up belongs up top
         roster.append({"key": key, "c": c, "nb": nb, "unread": unread,
+                       "sticky": _sticky_cleared,
                        "grp": grp, "at": last_at, "word": word,
                        "wstyle": wstyle, "age": age_h or 0,
                        "new_msg": new_msg, "oq": oq, "qno": qno,
@@ -4559,15 +4560,38 @@ document.addEventListener('DOMContentLoaded', function(){
     # inbox/drafts/won (live customer action) show; waiting/handled/
     # drawer/standby (no customer action pending) don't exist as boxes.
     if flat:
-        # WHAT NEEDS A PERSON RIGHT NOW (Dallon, Jul 21 night, refined):
-        # every line wears a clear STAGE TAG — draft / quote / reply /
-        # call back / schedule / changes. Approved quotes STAY as
-        # 📅 SCHEDULE lines because Jobber emails the office an approval
-        # notification that sits in their Gmail until they schedule and
-        # archive it — the mirror mirrors that. A SENT quote (awaiting
-        # the customer) is Jobber's to chase and gets no line.
+        # 🪞 INBOX-ANCHORED (Dallon, Jul 21 late — the realignment after
+        # his pause: "make sure it's clocking with what THEY want").
+        # EVERYTHING already flows through the office's Gmail — forms,
+        # voicemails (phone-system notifications), Jobber approvals and
+        # change-requests — so their inbox IS the unified queue and their
+        # archive habit already encodes done. Therefore:
+        #   A LINE EXISTS iff the customer has a message SITTING IN THE
+        #   OFFICE'S GMAIL INBOX right now (per the 15-min Message-ID
+        #   snapshot), or something too new for the snapshot to vouch
+        #   for (a fresh email/voicemail shows within ~2 min) — AND the
+        #   office hasn't ✓-Done'd it since (dashboard-Done overrides,
+        #   per their 'deleted things must stay gone' rule).
+        # Their box decides WHICH lines exist; OUR engine decides what
+        # each line knows (Dallon: keep all the work) — the caller's
+        # NAME on a voicemail, parsed services, the priced draft, the
+        # auto-drafted reply, stage tags. Existence from their behavior;
+        # intelligence from ours.
+        def _fpending(r):
+            if r["unread"] or r["new_msg"]:
+                return True              # fresh by our own live signals
+            for b in (r["c"].get("bids") or []):
+                mid = (b.get("message_id") or "").strip()
+                st = _stamp_utc(b.get("received") or b.get("stamp") or "")
+                if _gmail_mids_at and st and st >= _gmail_mids_at:
+                    return True          # newer than the snapshot
+                if mid and mid in _gmail_inbox_mids:
+                    return True          # sitting in their inbox NOW
+            return False
+
         _fmain = sorted((r for r in roster
-                         if r["lane"] in ("inbox", "drafts", "won")),
+                         if r["lane"] != "techs" and not r["sticky"]
+                         and _fpending(r)),
                         key=lambda r: r["age"])
 
         def _fstage(r):
@@ -4614,10 +4638,10 @@ document.addEventListener('DOMContentLoaded', function(){
             + (f" <span style='background:#fca5a5;color:#5c1410;"
                f"border-radius:99px;padding:1px 8px;font-size:12px'>"
                f"{_funread}</span>" if _funread else "")
-            + f"</span><span class='subtext'>{len(_fmain)} line(s) — only "
-            f"what needs a person right now · sent &amp; approved quotes "
-            f"live in Jobber · ✓ Done removes it until the customer "
-            f"reaches out again</span></div>"
+            + f"</span><span class='subtext'>{len(_fmain)} line(s) — "
+            f"mirrors your Gmail inbox · archive there or ✓ Done here "
+            f"removes it · anything the customer does brings it back"
+            f"</span></div>"
             "<input id='fsearch' placeholder='🔎 Find a customer…' "
             "style='width:100%;margin:0 0 10px;padding:8px 12px;"
             "border-radius:9px;border:1px solid var(--line);"
