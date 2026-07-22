@@ -7810,40 +7810,52 @@ def lightroutes_page():
     cards = ""
     for r in d["routes"]:
         rows = "".join(
-            f"<tr><td>{esc(h['client'])[:30]}</td>"
-            f"<td class='subtext'>{esc(h['address'])[:52]}</td>"
+            ("<tr>" if h.get("active") else
+             "<tr style='opacity:.45'>")
+            + f"<td>{esc(h['client'])[:30]}"
+            + ("" if h.get("active")
+               else " <span class='subtext'>(lapsed)</span>")
+            + f"</td><td class='subtext'>{esc(h['address'])[:52]}</td>"
             f"<td class='subtext'>{esc(h.get('bulb') or '')[:14]}</td>"
-            f"</tr>" for h in r["homes"])
+            "</tr>" for h in r["homes"])
         cards += (
             f"<details class='card' style='border-left:4px solid "
             f"{r['color']}'><summary style='cursor:pointer;list-style:"
-            f"none;display:flex;align-items:center;gap:10px'>"
+            f"none;display:flex;align-items:center;gap:10px;"
+            f"flex-wrap:wrap'>"
             f"<b style='font-size:15px'>{esc(r['name'])}</b>"
             f"<span class='chip'>{r['count']} homes</span>"
+            f"<span class='chip win'>{r.get('active', 0)} active</span>"
             f"<span class='chip'>≤{r['max_mi_from_center']} mi spread"
             f"</span><span class='subtext' style='margin-left:auto'>"
             f"{esc(r['tech'])} · tap for the roster</span></summary>"
             f"<div style='max-height:340px;overflow:auto;margin-top:8px'>"
             f"<table><tr><th>Customer</th><th>Address</th><th>Bulb</th>"
             f"</tr>{rows}</table></div></details>")
-    im = d.get("ironman") or {}
+    _badg = d.get("bad_geocodes") or []
+    _badnote = ("<div class='subtext' style='margin-top:6px'>⚠ "
+                + " · ".join(esc(b['client']) for b in _badg[:5])
+                + " couldn't be mapped (bad geocode) — routed by hand."
+                "</div>") if _badg else ""
+    legend = " · ".join(
+        f"<span style='color:{r['color']};font-weight:800'>●</span> "
+        f"{esc(r['name'].split('—')[0].strip())}"
+        for r in d["routes"])
     body = f"""
 <div style='max-width:1150px'>
- <h2 style='margin:2px 0 4px'>🎄 Sammamish — three effective routes</h2>
- <div class='subtext' style='margin-bottom:12px'>Built from
-  <b>{d['sammamish_active']} ACTIVE install homes</b> (an invoiced
-  install since Aug 2025) clustered on real coordinates, balanced to
-  the 2026 sheet's targets. Names follow the office's own territory
-  plan. The <b>Iron Man corridor</b> ({im.get('count', 0)} homes ·
-  {esc(im.get('cities') or '')}) stays untouched and tight for
-  {esc(im.get('tech') or 'its tech')}.</div>
+ <h2 style='margin:2px 0 4px'>🎄 Holiday lights — every route, every
+  home</h2>
+ <div class='subtext' style='margin-bottom:12px'>
+  <b>{d['total_homes']} homes all-time · {d['total_active']} active
+  this season</b>, every one on the map from real coordinates.
+  Sammamish is split into the three sheet territories; every other
+  route follows the 2026 superhero plan. Lapsed homes ride along
+  greyed — they're the win-back list with an address.</div>
  <div class='card'>
-  <div id='map_samm' style='height:520px;border-radius:12px'></div>
-  <div class='subtext' style='margin-top:8px'>Purple = Trossachs/East ·
-   Red = Duthie Hill/244th · Green = Castle Pines/Main/West · Gold =
-   the Iron Man corridor (context, not part of the split). Daily stop
+  <div id='map_samm' style='height:560px;border-radius:12px'></div>
+  <div class='subtext' style='margin-top:8px'>{legend}. Daily stop
    ORDER comes from the Google route optimizer — same engine as the
-   <a href='/route_demo'>route mockup</a>.</div>
+   <a href='/route_demo'>route mockup</a>.{_badnote}</div>
  </div>
  {cards}
 </div>
@@ -7853,22 +7865,20 @@ def lightroutes_page():
 <style>.leaflet-container{{background:#dde5dd}}</style>
 <script>
 var R = {json.dumps([{"color": r["color"],
-                      "pts": [[h["lat"], h["lng"]] for h in r["homes"]]}
+                      "pts": [[h["lat"], h["lng"],
+                               1 if h.get("active") else 0]
+                              for h in r["homes"]]}
                      for r in d["routes"]])};
-var IRON = {json.dumps((im.get("points") or [])[:500])};
 var m = L.map('map_samm');
 L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png',
  {{maxZoom: 17, attribution: '© OpenStreetMap'}}).addTo(m);
 var all = [];
-IRON.forEach(function(p){{
-  L.circleMarker(p, {{radius: 2.5, color: '#b8860b', weight: 1,
-                     fillOpacity: .5}}).addTo(m);
-}});
 R.forEach(function(r){{
   r.pts.forEach(function(p){{
-    all.push(p);
-    L.circleMarker(p, {{radius: 4, color: r.color, weight: 2,
-                       fillOpacity: .75}}).addTo(m);
+    all.push([p[0], p[1]]);
+    L.circleMarker([p[0], p[1]],
+      {{radius: p[2] ? 4 : 2.5, color: r.color, weight: p[2] ? 2 : 1,
+        fillOpacity: p[2] ? .75 : .3}}).addTo(m);
   }});
 }});
 m.fitBounds(all.length ? all : [[47.6, -122.05]], {{padding: [30, 30]}});

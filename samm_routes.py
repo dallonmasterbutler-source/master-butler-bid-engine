@@ -49,6 +49,52 @@ def _dist(a, b):
     return math.hypot(dx, dy)
 
 
+def _territory_of(city, lat, lng):
+    """City -> superhero territory per the office's 2026 sheet.
+    Sammamish is handled separately (3-way split). South-of-I-90
+    Bellevue-side homes ride Spiderman's S-I90 block."""
+    c = (city or "").lower()
+    if c in ("bothell", "monroe", "sultan", "woodinville", "snohomish",
+             "gold bar", "mill creek", "kenmore", "lynnwood", "edmonds",
+             "everett", "lake stevens", "lake forest park"):
+        return "ironman"
+    if c in ("redmond",):
+        return "superman"
+    if c in ("kirkland",):
+        return "batman"
+    if c in ("bellevue", "medina", "clyde hill", "yarrow point",
+             "mercer island", "newcastle", "renton"):
+        return "spiderman"
+    if c in ("issaquah", "snoqualmie", "north bend", "fall city",
+             "carnation"):
+        return "wolverine"
+    if c in ("duvall",):
+        return "optimus"          # rides with Trossachs/East per sheet
+    return "wolverine" if (lng or 0) > -122.0 else "spiderman"
+
+
+TERRITORIES = {
+    "ironman":  {"name": "Iron Man — North corridor",
+                 "tech": "Dallon (Nick K to inherit?)",
+                 "cities": "Bothell · Monroe · Woodinville · Snohomish "
+                           "· north satellites", "color": "#b8860b"},
+    "superman": {"name": "Superman — Redmond",
+                 "tech": "Shane", "cities": "Redmond",
+                 "color": "#1d4ed8"},
+    "batman":   {"name": "Batman — Kirkland (+ Monroe Mainvue)",
+                 "tech": "Adam", "cities": "Kirkland",
+                 "color": "#0f172a"},
+    "spiderman": {"name": "Spiderman — Bellevue · S-I90",
+                  "tech": "Austin",
+                  "cities": "Bellevue · Medina · Mercer Is. · "
+                            "Newcastle · Renton", "color": "#dc2626"},
+    "wolverine": {"name": "Wolverine — Issaquah · Snoqualmie valley",
+                  "tech": "Mark",
+                  "cities": "Issaquah · Snoqualmie · North Bend · "
+                            "Fall City · Carnation", "color": "#6d28d9"},
+}
+
+
 def build():
     cal = json.loads((BASE / "data" / "lights_calibration.json")
                      .read_text())
@@ -60,18 +106,21 @@ def build():
     active = {c for c, d in latest.items() if d >= "2025-08"}
 
     homes = json.loads((BASE / "data" / "lights_homes.json").read_text())
-    samm = [h for h in homes
-            if (h.get("city") or "").lower() == "sammamish"
-            and _nkey(h.get("client")) in active
-            and h.get("lat") and h.get("lng")]
-    iron = [h for h in homes
-            if (h.get("city") or "").lower() in IRONMAN_CITIES
-            and _nkey(h.get("client")) in active
-            and h.get("lat") and h.get("lng")]
+    homes = [h for h in homes if h.get("lat") and h.get("lng")]
+    # geocode sanity fence: our whole service region fits in this box —
+    # anything outside is a bad geocode (one Spiderman home graded the
+    # route 108 mi wide). Sidelined for the office, never routed wrong.
+    bad = [h for h in homes
+           if not (47.2 < h["lat"] < 48.2 and -122.6 < h["lng"] < -121.4)]
+    homes = [h for h in homes if h not in bad]
+    for h in homes:
+        h["active"] = _nkey(h.get("client")) in active
 
-    # seed on the neighborhood anchors, run k-means to convergence,
-    # then rebalance: no route may exceed ceil(n/3)+tol — boundary
-    # homes move to their next-nearest under-full route
+    samm = [h for h in homes
+            if (h.get("city") or "").lower() == "sammamish"]
+
+    # ── Sammamish 3-way split (ALL homes now, not just active):
+    # k-means seeded on the sheet's neighborhood anchors + rebalance
     cents = [d["anchor"] for d in ROUTE_DEFS]
     assign = [0] * len(samm)
     for _ in range(60):
@@ -90,15 +139,13 @@ def build():
                             sum(p[1] for p in pts) / len(pts))
         if not moved:
             break
-    cap = -(-len(samm) // 3) + 8            # ceil + tolerance
-    for _ in range(300):
+    cap = -(-len(samm) // 3) + 10
+    for _ in range(400):
         sizes = [assign.count(k) for k in range(3)]
         over = [k for k in range(3) if sizes[k] > cap]
         if not over:
             break
         k = over[0]
-        # the member farthest from its centroid moves to the nearest
-        # under-full route
         members = [i for i in range(len(samm)) if assign[i] == k]
         far = max(members, key=lambda i: _dist(
             (samm[i]["lat"], samm[i]["lng"]), cents[k]))
@@ -111,44 +158,57 @@ def build():
             break
         assign[far] = others[0]
 
+    def _route(name, tech, color, hs, center=None):
+        hs = sorted(hs, key=lambda h: (h["lat"], h["lng"]))
+        if hs and not center:
+            center = (sum(h["lat"] for h in hs) / len(hs),
+                      sum(h["lng"] for h in hs) / len(hs))
+        spread = max((_dist((h["lat"], h["lng"]), center)
+                      for h in hs), default=0) if center else 0
+        return {"name": name, "tech": tech, "color": color,
+                "count": len(hs),
+                "active": sum(1 for h in hs if h.get("active")),
+                "center": center,
+                "max_mi_from_center": round(spread, 1),
+                "homes": [{"client": h["client"],
+                           "address": h["address"],
+                           "lat": h["lat"], "lng": h["lng"],
+                           "bulb": h.get("bulb"),
+                           "active": h.get("active", False)}
+                          for h in hs]}
+
     routes = []
     for k, d in enumerate(ROUTE_DEFS):
         hs = [samm[i] for i in range(len(samm)) if assign[i] == k]
-        hs.sort(key=lambda h: (h["lat"], h["lng"]))
-        spread = max((_dist((a["lat"], a["lng"]), cents[k])
-                      for a in hs), default=0)
-        routes.append({
-            "name": d["name"], "tech": d["tech"], "color": d["color"],
-            "count": len(hs), "center": cents[k],
-            "max_mi_from_center": round(spread, 1),
-            "homes": [{"client": h["client"], "address": h["address"],
-                       "lat": h["lat"], "lng": h["lng"],
-                       "bulb": h.get("bulb"),
-                       "combo": h.get("color_combo")} for h in hs]})
+        if d["key"] == "trossachs":     # Duvall rides with Optimus
+            hs = hs + [h for h in homes
+                       if (h.get("city") or "").lower() == "duvall"]
+        routes.append(_route(d["name"], d["tech"], d["color"], hs,
+                             cents[k]))
 
-    ic = ((sum(h["lat"] for h in iron) / len(iron)),
-          (sum(h["lng"] for h in iron) / len(iron))) if iron else None
-    ir_spread = max((_dist((h["lat"], h["lng"]), ic) for h in iron),
-                    default=0) if ic else 0
-    out = {"routes": routes,
-           "sammamish_active": len(samm),
-           "ironman": {
-               "tech": "Iron Man (Dallon — Nick K to inherit?)",
-               "cities": "Bothell · Monroe · Woodinville · Snohomish",
-               "count": len(iron), "center": ic,
-               "max_mi_from_center": round(ir_spread, 1),
-               "points": [[h["lat"], h["lng"]] for h in iron]}}
-    return out
+    for key, t in TERRITORIES.items():
+        hs = [h for h in homes
+              if (h.get("city") or "").lower() not in
+              ("sammamish", "duvall")
+              and _territory_of(h.get("city"), h["lat"],
+                                h["lng"]) == key]
+        routes.append(_route(t["name"], t["tech"], t["color"], hs))
+
+    return {"routes": routes,
+            "bad_geocodes": [{"client": h["client"],
+                              "address": h["address"]} for h in bad],
+            "total_homes": len(homes),
+            "total_active": sum(1 for h in homes if h["active"]),
+            "sammamish_active": sum(1 for h in samm if h["active"])}
 
 
 if __name__ == "__main__":
     o = build()
-    print(f"active Sammamish homes: {o['sammamish_active']}")
+    print(f"all homes: {o['total_homes']} "
+          f"({o['total_active']} active this season)")
     for r in o["routes"]:
-        print(f"  {r['name']:44s} {r['count']:3d} homes · "
-              f"≤{r['max_mi_from_center']} mi from center · {r['tech']}")
-    i = o["ironman"]
-    print(f"  Iron Man corridor: {i['count']} homes · "
-          f"≤{i['max_mi_from_center']} mi from center (untouched)")
+        print(f"  {r['name']:46s} {r['count']:4d} homes "
+              f"({r['active']:3d} active) · "
+              f"<= {r['max_mi_from_center']} mi · {r['tech']}")
     (BASE / "data" / "samm_routes.json").write_text(json.dumps(o))
-    print("→ data/samm_routes.json")
+    print("-> data/samm_routes.json")
