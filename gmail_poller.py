@@ -171,7 +171,16 @@ def reconcile_inbox(verbose=True):
             if _already_have(msg_id, seen):
                 continue
             found += 1
-            shadow_process(raw, msg_id, folder=folder)
+            try:
+                shadow_process(raw, msg_id, folder=folder)
+            except Exception as _pe:
+                # POISON MESSAGE (Jul 22 order trace): one raising email
+                # used to kill the whole poll AND every restart re-died
+                # on it. Skip it loudly, do NOT remember it — the
+                # nightly reconcile keeps retrying until it's fixed.
+                print(f"  ⚠️ POISON MESSAGE {msg_id[:50]}: "
+                      f"{type(_pe).__name__}: {_pe} — skipped")
+                continue
             _remember(msg_id)
             seen.add(msg_id)
     if verbose:
@@ -204,7 +213,16 @@ def _poll_via_api(seen):
             if _already_have(msg_id, seen):
                 continue
             new_count += 1
-            shadow_process(raw, msg_id, folder=folder)
+            try:
+                shadow_process(raw, msg_id, folder=folder)
+            except Exception as _pe:
+                # POISON MESSAGE (Jul 22 order trace): one raising email
+                # used to kill the whole poll AND every restart re-died
+                # on it. Skip it loudly, do NOT remember it — the
+                # nightly reconcile keeps retrying until it's fixed.
+                print(f"  ⚠️ POISON MESSAGE {msg_id[:50]}: "
+                      f"{type(_pe).__name__}: {_pe} — skipped")
+                continue
             _remember(msg_id)
             seen.add(msg_id)
     try:
@@ -331,7 +349,12 @@ def poll_once():
                     typ, full = M.fetch(num, "(BODY.PEEK[])")
                     raw = full[0][1]
                     new_count += 1
-                    shadow_process(raw, msg_id, folder=folder)
+                    try:
+                        shadow_process(raw, msg_id, folder=folder)
+                    except Exception as _pe:
+                        print(f"  ⚠️ POISON MESSAGE {msg_id[:50]}: "
+                              f"{type(_pe).__name__}: {_pe} — skipped")
+                        continue
                     _remember(msg_id)
                     seen.add(msg_id)
             try:
@@ -1003,6 +1026,7 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
         # spawning a second queue item.
         target = _bid_for_quote(ev.get("quote_number"))
         if target:
+            target = _fold_root(target)   # never attach onto a merged child
             _attach_event(target, ev, stamp)
             record["merged_into"] = target
         else:
@@ -1037,7 +1061,7 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
                 if _pl.get("caller") == lead.get("caller") \
                         and _pl.get("when") == lead.get("when") \
                         and _ps != stamp:
-                    record["merged_into"] = _ps
+                    record["merged_into"] = _fold_root(_ps)
                     break
         except Exception:
             pass
@@ -1062,6 +1086,25 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
         if style in ("notification", "audio") and \
                 _transcribe_voicemail(record, parsed, raw_bytes, stamp, who):
             style = "transcript"
+        if not record.get("dns_match"):
+            # the DNS gate above ran while this was a bare phone_lead
+            # (kind not in its list) — a do-not-service customer who
+            # PHONES in was never flagged (Jul 22 order trace). Check
+            # by phone + caller-id name now that we know who it is.
+            try:
+                import dns_check
+                _vh = dns_check.check(
+                    phone=parsed.get("phone"),
+                    name=(record.get("caller_id") or {}).get("name"))
+            except Exception:
+                _vh = None
+            if _vh:
+                record["dns_match"] = _vh
+                record["office_alert"] = (
+                    f"⛔ DO NOT SERVICE — caller matches '{_vh['name']}' "
+                    f"in Jobber (matched by {_vh['matched_by']}; marker: "
+                    f"{_vh['why'][:80]}). Do not quote or schedule; tell "
+                    "Dallon/Tom if unsure.")
         if style == "notification":
             record["office_alert"] = (
                 f"VOICEMAIL from {who}"
@@ -1192,11 +1235,18 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
             # from Jobber is machine mail ABOUT the customer, never a
             # duplicate OF the customer's request.)
             _sf = record.get("kind") == "jobber_event" \
-                or bool(record.get("jobber_event"))
+                or bool(record.get("jobber_event")) \
+                or bool(record.get("lead")) \
+                or "copycall" in (record.get("from") or "").lower() \
+                or "voice.google" in (record.get("from") or "").lower()
+            # voicemails join the exclusion (Jul 22): the generic fold
+            # matched them by the SHARED provider envelope; same-call
+            # re-sends already fold via the caller+when check above
             if not _sf and looks_same_job(record.get("subject"),
                               prior_rec.get("subject"),
                               record.get("newest_message"),
-                              bool(parsed.get("services"))):
+                              bool(parsed.get("services")
+                                   or record.get("services"))):
                 record["merged_into"] = _fold_root(
                     verdict["match"]["stamp"])
                 record["office_alert"] = None

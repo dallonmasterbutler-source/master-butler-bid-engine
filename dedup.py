@@ -97,8 +97,17 @@ def check_duplicate(incoming: dict, open_requests: list) -> dict:
                     "reason": "reply in the same email thread"}
 
         prior_addr = normalize_address(prior.get("address"))
+        # SHARED-PROVIDER envelopes are not identity (Jul 22: every
+        # voicemail arrives from the SAME copycall address, so two
+        # strangers' voicemails matched as 'same contact' and a new
+        # caller folded into an unrelated record — the Asish class,
+        # phone edition). For machine senders, only the PHONE says who.
+        _shared = any(s in (email_n or "") for s in
+                      ("copycall", "voice.google", "getjobber",
+                       "squarespace"))
         same_person = (
-            (email_n and normalize_email(prior.get("sender_email")) == email_n)
+            (email_n and not _shared
+             and normalize_email(prior.get("sender_email")) == email_n)
             or (phone_n and normalize_phone(prior.get("phone")) == phone_n))
 
         if same_person:

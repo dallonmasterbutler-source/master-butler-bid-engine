@@ -3598,6 +3598,13 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
         if not _fb.get("merged_into"):
             continue
         _fe = _canon_email(_bid_email(_fb))
+        # an attach-merged Jobber event's SENDER is Jobber — its mid
+        # must count for the CLIENT (Asish, Jul 22: the approval mail
+        # sat in the inbox keyed to noreply@, so his line still hid)
+        _ce = ((_fb.get("jobber_event") or {}).get("client_email")
+               or "").strip().lower()
+        if "@" in _ce and (not _fe or "getjobber" in (_fe or "")):
+            _fe = _canon_email(_ce)
         if not _fe:
             continue
         _fm = (_fb.get("message_id") or "").strip()

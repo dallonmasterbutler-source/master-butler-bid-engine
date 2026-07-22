@@ -47,6 +47,13 @@ LIVE_QUOTE = ("draft", "awaiting_response", "changes_requested")
 
 
 def _email_of(rec):
+    # a Jobber event's sender is Jobber — it belongs to its CLIENT
+    # (Asish, Jul 22: approval mail keyed to noreply@ was invisible
+    # to its customer's evidence set)
+    ce = ((rec.get("jobber_event") or {}).get("client_email")
+          or "").strip().lower()
+    if "@" in ce:
+        return ce
     m = re.search(r"<([^>]+)>", rec.get("from") or "")
     e = (m.group(1) if m else "").strip().lower()
     return e if "@" in e else ""      # phone-number froms are not emails
@@ -178,15 +185,18 @@ def _sweep_inner(verbose, limit):
     # for the Gmail presence check, never as their own line.
     by_email, raws_of, folds_of = {}, {}, {}
     for stamp, r in clouddb.all_shadow():
-        if r.get("spam_auto") or r.get("tech_sender") \
-                or r.get("kind") == "jobber_event":
+        if r.get("spam_auto") or r.get("tech_sender"):
             continue
         e = _email_of(r)
         if not e or "masterbutlerinc" in e:
             continue
         canon = _db._canon_email(e)
         raws_of.setdefault(canon, set()).add(e)
-        if r.get("merged_into"):
+        # merged children AND Jobber events are EVIDENCE for their
+        # customer (activity + Gmail presence), never their own line —
+        # an approval sitting in the inbox must block auto-filing
+        # (Asish, Jul 22)
+        if r.get("merged_into") or r.get("kind") == "jobber_event":
             folds_of.setdefault(canon, []).append((stamp, r))
             continue
         by_email.setdefault(canon, []).append((stamp, r))
