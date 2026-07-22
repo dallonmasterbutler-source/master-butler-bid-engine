@@ -4098,6 +4098,441 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
 
     cur = next((r for r in roster if r["key"] == sel), None)
     convo_open = bool(cur and cur["new_msg"])
+
+    # (moved up, Jul 21 perf: the mirror must return BEFORE the classic
+    #  five-lane HTML below is built — it rendered ~380 rows per request
+    #  just to be thrown away)
+    push_banner = ""
+    if pushed:
+        _pn = quote_numbers().get(pushed)
+        _pu = quote_urls().get(pushed)
+        if _pn:
+            _lk = (f" — <a href='{esc(_pu)}' target='_blank' rel='noopener' "
+                   f"style='color:#fff;text-decoration:underline;"
+                   f"font-weight:800'>open in Jobber ↗</a>" if _pu else "")
+            push_banner = (f"<div style='background:var(--green);color:#fff;"
+                           f"border-radius:10px;padding:11px 14px;"
+                           f"margin:0 0 10px;font-weight:700'>✅ Quote "
+                           f"#{esc(str(_pn))} created{_lk}</div>")
+    # ⚠ VISIBLE REFUSAL + OVERRIDE (Martha/Saurin Shah, Jul 21): when the
+    # open-quote guard blocks an approve, SAY SO — the refusal used to
+    # live only in the review log, so the office clicked into silence.
+    # Multi-property customers are the legit case: the button pushes a
+    # second quote on explicit human say-so.
+    if blocked:
+        push_banner += (
+            f"<div style='background:#8a5a00;color:#fff;border-radius:10px;"
+            f"padding:12px 14px;margin:0 0 10px'>"
+            f"<div style='font-weight:800'>⚠️ No quote was created</div>"
+            f"<div style='font-size:13px;margin:4px 0 8px'>"
+            f"This customer already has open quote "
+            f"#{esc(blocked.get('qno') or '?')} "
+            f"({esc(blocked.get('status') or 'open')}). If their new "
+            f"request belongs on that quote, add it there in Jobber. "
+            f"If it's a <b>different job or property</b>, push a separate "
+            f"quote:</div>"
+            f"<form method='POST' action='/review' style='margin:0'>"
+            f"<input type='hidden' name='stamp' "
+            f"value='{esc(blocked.get('stamp') or '')}'>"
+            f"<input type='hidden' name='customer' "
+            f"value='{esc(blocked.get('customer') or '')}'>"
+            f"<input type='hidden' name='action' value='approve'>"
+            f"<input type='hidden' name='force_new' value='1'>"
+            f"<input type='hidden' name='back' value='/'>"
+            f"<button style='background:#fff;color:#8a5a00;font-weight:800;"
+            f"border:0;border-radius:8px;padding:8px 14px;cursor:pointer'>"
+            f"➕ Different job — push a second quote</button></form></div>")
+    if flat:
+        # 🪞 INBOX-ANCHORED (Dallon, Jul 21 late — the realignment after
+        # his pause: "make sure it's clocking with what THEY want").
+        # EVERYTHING already flows through the office's Gmail — forms,
+        # voicemails (phone-system notifications), Jobber approvals and
+        # change-requests — so their inbox IS the unified queue and their
+        # archive habit already encodes done. Therefore:
+        #   A LINE EXISTS iff the customer has a message SITTING IN THE
+        #   OFFICE'S GMAIL INBOX right now (per the 15-min Message-ID
+        #   snapshot), or something too new for the snapshot to vouch
+        #   for (a fresh email/voicemail shows within ~2 min) — AND the
+        #   office hasn't ✓-Done'd it since (dashboard-Done overrides,
+        #   per their 'deleted things must stay gone' rule).
+        # Their box decides WHICH lines exist; OUR engine decides what
+        # each line knows (Dallon: keep all the work) — the caller's
+        # NAME on a voicemail, parsed services, the priced draft, the
+        # auto-drafted reply, stage tags. Existence from their behavior;
+        # intelligence from ours.
+        def _fpending(r):
+            # NO shortcuts from our own state (first-verify lesson: the
+            # 'unread' signal re-imported the whole historical backlog —
+            # 57 lines vs their real 9). Existence comes from THEIR box
+            # alone: a message sitting in the Gmail inbox now, or one too
+            # new for the snapshot to vouch for (the poller records fresh
+            # mail/voicemails within ~2 min, so new things still appear
+            # immediately).
+            if not _gmail_mids_at:
+                # mirror hasn't run since boot (≤15 min) — transitional
+                # fallback to the classic inbox/drafts signal so a cold
+                # boot never shows a falsely-empty list
+                return r["lane"] in ("inbox", "drafts")
+            for b in (r["c"].get("bids") or []):
+                mid = (b.get("message_id") or "").strip()
+                st = _stamp_utc(b.get("received") or b.get("stamp") or "")
+                if st and st >= _gmail_mids_at:
+                    return True          # newer than the snapshot
+                if mid and mid in _gmail_inbox_mids:
+                    return True          # sitting in their inbox NOW
+            return False
+
+        _fmain = sorted((r for r in roster
+                         if r["lane"] != "techs" and not r["sticky"]
+                         and _fpending(r)),
+                        key=lambda r: r["age"])
+
+        def _fstage(r):
+            """(label, fg, bg) — the worded stage chip (Dallon's mockup:
+            the color code has words; one glance down the left edge)."""
+            nb = r.get("nb") or {}
+            # a voicemail's ACTION is calling them back — even when the
+            # engine already priced a draft for it (tag = the action)
+            if nb.get("kind") == "phone_lead":
+                return ("📞 Call back", "#7c3aed", "#f1ebfd")
+            if "change" in ((nb.get("office_alert") or "").lower()):
+                return ("✏️ Changes", "#b91c1c", "#fdeaea")
+            if r["lane"] == "won":
+                return ("📅 Schedule", "#0e7490", "#e0f4f8")
+            if r["lane"] == "drafts":
+                return ("🖊 Draft", "#b8860b", "#fdf6e3")
+            if nb.get("services"):
+                return ("📋 Quote", "#1f6b47", "#e6f4ec")
+            return ("💬 Reply", "#2563eb", "#e8effd")
+        _ftech = sorted((r for r in roster if r["lane"] == "techs"),
+                        key=lambda r: r["age"])
+        _funread = sum(1 for r in _fmain if r["unread"])
+
+
+        # ── 🎨 THE LIGHT TABLE (Dallon's approved mockup, Jul 21 night —
+        # all 5 readability adaptations): worded stage chips down the left
+        # edge · two lines per row with the customer's REAL words · value
+        # lives in the bold green price (no chip) · ✓ Done always visible
+        # · urgent explains itself with the trigger words. Full-width when
+        # no customer is open; clicking a row opens the existing detail.
+        # One-click APPROVE stays OUT of the list — approving pushes a
+        # real quote; that lives in the detail card where the price is.
+        # ONE WORLD (Dallon, Jul 21 late: 'we go from a clean front
+        # screen to the old view — combine them'): the light list ALWAYS
+        # renders; picking a customer slides their detail card in on the
+        # RIGHT, same design, no jump to the old dark room.
+        if True:
+            _PT["flat_in"] = _prf.time()
+            def _ago(h):
+                return (f"{h*60:.0f}m ago" if h < 1 else
+                        f"{h:.0f}h ago" if h < 48 else f"{h/24:.0f}d ago")
+
+            def _mwords(r):
+                """Line 2: the bold WHAT + the customer's clean words."""
+                c, nb = r["c"], r.get("nb") or {}
+                what = ", ".join(s.replace("_", " ").title()
+                                 for s in (nb.get("services") or [])[:3]) \
+                    or (nb.get("subject") or "")[:56]
+                # stale-quote / mismatch context outranks the quote tail
+                if "⏰" in r["word"] or "🔀" in r["word"]:
+                    tail = r["word"].lstrip("⏰🔀 ").strip()
+                else:
+                    pv = ""
+                    if c.get("msgs"):
+                        pv = (c["msgs"][-1].get("body") or "")
+                    pv = pv or nb.get("newest_message") or ""
+                    pv = " ".join(pv.split())
+                    # never the form wrapper — the parsed words or nothing
+                    if pv.startswith("Form Submission") \
+                            or "Email Address:" in pv or pv.startswith("📋"):
+                        pv = ""
+                    tail = f"<q>{esc(pv[:110])}</q>" if pv else ""
+                bits = []
+                if str(nb.get("customer_status") or "").startswith("return"):
+                    bits.append("returning customer")
+                if c.get("vm"):
+                    what = what or "New caller"
+                    dur = (c["vm"] or {}).get("dur")
+                    if dur:
+                        bits.append(f"voicemail {esc(str(dur))}")
+                mid = (" — " + ", ".join(bits)) if bits else ""
+                sep = " · " if tail else ""
+                return f"<b>{esc(what)}{mid}</b>{sep}{tail}"
+
+            def _mrow(r, tech=False):
+                c, nb = r["c"], r.get("nb") or {}
+                name = esc((c.get("name") or c.get("email") or "?")[:36])
+                d = (nb.get("draft") or {})
+                total = d.get("total")
+                if isinstance(total, (int, float)) and total:
+                    pcls = "hi" if total >= 750 else ""
+                    price = f"${total:,.2f}"
+                else:
+                    pcls, price = "tbd", ("TBD" if r["lane"] != "techs"
+                                          else "—")
+                if tech:
+                    who = esc(str(nb.get("tech_sender") or "Tech")
+                              .split()[0][:12])
+                    chip = (f"<span class='stage' style='background:#eef1ee;"
+                            f"color:#475569'>👷 {who}</span>")
+                else:
+                    tag, fg, bg = _fstage(r)
+                    chip = (f"<span class='stage' style='background:{bg};"
+                            f"color:{fg}'>{tag}</span>")
+                urg = ""
+                if r["urgent"]:
+                    _uq = re.search(r"“([^”]+)”", r["word"] or "")
+                    urg = (f"<span class='urgchip'>⚠ "
+                           f"“{esc((_uq.group(1) if _uq else 'urgent')[:38])}”"
+                           f"</span>")
+                rd = "unread" if r["unread"] else "read"
+                _sl = " selrow" if r["key"] == sel else ""
+                k = urllib.parse.quote(r["key"])
+                return (
+                    f"<tr class='r {rd} mrowt{_sl}' data-k='{esc(r['key'])}' "
+                    f"data-unread='{1 if r['unread'] else 0}' "
+                    f"data-urgent='{1 if r['urgent'] else 0}' "
+                    f"onclick=\"location='/?c={k}'\">"
+                    f"<td class='stagecol'>{chip}</td>"
+                    f"<td><div class='l1'><a class='nm' href='/?c={k}' "
+                    f"style='color:inherit;text-decoration:none' "
+                    f"onclick='event.stopPropagation()'>{name}</a>"
+                    f"{urg}</div>"
+                    f"<div class='l2'>{_mwords(r)}</div></td>"
+                    f"<td class='price {pcls}'>{price}</td>"
+                    f"<td class='when'>{_ago(r['age'] or 0)}"
+                    f"<div class='acts'><div class='more'>"
+                    f"<button title='Open' onclick=\"event.stopPropagation();"
+                    f"location='/?c={k}'\">👁</button></div>"
+                    f"<button class='done' data-k='{esc(r['key'])}' "
+                    f"title='Done — gone until they reach out again' "
+                    f"onclick='event.stopPropagation();rowDone(event,this)'>"
+                    f"✓ Done</button></div></td></tr>")
+
+            _mrows = "".join(_mrow(r) for r in _fmain) or (
+                "<tr><td colspan='4' style='padding:60px;text-align:center;"
+                "color:#10b981;font-weight:800;font-size:16px'>All caught "
+                "up ✅<div style='color:#94a3b8;font-weight:400;font-size:"
+                "13px;margin-top:6px'>Nothing is waiting on a person — new "
+                "activity appears the moment it happens.</div></td></tr>")
+            _mtech = "".join(_mrow(r, tech=True) for r in _ftech) or (
+                "<tr><td colspan='4' style='padding:14px 18px;color:"
+                "#94a3b8;font-size:13px'>No open tech questions.</td></tr>")
+            _n_unread = sum(1 for r in _fmain if r["unread"])
+            _n_urgent = sum(1 for r in _fmain if r["urgent"])
+            _mir = f"""
+<span style='display:none'>dkroom-opt-out</span>
+{push_banner}
+<style>
+.mir{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,
+  Helvetica,Arial,sans-serif;background:#fff;border-radius:16px;
+  overflow:hidden;border:1px solid #e2e8f0;color:#0f172a;
+  box-shadow:0 2px 14px rgba(16,33,27,.07)}}
+.mir .top{{background:#0b3d2e;padding:14px 22px;display:flex;
+  align-items:center;gap:14px}}
+.mir .logo{{font-weight:900;color:#c9a227;letter-spacing:2.5px;
+  font-size:15px;text-transform:uppercase}}
+.mir .mtag{{color:rgba(255,255,255,.55);font-size:12px}}
+.mir .muser{{margin-left:auto;color:#fff;font-size:13px;font-weight:600}}
+.mir .tool{{display:flex;align-items:center;gap:18px;padding:12px 22px;
+  background:#fff;border-bottom:1px solid #e2e8f0;flex-wrap:wrap}}
+.mir .newlead{{background:#0b3d2e;color:#c9a227;border-radius:99px;
+  padding:9px 18px;font-weight:700;font-size:13px;text-decoration:none}}
+.mir .filts{{display:flex;gap:16px;font-size:13px;font-weight:600;
+  color:#64748b}}
+.mir .filts button{{background:none;border:0;cursor:pointer;color:inherit;
+  font:inherit;padding:2px 0}}
+.mir .filts button.on{{color:#0b3d2e;font-weight:800;
+  border-bottom:2px solid #0b3d2e}}
+.mir #fsearch{{margin-left:auto;background:#f1f5f9;border:0;
+  border-radius:99px;padding:9px 18px;font-size:13px;width:240px}}
+.mir table{{width:100%;border-collapse:collapse;background:#fff}}
+.mir td{{vertical-align:top;border-bottom:1px solid #f4f6f8;
+  padding:14px 10px}}
+.mir tr.r:hover{{background:#f8fafc}}
+.mir tr.r{{cursor:pointer}}
+.mir .stagecol{{width:128px;padding-left:18px}}
+.mir .stage{{display:inline-block;font-size:10px;font-weight:900;
+  letter-spacing:.4px;text-transform:uppercase;border-radius:6px;
+  padding:5px 9px;white-space:nowrap}}
+.mir .l1{{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}}
+.mir .nm{{font-size:14.5px}}
+.mir .unread .nm{{font-weight:800}}
+.mir .read .nm{{font-weight:600;color:#334155}}
+.mir .l2{{font-size:12.5px;color:#64748b;margin-top:4px;line-height:1.45;
+  max-width:640px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}}
+.mir .l2 b{{color:#334155;font-weight:600}}
+.mir .l2 q{{font-style:italic;color:#94a3b8}}
+.mir .urgchip{{display:inline-block;font-size:10px;font-weight:900;
+  border-radius:6px;padding:4px 8px;background:#fee2e2;color:#dc2626;
+  text-transform:uppercase;letter-spacing:.3px}}
+.mir .price{{width:110px;text-align:right;
+  font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;
+  white-space:nowrap;padding-right:6px}}
+.mir .price.hi{{color:#1f6b47;font-weight:900}}
+.mir .price.tbd{{color:#94a3b8;font-weight:500}}
+.mir .when{{width:126px;text-align:right;padding-right:18px;
+  font-size:11.5px;color:#94a3b8;white-space:nowrap}}
+.mir .acts{{display:flex;gap:6px;justify-content:flex-end;margin-top:8px;
+  align-items:center}}
+.mir .done{{background:#fff;border:1.5px solid #1f6b47;color:#1f6b47;
+  border-radius:8px;padding:5px 12px;font-weight:800;font-size:12.5px;
+  cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.04)}}
+.mir .done:hover{{background:#1f6b47;color:#fff}}
+.mir .more{{opacity:0;transition:opacity .15s;display:flex;gap:6px}}
+.mir tr.r:hover .more{{opacity:1}}
+.mir .more button{{background:#fff;border:1px solid #e2e8f0;
+  border-radius:8px;padding:5px 9px;cursor:pointer;font-size:12.5px}}
+.mir .sec{{font-size:11px;font-weight:800;text-transform:uppercase;
+  letter-spacing:1.5px;color:#64748b;padding:16px 18px 8px;
+  background:#eef1ee;border-top:1px solid #e2e8f0}}
+.mir .mfoot{{display:flex;gap:20px;align-items:center;background:#f8fafc;
+  border-top:1px solid #e2e8f0;padding:11px 22px;font-size:11px;
+  color:#94a3b8;flex-wrap:wrap}}
+.mir .mfoot a{{color:#94a3b8}}
+.mir tr.selrow{{background:#eef6f1;box-shadow:inset 3px 0 0 #1f6b47}}
+.mir .swrap{{position:relative;margin-left:auto}}
+.mir .swrap #fsearch{{margin-left:0}}
+.mir #fsr{{position:absolute;top:40px;right:0;width:320px;background:#fff;
+  border:1px solid #e2e8f0;border-radius:12px;
+  box-shadow:0 10px 30px rgba(16,33,27,.15);z-index:60;overflow:hidden;
+  display:none}}
+.mir #fsr a{{display:block;padding:10px 14px;text-decoration:none;
+  color:#0f172a;font-size:13px;border-top:1px solid #f4f6f8}}
+.mir #fsr a:hover{{background:#f8fafc}}
+.mir #fsr a b{{font-weight:700}}
+.mir #fsr a span{{color:#94a3b8;font-size:11.5px;display:block}}
+.mir #fsr .hint{{padding:8px 14px;font-size:10.5px;color:#94a3b8;
+  background:#f8fafc}}
+.mirgrid{{display:grid;grid-template-columns:minmax(400px,42%) 1fr;
+  gap:14px;align-items:start}}
+.mirgrid .mir .l2{{max-width:340px}}
+.mirdetail{{background:#fff;border:1px solid #e2e8f0;border-radius:16px;
+  padding:16px 18px;max-height:calc(100vh - 46px);overflow:auto}}
+@media(max-width:1100px){{.mirgrid{{grid-template-columns:1fr}}
+  .mirdetail{{max-height:none}}}}
+</style>
+<div class='mir'>
+ <div class='top'>
+  <span class='logo'>Master Butler</span>
+  <span class='mtag'>the inbox, mirrored — one list, labeled</span>
+  <span class='muser'>{esc(user or '')}</span>
+ </div>
+ <div class='tool'>
+  <a class='newlead' href='/new'>➕ New lead</a>
+  <div class='filts'>
+   <button class='on' data-f='all' onclick='mfilt(this)'>All</button>
+   <button data-f='unread' onclick='mfilt(this)'>Unread{f" ({_n_unread})" if _n_unread else ""}</button>
+   <button data-f='urgent' onclick='mfilt(this)'>Urgent{f" ({_n_urgent})" if _n_urgent else ""}</button>
+  </div>
+  <div class='swrap'>
+   <input id='fsearch' placeholder='🔎 Find any customer…'
+    autocomplete='off'>
+   <div id='fsr'></div>
+  </div>
+ </div>
+ <table>
+  <tbody id='mmainbody'>{_mrows}</tbody>
+ </table>
+ <details{" open" if any(r['unread'] for r in _ftech) else ""}>
+  <summary class='sec' style='cursor:pointer;list-style-position:inside'>
+   👷 Tech Questions ({len(_ftech)}){f" <span style='background:#fca5a5;color:#5c1410;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:800'>{sum(1 for r in _ftech if r['unread'])} new</span>" if any(r['unread'] for r in _ftech) else ""}
+  </summary>
+  <table><tbody>{_mtech}</tbody></table>
+ </details>
+ <div class='mfoot'>
+  <span>Every quote is a draft until a human sends it.</span>
+  <span><b style='color:#0f172a'>Bold</b> = nobody's seen it</span>
+  <span>Every price traces to a real job.</span>
+  <span style='margin-left:auto'>{len(_fmain)} line(s) · mirrors your
+  Gmail inbox · <a href='/?classic=1'>old view (tabs)</a></span>
+ </div>
+</div>
+<script>
+function rowDone(ev, btn){{
+  ev.stopPropagation(); ev.preventDefault();
+  var f = document.createElement('form');
+  f.method = 'POST'; f.action = '/mark_done';
+  var a = document.createElement('input');
+  a.name = 'addr'; a.value = btn.dataset.k; f.appendChild(a);
+  var b = document.createElement('input');
+  b.name = 'back'; b.value = '/'; f.appendChild(b);
+  document.body.appendChild(f); f.submit();
+}}
+function mfilt(btn){{
+  document.querySelectorAll('.mir .filts button').forEach(function(b){{
+    b.classList.toggle('on', b===btn);}});
+  var f = btn.dataset.f;
+  document.querySelectorAll('#mmainbody .mrowt').forEach(function(r){{
+    r.style.display = (f==='all' ||
+      (f==='unread' && r.dataset.unread==='1') ||
+      (f==='urgent' && r.dataset.urgent==='1')) ? '' : 'none';}});
+}}
+// KEEP MY PLACE across refreshes (LaRee's jump-to-top fix) + live
+// reload only when the queue actually changes (/api/pulse)
+window.__saveScroll = function(){{
+  try {{ sessionStorage.setItem('mscroll', String(window.scrollY||0)); }}
+  catch(e) {{}}
+}};
+var __ptok = null;
+setInterval(function(){{
+  fetch('/api/pulse').then(function(r){{return r.json();}})
+  .then(function(d){{
+    var t = JSON.stringify(d);
+    if (__ptok === null) {{ __ptok = t; return; }}
+    if (t !== __ptok) {{ __saveScroll(); location.reload(); }}
+  }}).catch(function(){{}});
+}}, 30000);
+document.addEventListener('DOMContentLoaded', function(){{
+  try {{
+    var y = sessionStorage.getItem('mscroll');
+    if (y) window.scrollTo(0, parseInt(y));
+    sessionStorage.removeItem('mscroll');
+  }} catch(e) {{}}
+  var s = document.getElementById('fsearch');
+  if (!s) return;
+  var fsr = document.getElementById('fsr'), deb = null;
+  s.addEventListener('input', function(){{
+    var q = s.value.trim().toLowerCase();
+    // 1) filter the visible lines as you type
+    document.querySelectorAll('.mir .mrowt').forEach(function(r){{
+      r.style.display = (!q || r.textContent.toLowerCase()
+                         .indexOf(q) >= 0) ? '' : 'none';}});
+    // 2) search ALL 2,700+ customers — click a name → their customer page
+    clearTimeout(deb);
+    if (q.length < 2) {{ fsr.style.display = 'none'; return; }}
+    deb = setTimeout(function(){{
+      fetch('/api/custsearch?q=' + encodeURIComponent(q))
+      .then(function(r){{return r.json();}})
+      .then(function(rows){{
+        if (!rows.length) {{ fsr.style.display = 'none'; return; }}
+        fsr.innerHTML = "<div class='hint'>All customers — click to "
+          + "open their page</div>" + rows.map(function(c){{
+          return "<a href='/customers?c=" + encodeURIComponent(c.e)
+            + "'><b>" + (c.n || c.e) + "</b><span>" + c.e
+            + "</span></a>";}}).join('');
+        fsr.style.display = 'block';
+      }}).catch(function(){{}});
+    }}, 220);
+  }});
+  document.addEventListener('click', function(ev){{
+    if (!ev.target.closest('.swrap')) fsr.style.display = 'none';
+  }});
+}});
+</script>"""
+            if cur:
+                import time as _tmz
+                _t0 = _tmz.time()
+                _det = _inbox_detail(cur, quotes, qurls, live_holds,
+                                     flags_open, sbs, claims, draft,
+                                     convo_open, user)
+                _mir = (f"<div class='mirgrid'><div>{_mir}</div>"
+                        f"<div class='mirdetail'>{_det}</div></div>"
+                        f"<!-- phases pre={_PT.get('flat_in',0)-_PT['t0']:.2f}s "
+                        f"list={_t0-_PT.get('flat_in',_t0):.2f}s "
+                        f"detail={_tmz.time()-_t0:.2f}s -->")
+            return page("Bids", _mir, chrome="bare")
     if cur:
         # OPENING NO LONGER GREYS IT (Dallon: 'if someone clicks out and
         # needs to go back in quickly, it stays'). Grey happens on the
@@ -4239,46 +4674,6 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
     # after an office approve pushed a Jobber quote, show a clickable
     # confirmation right away (LaRee, Jul 10: 'when you click approved the
     # page should refresh so you can click the Jobber quote')
-    push_banner = ""
-    if pushed:
-        _pn = quote_numbers().get(pushed)
-        _pu = quote_urls().get(pushed)
-        if _pn:
-            _lk = (f" — <a href='{esc(_pu)}' target='_blank' rel='noopener' "
-                   f"style='color:#fff;text-decoration:underline;"
-                   f"font-weight:800'>open in Jobber ↗</a>" if _pu else "")
-            push_banner = (f"<div style='background:var(--green);color:#fff;"
-                           f"border-radius:10px;padding:11px 14px;"
-                           f"margin:0 0 10px;font-weight:700'>✅ Quote "
-                           f"#{esc(str(_pn))} created{_lk}</div>")
-    # ⚠ VISIBLE REFUSAL + OVERRIDE (Martha/Saurin Shah, Jul 21): when the
-    # open-quote guard blocks an approve, SAY SO — the refusal used to
-    # live only in the review log, so the office clicked into silence.
-    # Multi-property customers are the legit case: the button pushes a
-    # second quote on explicit human say-so.
-    if blocked:
-        push_banner += (
-            f"<div style='background:#8a5a00;color:#fff;border-radius:10px;"
-            f"padding:12px 14px;margin:0 0 10px'>"
-            f"<div style='font-weight:800'>⚠️ No quote was created</div>"
-            f"<div style='font-size:13px;margin:4px 0 8px'>"
-            f"This customer already has open quote "
-            f"#{esc(blocked.get('qno') or '?')} "
-            f"({esc(blocked.get('status') or 'open')}). If their new "
-            f"request belongs on that quote, add it there in Jobber. "
-            f"If it's a <b>different job or property</b>, push a separate "
-            f"quote:</div>"
-            f"<form method='POST' action='/review' style='margin:0'>"
-            f"<input type='hidden' name='stamp' "
-            f"value='{esc(blocked.get('stamp') or '')}'>"
-            f"<input type='hidden' name='customer' "
-            f"value='{esc(blocked.get('customer') or '')}'>"
-            f"<input type='hidden' name='action' value='approve'>"
-            f"<input type='hidden' name='force_new' value='1'>"
-            f"<input type='hidden' name='back' value='/'>"
-            f"<button style='background:#fff;color:#8a5a00;font-weight:800;"
-            f"border:0;border-radius:8px;padding:8px 14px;cursor:pointer'>"
-            f"➕ Different job — push a second quote</button></form></div>")
     lst = (push_banner
            + f"<div style='display:flex;gap:8px;align-items:center;"
            f"padding:2px 4px 10px'>"
@@ -4560,358 +4955,6 @@ document.addEventListener('DOMContentLoaded', function(){
     # per-customer intelligence; only the PROJECTION changes: lanes
     # inbox/drafts/won (live customer action) show; waiting/handled/
     # drawer/standby (no customer action pending) don't exist as boxes.
-    if flat:
-        # 🪞 INBOX-ANCHORED (Dallon, Jul 21 late — the realignment after
-        # his pause: "make sure it's clocking with what THEY want").
-        # EVERYTHING already flows through the office's Gmail — forms,
-        # voicemails (phone-system notifications), Jobber approvals and
-        # change-requests — so their inbox IS the unified queue and their
-        # archive habit already encodes done. Therefore:
-        #   A LINE EXISTS iff the customer has a message SITTING IN THE
-        #   OFFICE'S GMAIL INBOX right now (per the 15-min Message-ID
-        #   snapshot), or something too new for the snapshot to vouch
-        #   for (a fresh email/voicemail shows within ~2 min) — AND the
-        #   office hasn't ✓-Done'd it since (dashboard-Done overrides,
-        #   per their 'deleted things must stay gone' rule).
-        # Their box decides WHICH lines exist; OUR engine decides what
-        # each line knows (Dallon: keep all the work) — the caller's
-        # NAME on a voicemail, parsed services, the priced draft, the
-        # auto-drafted reply, stage tags. Existence from their behavior;
-        # intelligence from ours.
-        def _fpending(r):
-            # NO shortcuts from our own state (first-verify lesson: the
-            # 'unread' signal re-imported the whole historical backlog —
-            # 57 lines vs their real 9). Existence comes from THEIR box
-            # alone: a message sitting in the Gmail inbox now, or one too
-            # new for the snapshot to vouch for (the poller records fresh
-            # mail/voicemails within ~2 min, so new things still appear
-            # immediately).
-            if not _gmail_mids_at:
-                # mirror hasn't run since boot (≤15 min) — transitional
-                # fallback to the classic inbox/drafts signal so a cold
-                # boot never shows a falsely-empty list
-                return r["lane"] in ("inbox", "drafts")
-            for b in (r["c"].get("bids") or []):
-                mid = (b.get("message_id") or "").strip()
-                st = _stamp_utc(b.get("received") or b.get("stamp") or "")
-                if st and st >= _gmail_mids_at:
-                    return True          # newer than the snapshot
-                if mid and mid in _gmail_inbox_mids:
-                    return True          # sitting in their inbox NOW
-            return False
-
-        _fmain = sorted((r for r in roster
-                         if r["lane"] != "techs" and not r["sticky"]
-                         and _fpending(r)),
-                        key=lambda r: r["age"])
-
-        def _fstage(r):
-            """(label, fg, bg) — the worded stage chip (Dallon's mockup:
-            the color code has words; one glance down the left edge)."""
-            nb = r.get("nb") or {}
-            # a voicemail's ACTION is calling them back — even when the
-            # engine already priced a draft for it (tag = the action)
-            if nb.get("kind") == "phone_lead":
-                return ("📞 Call back", "#7c3aed", "#f1ebfd")
-            if "change" in ((nb.get("office_alert") or "").lower()):
-                return ("✏️ Changes", "#b91c1c", "#fdeaea")
-            if r["lane"] == "won":
-                return ("📅 Schedule", "#0e7490", "#e0f4f8")
-            if r["lane"] == "drafts":
-                return ("🖊 Draft", "#b8860b", "#fdf6e3")
-            if nb.get("services"):
-                return ("📋 Quote", "#1f6b47", "#e6f4ec")
-            return ("💬 Reply", "#2563eb", "#e8effd")
-        _ftech = sorted((r for r in roster if r["lane"] == "techs"),
-                        key=lambda r: r["age"])
-        _funread = sum(1 for r in _fmain if r["unread"])
-
-
-        # ── 🎨 THE LIGHT TABLE (Dallon's approved mockup, Jul 21 night —
-        # all 5 readability adaptations): worded stage chips down the left
-        # edge · two lines per row with the customer's REAL words · value
-        # lives in the bold green price (no chip) · ✓ Done always visible
-        # · urgent explains itself with the trigger words. Full-width when
-        # no customer is open; clicking a row opens the existing detail.
-        # One-click APPROVE stays OUT of the list — approving pushes a
-        # real quote; that lives in the detail card where the price is.
-        # ONE WORLD (Dallon, Jul 21 late: 'we go from a clean front
-        # screen to the old view — combine them'): the light list ALWAYS
-        # renders; picking a customer slides their detail card in on the
-        # RIGHT, same design, no jump to the old dark room.
-        if True:
-            _PT["flat_in"] = _prf.time()
-            def _ago(h):
-                return (f"{h*60:.0f}m ago" if h < 1 else
-                        f"{h:.0f}h ago" if h < 48 else f"{h/24:.0f}d ago")
-
-            def _mwords(r):
-                """Line 2: the bold WHAT + the customer's clean words."""
-                c, nb = r["c"], r.get("nb") or {}
-                what = ", ".join(s.replace("_", " ").title()
-                                 for s in (nb.get("services") or [])[:3]) \
-                    or (nb.get("subject") or "")[:56]
-                # stale-quote / mismatch context outranks the quote tail
-                if "⏰" in r["word"] or "🔀" in r["word"]:
-                    tail = r["word"].lstrip("⏰🔀 ").strip()
-                else:
-                    pv = ""
-                    if c.get("msgs"):
-                        pv = (c["msgs"][-1].get("body") or "")
-                    pv = pv or nb.get("newest_message") or ""
-                    pv = " ".join(pv.split())
-                    # never the form wrapper — the parsed words or nothing
-                    if pv.startswith("Form Submission") \
-                            or "Email Address:" in pv or pv.startswith("📋"):
-                        pv = ""
-                    tail = f"<q>{esc(pv[:110])}</q>" if pv else ""
-                bits = []
-                if str(nb.get("customer_status") or "").startswith("return"):
-                    bits.append("returning customer")
-                if c.get("vm"):
-                    what = what or "New caller"
-                    dur = (c["vm"] or {}).get("dur")
-                    if dur:
-                        bits.append(f"voicemail {esc(str(dur))}")
-                mid = (" — " + ", ".join(bits)) if bits else ""
-                sep = " · " if tail else ""
-                return f"<b>{esc(what)}{mid}</b>{sep}{tail}"
-
-            def _mrow(r, tech=False):
-                c, nb = r["c"], r.get("nb") or {}
-                name = esc((c.get("name") or c.get("email") or "?")[:36])
-                d = (nb.get("draft") or {})
-                total = d.get("total")
-                if isinstance(total, (int, float)) and total:
-                    pcls = "hi" if total >= 750 else ""
-                    price = f"${total:,.2f}"
-                else:
-                    pcls, price = "tbd", ("TBD" if r["lane"] != "techs"
-                                          else "—")
-                if tech:
-                    who = esc(str(nb.get("tech_sender") or "Tech")
-                              .split()[0][:12])
-                    chip = (f"<span class='stage' style='background:#eef1ee;"
-                            f"color:#475569'>👷 {who}</span>")
-                else:
-                    tag, fg, bg = _fstage(r)
-                    chip = (f"<span class='stage' style='background:{bg};"
-                            f"color:{fg}'>{tag}</span>")
-                urg = ""
-                if r["urgent"]:
-                    _uq = re.search(r"“([^”]+)”", r["word"] or "")
-                    urg = (f"<span class='urgchip'>⚠ "
-                           f"“{esc((_uq.group(1) if _uq else 'urgent')[:38])}”"
-                           f"</span>")
-                rd = "unread" if r["unread"] else "read"
-                _sl = " selrow" if r["key"] == sel else ""
-                k = urllib.parse.quote(r["key"])
-                return (
-                    f"<tr class='r {rd} mrowt{_sl}' data-k='{esc(r['key'])}' "
-                    f"data-unread='{1 if r['unread'] else 0}' "
-                    f"data-urgent='{1 if r['urgent'] else 0}' "
-                    f"onclick=\"location='/?c={k}'\">"
-                    f"<td class='stagecol'>{chip}</td>"
-                    f"<td><div class='l1'><a class='nm' href='/?c={k}' "
-                    f"style='color:inherit;text-decoration:none' "
-                    f"onclick='event.stopPropagation()'>{name}</a>"
-                    f"{urg}</div>"
-                    f"<div class='l2'>{_mwords(r)}</div></td>"
-                    f"<td class='price {pcls}'>{price}</td>"
-                    f"<td class='when'>{_ago(r['age'] or 0)}"
-                    f"<div class='acts'><div class='more'>"
-                    f"<button title='Open' onclick=\"event.stopPropagation();"
-                    f"location='/?c={k}'\">👁</button></div>"
-                    f"<button class='done' data-k='{esc(r['key'])}' "
-                    f"title='Done — gone until they reach out again' "
-                    f"onclick='event.stopPropagation();rowDone(event,this)'>"
-                    f"✓ Done</button></div></td></tr>")
-
-            _mrows = "".join(_mrow(r) for r in _fmain) or (
-                "<tr><td colspan='4' style='padding:60px;text-align:center;"
-                "color:#10b981;font-weight:800;font-size:16px'>All caught "
-                "up ✅<div style='color:#94a3b8;font-weight:400;font-size:"
-                "13px;margin-top:6px'>Nothing is waiting on a person — new "
-                "activity appears the moment it happens.</div></td></tr>")
-            _mtech = "".join(_mrow(r, tech=True) for r in _ftech) or (
-                "<tr><td colspan='4' style='padding:14px 18px;color:"
-                "#94a3b8;font-size:13px'>No open tech questions.</td></tr>")
-            _n_unread = sum(1 for r in _fmain if r["unread"])
-            _n_urgent = sum(1 for r in _fmain if r["urgent"])
-            _mir = f"""
-<span style='display:none'>dkroom-opt-out</span>
-<style>
-.mir{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,
-  Helvetica,Arial,sans-serif;background:#fff;border-radius:16px;
-  overflow:hidden;border:1px solid #e2e8f0;color:#0f172a;
-  box-shadow:0 2px 14px rgba(16,33,27,.07)}}
-.mir .top{{background:#0b3d2e;padding:14px 22px;display:flex;
-  align-items:center;gap:14px}}
-.mir .logo{{font-weight:900;color:#c9a227;letter-spacing:2.5px;
-  font-size:15px;text-transform:uppercase}}
-.mir .mtag{{color:rgba(255,255,255,.55);font-size:12px}}
-.mir .muser{{margin-left:auto;color:#fff;font-size:13px;font-weight:600}}
-.mir .tool{{display:flex;align-items:center;gap:18px;padding:12px 22px;
-  background:#fff;border-bottom:1px solid #e2e8f0;flex-wrap:wrap}}
-.mir .newlead{{background:#0b3d2e;color:#c9a227;border-radius:99px;
-  padding:9px 18px;font-weight:700;font-size:13px;text-decoration:none}}
-.mir .filts{{display:flex;gap:16px;font-size:13px;font-weight:600;
-  color:#64748b}}
-.mir .filts button{{background:none;border:0;cursor:pointer;color:inherit;
-  font:inherit;padding:2px 0}}
-.mir .filts button.on{{color:#0b3d2e;font-weight:800;
-  border-bottom:2px solid #0b3d2e}}
-.mir #fsearch{{margin-left:auto;background:#f1f5f9;border:0;
-  border-radius:99px;padding:9px 18px;font-size:13px;width:240px}}
-.mir table{{width:100%;border-collapse:collapse;background:#fff}}
-.mir td{{vertical-align:top;border-bottom:1px solid #f4f6f8;
-  padding:14px 10px}}
-.mir tr.r:hover{{background:#f8fafc}}
-.mir tr.r{{cursor:pointer}}
-.mir .stagecol{{width:128px;padding-left:18px}}
-.mir .stage{{display:inline-block;font-size:10px;font-weight:900;
-  letter-spacing:.4px;text-transform:uppercase;border-radius:6px;
-  padding:5px 9px;white-space:nowrap}}
-.mir .l1{{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}}
-.mir .nm{{font-size:14.5px}}
-.mir .unread .nm{{font-weight:800}}
-.mir .read .nm{{font-weight:600;color:#334155}}
-.mir .l2{{font-size:12.5px;color:#64748b;margin-top:4px;line-height:1.45;
-  max-width:640px;overflow:hidden;text-overflow:ellipsis;
-  white-space:nowrap}}
-.mir .l2 b{{color:#334155;font-weight:600}}
-.mir .l2 q{{font-style:italic;color:#94a3b8}}
-.mir .urgchip{{display:inline-block;font-size:10px;font-weight:900;
-  border-radius:6px;padding:4px 8px;background:#fee2e2;color:#dc2626;
-  text-transform:uppercase;letter-spacing:.3px}}
-.mir .price{{width:110px;text-align:right;
-  font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;
-  white-space:nowrap;padding-right:6px}}
-.mir .price.hi{{color:#1f6b47;font-weight:900}}
-.mir .price.tbd{{color:#94a3b8;font-weight:500}}
-.mir .when{{width:126px;text-align:right;padding-right:18px;
-  font-size:11.5px;color:#94a3b8;white-space:nowrap}}
-.mir .acts{{display:flex;gap:6px;justify-content:flex-end;margin-top:8px;
-  align-items:center}}
-.mir .done{{background:#fff;border:1.5px solid #1f6b47;color:#1f6b47;
-  border-radius:8px;padding:5px 12px;font-weight:800;font-size:12.5px;
-  cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.04)}}
-.mir .done:hover{{background:#1f6b47;color:#fff}}
-.mir .more{{opacity:0;transition:opacity .15s;display:flex;gap:6px}}
-.mir tr.r:hover .more{{opacity:1}}
-.mir .more button{{background:#fff;border:1px solid #e2e8f0;
-  border-radius:8px;padding:5px 9px;cursor:pointer;font-size:12.5px}}
-.mir .sec{{font-size:11px;font-weight:800;text-transform:uppercase;
-  letter-spacing:1.5px;color:#64748b;padding:16px 18px 8px;
-  background:#eef1ee;border-top:1px solid #e2e8f0}}
-.mir .mfoot{{display:flex;gap:20px;align-items:center;background:#f8fafc;
-  border-top:1px solid #e2e8f0;padding:11px 22px;font-size:11px;
-  color:#94a3b8;flex-wrap:wrap}}
-.mir .mfoot a{{color:#94a3b8}}
-.mir tr.selrow{{background:#eef6f1;box-shadow:inset 3px 0 0 #1f6b47}}
-.mirgrid{{display:grid;grid-template-columns:minmax(400px,42%) 1fr;
-  gap:14px;align-items:start}}
-.mirgrid .mir .l2{{max-width:340px}}
-.mirdetail{{background:#fff;border:1px solid #e2e8f0;border-radius:16px;
-  padding:16px 18px;max-height:calc(100vh - 46px);overflow:auto}}
-@media(max-width:1100px){{.mirgrid{{grid-template-columns:1fr}}
-  .mirdetail{{max-height:none}}}}
-</style>
-<div class='mir'>
- <div class='top'>
-  <span class='logo'>Master Butler</span>
-  <span class='mtag'>the inbox, mirrored — one list, labeled</span>
-  <span class='muser'>{esc(user or '')}</span>
- </div>
- <div class='tool'>
-  <a class='newlead' href='/new'>➕ New lead</a>
-  <div class='filts'>
-   <button class='on' data-f='all' onclick='mfilt(this)'>All</button>
-   <button data-f='unread' onclick='mfilt(this)'>Unread{f" ({_n_unread})" if _n_unread else ""}</button>
-   <button data-f='urgent' onclick='mfilt(this)'>Urgent{f" ({_n_urgent})" if _n_urgent else ""}</button>
-  </div>
-  <input id='fsearch' placeholder='🔎 Find a customer…'>
- </div>
- <table>
-  <tbody id='mmainbody'>{_mrows}</tbody>
- </table>
- <details{" open" if any(r['unread'] for r in _ftech) else ""}>
-  <summary class='sec' style='cursor:pointer;list-style-position:inside'>
-   👷 Tech Questions ({len(_ftech)}){f" <span style='background:#fca5a5;color:#5c1410;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:800'>{sum(1 for r in _ftech if r['unread'])} new</span>" if any(r['unread'] for r in _ftech) else ""}
-  </summary>
-  <table><tbody>{_mtech}</tbody></table>
- </details>
- <div class='mfoot'>
-  <span>Every quote is a draft until a human sends it.</span>
-  <span><b style='color:#0f172a'>Bold</b> = nobody's seen it</span>
-  <span>Every price traces to a real job.</span>
-  <span style='margin-left:auto'>{len(_fmain)} line(s) · mirrors your
-  Gmail inbox · <a href='/?classic=1'>old view (tabs)</a></span>
- </div>
-</div>
-<script>
-function rowDone(ev, btn){{
-  ev.stopPropagation(); ev.preventDefault();
-  var f = document.createElement('form');
-  f.method = 'POST'; f.action = '/mark_done';
-  var a = document.createElement('input');
-  a.name = 'addr'; a.value = btn.dataset.k; f.appendChild(a);
-  var b = document.createElement('input');
-  b.name = 'back'; b.value = '/'; f.appendChild(b);
-  document.body.appendChild(f); f.submit();
-}}
-function mfilt(btn){{
-  document.querySelectorAll('.mir .filts button').forEach(function(b){{
-    b.classList.toggle('on', b===btn);}});
-  var f = btn.dataset.f;
-  document.querySelectorAll('#mmainbody .mrowt').forEach(function(r){{
-    r.style.display = (f==='all' ||
-      (f==='unread' && r.dataset.unread==='1') ||
-      (f==='urgent' && r.dataset.urgent==='1')) ? '' : 'none';}});
-}}
-// KEEP MY PLACE across refreshes (LaRee's jump-to-top fix) + live
-// reload only when the queue actually changes (/api/pulse)
-window.__saveScroll = function(){{
-  try {{ sessionStorage.setItem('mscroll', String(window.scrollY||0)); }}
-  catch(e) {{}}
-}};
-var __ptok = null;
-setInterval(function(){{
-  fetch('/api/pulse').then(function(r){{return r.json();}})
-  .then(function(d){{
-    var t = JSON.stringify(d);
-    if (__ptok === null) {{ __ptok = t; return; }}
-    if (t !== __ptok) {{ __saveScroll(); location.reload(); }}
-  }}).catch(function(){{}});
-}}, 30000);
-document.addEventListener('DOMContentLoaded', function(){{
-  try {{
-    var y = sessionStorage.getItem('mscroll');
-    if (y) window.scrollTo(0, parseInt(y));
-    sessionStorage.removeItem('mscroll');
-  }} catch(e) {{}}
-  var s = document.getElementById('fsearch');
-  if (!s) return;
-  s.addEventListener('input', function(){{
-    var q = s.value.trim().toLowerCase();
-    document.querySelectorAll('.mir .mrowt').forEach(function(r){{
-      r.style.display = (!q || r.textContent.toLowerCase()
-                         .indexOf(q) >= 0) ? '' : 'none';}});
-  }});
-}});
-</script>"""
-            if cur:
-                import time as _tmz
-                _t0 = _tmz.time()
-                _det = _inbox_detail(cur, quotes, qurls, live_holds,
-                                     flags_open, sbs, claims, draft,
-                                     convo_open, user)
-                _mir = (f"<div class='mirgrid'><div>{_mir}</div>"
-                        f"<div class='mirdetail'>{_det}</div></div>"
-                        f"<!-- phases pre={_PT.get('flat_in',0)-_PT['t0']:.2f}s "
-                        f"list={_t0-_PT.get('flat_in',_t0):.2f}s "
-                        f"detail={_tmz.time()-_t0:.2f}s -->")
-            return page("Bids", _mir, chrome="bare")
 
     # ── NEW DESIGN (Dallon's Stitch system, Jul 10): the Bid Queue is
     # the DARK EMERALD ROOM — glass cards, gold accents, slim icon rail
@@ -10999,6 +11042,38 @@ class Handler(BaseHTTPRequestHandler):
                     json.dumps({"error": f"{type(_be).__name__}: {_be}"}
                                ).encode(),
                     ctype="application/json", code=500)
+        if self.path.startswith("/api/custsearch"):
+            # ALL-customer search for the mirror's search box (Dallon,
+            # Jul 21 night): matches the 2,700-customer history index +
+            # live records; the dropdown click lands on /customers?c=…
+            _q = urllib.parse.parse_qs(
+                urllib.parse.urlparse(self.path).query)
+            term = (_q.get("q", [""])[0] or "").strip().lower()
+            out, seen = [], set()
+            if len(term) >= 2:
+                try:
+                    import customers as _cu
+                    _hi = _cu.hist_index() or {}
+                except Exception:
+                    _hi = {}
+                for e, m in _hi.items():
+                    nm = (m or {}).get("name") or ""
+                    if term in e.lower() or term in nm.lower():
+                        seen.add(e)
+                        out.append({"n": nm or e, "e": e,
+                                    "at": (m or {}).get("last") or ""})
+                for _s, r in _shadow_source():
+                    e = _bid_email(r) or ""
+                    if not e or e in seen or r.get("merged_into") \
+                            or r.get("spam_auto"):
+                        continue
+                    nm = (r.get("from") or "").split("<")[0].strip()
+                    if term in e.lower() or term in nm.lower():
+                        seen.add(e)
+                        out.append({"n": nm or e, "e": e, "at": _s})
+                out.sort(key=lambda x: x.get("at") or "", reverse=True)
+            return self._send(json.dumps(out[:8]).encode(),
+                              ctype="application/json")
         if self.path == "/api/pulse":
             # cheap change token: the queue page reloads ONLY when this
             # changes, so reading/scrolling is never interrupted
