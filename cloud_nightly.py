@@ -6,17 +6,19 @@ The office-essential nightly refreshes, run FROM RENDER so they no
 longer depend on Dallon's laptop being awake. Fired once a day by a
 daily-marker guard inside render_start's background thread.
 
-Deliberately LIGHT — only the steps the office sees each morning, each
-reading/writing the cloud DB (not local files):
-  · service-history refresh (recent invoices) → keeps last-paid, yoy,
-    win-back current
-  · yoy_july (Tom's race) · pw win-back list
+Deliberately LIGHT — and since Jul 22 only the steps the RENDER CRON
+does NOT already run (Dallon's ruling: "clean up the dual-nightly
+overlap"). The cron fires night_run.py at 9:00pm with service-history
+refresh, yoy, and win-back; this thread duplicated all three in the
+same hour — wasted Jobber calls, and the overlap was the last source
+of the archive-truncation race the Jul 21 night sweep closed. What
+stays here is what the cron doesn't do:
+  · inbox reconcile — recover anything the 2-day poll window missed
+  · mirror sweep — the nightly Gmail+Jobber reconciliation pass
 
-NOT here (heavy / seasonal — stay on the Mac night run, or a future
-Render cron): the full 3.5-yr route mine, the Vision lights deep-mine,
-the one-time full-history rebuild, the DB backup download. Those going
-a day stale when the Mac is off is harmless; mail and the office
-numbers are what must never depend on one machine.
+(History/yoy/win-back live in night_run.py on the cron. If that cron
+is ever retired, those steps must move back here — the office numbers
+must never depend on one machine.)
 """
 
 from datetime import datetime, timezone
@@ -50,25 +52,11 @@ def run(verbose=True):
         if verbose:
             print(f"  [cloud-nightly] {name}: {out['steps'][name]}")
 
-    # 1 · refresh the invoice archive (recent) — feeds everything below
-    def _hist():
-        import servicehistory
-        servicehistory.refresh(recent=120)
-    step("service_history", _hist)
+    # (service_history / yoy / winback moved OUT Jul 22 — the 9:00pm
+    #  Render cron's night_run.py owns them; running them twice in the
+    #  same hour was pure overlap. See module docstring.)
 
-    # 2 · Tom's July race
-    def _yoy():
-        import yoy_compare
-        yoy_compare.run_local(verbose=False)
-    step("yoy", _yoy)
-
-    # 3 · PW win-back list
-    def _wb():
-        import winback
-        winback.save()
-    step("winback", _wb)
-
-    # 4 · inbox reconcile — recover anything the 2-day poll window missed
+    # 1 · inbox reconcile — recover anything the 2-day poll window missed
     #     (#49: a Squarespace lead that landed in neither dashboard nor
     #     the office's working view). Idempotent; usually a no-op.
     def _recon():
@@ -77,19 +65,23 @@ def run(verbose=True):
         return f"recovered {n}" if n else "0 missed"
     step("inbox_reconcile", _recon)
 
-    # 5 · mirror sweep — file everything verifiably done in BOTH Jobber
+    # 2 · mirror sweep — file everything verifiably done in BOTH Jobber
     #     and Gmail (Dallon, Jul 21: "systematically taking away")
     def _msweep():
         import mirror_sweep
         mirror_sweep.sweep(verbose=False)
     step("mirror_sweep", _msweep)
 
-    try:
-        import clouddb
-        clouddb.put_blob("cloud_nightly_last",
-                         {"day": _today(), "ran": out})
-    except Exception:
-        pass
+    # only stamp the day DONE if something actually succeeded — a
+    # fully-down night (Jobber+Gmail both unreachable) used to mark
+    # itself complete and never retry (Jul 21 night sweep note)
+    if any(v == "ok" for v in out["steps"].values()):
+        try:
+            import clouddb
+            clouddb.put_blob("cloud_nightly_last",
+                             {"day": _today(), "ran": out})
+        except Exception:
+            pass
     return out
 
 
