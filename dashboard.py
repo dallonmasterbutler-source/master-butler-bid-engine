@@ -5832,15 +5832,43 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                     s[_k] = _num(s[_k])
             past = hist.get(_service_key(s["name"]) or "") or []
             recent = sorted(past, reverse=True)[:2]
-            cells = " · ".join(f"{dt[:7]} ${p:,.0f}" for dt, p in recent)
+            # 💰 PAST PRICES YOU CAN ACTUALLY SEE (LaRee, Jul 21:
+            # 'the small numbers aren't easy to register') — the LAST
+            # paid price is the biggest number in the row, dated in
+            # plain words, older visits beneath; Tom's ↩ honor button
+            # sits directly under the number it honors.
+            def _mon(dt):
+                try:
+                    ms = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul",
+                          "Aug", "Sep", "Oct", "Nov", "Dec")
+                    return f"{ms[int(dt[5:7])-1]} '{dt[2:4]}"
+                except (ValueError, IndexError):
+                    return dt[:7]
+            _last = recent[0][1] if recent else None
+            _diff = ""
+            if _last is not None and abs(s["price"] - _last) >= 1:
+                _d = s["price"] - _last
+                _diff = (f"<div style='font-size:10.5px;font-weight:800;"
+                         f"color:{'var(--alarm)' if _d > 0 else 'var(--green2)'}'>"
+                         f"{'+' if _d > 0 else '−'}${abs(_d):,.0f} vs last"
+                         f"</div>")
+            if recent:
+                _older = " · ".join(f"${p:,.0f} {_mon(dt)}"
+                                    for dt, p in recent[1:3])
+                cells = (f"<div style='font-size:17px;font-weight:900;"
+                         f"color:var(--goldink);line-height:1.1'>"
+                         f"${_last:,.0f}</div>"
+                         f"<div class='subtext' style='font-size:10.5px'>"
+                         f"paid {_mon(recent[0][0])}"
+                         + (f" · before: {_older}" if _older else "")
+                         + "</div>")
+            else:
+                cells = ""
             was = (f"<div class='subtext' style='font-size:10.5px'>system "
                    f"said ${s['orig_price']:,.0f}</div>"
                    if s.get("orig_price") not in (None, s["price"]) else "")
             # ↩ HONOR PRIOR QUOTE (Tom): one click sets this line to what
-            # they last paid for this service (from their own history) —
-            # no digging through old quotes. Only shows when there IS a
-            # past price and it differs from the current line.
-            _last = recent[0][1] if recent else None
+            # they last paid — now full-size, under the big past price.
             honor = ""
             if editable and _last is not None and abs(_last - s["price"]) >= 1:
                 honor = (
@@ -5849,11 +5877,13 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                     f"({esc(recent[0][0][:7])})' "
                     f"onclick=\"var e=document.getElementsByName('p_{i}')[0];"
                     f"e.value={_last:g};e.dispatchEvent(new Event('input'));\" "
-                    f"style='display:block;margin-top:3px;font-size:10px;"
-                    f"padding:2px 6px;border:1px solid var(--gold);"
-                    f"border-radius:6px;background:var(--goldbg);"
-                    f"color:var(--green2);cursor:pointer;font-weight:700;"
-                    f"width:100%'>↩ honor ${_last:,.0f}</button>")
+                    f"style='display:block;margin-top:5px;font-size:12px;"
+                    f"padding:6px 10px;border:1.5px solid var(--gold);"
+                    f"border-radius:8px;background:var(--goldbg);"
+                    f"color:var(--goldink);cursor:pointer;font-weight:800;"
+                    f"width:100%'>↩ Honor ${_last:,.0f}</button>")
+                cells += honor
+                honor = ""
             # step='any' + true value (LaRee, Jul 15: the $14.50 moss
             # product made step='5' invalid, so the browser refused the
             # WHOLE save — "change the moss pricing to $15" — and the
@@ -5862,7 +5892,7 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                   f"value='{s['price']:g}' step='any' min='0' "
                   f"style='width:76px;text-align:right;font-weight:700;"
                   f"border:1px solid var(--line);border-radius:6px;"
-                  f"padding:4px'>{was}{honor}</td>" if editable
+                  f"padding:4px'>{was}{_diff}</td>" if editable
                   else f"<td class='num'>${s['price']:,.0f}</td>")
             rng = (f"<div class='subtext' style='font-size:10.5px'>"
                    f"range ${s['low']:,.0f}–${s['high']:,.0f}</div>"
