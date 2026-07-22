@@ -4899,11 +4899,14 @@ document.addEventListener('DOMContentLoaded', function(){{
 }});
 </script>"""
             if cur:
+                import time as _tmz
+                _t0 = _tmz.time()
                 _det = _inbox_detail(cur, quotes, qurls, live_holds,
                                      flags_open, sbs, claims, draft,
                                      convo_open, user)
                 _mir = (f"<div class='mirgrid'><div>{_mir}</div>"
-                        f"<div class='mirdetail'>{_det}</div></div>")
+                        f"<div class='mirdetail'>{_det}</div></div>"
+                        f"<!-- detail {_tmz.time()-_t0:.2f}s -->")
             return page("Bids", _mir, chrome="bare")
 
     # ── NEW DESIGN (Dallon's Stitch system, Jul 10): the Bid Queue is
