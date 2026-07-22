@@ -4510,13 +4510,19 @@ document.addEventListener('DOMContentLoaded', function(){{
       .then(function(rows){{
         if (!rows.length) {{ fsr.style.display = 'none'; return; }}
         fsr.innerHTML = "<div class='hint'>All customers — click to "
-          + "open their page</div>" + rows.map(function(c){{
-          var u = '/customers?c=' + encodeURIComponent(c.e);
+          + "open</div>" + rows.map(function(c){{
+          // live customers open RIGHT HERE in the mirror's combined
+          // view; only deep-history ones go to the Customers tab
+          var u = (c.src === 'hist')
+            ? '/customers?c=' + encodeURIComponent(c.e)
+            : '/?c=' + encodeURIComponent(c.e);
+          var tag = (c.src === 'hist') ? " <span style='float:right;"
+            + "font-size:10px;color:#94a3b8'>history</span>" : "";
           // mousedown fires before anything can hide the dropdown —
           // the click can never be swallowed
           return "<a href='" + u + "' onmousedown=\\"location.href='"
-            + u + "'\\"><b>" + (c.n || c.e) + "</b><span>" + c.e
-            + "</span></a>";}}).join('');
+            + u + "'\\"><b>" + (c.n || c.e) + "</b>" + tag
+            + "<span>" + c.e + "</span></a>";}}).join('');
         fsr.style.display = 'block';
       }}).catch(function(){{}});
     }}, 220);
@@ -11051,27 +11057,40 @@ class Handler(BaseHTTPRequestHandler):
             term = (_q.get("q", [""])[0] or "").strip().lower()
             out, seen = [], set()
             if len(term) >= 2:
+                # LIVE customers first — they open in the mirror's own
+                # combined view (no style whiplash; Dallon, Jul 21 night:
+                # 'it gets stuck on the old style'). History-only
+                # customers fall back to the Customers tab.
+                _live = set()
+                for _s, r in _shadow_source():
+                    e = _bid_email(r) or ""
+                    if not e or r.get("merged_into") or r.get("spam_auto"):
+                        continue
+                    _live.add(_canon_email(e))
+                    if e in seen:
+                        continue
+                    nm = (r.get("from") or "").split("<")[0].strip()
+                    if term in e.lower() or term in nm.lower():
+                        seen.add(e)
+                        out.append({"n": nm or e, "e": e, "at": _s,
+                                    "src": "live"})
                 try:
                     import customers as _cu
                     _hi = _cu.hist_index() or {}
                 except Exception:
                     _hi = {}
                 for e, m in _hi.items():
+                    if e in seen:
+                        continue
                     nm = (m or {}).get("name") or ""
                     if term in e.lower() or term in nm.lower():
                         seen.add(e)
                         out.append({"n": nm or e, "e": e,
-                                    "at": (m or {}).get("last") or ""})
-                for _s, r in _shadow_source():
-                    e = _bid_email(r) or ""
-                    if not e or e in seen or r.get("merged_into") \
-                            or r.get("spam_auto"):
-                        continue
-                    nm = (r.get("from") or "").split("<")[0].strip()
-                    if term in e.lower() or term in nm.lower():
-                        seen.add(e)
-                        out.append({"n": nm or e, "e": e, "at": _s})
+                                    "at": (m or {}).get("last") or "",
+                                    "src": ("live" if _canon_email(e)
+                                            in _live else "hist")})
                 out.sort(key=lambda x: x.get("at") or "", reverse=True)
+                out.sort(key=lambda x: x.get("src") != "live")
             return self._send(json.dumps(out[:8]).encode(),
                               ctype="application/json")
         if self.path == "/api/pulse":
