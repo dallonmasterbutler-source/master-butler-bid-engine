@@ -4390,7 +4390,7 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
   color:#94a3b8;flex-wrap:wrap}}
 .mir .mfoot a{{color:#94a3b8}}
 .mir tr.selrow{{background:#eef6f1;box-shadow:inset 3px 0 0 #1f6b47}}
-.mir .swrap{{position:relative;margin-left:auto}}
+.mir .swrap{{position:relative;margin-left:6px}}
 .mir .swrap #fsearch{{margin-left:0}}
 .mir #fsr{{position:absolute;top:40px;right:0;width:320px;background:#fff;
   border:1px solid #e2e8f0;border-radius:12px;
@@ -4479,6 +4479,10 @@ setInterval(function(){{
   .then(function(d){{
     var t = JSON.stringify(d);
     if (__ptok === null) {{ __ptok = t; return; }}
+    // never reload out from under a search — it wiped the dropdown
+    // mid-click (Dallon, Jul 21 night)
+    var _s = document.getElementById('fsearch');
+    if (_s && (_s.value || document.activeElement === _s)) return;
     if (t !== __ptok) {{ __saveScroll(); location.reload(); }}
   }}).catch(function(){{}});
 }}, 30000);
@@ -4507,8 +4511,11 @@ document.addEventListener('DOMContentLoaded', function(){{
         if (!rows.length) {{ fsr.style.display = 'none'; return; }}
         fsr.innerHTML = "<div class='hint'>All customers — click to "
           + "open their page</div>" + rows.map(function(c){{
-          return "<a href='/customers?c=" + encodeURIComponent(c.e)
-            + "'><b>" + (c.n || c.e) + "</b><span>" + c.e
+          var u = '/customers?c=' + encodeURIComponent(c.e);
+          // mousedown fires before anything can hide the dropdown —
+          // the click can never be swallowed
+          return "<a href='" + u + "' onmousedown=\\"location.href='"
+            + u + "'\\"><b>" + (c.n || c.e) + "</b><span>" + c.e
             + "</span></a>";}}).join('');
         fsr.style.display = 'block';
       }}).catch(function(){{}});
