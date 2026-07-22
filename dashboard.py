@@ -3586,6 +3586,28 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
             tom_standby_at[_e2] = (f"{_s2[:4]}-{_s2[4:6]}-{_s2[6:8]}"
                                    f"T{_s2[9:11]}:{_s2[11:13]}:{_s2[13:15]}")
 
+    # 🧷 FOLDED REPLIES STILL PROVE PRESENCE (Martha, Jul 22: "nothing
+    # new is coming into the dashboard" — Liuliu replied four times
+    # TODAY, each reply auto-folded into yesterday's record; folded
+    # records were invisible to the mirror's existence check, so her
+    # line vanished while she sat UNREAD in the office's Gmail). A
+    # merged child's Message-ID in the inbox, or one newer than the
+    # snapshot, keeps the customer's line alive.
+    _fold_mids, _fold_at = {}, {}
+    for _fb in bids:
+        if not _fb.get("merged_into"):
+            continue
+        _fe = _canon_email(_bid_email(_fb))
+        if not _fe:
+            continue
+        _fm = (_fb.get("message_id") or "").strip()
+        if "@" in _fm:
+            _fold_mids.setdefault(_fe, set()).add(_fm)
+        _fr = (_stamp_utc(_fb.get("received") or "")
+               or _stamp_utc(_fb["stamp"]))
+        if _fr and _fr > _fold_at.get(_fe, ""):
+            _fold_at[_fe] = _fr
+
     for b in bids:
         if b.get("merged_into") or classify_row(b)[0] == "aside":
             continue
@@ -4276,6 +4298,13 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
                     # the snapshot — absence is unprovable, so show it
                     # (fail-VISIBLE; same guard grp-4 already has)
                     return True
+            # folded same-day replies count too (Martha/Liuliu, Jul 22)
+            for mid in _fold_mids.get(r["key"], ()):
+                if mid in _gmail_inbox_mids:
+                    return True          # their folded reply sits in Gmail
+            _fa = _fold_at.get(r["key"], "")
+            if _fa and _fa >= _gmail_mids_at:
+                return True              # folded reply newer than snapshot
             return False
 
         _fmain = sorted((r for r in roster

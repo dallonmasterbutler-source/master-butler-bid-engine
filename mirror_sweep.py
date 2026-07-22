@@ -170,18 +170,26 @@ def _sweep_inner(verbose, limit):
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     # group records per customer email (same keying as the roster);
-    # remember every RAW address too — gmail_state is raw-keyed
-    by_email, raws_of = {}, {}
+    # remember every RAW address too — gmail_state is raw-keyed.
+    # MERGED children ride along as evidence (Martha/Liuliu, Jul 22:
+    # same-day replies auto-fold into yesterday's record; without them
+    # the sweep read an ACTIVE customer as 'nothing new' and their
+    # folded mail as 'archived') — they count for newest-activity and
+    # for the Gmail presence check, never as their own line.
+    by_email, raws_of, folds_of = {}, {}, {}
     for stamp, r in clouddb.all_shadow():
-        if r.get("merged_into") or r.get("spam_auto") \
-                or r.get("tech_sender") or r.get("kind") == "jobber_event":
+        if r.get("spam_auto") or r.get("tech_sender") \
+                or r.get("kind") == "jobber_event":
             continue
         e = _email_of(r)
         if not e or "masterbutlerinc" in e:
             continue
         canon = _db._canon_email(e)
-        by_email.setdefault(canon, []).append((stamp, r))
         raws_of.setdefault(canon, set()).add(e)
+        if r.get("merged_into"):
+            folds_of.setdefault(canon, []).append((stamp, r))
+            continue
+        by_email.setdefault(canon, []).append((stamp, r))
 
     filed = []
     for email, pairs in list(by_email.items())[:1000]:
@@ -189,11 +197,15 @@ def _sweep_inner(verbose, limit):
             break
         pairs.sort()
         stamps = [s for s, _ in pairs]
-        recs = [r for _, r in pairs]
+        folds = sorted(folds_of.get(email) or [])
+        # folded children join the evidence set: their mids prove Gmail
+        # presence, their stamps prove activity (Martha/Liuliu, Jul 22)
+        recs = [r for _, r in pairs] + [r for _, r in folds]
         # newest customer event vs an existing sticky clear — if the
         # office already ✓-Done'd them and nothing new came in, or the
         # line wouldn't show anyway, skip (nothing to take away)
-        newest_evt = _db._stamp_utc(stamps[-1])
+        newest_evt = _db._stamp_utc(max(stamps[-1:] +
+                                        [s for s, _ in folds[-1:]]))
         if cleared.get(email) and newest_evt \
                 and newest_evt <= cleared[email]:
             continue
