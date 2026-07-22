@@ -68,6 +68,12 @@ def _jobber_verdict(email, newest_ctx, sleep_s=2.0):
         if jobs is None:
             return False, "Jobber couldn't answer (left alone)", False
         created = ((newest_ctx or {}).get("created") or "")[:10]
+        if not created:
+            # delta-attached ctx carries no quote date; '>= ""' would let
+            # ANY historical job count as proof of scheduling (Jul 21
+            # night sweep) — without the date we can't tell, so leave it
+            return False, (f"approved #{number}, quote date unknown "
+                           "(left alone)"), False
         after = [j for j in jobs
                  if (j.get("createdAt") or "")[:10] >= created]
         if after:
@@ -84,21 +90,37 @@ def _jobber_verdict(email, newest_ctx, sleep_s=2.0):
 
 def _gmail_verdict(email, recs, gmail_state, mids_blob):
     """(done?, evidence) from Gmail's point of view."""
-    inbox_recs = [r for r in recs
-                  if r.get("folder") == "INBOX"
-                  and "@" in (r.get("message_id") or "")]
+    import dashboard as _db
+    inbox_recs = [r for r in recs if r.get("folder") == "INBOX"]
     if not inbox_recs:
+        # a real request the poller rescued from Spam never sat in the
+        # office's inbox — that is NOT 'handled', it's 'unseen' (Jul 21
+        # night sweep: a positive Jobber verdict on an OLD quote was
+        # enough to file a spam-trapped NEW request)
+        if any("spam" in (r.get("folder") or "").lower() for r in recs):
+            return False, "request sitting in Spam (left alone)"
         return True, "never came through Gmail"      # vacuous
-    st = (gmail_state.get(email) or {}).get("state")
-    if st == "done":
-        return True, "thread archived in Gmail"
-    if st in ("unread", "working"):
+    # a record whose Message-ID isn't a real header (gmail-<gid>/no-id
+    # fallbacks) can never be matched against the inbox snapshot — its
+    # absence is unprovable, so Gmail can't vouch for this customer
+    if any("@" not in (r.get("message_id") or "") for r in inbox_recs):
+        return False, "Gmail can't vouch (unmatchable Message-ID)"
+    newest_seen = max((_db._stamp_utc(r.get("received") or r.get("stamp")
+                                      or "") or "" for r in inbox_recs))
+    ste = gmail_state.get(email) or {}
+    if ste.get("state") == "done":
+        # FRESHNESS (Jul 21 night sweep): 'done' observed BEFORE their
+        # newest email proves nothing about that email — a returning
+        # customer in the 15-min mirror gap was filed permanently here
+        if ste.get("at") and newest_seen and ste["at"] >= newest_seen:
+            return True, "thread archived in Gmail"
+        # stale 'done' → fall through to the per-message check
+    elif ste.get("state") in ("unread", "working"):
         return False, "still sitting in the Gmail inbox"
     # per-message: every mid gone AND every record predates the snapshot
     if isinstance(mids_blob, dict) and mids_blob.get("at"):
         mids = set(mids_blob.get("mids") or [])
         at = mids_blob["at"]
-        import dashboard as _db
         if all(_db._stamp_utc(r.get("received") or "") and
                _db._stamp_utc(r.get("received") or "") < at and
                r["message_id"].strip() not in mids for r in inbox_recs):
@@ -162,8 +184,6 @@ def sweep(verbose=True, limit=80):
         # both systems vouch → file it (the exact writes ✓ Done makes:
         # the sticky cleared blob AND the office-wide read-mark — the
         # first run wrote only cleared, and Won-lane rows kept showing)
-        cleared[email] = now
-        marks[email] = now
         filed.append({"email": email, "jobber": j_why, "gmail": g_why})
         try:
             clouddb.add_review({
@@ -176,6 +196,17 @@ def sweep(verbose=True, limit=80):
         if verbose:
             print(f"  filed {email} | Jobber: {j_why} | Gmail: {g_why}")
     if filed:
+        # MERGE-ON-WRITE (Jul 21 night sweep): a pass sleeps 2s per
+        # approved client, so the blobs read at the top are minutes old
+        # by now — writing them back wholesale reverted every ✓ Done /
+        # hand-back the office clicked mid-sweep. Re-read (the dashboard
+        # shares this process, so its writes are in the cache) and add
+        # ONLY our filed customers.
+        cleared = clouddb.get_blob("cleared") or {}
+        marks = clouddb.get_blob("msg_read") or {}
+        for f in filed:
+            cleared[f["email"]] = now
+            marks[f["email"]] = now
         clouddb.put_blob("cleared", cleared)
         clouddb.put_blob("msg_read", marks)
     if verbose:

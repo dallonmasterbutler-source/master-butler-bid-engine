@@ -96,23 +96,39 @@ FOLDERS = ["INBOX", "[Gmail]/Spam"]
 # Gmail-ids already looked at THIS session — skip re-fetching them every
 # poll (in-memory; a restart re-checks the recent window once, cheap).
 _API_SEEN = set()
-_API_OK = {"checked": False, "ok": False}
+_API_OK = {"ok": False, "at": 0.0}
 _API_MIRROR_AT = 0.0        # last Gmail archive-mirror run (throttle ~15m)
 _MIRROR_SWEEP_AT = 0.0      # last Gmail+Jobber mirror sweep (throttle ~1h)
 
 
+def _api_configured():
+    """Gmail OAuth creds are present at all (regardless of reachability)."""
+    try:
+        import gmail_api
+        return gmail_api.configured()
+    except Exception:
+        return False
+
+
 def _use_api():
-    """Read via the Gmail API when the token can read; fall back to IMAP
-    otherwise. Checked once per process (scope doesn't change mid-run)."""
-    if not _API_OK["checked"]:
-        try:
-            import gmail_api
-            _API_OK["ok"] = gmail_api.can_read()
-        except Exception:
-            _API_OK["ok"] = False
-        _API_OK["checked"] = True
-        print(f"  inbox read path: "
-              f"{'Gmail API' if _API_OK['ok'] else 'IMAP (no read scope)'}")
+    """Read via the Gmail API when the token can read. A YES is cached
+    for the process (scope doesn't change mid-run), but a NO is retried
+    every 10 minutes — the old once-per-process cache meant one token-
+    endpoint blip at first poll locked the process onto the IMAP path
+    for its whole lifetime (Jul 21 night sweep)."""
+    if _API_OK["ok"]:
+        return True
+    import time as _t
+    if _t.time() - _API_OK["at"] < 600:
+        return False
+    _API_OK["at"] = _t.time()
+    try:
+        import gmail_api
+        _API_OK["ok"] = gmail_api.can_read()
+    except Exception:
+        _API_OK["ok"] = False
+    print(f"  inbox read path: "
+          f"{'Gmail API' if _API_OK['ok'] else 'not API (retry in 10m)'}")
     return _API_OK["ok"]
 
 
@@ -276,6 +292,13 @@ def poll_once():
     # outages). Falls back to IMAP automatically if the token can't read.
     if _use_api():
         new_count = _poll_via_api(seen)
+    elif _api_configured():
+        # OAuth creds exist but the API is blipping: SKIP this poll (next
+        # one is 2 min away) rather than full-mailbox IMAP scans — the
+        # account is chronically OVERQUOTA on IMAP and the bulk fallback
+        # is exactly what locks it out longer (Jul 21 night sweep)
+        print("  (Gmail API configured but unreachable — poll skipped; "
+              "no bulk-IMAP fallback on the live account)")
     else:
         addr, pw = _creds()
         M = imaplib.IMAP4_SSL("imap.gmail.com")
@@ -364,7 +387,11 @@ def poll_once():
                     did_api = True
             except Exception as _ae:
                 print(f"  (gmail API mirror skipped: {_ae})")
-            if not did_api:                 # API down — old trash-only signal
+            # API down → the IMAP trash-only signal, but ONLY on accounts
+            # with no API creds at all: falling back to a full IMAP scan
+            # of INBOX+Trash during an API hiccup hits the overquota
+            # account at exactly the wrong moment (Jul 21 night sweep)
+            if not did_api and not _api_configured():
                 gmail_mirror.state_sync(verbose=False)
             _API_MIRROR_AT = _t.time()
     except Exception as _e:

@@ -40,6 +40,18 @@ def _access_token():
     return _TOK["access"]
 
 
+def configured():
+    """OAuth creds are PRESENT (says nothing about scope or reachability).
+    Used to refuse bulk-IMAP fallbacks on the live account: when the API
+    is configured, a transient API failure means 'skip this poll', never
+    'full-mailbox IMAP scan' (chronic OVERQUOTA account, Jul 21 sweep)."""
+    try:
+        import mailer
+        return bool(mailer._oauth_env())
+    except Exception:
+        return False
+
+
 def can_read():
     """True only if the granted scope includes read access — otherwise
     the caller falls back to IMAP (send-only token can't read)."""
@@ -154,17 +166,33 @@ def inbox_index(cap=600):
         { sender_email: {"unread": bool} }  plus  set(message_ids)
     'In the inbox' is the office's open-work set; anything NOT here has
     been archived or trashed = handled (Jessica's mirror, Jul 20). None
-    on any read failure so the caller changes nothing."""
+    on any read failure so the caller changes nothing.
+
+    Returns (senders, msgids, complete). complete=False whenever ANY
+    message couldn't be fetched or the cap truncated the listing — a
+    partial snapshot proves PRESENCE but never ABSENCE, and publishing
+    it as authoritative let the mirror sweep file customers whose mail
+    was merely dropped by a flaky fetch (Jul 21 night sweep, the
+    'unforgivable failure' hole). Callers must not treat a partial
+    snapshot as evidence that anything left the inbox."""
     import email.utils
+    import time as _t
     try:
         ids = list_ids("in:inbox", cap=cap)
     except Exception:
-        return None, None
+        return None, None, False
+    complete = len(ids) < cap      # cap hit = oldest messages truncated
     senders, msgids = {}, set()
     for mid in ids:
-        try:
-            m = get_meta(mid)
-        except Exception:
+        m = None
+        for _try in (1, 2):        # one retry rides out transient 429/500s
+            try:
+                m = get_meta(mid)
+                break
+            except Exception:
+                _t.sleep(1)
+        if m is None:
+            complete = False       # this message's absence is unprovable
             continue
         _, em = email.utils.parseaddr(m["from"])
         unread = "UNREAD" in m["labels"]
@@ -173,4 +201,4 @@ def inbox_index(cap=600):
             senders[em] = senders.get(em, False) or unread
         if m["message_id"]:
             msgids.add(m["message_id"])
-    return senders, msgids
+    return senders, msgids, complete

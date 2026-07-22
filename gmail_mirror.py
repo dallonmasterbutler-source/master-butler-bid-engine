@@ -203,8 +203,19 @@ def api_state_sync(verbose=True):
     from datetime import datetime, timezone
     if not gmail_api.can_read():
         return 0
-    inbox_senders, inbox_msgids = gmail_api.inbox_index()
+    inbox_senders, inbox_msgids, complete = gmail_api.inbox_index()
     if inbox_senders is None:               # couldn't read — change nothing
+        return 0
+    if not complete:
+        # PARTIAL snapshot (a fetch failed or the cap truncated): it can
+        # prove what IS in the inbox but not what LEFT it — publishing it
+        # would mark the dropped customers "done" and the hourly sweep
+        # would sticky-clear them permanently (Jul 21 night sweep). The
+        # stale-but-honest previous blobs stay; records newer than that
+        # older snapshot always show, so staleness is fail-VISIBLE.
+        if verbose:
+            print("gmail API mirror: partial inbox read — keeping the "
+                  "previous snapshot (absence unprovable this pass)")
         return 0
 
     # map each queue customer to a state — by Message-ID first (forms

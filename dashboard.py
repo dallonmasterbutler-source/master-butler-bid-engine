@@ -1571,8 +1571,13 @@ document.querySelectorAll('tr[data-href]').forEach(function(t){
 
 
 def esc(s):
+    # quotes too (Jul 21 night sweep): names like O'Brien truncated
+    # single-quoted attributes — the ✓ Done button then POSTed a
+    # truncated key and marked the WRONG record; crafted values could
+    # inject attributes outright
     return (str(s or "").replace("&", "&amp;").replace("<", "&lt;")
-            .replace(">", "&gt;"))
+            .replace(">", "&gt;").replace('"', "&quot;")
+            .replace("'", "&#39;"))
 
 
 def _num(v):
@@ -3134,7 +3139,7 @@ def _stamp_utc(stamp):
     try:
         return (datetime.strptime(stamp, "%Y%m%d-%H%M%S").astimezone()
                 .astimezone(timezone.utc).isoformat(timespec="seconds"))
-    except ValueError:
+    except (ValueError, TypeError):
         return ""
 
 
@@ -4180,11 +4185,17 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
                 return r["lane"] in ("inbox", "drafts")
             for b in (r["c"].get("bids") or []):
                 mid = (b.get("message_id") or "").strip()
-                st = _stamp_utc(b.get("received") or b.get("stamp") or "")
+                st = (_stamp_utc(b.get("received") or "")
+                      or _stamp_utc(b.get("stamp") or ""))
                 if st and st >= _gmail_mids_at:
                     return True          # newer than the snapshot
                 if mid and mid in _gmail_inbox_mids:
                     return True          # sitting in their inbox NOW
+                if b.get("folder") == "INBOX" and "@" not in mid:
+                    # fallback ids (gmail-<gid>/no-id) can never match
+                    # the snapshot — absence is unprovable, so show it
+                    # (fail-VISIBLE; same guard grp-4 already has)
+                    return True
             return False
 
         _fmain = sorted((r for r in roster
@@ -4275,8 +4286,8 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
                     pcls, price = "tbd", ("TBD" if r["lane"] != "techs"
                                           else "—")
                 if tech:
-                    who = esc(str(nb.get("tech_sender") or "Tech")
-                              .split()[0][:12])
+                    who = esc((str(nb.get("tech_sender") or "Tech")
+                               .split() or ["Tech"])[0][:12])
                     chip = (f"<span class='stage' style='background:#eef1ee;"
                             f"color:#475569'>👷 {who}</span>")
                 else:
@@ -4528,9 +4539,14 @@ document.addEventListener('DOMContentLoaded', function(){{
             + "font-size:10px;color:#94a3b8'>history</span>" : "";
           // mousedown fires before anything can hide the dropdown —
           // the click can never be swallowed
+          // escape names/emails — they land in innerHTML (a crafted
+          // history name must render as text, never as markup)
+          var eh = function(s){{return String(s||'').replace(/[&<>"']/g,
+            function(ch){{return {{'&':'&amp;','<':'&lt;','>':'&gt;',
+              '"':'&quot;',"'":'&#39;'}}[ch];}});}};
           return "<a href='" + u + "' onmousedown=\\"location.href='"
-            + u + "'\\"><b>" + (c.n || c.e) + "</b>" + tag
-            + "<span>" + c.e + "</span></a>";}}).join('');
+            + u + "'\\"><b>" + eh(c.n || c.e) + "</b>" + tag
+            + "<span>" + eh(c.e) + "</span></a>";}}).join('');
         fsr.style.display = 'block';
       }}).catch(function(){{}});
     }}, 220);
@@ -12614,15 +12630,25 @@ class Handler(BaseHTTPRequestHandler):
             # on-demand Gmail+Jobber reconciliation pass (Dallon, Jul 21).
             # Returns the evidence report as plain text. Auth'd like every
             # POST; conservative + reversible by design.
+            # BACKGROUND (Jul 21 night sweep): the pass sleeps 2s per
+            # approved client — run synchronously it froze the whole
+            # single-threaded dashboard for minutes. Each filed line
+            # still lands in the review drawer with its evidence.
             try:
+                import threading as _th
                 import mirror_sweep
-                filed = mirror_sweep.sweep(verbose=False)
-                lines = [f"mirror sweep: {len(filed)} line(s) filed"]
-                for f in filed:
-                    lines.append(f"  {f['email']}  |  Jobber: {f['jobber']}"
-                                 f"  |  Gmail: {f['gmail']}")
-                return self._send("\n".join(lines).encode(),
-                                  ctype="text/plain; charset=utf-8")
+
+                def _bg():
+                    try:
+                        mirror_sweep.sweep(verbose=True)
+                    except Exception as _se:
+                        print(f"  (on-demand mirror sweep failed: {_se})")
+                _th.Thread(target=_bg, daemon=True).start()
+                return self._send(
+                    b"mirror sweep started \xe2\x80\x94 anything it files "
+                    b"appears in the review drawer with its evidence "
+                    b"(refresh in a minute or two)",
+                    ctype="text/plain; charset=utf-8")
             except Exception as _e:
                 return self._send(f"sweep failed: {_e}".encode(),
                                   ctype="text/plain; charset=utf-8",
