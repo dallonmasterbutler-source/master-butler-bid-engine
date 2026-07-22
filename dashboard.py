@@ -4835,8 +4835,12 @@ document.addEventListener('DOMContentLoaded', function(){
  <table>
   <tbody id='mmainbody'>{_mrows}</tbody>
  </table>
- <div class='sec'>👷 Tech Questions ({len(_ftech)})</div>
- <table><tbody>{_mtech}</tbody></table>
+ <details{" open" if any(r['unread'] for r in _ftech) else ""}>
+  <summary class='sec' style='cursor:pointer;list-style-position:inside'>
+   👷 Tech Questions ({len(_ftech)}){f" <span style='background:#fca5a5;color:#5c1410;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:800'>{sum(1 for r in _ftech if r['unread'])} new</span>" if any(r['unread'] for r in _ftech) else ""}
+  </summary>
+  <table><tbody>{_mtech}</tbody></table>
+ </details>
  <div class='mfoot'>
   <span>Every quote is a draft until a human sends it.</span>
   <span><b style='color:#0f172a'>Bold</b> = nobody's seen it</span>
