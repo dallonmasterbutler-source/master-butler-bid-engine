@@ -3452,6 +3452,23 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
         _gmail_mids_at = _gm_blob["at"]
     else:
         _gmail_inbox_mids, _gmail_mids_at = set(), ""
+    # Newest Jobber APPROVAL-notification per customer (Dallon, Jul 21
+    # night: "gmail gets a notification when a jobber quote gets
+    # approved" — correct: 'Quote #NNNN is approved!' lands in the office
+    # inbox). Their real flow: schedule the job, then ARCHIVE that
+    # notification. So when the notification's Message-ID leaves the
+    # Gmail inbox, the 📅 SCHEDULE line clears — the mirror mirrors them.
+    _appr_note = {}
+    for _b0 in bids:
+        _ev0 = _b0.get("jobber_event") or {}
+        if _ev0.get("event") == "quote_approved":
+            _ce0 = (_ev0.get("client_email") or "").lower()
+            _mid0 = (_b0.get("message_id") or "").strip()
+            if _ce0 and "@" in _mid0:
+                _k0 = _canon_email(_ce0)
+                if _k0 not in _appr_note \
+                        or _b0["stamp"] > _appr_note[_k0][1]:
+                    _appr_note[_k0] = (_mid0, _b0["stamp"])
     # 📵 YAHOO/AOL BOUNCE FLAG (Dallon, Jul 16): while the domain's DNS
     # is unauthenticated, mail to Yahoo-run providers bounces — flag
     # those customers to call instead. One switch clears it everywhere
@@ -3594,6 +3611,14 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
         # cleared (done-feel) until a new inbound beats the cleared time.
         _clr = cleared_blob.get(key)
         _sticky_cleared = bool(_clr and not (last_at and last_at > _clr))
+        # the office archived this customer's Jobber approval notification
+        # in Gmail = they scheduled it (their real flow) → done. Only for
+        # records older than the mirror snapshot, same as everywhere.
+        _apn = _appr_note.get(key)
+        _appr_gone = bool(_apn and _gmail_inbox_mids
+                          and _stamp_utc(_apn[1])
+                          and _stamp_utc(_apn[1]) < _gmail_mids_at
+                          and _apn[0] not in _gmail_inbox_mids)
         if not unread and needs and read_marks.get(key) \
                 and not _sticky_cleared:
             try:
@@ -3710,7 +3735,7 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
         # — Jul 21: cleared rows were still riding the Won lane), with
         # nothing new since → the drawer. ANY new message resurfaces
         # them (the branch below wins) — nobody stays buried.
-        elif (nb and (acknowledged or _sticky_cleared
+        elif (nb and (acknowledged or _sticky_cleared or _appr_gone
                       or (nb.get("reviewed") and not _chg))
               and not unread and not new_msg and not _chg
               and nb["stamp"] not in live_holds
@@ -4534,25 +4559,42 @@ document.addEventListener('DOMContentLoaded', function(){
     # inbox/drafts/won (live customer action) show; waiting/handled/
     # drawer/standby (no customer action pending) don't exist as boxes.
     if flat:
-        # WHAT NEEDS A PERSON RIGHT NOW — nothing else (Dallon, Jul 21
-        # night, per Jessica's call: "if it's done and sent, they don't
-        # want to see it"). A SENT quote is Jobber's to chase and an
-        # APPROVED one is Jobber's to schedule — neither is dashboard
-        # work, so neither gets a line. The one exception: a won customer
-        # who WRITES ("I approve — what day?") shows, because the MESSAGE
-        # needs an answer — the line exists for the message, never for
-        # the quote status.
+        # WHAT NEEDS A PERSON RIGHT NOW (Dallon, Jul 21 night, refined):
+        # every line wears a clear STAGE TAG — draft / quote / reply /
+        # call back / schedule / changes. Approved quotes STAY as
+        # 📅 SCHEDULE lines because Jobber emails the office an approval
+        # notification that sits in their Gmail until they schedule and
+        # archive it — the mirror mirrors that. A SENT quote (awaiting
+        # the customer) is Jobber's to chase and gets no line.
         _fmain = sorted((r for r in roster
-                         if r["lane"] in ("inbox", "drafts")
-                         or (r["lane"] == "won"
-                             and (r["unread"] or r["new_msg"]))),
+                         if r["lane"] in ("inbox", "drafts", "won")),
                         key=lambda r: r["age"])
+
+        def _fstage(r):
+            nb = r.get("nb") or {}
+            if r["lane"] == "won":
+                return ("📅 SCHEDULE", "#8fc7a6")
+            if r["lane"] == "drafts":
+                return ("🖊 DRAFT — needs your yes", "#e8c76a")
+            if "change" in ((nb.get("office_alert") or "").lower()):
+                return ("✏️ CHANGES REQUESTED", "#f2b8b5")
+            if nb.get("kind") == "phone_lead":
+                return ("📞 CALL BACK", "#79aede")
+            if nb.get("services"):
+                return ("📋 QUOTE — needs a price", "#8fc7a6")
+            return ("💬 REPLY", "#79aede")
         _ftech = sorted((r for r in roster if r["lane"] == "techs"),
                         key=lambda r: r["age"])
         _funread = sum(1 for r in _fmain if r["unread"])
 
         def _frow(r):
-            return row(r).replace("href='/?c=", "href='/?flat=1&c=")
+            h = row(r).replace("href='/?c=", "href='/?flat=1&c=")
+            tag, col = _fstage(r)
+            chip = (f"<div style='font-size:10px;font-weight:800;"
+                    f"letter-spacing:.5px;color:{col};padding:6px 10px 0'>"
+                    f"{tag}</div>")
+            return h.replace("<div class='irowwrap'>",
+                             "<div class='irowwrap'>" + chip, 1)
 
         _fempty = ("<div style='padding:44px 20px;text-align:center;"
                    "color:var(--green2);font-weight:800;font-size:16px'>"
