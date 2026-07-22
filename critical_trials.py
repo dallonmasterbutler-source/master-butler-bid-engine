@@ -187,6 +187,20 @@ def main():
         # ── API ──
         pulse = get("/api/pulse")
         check("/api/pulse returns token JSON", "{" in pulse)
+        # HTTP BASIC must keep working — the cron's cloudpush courier
+        # and every scripted /api call ride on it. A NameError inside
+        # the auth catch-all broke it for 14h unnoticed (Jul 22).
+        from base64 import b64encode as _b64e
+        try:
+            _bh = {"Authorization": "Basic "
+                   + _b64e(f"office:{pw}".encode()).decode()}
+            _bc = urllib.request.urlopen(
+                urllib.request.Request(URL + "/api/pulse", headers=_bh),
+                timeout=30).status
+        except urllib.error.HTTPError as _be:
+            _bc = _be.code
+        check("HTTP Basic auth accepted on /api (courier path)",
+              _bc == 200)
 
         # ── POSTs (local files only; production untouched) ──
         st_ = post("/mark_seen_bulk", [("keys", "trial@example.com"),

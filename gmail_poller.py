@@ -742,6 +742,33 @@ def _shadow_sources_for_dedupe():
         return []
 
 
+def _fold_root(target, hops=10):
+    """Resolve a fold target to its ROOT record. Folding into a record
+    that was itself merged built 108 chains (Jul 22 pipeline check) —
+    a grandchild's activity sits one hop further from the line the
+    office sees. Every fold must land on the root."""
+    seen = set()
+    cur = target
+    try:
+        import clouddb as _cdb
+        allr = dict(_cdb.all_shadow()) if _cdb.available() else None
+        while cur not in seen and len(seen) < hops:
+            seen.add(cur)
+            if allr is not None:
+                r0 = allr.get(cur) or {}
+            else:
+                pj0 = SHADOW_DIR / f"{cur}.json"
+                r0 = (json.loads(pj0.read_text())
+                      if pj0.exists() else {})
+            nxt = r0.get("merged_into")
+            if not nxt:
+                break
+            cur = nxt
+    except Exception:
+        return target
+    return cur
+
+
 def shadow_process(raw_bytes, msg_id, folder="INBOX"):
     """Run one raw email through the pipeline; save the shadow draft."""
     SHADOW_DIR.mkdir(parents=True, exist_ok=True)
@@ -1130,8 +1157,9 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
                 except ValueError:
                     continue
                 if _age_h <= 48:
-                    record["merged_into"] = _ps
-                    print(f"     → identical resend folded into {_ps}")
+                    record["merged_into"] = _fold_root(_ps)
+                    print("     → identical resend folded into "
+                          f"{record['merged_into']}")
                     break
         verdict = check_duplicate(
             {"sender_email": m.group(1) if m else "",
@@ -1166,9 +1194,10 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
                               prior_rec.get("subject"),
                               record.get("newest_message"),
                               bool(parsed.get("services"))):
-                record["merged_into"] = verdict["match"]["stamp"]
+                record["merged_into"] = _fold_root(
+                    verdict["match"]["stamp"])
                 record["office_alert"] = None
-                print(f"     → auto-folded into {verdict['match']['stamp']}"
+                print(f"     → auto-folded into {record['merged_into']}"
                       " (reply/confirmation, no new services)")
                 try:
                     from store import save_review as _sr

@@ -10936,7 +10936,10 @@ class Handler(BaseHTTPRequestHandler):
         if hdr.startswith("Basic "):
             try:
                 got = base64.b64decode(hdr[6:]).decode()
-                if hmac.compare_digest(got.split(":", 1)[-1], pw):
+                # _hmac, not hmac — the module is only imported under
+                # that name here; the bare name NameError'd inside the
+                # catch-all and broke EVERY Basic call for 14h (Jul 22)
+                if _hmac.compare_digest(got.split(":", 1)[-1], pw):
                     # upgrade this basic-auth (old bookmark) session to a
                     # cookie so background fetches stop 401-ing and the
                     # native popup never returns (office iPad, Jul 13)
