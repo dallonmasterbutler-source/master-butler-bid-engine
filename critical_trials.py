@@ -170,6 +170,7 @@ def main():
             ("/brief", "", "Morning brief"),
             ("/autodrafts", "grading room", "Auto-drafts + sched scorecard"),
             ("/newbid", "Estimated total", "NEW-DESIGN preview /newbid"),
+            ("/lightroutes", "Sammamish", "Lights routes page"),
             ("/", "Tech Questions", "MIRROR is the default view"),
             ("/?classic=1", "laneSwap", "classic lanes at /?classic=1"),
         ]:

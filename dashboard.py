@@ -7797,6 +7797,85 @@ def routes_page(date_str=None, kind="visits", fresh=False):
     return page("Routes", body, chrome="bare")
 
 
+def lightroutes_page():
+    """🎄 SAMMAMISH — THREE LIGHTS ROUTES (Dallon, Jul 22: 'sammamish
+    into 3 effective routes. keep iron mans close, but use our
+    geomapping data'). Drawn from the samm_routes blob (built by
+    samm_routes.py from active install homes + the office's 2026
+    superhero territory sheet)."""
+    d = _blob_rw("samm_routes", None)
+    if not d:
+        return page("Lights routes", "<div class='card'>Route data "
+                    "isn't built yet — tell Dallon.</div>")
+    cards = ""
+    for r in d["routes"]:
+        rows = "".join(
+            f"<tr><td>{esc(h['client'])[:30]}</td>"
+            f"<td class='subtext'>{esc(h['address'])[:52]}</td>"
+            f"<td class='subtext'>{esc(h.get('bulb') or '')[:14]}</td>"
+            f"</tr>" for h in r["homes"])
+        cards += (
+            f"<details class='card' style='border-left:4px solid "
+            f"{r['color']}'><summary style='cursor:pointer;list-style:"
+            f"none;display:flex;align-items:center;gap:10px'>"
+            f"<b style='font-size:15px'>{esc(r['name'])}</b>"
+            f"<span class='chip'>{r['count']} homes</span>"
+            f"<span class='chip'>≤{r['max_mi_from_center']} mi spread"
+            f"</span><span class='subtext' style='margin-left:auto'>"
+            f"{esc(r['tech'])} · tap for the roster</span></summary>"
+            f"<div style='max-height:340px;overflow:auto;margin-top:8px'>"
+            f"<table><tr><th>Customer</th><th>Address</th><th>Bulb</th>"
+            f"</tr>{rows}</table></div></details>")
+    im = d.get("ironman") or {}
+    body = f"""
+<div style='max-width:1150px'>
+ <h2 style='margin:2px 0 4px'>🎄 Sammamish — three effective routes</h2>
+ <div class='subtext' style='margin-bottom:12px'>Built from
+  <b>{d['sammamish_active']} ACTIVE install homes</b> (an invoiced
+  install since Aug 2025) clustered on real coordinates, balanced to
+  the 2026 sheet's targets. Names follow the office's own territory
+  plan. The <b>Iron Man corridor</b> ({im.get('count', 0)} homes ·
+  {esc(im.get('cities') or '')}) stays untouched and tight for
+  {esc(im.get('tech') or 'its tech')}.</div>
+ <div class='card'>
+  <div id='map_samm' style='height:520px;border-radius:12px'></div>
+  <div class='subtext' style='margin-top:8px'>Purple = Trossachs/East ·
+   Red = Duthie Hill/244th · Green = Castle Pines/Main/West · Gold =
+   the Iron Man corridor (context, not part of the split). Daily stop
+   ORDER comes from the Google route optimizer — same engine as the
+   <a href='/route_demo'>route mockup</a>.</div>
+ </div>
+ {cards}
+</div>
+<link rel='stylesheet'
+ href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'>
+<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>
+<style>.leaflet-container{{background:#dde5dd}}</style>
+<script>
+var R = {json.dumps([{"color": r["color"],
+                      "pts": [[h["lat"], h["lng"]] for h in r["homes"]]}
+                     for r in d["routes"]])};
+var IRON = {json.dumps((im.get("points") or [])[:500])};
+var m = L.map('map_samm');
+L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png',
+ {{maxZoom: 17, attribution: '© OpenStreetMap'}}).addTo(m);
+var all = [];
+IRON.forEach(function(p){{
+  L.circleMarker(p, {{radius: 2.5, color: '#b8860b', weight: 1,
+                     fillOpacity: .5}}).addTo(m);
+}});
+R.forEach(function(r){{
+  r.pts.forEach(function(p){{
+    all.push(p);
+    L.circleMarker(p, {{radius: 4, color: r.color, weight: 2,
+                       fillOpacity: .75}}).addTo(m);
+  }});
+}});
+m.fitBounds(all.length ? all : [[47.6, -122.05]], {{padding: [30, 30]}});
+</script>"""
+    return page("Lights routes", body)
+
+
 def route_demo_page():
     """🚐 ROUTE MOCKUP (Dallon, Jul 9 pm: 'a mock up for jessica and
     tom what a route would look like based on the geomapping and
@@ -11212,6 +11291,8 @@ class Handler(BaseHTTPRequestHandler):
                                + html + "</body></html>").encode("utf-8"))
         if self.path == "/route_demo":
             return self._send(route_demo_page())
+        if self.path == "/lightroutes":
+            return self._send(lightroutes_page())
         if self.path.startswith("/routes"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             return self._send(routes_page(
