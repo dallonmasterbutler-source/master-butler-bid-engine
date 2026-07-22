@@ -324,6 +324,28 @@ try:
 except Exception as e:
     print(f"   QA check skipped ({e})")
 
+# 5a-bis ── PIPELINE INVARIANTS (Jul 22, the Liuliu/Asish class:
+# features correct alone, wrong in sequence). Gmail and the mirror
+# must AGREE every night; any violation emails Dallon immediately —
+# never again a hidden customer nobody knew about.
+try:
+    import pipeline_check
+    _pv = pipeline_check.run(verbose=True)
+    if _pv:
+        import mailer
+        mailer.send_internal(
+            f"🔴 Master Butler pipeline check — {len(_pv)} violation(s)",
+            "The nightly Gmail↔dashboard invariant check found:\n\n"
+            + "\n".join("· " + p for p in _pv[:40])
+            + "\n\nThese are customers/records the two systems disagree "
+              "about — tell Claude.",
+            to=["dallon.masterbutler@gmail.com"])
+        print(f"   ⚠️ {len(_pv)} pipeline violation(s) — emailed Dallon")
+    else:
+        print("   pipeline invariants: all hold ✅")
+except Exception as e:
+    print(f"   (pipeline check skipped: {e})")
+
 # 5b ── refresh the due-for-annual list (books itself out of date as
 # customers schedule) + rerun the DNS sweep periodically
 try:
