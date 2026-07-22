@@ -11089,6 +11089,15 @@ class Handler(BaseHTTPRequestHandler):
                    if clouddb.available() else None)
             return self._send(json.dumps(val).encode(),
                               ctype="application/json")
+        if self.path == "/api/learning_store":
+            # download the pricing-learning SQLite file (Postgres-shelved
+            # since Jul 22 — Dallon: "move the learning store to postgres")
+            if not clouddb.available():
+                return self._send(b"no cloud", code=404)
+            blob = clouddb.get_file("masterbutler.db")
+            if not blob:
+                return self._send(b"no learning store yet", code=404)
+            return self._send(blob, ctype="application/octet-stream")
         if self.path == "/api/backup":
             # FULL cloud-memory dump (minus photo bytes — regenerable).
             # The Mac pulls this nightly: if the database ever dies, the
@@ -11126,6 +11135,15 @@ class Handler(BaseHTTPRequestHandler):
                     dump["blobs"][k] = v
                 dump["photo_index"] = [list(r) for r in (cdb._exec(
                     "SELECT ref, kind, idx FROM photos", fetch="all") or [])]
+                try:
+                    # the pricing-learning SQLite rides along in the
+                    # nightly restore point (Postgres-shelved Jul 22)
+                    _lb = cdb.get_file("masterbutler.db")
+                    if _lb:
+                        from base64 import b64encode as _b64e
+                        dump["learning_store_b64"] = _b64e(_lb).decode()
+                except Exception:
+                    pass
                 body = json.dumps(dump, default=str).encode()
                 return self._send(body, ctype="application/json")
             except Exception as _be:
@@ -11212,6 +11230,20 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length)
+
+        # ── learning-store upload (raw SQLite bytes; auth'd like every
+        #    endpoint). Seeds/restores the Postgres-shelved learning DB
+        #    (Dallon, Jul 22: "move the learning store to postgres").
+        if self.path == "/api/learning_store":
+            if not self._authed():
+                return self._require_auth()
+            if not clouddb.available():
+                return self._send(b"no cloud", code=503)
+            if not body.startswith(b"SQLite format 3\x00"):
+                return self._send(b"not a SQLite file", code=400)
+            clouddb.put_file("masterbutler.db", body)
+            return self._send(f"learning store stored "
+                              f"({len(body)//1024} KB)".encode())
 
         # ── Jobber webhook (real-time events; verified by HMAC, not
         #    password — Jobber signs each delivery with the app secret).

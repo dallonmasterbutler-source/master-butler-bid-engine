@@ -106,8 +106,49 @@ CREATE TABLE IF NOT EXISTS audit_log (
 """
 
 
+# ── CLOUD SHELF (Dallon, Jul 22: "move the learning store to postgres")
+# The SQLite file itself lives in the cloud `files` table: every
+# connect() pulls the cloud copy when it's newer, every write session
+# pushes back. On the cron/web containers (ephemeral disk) that makes
+# the learning PERSIST; on the Mac (no DB driver) these are no-ops and
+# the local file behaves exactly as before.
+_STAMP = None                      # cloud updated_at we last synced with
+
+
+def _cloud_pull():
+    global _STAMP
+    try:
+        import clouddb
+        if not clouddb.available():
+            return
+        cs = clouddb.file_stamp("masterbutler.db")
+        if not cs or cs == _STAMP:
+            return                 # no cloud copy yet, or already fresh
+        blob = clouddb.get_file("masterbutler.db")
+        if blob:
+            DB.parent.mkdir(exist_ok=True)
+            DB.write_bytes(blob)
+            _STAMP = cs
+    except Exception as e:
+        print(f"  (learning store cloud pull skipped: {e})")
+
+
+def _cloud_push():
+    global _STAMP
+    try:
+        import clouddb
+        if not clouddb.available() or not DB.exists():
+            return
+        clouddb.put_file("masterbutler.db", DB.read_bytes())
+        _STAMP = clouddb.file_stamp("masterbutler.db")
+    except Exception as e:
+        print(f"  ⚠️ learning store cloud push FAILED (session's learning "
+              f"is local-only): {e}")
+
+
 def connect():
     DB.parent.mkdir(exist_ok=True)
+    _cloud_pull()                  # freshest copy wins (no-op off-cloud)
     con = sqlite3.connect(DB)
     con.executescript(DDL)
     return con
@@ -225,7 +266,8 @@ def sync():
                         (bid_id, "office", r.get("action", "?"), key))
     con.commit()
     con.close()
-    return added_req, added_lines
+    _cloud_push()                  # the session's learning must outlive
+    return added_req, added_lines  # this container (Jul 22)
 
 
 SERVICE_WORDS = {          # fuzzy bridge: our line names ↔ office catalog names
@@ -295,6 +337,7 @@ def record_office_quotes(scoreboard_report):
                                  "office_total": row.get("office_total")})))
     con.commit()
     con.close()
+    _cloud_push()                  # ditto (Jul 22)
     return updated
 
 

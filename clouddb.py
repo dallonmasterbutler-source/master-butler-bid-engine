@@ -206,6 +206,46 @@ def get_photo(ref, kind, idx):
     return bytes(row[0]) if row else None
 
 
+# ── whole files (the learning store's SQLite file) ───────────
+# The pricing-learning DB was LOCAL SQLite only: on the cloud cron the
+# disk evaporates at container exit, and the Mac's nightly runner has
+# been dead since Jul 16 — "N final prices recorded" was recorded into
+# nothing (Jul 21 night sweep; Dallon's Jul 22 ruling: move it here).
+
+_FILES_DDL_DONE = [False]
+
+
+def _files_table():
+    if not _FILES_DDL_DONE[0]:
+        _exec("CREATE TABLE IF NOT EXISTS files ("
+              "name TEXT PRIMARY KEY, data BYTEA NOT NULL, "
+              "updated_at TIMESTAMPTZ NOT NULL DEFAULT now())")
+        _FILES_DDL_DONE[0] = True
+
+
+def put_file(name, blob):
+    _files_table()
+    _exec("INSERT INTO files (name, data) VALUES (%s, %s) "
+          "ON CONFLICT (name) DO UPDATE SET data = EXCLUDED.data, "
+          "updated_at = now()", (name, blob))
+
+
+def get_file(name):
+    _files_table()
+    row = _exec("SELECT data FROM files WHERE name = %s", (name,),
+                fetch="one")
+    return bytes(row[0]) if row else None
+
+
+def file_stamp(name):
+    """The cloud copy's updated_at (iso string), or None — cheap
+    newer-than check so callers skip re-downloading an unchanged file."""
+    _files_table()
+    row = _exec("SELECT updated_at FROM files WHERE name = %s", (name,),
+                fetch="one")
+    return row[0].isoformat() if row else None
+
+
 # ── kv blobs (scoreboard, honor history, brief) ──────────────
 
 def put_blob(key, value):
