@@ -4698,7 +4698,8 @@ document.addEventListener('DOMContentLoaded', function(){
                     pcls, price = "tbd", ("TBD" if r["lane"] != "techs"
                                           else "—")
                 if tech:
-                    who = esc(str(nb.get("tech_sender") or "Tech")[:14])
+                    who = esc(str(nb.get("tech_sender") or "Tech")
+                              .split()[0][:12])
                     chip = (f"<span class='stage' style='background:#eef1ee;"
                             f"color:#475569'>👷 {who}</span>")
                 else:
