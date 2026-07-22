@@ -4625,21 +4625,6 @@ document.addEventListener('DOMContentLoaded', function(){
                         key=lambda r: r["age"])
         _funread = sum(1 for r in _fmain if r["unread"])
 
-        def _frow(r):
-            h = row(r)          # the mirror IS the default — plain links
-            tag, fg, bg = _fstage(r)
-            chip = (f"<div style='font-size:10px;font-weight:800;"
-                    f"letter-spacing:.5px;color:{fg};padding:6px 10px 0'>"
-                    f"{tag}</div>")
-            return h.replace("<div class='irowwrap'>",
-                             "<div class='irowwrap'>" + chip, 1)
-
-        _fempty = ("<div style='padding:44px 20px;text-align:center;"
-                   "color:var(--green2);font-weight:800;font-size:16px'>"
-                   "All caught up ✅<div class='subtext' style='margin-top:"
-                   "6px;font-weight:400'>Nothing is waiting on a person. "
-                   "New customer activity appears here the moment it "
-                   "happens.</div></div>")
 
         # ── 🎨 THE LIGHT TABLE (Dallon's approved mockup, Jul 21 night —
         # all 5 readability adaptations): worded stage chips down the left
@@ -4649,7 +4634,11 @@ document.addEventListener('DOMContentLoaded', function(){
         # no customer is open; clicking a row opens the existing detail.
         # One-click APPROVE stays OUT of the list — approving pushes a
         # real quote; that lives in the detail card where the price is.
-        if not sel:
+        # ONE WORLD (Dallon, Jul 21 late: 'we go from a clean front
+        # screen to the old view — combine them'): the light list ALWAYS
+        # renders; picking a customer slides their detail card in on the
+        # RIGHT, same design, no jump to the old dark room.
+        if True:
             def _ago(h):
                 return (f"{h*60:.0f}m ago" if h < 1 else
                         f"{h:.0f}h ago" if h < 48 else f"{h/24:.0f}d ago")
@@ -4713,9 +4702,10 @@ document.addEventListener('DOMContentLoaded', function(){
                            f"“{esc((_uq.group(1) if _uq else 'urgent')[:38])}”"
                            f"</span>")
                 rd = "unread" if r["unread"] else "read"
+                _sl = " selrow" if r["key"] == sel else ""
                 k = urllib.parse.quote(r["key"])
                 return (
-                    f"<tr class='r {rd} mrowt' data-k='{esc(r['key'])}' "
+                    f"<tr class='r {rd} mrowt{_sl}' data-k='{esc(r['key'])}' "
                     f"data-unread='{1 if r['unread'] else 0}' "
                     f"data-urgent='{1 if r['urgent'] else 0}' "
                     f"onclick=\"location='/?c={k}'\">"
@@ -4816,6 +4806,14 @@ document.addEventListener('DOMContentLoaded', function(){
   border-top:1px solid #e2e8f0;padding:11px 22px;font-size:11px;
   color:#94a3b8;flex-wrap:wrap}}
 .mir .mfoot a{{color:#94a3b8}}
+.mir tr.selrow{{background:#eef6f1;box-shadow:inset 3px 0 0 #1f6b47}}
+.mirgrid{{display:grid;grid-template-columns:minmax(400px,42%) 1fr;
+  gap:14px;align-items:start}}
+.mirgrid .mir .l2{{max-width:340px}}
+.mirdetail{{background:#fff;border:1px solid #e2e8f0;border-radius:16px;
+  padding:16px 18px;max-height:calc(100vh - 46px);overflow:auto}}
+@media(max-width:1100px){{.mirgrid{{grid-template-columns:1fr}}
+  .mirdetail{{max-height:none}}}}
 </style>
 <div class='mir'>
  <div class='top'>
@@ -4900,68 +4898,13 @@ document.addEventListener('DOMContentLoaded', function(){{
   }});
 }});
 </script>"""
+            if cur:
+                _det = _inbox_detail(cur, quotes, qurls, live_holds,
+                                     flags_open, sbs, claims, draft,
+                                     convo_open, user)
+                _mir = (f"<div class='mirgrid'><div>{_mir}</div>"
+                        f"<div class='mirdetail'>{_det}</div></div>")
             return page("Bids", _mir, chrome="bare")
-        lst = (
-            push_banner
-            + "<style>.rowsel{display:none}</style>"
-            + f"<div style='display:flex;gap:10px;align-items:center;"
-            f"padding:2px 4px 10px'>"
-            f"<a href='/new' style='background:var(--green);color:#fff;"
-            f"border-radius:9px;padding:7px 14px;text-decoration:none;"
-            f"font-weight:700;font-size:13px'>➕ New lead</a>"
-            f"<span style='font-weight:800;font-size:15px'>📥 Inbox"
-            + (f" <span style='background:#fca5a5;color:#5c1410;"
-               f"border-radius:99px;padding:1px 8px;font-size:12px'>"
-               f"{_funread}</span>" if _funread else "")
-            + f"</span><span class='subtext'>{len(_fmain)} line(s) — "
-            f"mirrors your Gmail inbox · archive there or ✓ Done here "
-            f"removes it · anything the customer does brings it back"
-            f"</span></div>"
-            "<input id='fsearch' placeholder='🔎 Find a customer…' "
-            "style='width:100%;margin:0 0 10px;padding:8px 12px;"
-            "border-radius:9px;border:1px solid var(--line);"
-            "background:var(--card);color:var(--ink);font-size:13.5px'>"
-            + ("".join(_frow(r) for r in _fmain) or _fempty)
-            + (f"<details style='margin-top:14px'><summary style='cursor:"
-               f"pointer;font-weight:800;padding:9px 4px'>👷 Tech "
-               f"Questions ({len(_ftech)})"
-               + (f" <span style='background:#fca5a5;color:#5c1410;"
-                  f"border-radius:99px;padding:1px 8px;font-size:12px'>"
-                  f"{sum(1 for r in _ftech if r['unread'])}</span>"
-                  if any(r['unread'] for r in _ftech) else "")
-               + "</summary>"
-               + ("".join(_frow(r) for r in _ftech)
-                  or "<div class='subtext' style='padding:12px'>No open "
-                     "tech questions.</div>")
-               + "</details>")
-            + ("<div class='subtext' style='text-align:center;"
-               "padding:16px 0 4px'><a href='/?classic=1' "
-               "style='color:var(--mut)'>old view (tabs)</a></div>")
-            + """<script>
-function rowDone(ev, btn){
-  ev.stopPropagation(); ev.preventDefault();
-  var f = document.createElement('form');
-  f.method = 'POST'; f.action = '/mark_done';
-  var a = document.createElement('input');
-  a.name = 'addr'; a.value = btn.dataset.k; f.appendChild(a);
-  var b = document.createElement('input');
-  b.name = 'back'; b.value = '/'; f.appendChild(b);
-  document.body.appendChild(f);
-  if (window.__saveScroll) window.__saveScroll();
-  f.submit();
-}
-document.addEventListener('DOMContentLoaded', function(){
-  var s = document.getElementById('fsearch');
-  if (!s) return;
-  s.addEventListener('input', function(){
-    var q = s.value.trim().toLowerCase();
-    document.querySelectorAll('.irowwrap').forEach(function(r){
-      r.style.display = (!q || r.textContent.toLowerCase()
-                         .indexOf(q) >= 0) ? '' : 'none';
-    });
-  });
-});
-</script>""")
 
     # ── NEW DESIGN (Dallon's Stitch system, Jul 10): the Bid Queue is
     # the DARK EMERALD ROOM — glass cards, gold accents, slim icon rail
