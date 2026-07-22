@@ -1184,12 +1184,15 @@ def shadow_process(raw_bytes, msg_id, folder="INBOX"):
             except Exception:
                 prior_rec = {}
             from dedup import looks_same_job
-            # send-failure notices all share Jobber's sender and carry
-            # no services — the folder was merging DIFFERENT customers'
-            # bounces into one row (Avani's + Greg's vanished into
-            # Sherrie's, Jul 15). Each victim keeps their own record.
-            _sf = (record.get("jobber_event") or {}).get("event") \
-                == "send_failed"
+            # JOBBER EVENTS NEVER FOLD (Jul 22, Martha: Asish Varghese's
+            # 'Quote approved!' notification was folded into his request
+            # — folded events vanish from the approval pipeline, so his
+            # 📅 Schedule tag and then his whole line disappeared. This
+            # generalizes the Jul-15 send_failed lesson: a notification
+            # from Jobber is machine mail ABOUT the customer, never a
+            # duplicate OF the customer's request.)
+            _sf = record.get("kind") == "jobber_event" \
+                or bool(record.get("jobber_event"))
             if not _sf and looks_same_job(record.get("subject"),
                               prior_rec.get("subject"),
                               record.get("newest_message"),
