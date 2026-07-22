@@ -691,16 +691,19 @@ footer{margin:8px 0 28px;padding:0 24px;
 .mock{background:var(--card);border:1px solid var(--line);
   border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05);
   margin-top:6px}
-.chrome{background:var(--green);color:#e9efe9;padding:11px 20px;
+.chrome{background:#0b3d2e;color:#e9efe9;padding:14px 22px;
   font-size:13.5px;display:flex;gap:16px;align-items:center;
   flex-wrap:wrap}
-.chrome > b{white-space:nowrap}
-.chrome b{font-size:14.5px;color:#fff}
+.chrome > b{white-space:nowrap;font-weight:900;color:#c9a227;
+  letter-spacing:2.5px;font-size:15px;text-transform:uppercase}
+.chrome b{font-size:14.5px}
 .chrome .navr{margin-left:auto;display:flex;gap:4px;align-items:center}
-.chrome .navr a{color:#cfe0d6;text-decoration:none;padding:5px 12px;
-  border-radius:8px;font-weight:600;font-size:13px;white-space:nowrap}
-.chrome .navr a:hover{color:#fff;text-decoration:none}
-.chrome .navr a.on{background:rgba(255,255,255,.14);color:#fff}
+.chrome .navr a{color:rgba(255,255,255,.72);text-decoration:none;
+  padding:5px 12px;border-radius:8px;font-weight:600;font-size:13px;
+  white-space:nowrap}
+.chrome .navr a:hover{color:#c9a227;text-decoration:none}
+.chrome .navr a.on{color:#c9a227;font-weight:800;
+  border-bottom:2px solid #c9a227;border-radius:0;padding-bottom:3px}
 .chrome .whobox{margin-left:14px;padding-left:14px;
   border-left:1px solid rgba(255,255,255,.25);opacity:.95;font-size:13px}
 .inboxgrid{display:grid;grid-template-columns:var(--ilistw,330px) 6px 1fr;
@@ -1359,26 +1362,7 @@ def _chrome_dark():
     return _chrome_bar("Bids")   # nav links hidden by dkroom CSS
 
 
-def _chrome_bar(active=""):
-    """The framed window's green top bar — one for every page."""
-    navr = "".join(
-        f"<a href='{href}' class='{'on' if t == active else ''}'>{label}</a>"
-        for href, label, t in (("/", "📥 Bids", "Bids"),
-                               # Dallon Jul 9pm: the file cabinet lives
-                               # on its OWN tab, not inside Bids
-                               ("/customers", "👥 Customers", "Customers"),
-                               ("/routes", "🚐 Routes", "Routes"),
-                               ("/brief", "📋 Brief", "Brief"),
-                               ("/scoreboard", "📊 Scoreboard", "Scoreboard"),
-                               ("/winback", "📞 Win-back", "Win-back"),
-                               ("/settings", "⚙️ Settings", "Settings"),
-                               ("/guide", "❓ Guide", "Guide"),
-                               # Jessica, Jul 9: idea button up top too
-                               ("/guide#idea", "💡 Idea", "Idea")))
-    return ("<div class='chrome'><b>🎩 Master Butler</b>"
-            f"<div class='navr'>{navr}"
-            "<span id='who' class='whobox'></span></div></div>"
-            + """<script>
+_WHO_JS = """<script>
 (function(){
   var m=document.cookie.match(/office_user=([^;]+)/);
   var el=document.getElementById('who');
@@ -1396,13 +1380,35 @@ def _chrome_bar(active=""):
     el.innerHTML='Who’s working? ';
     ['LaRee','Jessica','Martha','Dallon','Tom'].forEach(function(n){
       var a=document.createElement('a');a.href='#';a.textContent=n;
-      a.style.cssText='margin:0 5px;color:#123527;font-weight:800;'
+      a.style.cssText='margin:0 5px;color:#c9a227;font-weight:800;'
         +'text-decoration:underline';
       a.onclick=function(e){e.preventDefault();set(n);};
       el.appendChild(a);});
   }
 })();
-</script>""")
+</script>"""
+
+
+def _chrome_bar(active=""):
+    """The framed window's green top bar — one for every page."""
+    navr = "".join(
+        f"<a href='{href}' class='{'on' if t == active else ''}'>{label}</a>"
+        for href, label, t in (("/", "📥 Bids", "Bids"),
+                               # Dallon Jul 9pm: the file cabinet lives
+                               # on its OWN tab, not inside Bids
+                               ("/customers", "👥 Customers", "Customers"),
+                               ("/routes", "🚐 Routes", "Routes"),
+                               ("/brief", "📋 Brief", "Brief"),
+                               ("/scoreboard", "📊 Scoreboard", "Scoreboard"),
+                               ("/winback", "📞 Win-back", "Win-back"),
+                               ("/settings", "⚙️ Settings", "Settings"),
+                               ("/guide", "❓ Guide", "Guide"),
+                               # Jessica, Jul 9: idea button up top too
+                               ("/guide#idea", "💡 Idea", "Idea")))
+    return ("<div class='chrome'><b>Master Butler</b>"
+            f"<div class='navr'>{navr}"
+            "<span id='who' class='whobox'></span></div></div>"
+            + _WHO_JS)
 
 
 _RESIZE_JS = """<script>
@@ -1508,7 +1514,7 @@ border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
     el.innerHTML='Who’s working? ';
     ['LaRee','Jessica','Martha','Dallon','Tom'].forEach(function(n){
       var a=document.createElement('a');a.href='#';a.textContent=n;
-      a.style.cssText='margin:0 5px;color:#123527;font-weight:800;'
+      a.style.cssText='margin:0 5px;color:#c9a227;font-weight:800;'
         +'text-decoration:underline';
       a.onclick=function(e){e.preventDefault();set(n);};
       el.appendChild(a);});
@@ -4415,7 +4421,7 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
  <div class='top'>
   <span class='logo'>Master Butler</span>
   <span class='mtag'>the inbox, mirrored — one list, labeled</span>
-  <span class='muser'>{esc(user or '')}</span>
+  <span class='muser' id='who'></span>
  </div>
  <div class='tool'>
   <a class='newlead' href='/new'>➕ New lead</a>
@@ -4531,7 +4537,7 @@ document.addEventListener('DOMContentLoaded', function(){{
     if (!ev.target.closest('.swrap')) fsr.style.display = 'none';
   }});
 }});
-</script>"""
+</script>""" + _WHO_JS
             if cur:
                 _det = _inbox_detail(cur, quotes, qurls, live_holds,
                                      flags_open, sbs, claims, draft,
