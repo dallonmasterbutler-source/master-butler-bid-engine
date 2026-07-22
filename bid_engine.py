@@ -456,6 +456,11 @@ def calculate_bid(prop):
 
     # collect any "we had to assume" notes from resilient lookups
     assume = []
+    if prop.get("sqft") and not sqft:
+        # raw value was present but garbage/negative — it coerced to 0
+        # above; say so instead of silently pricing floors-only
+        assume.append(f"Square footage '{prop['sqft']}' wasn't usable — "
+                      "priced at service minimums. Double-check home size.")
     # Look up each multiplier — resilient to unknown values (Jul 10 fix)
     _sk, _snote = _norm_stories(prop["stories"])
     if _snote:
@@ -543,6 +548,16 @@ def calculate_bid(prop):
         add("Roof Blow Off", price, "roof")
         if price > SECOND_OPINION_LIMITS["roof_blow_off"]:
             notes.append("Roof blow off over $150 — get a second opinion.")
+    elif (prop["services"].get("roof") and has_guards
+          and not prop["services"].get("gutters")):
+        # Guards home asking for the ROOF only: the blow-off-over-guards
+        # SKU IS that service. Without this branch the request produced
+        # ZERO priced lines at full confidence (Jul 21 night sweep).
+        price = round_to_5(sqft * RATES["guards_blow_off"] * base * roof_mult)
+        add("Roof Blow Off for Gutter Guards", price, "guards_blow_off")
+        notes.append("Gutter guards: this is the blow-off-over-guards "
+                     "service — under-guard cleaning is a separate custom "
+                     "quote if requested.")
 
     # ── MOSS TREATMENT ──
     if prop["services"].get("moss"):
@@ -753,7 +768,9 @@ def calculate_bid(prop):
     # Starts at 100 and loses points for anything missing or risky.
     # Later, Vision/Solar will fill these fields; today they're inputs.
     confidence = 100
-    if not prop.get("sqft"):
+    # `sqft` (the coerced float) — NOT prop's raw value: "n/a"/-3000
+    # coerce to 0 but a truthy raw dodged the deduction (Jul 21 sweep)
+    if not sqft:
         confidence -= 30
     if prop.get("pitch") == "unknown":
         confidence -= 15

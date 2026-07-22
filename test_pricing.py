@@ -110,6 +110,25 @@ r, notes, _ = calculate_bid(house(gutter_type="guards",
                                   services={"gutters": True, "roof": True}))
 check("Only one line item", len(r), 1)
 check("Combined line exists", 1 if line(r, "guards") else 0, 1)
+# Jul 21 night sweep: guards home asking for the ROOF only used to price
+# to ZERO lines at full confidence (roof branch skipped on has_guards,
+# gutters branch never entered). Must emit the blow-off-over-guards SKU.
+r, _, _ = calculate_bid(house(gutter_type="guards",
+                              services={"roof": True}))
+check("Guards + roof-only still priced (one guards line)", len(r), 1)
+check("...and it is the guards blow-off SKU",
+      1 if line(r, "guards") else 0, 1)
+
+print("\n── RULE: garbage sqft = flagged + confidence hit, never silent ──")
+# Jul 21 night sweep: sqft='n/a' coerced to 0 but the truthy raw value
+# dodged the -30 confidence deduction → floors-only quote at conf 100.
+r, notes, conf = calculate_bid(house(sqft="n/a",
+                                     services={"gutters": True}))
+check("Garbage sqft drops confidence", 1 if conf <= 70 else 0, 1)
+check("Garbage sqft leaves a note", 1 if any(
+    "wasn't usable" in n for n in notes) else 0, 1)
+r2, _, conf2 = calculate_bid(house(sqft=-3000, services={"gutters": True}))
+check("Negative sqft drops confidence too", 1 if conf2 <= 70 else 0, 1)
 
 print("\n── RULE: dryer vent $100 as add-on, $150 alone ──")
 r, _, _ = calculate_bid(house(services={"gutters": True, "dryer_vent": True}))
