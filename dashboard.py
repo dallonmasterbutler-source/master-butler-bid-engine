@@ -9655,8 +9655,58 @@ def winback_page(showall=False):
     # full-width stacked sections (Dallon, Jul 13: annual renewals were
     # crammed in a narrow column and running off — critical info gets
     # the whole width)
-    body = (header + tiles + today_card + due_col + list_card)
+    # follow-ups ride with the call list (moved off the Scoreboard,
+    # Dallon Jul 22) — chasing sent quotes IS win-back work
+    body = (header + tiles + today_card + _quiet_quotes_card()
+            + due_col + list_card)
     return page("Win-back", body)
+
+
+def _quiet_quotes_card():
+    """📤 Quotes gone quiet — LIVES ON WIN-BACK now (Dallon, Jul 22:
+    'it seemed to annoy jessica' sitting on the Scoreboard; Win-back is
+    the money-to-chase page, so the follow-up list belongs with the
+    call list). Reads the scoreboard blob directly so Win-back doesn't
+    depend on the Scoreboard page at all."""
+    try:
+        if clouddb.available():
+            sb = clouddb.get_blob("scoreboard") or {}
+        else:
+            p = BASE / "data" / "scoreboard.json"
+            sb = json.loads(p.read_text()) if p.exists() else {}
+        matched = [r for r in (sb.get("rows") or [])
+                   if r.get("office_quote")]
+    except Exception:
+        return ""
+    nrows = ""
+    for r in matched:
+        if (r.get("office_status") or "").lower() != "awaiting_response":
+            continue
+        try:
+            age = (datetime.now()
+                   - datetime.strptime(r["stamp"][:8], "%Y%m%d")).days
+        except (KeyError, ValueError):
+            continue
+        if age < 5:
+            continue
+        _nm = esc((r.get("customer") or "?").split("<")[0].strip())[:34]
+        qb = (f"<a class='btn' style='padding:4px 10px;font-size:11.5px;"
+              f"background:var(--card);color:var(--green2);border:1px "
+              f"solid var(--line)' href='{esc(r['jobber_url'])}' "
+              f"target='_blank' rel='noopener'>#{r['office_quote']} ↗</a>"
+              if r.get("jobber_url") else f"#{r['office_quote']}")
+        nrows += (f"<tr><td><b>{_nm}</b></td>"
+                  f"<td class='num'>${r.get('office_total') or 0:,.0f}</td>"
+                  f"<td class='num'>{age}d</td><td>{qb}</td></tr>")
+    return (
+        "<div class='card' style='border-left:4px solid var(--gold)'>"
+        "<h2 style='margin-top:0'>📤 Quotes gone quiet — worth a nudge"
+        "</h2><div class='subtext' style='margin-bottom:8px'>Sent, no "
+        "customer response, 5+ days since the request. A friendly "
+        "follow-up closes a surprising number of these.</div>"
+        "<table><tr><th>Customer</th><th class='num'>Quoted</th>"
+        "<th class='num'>Waiting</th><th></th></tr>" + nrows
+        + "</table></div>" if nrows else "")
 
 
 def scoreboard_page():
@@ -10497,36 +10547,10 @@ function rShow(id){
         f"</div><div class='wchips'>{wrows}</div></div>"
         if wrows else "")
 
-    # QUOTES GONE QUIET (Jul 10 cycle): sent, no reply, 5+ days —
-    # follow-up is free money; the office nudges from here
-    nrows = ""
-    for r in matched:
-        if (r.get("office_status") or "").lower() != "awaiting_response":
-            continue
-        try:
-            age = (datetime.now()
-                   - datetime.strptime(r["stamp"][:8], "%Y%m%d")).days
-        except (KeyError, ValueError):
-            continue
-        if age < 5:
-            continue
-        qb = (f"<a class='btn' style='padding:4px 10px;font-size:11.5px;"
-              f"background:var(--card);color:var(--green2);border:1px "
-              f"solid var(--line)' href='{esc(r['jobber_url'])}' "
-              f"target='_blank' rel='noopener'>#{r['office_quote']} ↗</a>"
-              if r.get("jobber_url") else f"#{r['office_quote']}")
-        nrows += (f"<tr><td><b>{cname(r)}</b></td>"
-                  f"<td class='num'>${r['office_total']:,.0f}</td>"
-                  f"<td class='num'>{age}d</td><td>{qb}</td></tr>")
-    nudge_card = (
-        "<div class='card' style='border-left:4px solid var(--gold)'>"
-        "<h2 style='margin-top:0'>📤 Quotes gone quiet — worth a nudge"
-        "</h2><div class='subtext' style='margin-bottom:8px'>Sent, no "
-        "customer response, 5+ days since the request. A friendly "
-        "follow-up closes a surprising number of these.</div>"
-        "<table><tr><th>Customer</th><th class='num'>Quoted</th>"
-        "<th class='num'>Waiting</th><th></th></tr>" + nrows
-        + "</table></div>" if nrows else "")
+    # (QUOTES GONE QUIET moved to the Win-back page — Dallon, Jul 22:
+    #  "it seemed to annoy jessica. maybe throw that on the win back
+    #  section?" Win-back is the money-to-chase page; the Scoreboard
+    #  stays a mirror, not a nag. See _quiet_quotes_card.)
 
     # auto-refresh through the day so approvals show up without a manual
     # reload (LaRee, Jul 10). Scroll-preserving, every 2 min; the board
@@ -10542,7 +10566,7 @@ function rShow(id){
 </script>"""
     return page("Scoreboard", hero + wheel_card + pulse_card + fail_card
                 + yoy_card + mined_cards + learn_card + shelf_html
-                + fresh + nudge_card + matched_card + waiting_card
+                + fresh + matched_card + waiting_card
                 + refresh_js)
 
 
