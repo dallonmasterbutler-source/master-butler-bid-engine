@@ -47,7 +47,8 @@ LIVE_QUOTE = ("draft", "awaiting_response", "changes_requested")
 
 def _email_of(rec):
     m = re.search(r"<([^>]+)>", rec.get("from") or "")
-    return (m.group(1) if m else "").strip().lower()
+    e = (m.group(1) if m else "").strip().lower()
+    return e if "@" in e else ""      # phone-number froms are not emails
 
 
 def _jobber_verdict(email, newest_ctx, sleep_s=2.0):
@@ -112,6 +113,7 @@ def sweep(verbose=True, limit=80):
     gmail_state = clouddb.get_blob("gmail_state") or {}
     mids_blob = clouddb.get_blob("gmail_inbox_mids") or {}
     cleared = clouddb.get_blob("cleared") or {}
+    marks = clouddb.get_blob("msg_read") or {}
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     # group records per customer email (same keying as the roster)
@@ -148,8 +150,17 @@ def sweep(verbose=True, limit=80):
         g_done, g_why = _gmail_verdict(email, recs, gmail_state, mids_blob)
         if not g_done:
             continue
-        # both systems vouch → file it (the exact write ✓ Done makes)
+        # POSITIVE EVIDENCE REQUIRED (first-run lesson): two vacuous
+        # verdicts ("no Jobber side" + "never came through Gmail") is
+        # zero proof — e.g. a real request sitting in the spam folder
+        # would match. At least one system must POSITIVELY vouch.
+        if j_why == "no Jobber side" and g_why == "never came through Gmail":
+            continue
+        # both systems vouch → file it (the exact writes ✓ Done makes:
+        # the sticky cleared blob AND the office-wide read-mark — the
+        # first run wrote only cleared, and Won-lane rows kept showing)
         cleared[email] = now
+        marks[email] = now
         filed.append({"email": email, "jobber": j_why, "gmail": g_why})
         try:
             clouddb.add_review({
@@ -163,6 +174,7 @@ def sweep(verbose=True, limit=80):
             print(f"  filed {email} | Jobber: {j_why} | Gmail: {g_why}")
     if filed:
         clouddb.put_blob("cleared", cleared)
+        clouddb.put_blob("msg_read", marks)
     if verbose:
         print(f"mirror sweep: {len(filed)} line(s) filed "
               f"({len(by_email)} customers checked)")

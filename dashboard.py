@@ -3705,11 +3705,14 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
             grp = 4
         # MARKED DONE = OFF THE QUEUE (Dallon, Jul 10 pm: 'they're used
         # to clearing out the gmail till it's empty'). A decision
-        # (reviewed) OR an explicit ✓ from the office (acknowledged),
-        # with nothing new since → the drawer. ANY new message
-        # resurfaces them (the branch below wins) — nobody stays buried.
-        elif (nb and (acknowledged or (nb.get("reviewed") and not _chg))
-              and not unread and not new_msg
+        # (reviewed) OR an explicit ✓ from the office (acknowledged) OR a
+        # sticky clear (✓ Done / the mirror sweep's both-systems verdict
+        # — Jul 21: cleared rows were still riding the Won lane), with
+        # nothing new since → the drawer. ANY new message resurfaces
+        # them (the branch below wins) — nobody stays buried.
+        elif (nb and (acknowledged or _sticky_cleared
+                      or (nb.get("reviewed") and not _chg))
+              and not unread and not new_msg and not _chg
               and nb["stamp"] not in live_holds
               and nb["stamp"] not in flags_open):
             grp = 4
