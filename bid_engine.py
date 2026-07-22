@@ -692,15 +692,6 @@ def calculate_bid(prop):
                      "$1,200 install). Forward to Tom for the labor quote; "
                      "provisional until more real jobs land.")
 
-    # ── JOB MINIMUM (no visit below $150) ──
-    running_total = sum(s["price"] for s in results)
-    if 0 < running_total < JOB_MINIMUM:
-        bump = JOB_MINIMUM - running_total
-        results.append({"name": "Service Minimum Adjustment", "price": bump,
-                        "low": bump, "high": bump, "hours": 0})
-        notes.append(f"Job under ${JOB_MINIMUM} minimum — added "
-                     f"${bump} adjustment to reach the visit minimum.")
-
     # ── TOM'S ROOF-LANE RULES (Jul 8 call) ──
     # Roof lane = gutters + roof blow-off + moss. Two guardrails:
     roof_lane = {"Gutter Cleaning", "Roof Blow Off Cleaning", "Roof Blow Off",
@@ -773,6 +764,19 @@ def calculate_bid(prop):
     if buildup == "heavy":
         confidence -= 10
     confidence = max(0, confidence)
+
+    # ── JOB MINIMUM (no visit below $150) — MUST BE LAST (Dallon,
+    # Jul 21: Liuliu Zheng got a $10 'adjustment' on a $320 job because
+    # this ran mid-pricing and later rules repriced lines upward after
+    # it. The ONLY legitimate adjustment line is when the FINAL job
+    # total is under $150; per-service floors are just the price.) ──
+    running_total = sum(s["price"] for s in results)
+    if 0 < running_total < JOB_MINIMUM:
+        bump = JOB_MINIMUM - running_total
+        results.append({"name": "Service Minimum Adjustment", "price": bump,
+                        "low": bump, "high": bump, "hours": 0})
+        notes.append(f"Job under ${JOB_MINIMUM} minimum — added "
+                     f"${bump} adjustment to reach the visit minimum.")
 
     return results, notes, confidence
 
