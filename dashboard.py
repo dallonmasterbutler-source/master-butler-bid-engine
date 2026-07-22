@@ -3385,7 +3385,8 @@ def _status_word(nb, holds, flags_open, sbs, claims):
     return "review", "color:var(--green2)"
 
 
-def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None):
+def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
+               flat=False):
     """THE INBOX (Dallon picked direction A, Jul 9): bids + messages,
     one list, read/unread shared office-wide, pinned critical info,
     big folds. Scoreboard/Win-back/Settings live top-right."""
@@ -4515,6 +4516,94 @@ document.addEventListener('DOMContentLoaded', function(){
     else:
         detail = _inbox_detail(cur, quotes, qurls, live_holds, flags_open,
                                sbs, claims, draft, convo_open, user)
+
+    # ── 🪞 THE MIRROR PREVIEW (the rebuild, night of Jul 21 — spec voted
+    # by the office: Martha 1A/2A/3B + Jessica 1A/2A/3B, unanimous):
+    #   · ONE flat list, newest activity first, exactly like their Gmail
+    #   · a line exists only while the customer has something un-actioned
+    #     (done = gone; any customer action — email, voicemail, Jobber
+    #     approve/change-request — brings it back)
+    #   · ONE separate Tech Questions folder (3B — "like our exp tech
+    #     folder"), nothing else separated
+    # Reached ONLY via /?flat=1 — the office's everyday view is untouched
+    # until Dallon flips the default. Reuses row() + the roster's proven
+    # per-customer intelligence; only the PROJECTION changes: lanes
+    # inbox/drafts/won (live customer action) show; waiting/handled/
+    # drawer/standby (no customer action pending) don't exist as boxes.
+    if flat:
+        _fmain = sorted((r for r in roster
+                         if r["lane"] in ("inbox", "drafts", "won")),
+                        key=lambda r: r["age"])
+        _ftech = sorted((r for r in roster if r["lane"] == "techs"),
+                        key=lambda r: r["age"])
+        _funread = sum(1 for r in _fmain if r["unread"])
+
+        def _frow(r):
+            return row(r).replace("href='/?c=", "href='/?flat=1&c=")
+
+        _fempty = ("<div style='padding:44px 20px;text-align:center;"
+                   "color:var(--green2);font-weight:800;font-size:16px'>"
+                   "All caught up ✅<div class='subtext' style='margin-top:"
+                   "6px;font-weight:400'>Nothing is waiting on a person. "
+                   "New customer activity appears here the moment it "
+                   "happens.</div></div>")
+        lst = (
+            push_banner
+            + "<style>.rowsel{display:none}</style>"
+            + f"<div style='display:flex;gap:10px;align-items:center;"
+            f"padding:2px 4px 10px'>"
+            f"<a href='/new' style='background:var(--green);color:#fff;"
+            f"border-radius:9px;padding:7px 14px;text-decoration:none;"
+            f"font-weight:700;font-size:13px'>➕ New lead</a>"
+            f"<span style='font-weight:800;font-size:15px'>📥 Inbox"
+            + (f" <span style='background:#fca5a5;color:#5c1410;"
+               f"border-radius:99px;padding:1px 8px;font-size:12px'>"
+               f"{_funread}</span>" if _funread else "")
+            + f"</span><span class='subtext'>{len(_fmain)} line(s) · "
+            f"newest first · ✓ Done removes it until the customer "
+            f"reaches out again</span></div>"
+            "<input id='fsearch' placeholder='🔎 Find a customer…' "
+            "style='width:100%;margin:0 0 10px;padding:8px 12px;"
+            "border-radius:9px;border:1px solid var(--line);"
+            "background:var(--card);color:var(--ink);font-size:13.5px'>"
+            + ("".join(_frow(r) for r in _fmain) or _fempty)
+            + (f"<details style='margin-top:14px'><summary style='cursor:"
+               f"pointer;font-weight:800;padding:9px 4px'>👷 Tech "
+               f"Questions ({len(_ftech)})"
+               + (f" <span style='background:#fca5a5;color:#5c1410;"
+                  f"border-radius:99px;padding:1px 8px;font-size:12px'>"
+                  f"{sum(1 for r in _ftech if r['unread'])}</span>"
+                  if any(r['unread'] for r in _ftech) else "")
+               + "</summary>"
+               + ("".join(_frow(r) for r in _ftech)
+                  or "<div class='subtext' style='padding:12px'>No open "
+                     "tech questions.</div>")
+               + "</details>")
+            + """<script>
+function rowDone(ev, btn){
+  ev.stopPropagation(); ev.preventDefault();
+  var f = document.createElement('form');
+  f.method = 'POST'; f.action = '/mark_done';
+  var a = document.createElement('input');
+  a.name = 'addr'; a.value = btn.dataset.k; f.appendChild(a);
+  var b = document.createElement('input');
+  b.name = 'back'; b.value = '/?flat=1'; f.appendChild(b);
+  document.body.appendChild(f);
+  if (window.__saveScroll) window.__saveScroll();
+  f.submit();
+}
+document.addEventListener('DOMContentLoaded', function(){
+  var s = document.getElementById('fsearch');
+  if (!s) return;
+  s.addEventListener('input', function(){
+    var q = s.value.trim().toLowerCase();
+    document.querySelectorAll('.irowwrap').forEach(function(r){
+      r.style.display = (!q || r.textContent.toLowerCase()
+                         .indexOf(q) >= 0) ? '' : 'none';
+    });
+  });
+});
+</script>""")
 
     # ── NEW DESIGN (Dallon's Stitch system, Jul 10): the Bid Queue is
     # the DARK EMERALD ROOM — glass cards, gold accents, slim icon rail
@@ -10356,7 +10445,8 @@ class Handler(BaseHTTPRequestHandler):
                         "customer": q.get("bc", [""])[0]}
             return self._send(inbox_page(q.get("c", [None])[0], user=u,
                                          pushed=q.get("pushed", [None])[0],
-                                         blocked=_blk))
+                                         blocked=_blk,
+                                         flat=bool(q.get("flat"))))
         if self.path.startswith("/newbid"):
             # NEW-DESIGN PREVIEW (Dallon's Stitch 'Unified Command
             # Center', Jul 10) — parallel route; office pages untouched

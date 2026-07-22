@@ -167,6 +167,7 @@ def main():
             ("/brief", "", "Morning brief"),
             ("/autodrafts", "grading room", "Auto-drafts + sched scorecard"),
             ("/newbid", "Estimated total", "NEW-DESIGN preview /newbid"),
+            ("/?flat=1", "Tech Questions", "MIRROR preview /?flat=1"),
         ]:
             try:
                 pg = get(path)
