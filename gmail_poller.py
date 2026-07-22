@@ -98,6 +98,7 @@ FOLDERS = ["INBOX", "[Gmail]/Spam"]
 _API_SEEN = set()
 _API_OK = {"checked": False, "ok": False}
 _API_MIRROR_AT = 0.0        # last Gmail archive-mirror run (throttle ~15m)
+_MIRROR_SWEEP_AT = 0.0      # last Gmail+Jobber mirror sweep (throttle ~1h)
 
 
 def _use_api():
@@ -373,6 +374,21 @@ def poll_once():
         jobber_delta.sync()
     except Exception as _e:
         print(f"  (jobber delta skipped: {_e})")
+    # THE MIRROR SWEEP (Dallon, Jul 21 night): hourly, both-systems
+    # reconciliation — anything verifiably done in Jobber AND Gmail is
+    # filed automatically instead of rotting in the queue.
+    try:
+        import time as _t2
+        global _MIRROR_SWEEP_AT
+        if _t2.time() - _MIRROR_SWEEP_AT >= 3600:
+            import mirror_sweep
+            n = mirror_sweep.sweep(verbose=False)
+            if n:
+                print(f"  mirror sweep: {len(n)} line(s) filed "
+                      "(done in Jobber + Gmail)")
+            _MIRROR_SWEEP_AT = _t2.time()
+    except Exception as _e:
+        print(f"  (mirror sweep skipped: {_e})")
 
     # QUOTE SYNC (Dallon's rule: dashboard mirrors Jobber, read-only,
     # no quote creation) — refresh which office quotes match our

@@ -12143,6 +12143,23 @@ class Handler(BaseHTTPRequestHandler):
                              else "/messages")
             self.end_headers()
             return
+        elif self.path == "/mirror_sweep":
+            # on-demand Gmail+Jobber reconciliation pass (Dallon, Jul 21).
+            # Returns the evidence report as plain text. Auth'd like every
+            # POST; conservative + reversible by design.
+            try:
+                import mirror_sweep
+                filed = mirror_sweep.sweep(verbose=False)
+                lines = [f"mirror sweep: {len(filed)} line(s) filed"]
+                for f in filed:
+                    lines.append(f"  {f['email']}  |  Jobber: {f['jobber']}"
+                                 f"  |  Gmail: {f['gmail']}")
+                return self._send("\n".join(lines).encode(),
+                                  ctype="text/plain; charset=utf-8")
+            except Exception as _e:
+                return self._send(f"sweep failed: {_e}".encode(),
+                                  ctype="text/plain; charset=utf-8",
+                                  code=500)
         elif self.path == "/msg_send":
             # OFFICE-DRIVEN reply: a named human hits Send; nothing
             # automated ever posts here.

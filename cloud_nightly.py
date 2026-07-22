@@ -77,6 +77,13 @@ def run(verbose=True):
         return f"recovered {n}" if n else "0 missed"
     step("inbox_reconcile", _recon)
 
+    # 5 · mirror sweep — file everything verifiably done in BOTH Jobber
+    #     and Gmail (Dallon, Jul 21: "systematically taking away")
+    def _msweep():
+        import mirror_sweep
+        mirror_sweep.sweep(verbose=False)
+    step("mirror_sweep", _msweep)
+
     try:
         import clouddb
         clouddb.put_blob("cloud_nightly_last",

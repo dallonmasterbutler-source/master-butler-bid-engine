@@ -841,6 +841,42 @@ query ClientQuotes($term: String!) {
 }
 """
 
+CLIENT_JOBS = """
+query ClientJobs($term: String!) {
+  clients(searchTerm: $term, first: 3) {
+    nodes { emails { address }
+      jobs(first: 15) { nodes {
+        jobNumber jobStatus createdAt } } } } }
+"""
+
+
+def client_jobs(email_addr):
+    """The customer's Jobber JOBS (read-only) — the proof that an
+    approved quote was actually SCHEDULED (the mirror sweep, Jul 21:
+    'systematically taking away things that were done in jobber').
+    Returns a list of {jobNumber, jobStatus, createdAt} for the exact
+    email match, [] when the client has none, or None when Jobber
+    couldn't answer (error/throttle) — callers treat None as
+    can't-vouch and leave the row alone."""
+    if not email_addr:
+        return None
+    global DRY_RUN
+    was, DRY_RUN = DRY_RUN, False          # read-only; dry-run guards writes
+    try:
+        data = _post(CLIENT_JOBS, {"term": email_addr}, "client jobs")
+    finally:
+        DRY_RUN = was
+    if not data or data.get("error") or data.get("dry_run"):
+        return None
+    want = email_addr.lower().strip()
+    for node in (data.get("clients") or {}).get("nodes") or []:
+        addrs = [(e.get("address") or "").lower()
+                 for e in node.get("emails") or []]
+        if want in addrs:
+            return [j for j in ((node.get("jobs") or {}).get("nodes")
+                                or [])]
+    return []
+
 
 def find_open_quote(email_addr, scan=None):
     """The customer's LIVE quote context, looked up PER CLIENT — no
