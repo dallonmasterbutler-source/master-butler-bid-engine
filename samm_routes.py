@@ -192,6 +192,48 @@ def build():
               ("sammamish", "duvall")
               and _territory_of(h.get("city"), h["lat"],
                                 h["lng"]) == key]
+        if key == "ironman":
+            # NINE ROUTES (Dallon, Jul 22: "planning for 9 routes this
+            # year") — the north corridor is 2x everyone else's load
+            # (574 homes vs ~200 targets), so it splits into two
+            # balanced halves; the office picks who takes each.
+            c2 = [(47.86, -122.09), (47.83, -121.95)]   # west / east
+            a2 = [0] * len(hs)
+            for _ in range(60):
+                mv = False
+                for i, h in enumerate(hs):
+                    j = min((0, 1), key=lambda k: _dist(
+                        (h["lat"], h["lng"]), c2[k]))
+                    if j != a2[i]:
+                        a2[i] = j
+                        mv = True
+                for k in (0, 1):
+                    p2 = [(hs[i]["lat"], hs[i]["lng"])
+                          for i in range(len(hs)) if a2[i] == k]
+                    if p2:
+                        c2[k] = (sum(x[0] for x in p2) / len(p2),
+                                 sum(x[1] for x in p2) / len(p2))
+                if not mv:
+                    break
+            cap2 = -(-len(hs) // 2) + 12
+            for _ in range(400):
+                s2 = [a2.count(0), a2.count(1)]
+                if max(s2) <= cap2:
+                    break
+                k = 0 if s2[0] > s2[1] else 1
+                mem = [i for i in range(len(hs)) if a2[i] == k]
+                far = max(mem, key=lambda i: _dist(
+                    (hs[i]["lat"], hs[i]["lng"]), c2[k]))
+                a2[far] = 1 - k
+            routes.append(_route(
+                "Iron Man A — west (Bothell · Woodinville · Kenmore)",
+                "Dallon / Nick K? (office picks)", "#b8860b",
+                [hs[i] for i in range(len(hs)) if a2[i] == 0]))
+            routes.append(_route(
+                "Iron Man B — east (Monroe · Snohomish · Sultan)",
+                "Yoda-Tom floats here? (office picks)", "#8a5a00",
+                [hs[i] for i in range(len(hs)) if a2[i] == 1]))
+            continue
         routes.append(_route(t["name"], t["tech"], t["color"], hs))
 
     return {"routes": routes,
