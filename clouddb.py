@@ -77,7 +77,13 @@ def _exec(sql, params=(), fetch=None):
 # ── 10s read cache: a page render used to re-download the whole
 #    shadow table 3-4 times. Writes update/invalidate immediately, so
 #    the office always sees its OWN action on the very next page.
-_TTL = 10
+_TTL = 45      # was 10 (Jul 21 perf hunt): every office click 20s apart
+               # paid ~20 cold SELECTs + a 1,400-record re-parse → 2s+
+               # pages. Writes update/invalidate their own keys in-process
+               # (put_blob, ingest_shadow, add_review), and the poller
+               # shares this process — so office actions and fresh mail
+               # still show INSTANTLY; only cross-process writes (the
+               # nightly cron) can lag by up to 45s, which is nothing.
 _CACHE = {}                       # key -> (fetched_at, value)
 
 
