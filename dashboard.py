@@ -9698,15 +9698,22 @@ def _quiet_quotes_card():
         nrows += (f"<tr><td><b>{_nm}</b></td>"
                   f"<td class='num'>${r.get('office_total') or 0:,.0f}</td>"
                   f"<td class='num'>{age}d</td><td>{qb}</td></tr>")
+    n = nrows.count("<tr>")
+    # FOLDED like the Scoreboard's Compared section (Dallon, Jul 22):
+    # one quiet line with the count; the list is a tap away, never a nag
     return (
-        "<div class='card' style='border-left:4px solid var(--gold)'>"
-        "<h2 style='margin-top:0'>📤 Quotes gone quiet — worth a nudge"
-        "</h2><div class='subtext' style='margin-bottom:8px'>Sent, no "
+        "<details class='card' style='padding:14px 18px;margin-top:16px'>"
+        "<summary style='cursor:pointer;list-style:none;display:flex;"
+        "align-items:center;gap:10px'><b style='font-size:15px'>"
+        "📤 Quotes gone quiet</b>"
+        "<span class='subtext' style='margin-left:auto'>"
+        f"{n} worth a friendly nudge · tap to open</span></summary>"
+        "<div class='subtext' style='margin:10px 0 8px'>Sent, no "
         "customer response, 5+ days since the request. A friendly "
         "follow-up closes a surprising number of these.</div>"
         "<table><tr><th>Customer</th><th class='num'>Quoted</th>"
         "<th class='num'>Waiting</th><th></th></tr>" + nrows
-        + "</table></div>" if nrows else "")
+        + "</table></details>" if nrows else "")
 
 
 def scoreboard_page():
