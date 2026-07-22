@@ -1270,6 +1270,74 @@ body{background:#05140f!important}
 </style>"""
 
 
+_LITE_FORCE_CSS = '''<style>
+/* ONE LIGHT ROOM SITE-WIDE (Dallon, Jul 22: "lets start minimalizing
+   the rest of the pages" — take the mirror's approved white-and-green
+   look standard throughout; the dark room below is retired but kept
+   for the detail card's dkroom scope). Same token names, mirror values:
+   white cards, slate ink, deep-green headings, gold only as accent. */
+:root{--bg:#f8f9fa!important;--card:#ffffff!important;
+ --soft:#f8fafc!important;--line:#e2e8f0!important;
+ --ink:#0f172a!important;--mut:#64748b!important;
+ --goldbg:#faf3dc!important;--goldink:#8a6d1a!important;
+ --heading:#0b3d2e!important;--accent:#1f6b47!important;
+ --green2:#1f6b47!important;--alarm:#dc2626!important;
+ --bluebg:#e8f0fb!important;--blueink:#1d4ed8!important;
+ --purplebg:#f0e9fd!important;--purpleink:#6d28d9!important}
+body{background:#f8f9fa!important;color:#0f172a!important}
+.mock{background:#fff;border-color:#e2e8f0;
+ box-shadow:0 2px 14px rgba(16,33,27,.07)}
+.chrome{background:#0b3d2e;border-bottom:0}
+header{background:#0b3d2e;color:#fff;box-shadow:none;border-bottom:0}
+header #who b{color:#c9a227}
+.ring{background:#fff}
+td b{color:#0f172a}
+.card,.pinned{background:#fff;border:1px solid #e2e8f0;
+ border-radius:14px;box-shadow:0 2px 14px rgba(16,33,27,.06)}
+.card h2,.card h3{color:#0b3d2e}
+.card.dark{background:#0b3d2e}
+.headline .total,.stat b{color:#0b3d2e;text-shadow:none}
+.money .ptotal{color:#1f6b47;text-shadow:none}
+.stat{background:#fff;border:1px solid #e2e8f0;border-radius:12px}
+.stat span{color:#64748b}
+.notes{background:#f8fafc;border-color:#e2e8f0}
+.notes div{border-bottom-color:#eef2f6}
+.band{background:#faf3dc;border-color:#e6d9a8}
+.band h2{color:#8a6d1a}
+.win{background:#e7f4ec;color:#1f6b47}
+.flag{background:#fee2e2;color:#b91c1c}
+button,.btn{background:#0b3d2e;border:1px solid #0b3d2e;color:#fff}
+button.big{background:#c9a227;color:#0b3d2e;border-color:#c9a227}
+button.gray{background:#fff;color:#334155;border:1px solid #e2e8f0}
+.reason{background:transparent}
+input[type=text],input[type=date],select,textarea{
+ background:#fff;border-color:#e2e8f0;color:#0f172a}
+pre{background:#f8fafc;border-color:#e2e8f0;color:#0f172a}
+/* hand-inlined dark-era + pastel callouts → mirror-neutral equivalents */
+[style*="#fdf4dd"]{background:#faf3dc!important;color:#6b5410!important;
+ border-color:#e6d9a8!important}
+[style*="#f7dfa0"]{background:#f6ecc8!important;color:#6b5410!important;
+ border-color:#d9c470!important}
+[style*="#fdecea"]{background:#fee2e2!important;color:#b91c1c!important;
+ border-color:#fca5a5!important}
+.wchip{background:#fff;border:1px solid #e2e8f0;color:#334155}
+.wchip:hover{border-color:#1f6b47;background:#f8fafc}
+.wchip b{color:#1f6b47;text-shadow:none}
+.schead h2,.schead b{color:#0b3d2e}
+summary b{color:#0b3d2e!important}
+/* every dark-glass panel family → white card */
+.tile,.rcard,.rchip,.knob,.qrcard,.wbrow{background:#fff;
+ border-color:#e2e8f0}
+.tile .ticon{background:#e7f4ec;color:#1f6b47}
+.tile .ts{color:#1f6b47}
+.rchip.on{background:#c9a227;color:#0b3d2e;border-color:#c9a227}
+.rowdone{background:#fff;color:#1f6b47;border-color:#1f6b47}
+.rowdone:hover{background:#1f6b47;color:#fff}
+.avat{background:#0b3d2e;color:#c9a227}
+[style*="rgba(17,41,33"]{background:#f8fafc!important;
+ border-color:#e2e8f0!important}
+</style>'''
+
 _DARK_FORCE_CSS = '''<style>
 /* ONE DARK ROOM SITE-WIDE (Dallon, Jul 10 pm: "i dont like that the
    other colors arent in unison. id like the darker colors to go
@@ -1471,7 +1539,9 @@ def page(title, body, refresh=None, chrome="rail"):
         rail_css = _GLOBAL_RAIL_CSS
         active = railmap.get(title, "")
         rail = _rail_html(active).replace("class='dkrail'", "class='gr'")
-        tone = "" if "dkroom" in body else _DARK_FORCE_CSS
+        # Jul 22: the light room is the standard now (mirror's look);
+        # dkroom-marked bodies (the mirror + customers) manage their own
+        tone = "" if "dkroom" in body else _LITE_FORCE_CSS
         return (f"<!doctype html><html><head><meta charset='utf-8'>"
                 f"<meta name='viewport' content='width=device-width,"
                 f"initial-scale=1'>{auto}{FAVICON}"
@@ -1554,7 +1624,7 @@ border-left:1px solid rgba(255,255,255,.25);font-size:13px'></span></span>
             f"<meta name='viewport' content='width=device-width,"
             f"initial-scale=1'>{auto}{FAVICON}"
             f"<title>{title}</title>{STYLE}{_GLOBAL_RAIL_CSS}"
-            f"{_DARK_FORCE_CSS}</head>"
+            f"{'' if 'dkroom' in body else _LITE_FORCE_CSS}</head>"
             f"<body style='padding:14px 16px 0'>{rail2}"
             f"<div class='pagewrap'>"
             f"<div class='mock'>{_chrome_bar(active)}"
@@ -10400,11 +10470,25 @@ function rShow(id){
 
     # WAITING = a cloud of name+price chips, not rows (Dallon, Jul 12:
     # 'still looks blocky') — services on hover, click opens the card
-    wrows = "".join(
-        f"<a class='wchip' href='/bid/{esc(r.get('stamp') or '')}' "
-        f"title=\"{esc(' · '.join(svc_label(s) for s in (r.get('services') or [])[:4]))}\">"
-        f"{cname(r)}<b>${r['system_total']:,.0f}</b></a>"
-        for r in waiting)
+    def _wchip(r):
+        return (
+            f"<a class='wchip' href='/bid/{esc(r.get('stamp') or '')}' "
+            f"title=\"{esc(' · '.join(svc_label(s) for s in (r.get('services') or [])[:4]))}\">"
+            f"{cname(r)}<b>${r['system_total']:,.0f}</b></a>")
+    # ONE FOLD, NOT A WALL (Dallon, Jul 22 "minimalize" pass): the
+    # newest 16 show; the long tail folds behind one line. Order is
+    # newest-first so what the office just sent sits on top.
+    _wsorted = sorted(waiting, key=lambda r: r.get("stamp") or "",
+                      reverse=True)
+    wrows = "".join(_wchip(r) for r in _wsorted[:16])
+    wtail = "".join(_wchip(r) for r in _wsorted[16:])
+    if wtail:
+        wrows += (
+            f"<details style='display:contents'><summary class='wchip' "
+            f"style='cursor:pointer;list-style:none;color:#64748b'>"
+            f"+ {len(_wsorted) - 16} more…</summary>"
+            f"<span class='wchips' style='display:contents'>{wtail}"
+            f"</span></details>")
     waiting_card = (
         f"<div style='margin-top:16px'><div class='schead'>"
         f"{_svg_icon('queue')}<h2>Waiting for an office quote</h2>"
