@@ -52,9 +52,11 @@ def configured():
         return False
 
 
-def can_read():
-    """True only if the granted scope includes read access — otherwise
-    the caller falls back to IMAP (send-only token can't read)."""
+def read_scope():
+    """Tri-state read-scope probe: True = token can read, False = token
+    DEFINITIVELY lacks read scope (send-only — IMAP fallback is the
+    correct path), None = couldn't reach Google to tell (transient —
+    callers must NOT conclude send-only and must NOT bulk-IMAP)."""
     try:
         at = _access_token()
         info = json.load(urllib.request.urlopen(
@@ -63,7 +65,13 @@ def can_read():
         return "gmail.readonly" in (info.get("scope") or "") \
             or "mail.google.com" in (info.get("scope") or "")
     except Exception:
-        return False
+        return None
+
+
+def can_read():
+    """True only if the granted scope includes read access — otherwise
+    the caller falls back to IMAP (send-only token can't read)."""
+    return read_scope() is True
 
 
 def _get(url):

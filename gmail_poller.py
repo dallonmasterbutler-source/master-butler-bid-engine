@@ -96,7 +96,7 @@ FOLDERS = ["INBOX", "[Gmail]/Spam"]
 # Gmail-ids already looked at THIS session — skip re-fetching them every
 # poll (in-memory; a restart re-checks the recent window once, cheap).
 _API_SEEN = set()
-_API_OK = {"ok": False, "at": 0.0}
+_API_OK = {"ok": False, "at": 0.0, "sendonly": False}
 _API_MIRROR_AT = 0.0        # last Gmail archive-mirror run (throttle ~15m)
 _MIRROR_SWEEP_AT = 0.0      # last Gmail+Jobber mirror sweep (throttle ~1h)
 
@@ -124,11 +124,18 @@ def _use_api():
     _API_OK["at"] = _t.time()
     try:
         import gmail_api
-        _API_OK["ok"] = gmail_api.can_read()
+        scope = gmail_api.read_scope()
     except Exception:
-        _API_OK["ok"] = False
-    print(f"  inbox read path: "
-          f"{'Gmail API' if _API_OK['ok'] else 'not API (retry in 10m)'}")
+        scope = None
+    _API_OK["ok"] = scope is True
+    # DEFINITIVELY send-only (Google answered, scope lacks read) is the
+    # one case where the IMAP fallback is correct — a transient probe
+    # failure (scope None) must not brick polling AND must not bulk-IMAP
+    _API_OK["sendonly"] = scope is False
+    print("  inbox read path: "
+          + ("Gmail API" if _API_OK["ok"] else
+             "IMAP (send-only token)" if _API_OK["sendonly"] else
+             "unknown (probe failed — retry in 10m)"))
     return _API_OK["ok"]
 
 
@@ -292,11 +299,13 @@ def poll_once():
     # outages). Falls back to IMAP automatically if the token can't read.
     if _use_api():
         new_count = _poll_via_api(seen)
-    elif _api_configured():
+    elif _api_configured() and not _API_OK.get("sendonly"):
         # OAuth creds exist but the API is blipping: SKIP this poll (next
         # one is 2 min away) rather than full-mailbox IMAP scans — the
         # account is chronically OVERQUOTA on IMAP and the bulk fallback
-        # is exactly what locks it out longer (Jul 21 night sweep)
+        # is exactly what locks it out longer (Jul 21 night sweep).
+        # A DEFINITIVELY send-only token (sendonly=True) still falls
+        # through to IMAP — that config reads no other way.
         print("  (Gmail API configured but unreachable — poll skipped; "
               "no bulk-IMAP fallback on the live account)")
     else:
@@ -388,10 +397,12 @@ def poll_once():
             except Exception as _ae:
                 print(f"  (gmail API mirror skipped: {_ae})")
             # API down → the IMAP trash-only signal, but ONLY on accounts
-            # with no API creds at all: falling back to a full IMAP scan
-            # of INBOX+Trash during an API hiccup hits the overquota
-            # account at exactly the wrong moment (Jul 21 night sweep)
-            if not did_api and not _api_configured():
+            # with no API creds at all or a DEFINITIVELY send-only token:
+            # falling back to a full IMAP scan of INBOX+Trash during an
+            # API hiccup hits the overquota account at exactly the wrong
+            # moment (Jul 21 night sweep)
+            if not did_api and (not _api_configured()
+                                or _API_OK.get("sendonly")):
                 gmail_mirror.state_sync(verbose=False)
             _API_MIRROR_AT = _t.time()
     except Exception as _e:

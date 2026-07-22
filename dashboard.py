@@ -10792,7 +10792,7 @@ class Handler(BaseHTTPRequestHandler):
         if hdr.startswith("Basic "):
             try:
                 got = base64.b64decode(hdr[6:]).decode()
-                if got.split(":", 1)[-1] == pw:
+                if hmac.compare_digest(got.split(":", 1)[-1], pw):
                     # upgrade this basic-auth (old bookmark) session to a
                     # cookie so background fetches stop 401-ing and the
                     # native popup never returns (office iPad, Jul 13)
