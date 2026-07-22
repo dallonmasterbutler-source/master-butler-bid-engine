@@ -321,24 +321,64 @@ def build_schedule(routes_blob):
             bywk.setdefault(wk, []).append(h)
         weeks_out = []
         days = {}
+        day_detail = {}
         backlog = []
         wk = min(bywk) if bywk else None
         last_wk = max(bywk) if bywk else None
         while wk and (backlog or wk <= last_wk):
             queue = backlog + bywk.get(wk, [])
             backlog = []
+            # GEOGRAPHIC DAY PODS (Dallon, Jul 22: "i want to see how
+            # you route this") — a day is a tight neighborhood pod, not
+            # "whoever was anchored that date": seed each pod on the
+            # home farthest from the remaining crowd, then take its 9
+            # nearest neighbors. Mon-Thu get the four pods; a 5th pod
+            # rides the backup Friday; more than that carries forward.
+            pods = []
+            rest = queue[:]
+            while rest:
+                cx = (sum(h["lat"] for h in rest) / len(rest),
+                      sum(h["lng"] for h in rest) / len(rest))
+                seed = max(rest, key=lambda h: _dist(
+                    (h["lat"], h["lng"]), cx))
+                rest.remove(seed)
+                pod = [seed]
+                while len(pod) < 10 and rest:
+                    last = pod[-1]
+                    nxt = min(rest, key=lambda h: _dist(
+                        (last["lat"], last["lng"]),
+                        (h["lat"], h["lng"])))
+                    rest.remove(nxt)
+                    pod.append(nxt)
+                pods.append(pod)
             planned = fri = 0
-            for i, h in enumerate(queue):
-                if planned < 40:
-                    day = wk + _td(days=planned // 10)
-                    days.setdefault(day, []).append(h)
-                    planned += 1
-                elif fri < 10:
-                    days.setdefault(wk + _td(days=4), []).append(h)
-                    fri += 1
+            for pi, pod in enumerate(pods):
+                if pi < 4:
+                    day = wk + _td(days=pi)
+                    planned += len(pod)
+                elif pi == 4:
+                    day = wk + _td(days=4)
+                    fri += len(pod)
                 else:
-                    backlog = queue[i:]
-                    break
+                    backlog.extend(pod)
+                    continue
+                # chain the pod nearest-neighbor and measure the drive
+                chain = [pod[0]]
+                pool = pod[1:]
+                while pool:
+                    last = chain[-1]
+                    nxt = min(pool, key=lambda h: _dist(
+                        (last["lat"], last["lng"]),
+                        (h["lat"], h["lng"])))
+                    pool.remove(nxt)
+                    chain.append(nxt)
+                mi = sum(_dist((chain[i]["lat"], chain[i]["lng"]),
+                               (chain[i + 1]["lat"],
+                                chain[i + 1]["lng"]))
+                         for i in range(len(chain) - 1))
+                days.setdefault(day, []).extend(chain)
+                day_detail[day] = {"miles": round(mi, 1),
+                                   "stops": chain}
             if planned or fri or backlog:
                 weeks_out.append([wk.isoformat(), planned, fri,
                                   len(backlog)])
@@ -365,9 +405,27 @@ def build_schedule(routes_blob):
                       "label": busiest.strftime("%a %b %d"),
                       "stops": ss,
                       "done_by": f"{t // 60}:{t % 60:02d}"}
+        _daybook = []
+        for d in sorted(day_detail):
+            dd = day_detail[d]
+            t = 8 * 60
+            st = []
+            for h in dd["stops"]:
+                st.append({"arrive": f"{t // 60}:{t % 60:02d}",
+                           "client": h["client"],
+                           "address": h["address"],
+                           "lat": h["lat"], "lng": h["lng"]})
+                t += 40 + 7
+            _daybook.append({"date": d.isoformat(),
+                             "label": d.strftime("%a %b %d"),
+                             "friday": d.weekday() == 4,
+                             "miles": dd["miles"],
+                             "done_by": f"{t // 60}:{t % 60:02d}",
+                             "stops": st})
         sched["routes"].append({
             "name": r["name"], "color": r["color"], "tech": r["tech"],
             "active": len(actives),
+            "daybook": _daybook,
             "weeks": weeks_out,
             "first_day": min(days).isoformat() if days else None,
             "last_day": max(days).isoformat() if days else None,
