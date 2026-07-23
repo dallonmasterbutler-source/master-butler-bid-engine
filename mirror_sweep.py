@@ -257,6 +257,11 @@ def _sweep_inner(verbose, limit):
         ups = {f["email"]: now for f in filed}
         clouddb.merge_blob("cleared", ups)
         clouddb.merge_blob("msg_read", ups)
+    try:
+        from heartbeats import beat
+        beat("sweep", checked=len(by_email), filed=len(filed))
+    except Exception:
+        pass
     if verbose:
         print(f"mirror sweep: {len(filed)} line(s) filed "
               f"({len(by_email)} customers checked)")

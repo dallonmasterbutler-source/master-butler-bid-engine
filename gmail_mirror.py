@@ -261,6 +261,11 @@ def api_state_sync(verbose=True):
     # The dashboard only trusts "gone" for records OLDER than `at`.
     clouddb.put_blob("gmail_inbox_mids", {"at": now,
                                           "mids": sorted(inbox_msgids)})
+    try:
+        from heartbeats import beat
+        beat("mirror", inbox=len(inbox_msgids), senders=len(state))
+    except Exception:
+        pass
     if verbose:
         cts = {}
         for v in state.values():

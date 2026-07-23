@@ -48,6 +48,8 @@ try:
             import store
             n = store.record_office_quotes(r)
             print(f"   {n} final price(s) recorded into the learning DB")
+            from heartbeats import beat
+            beat("learning", recorded=n, matched=len(matched))
         except Exception as e:
             print(f"   (learning-record update skipped: {e})")
     for row in matched:
@@ -179,6 +181,8 @@ try:
     # grade AGAINST TONIGHT'S bookings — match must run AFTER capture
     # (Jul 23: it ran before, so fresh offers waited a full day)
     _g4 = _sc4.fetch_and_match(verbose=True)
+    from heartbeats import beat
+    beat("scorecard", captured=_cap, graded_total=_g4)
 except Exception as e:
     print(f"   (shadow offer sweep skipped: {e})")
 
@@ -280,6 +284,8 @@ try:
             if ok:
                 print(f"   cloud backup emailed to Dallon "
                       f"({len(gz)//1024} KB): {why}")
+                from heartbeats import beat
+                beat("backup", kb=len(gz)//1024)
             else:
                 print(f"   ⚠️ CLOUD BACKUP EMAIL FAILED — no restore "
                       f"point tonight ({len(gz)//1024} KB ready): {why}")
@@ -312,6 +318,9 @@ try:
             f"☀️ Master Butler morning brief — {datetime.now():%b %d}",
             brief_text, to=[mailer.DALLON, mailer.TOM], html=brief_html)
         print(f"   brief emailed to Dallon + Tom: {why}")
+        if ok:
+            from heartbeats import beat
+            beat("brief")
     except Exception as e:
         print(f"   (brief email skipped: {e})")
 except Exception as e:
@@ -381,6 +390,8 @@ try:
         print(f"   ⚠️ {len(_pv)} pipeline violation(s) — emailed Dallon")
     else:
         print("   pipeline invariants: all hold ✅")
+    from heartbeats import beat
+    beat("pipeline_check", violations=len(_pv))
 except Exception as e:
     print(f"   (pipeline check skipped: {e})")
 

@@ -27,7 +27,7 @@ import json
 import re
 import sys
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 BASE = Path(__file__).parent
@@ -188,6 +188,55 @@ def run(dump=None, verbose=True):
             if clr and li and li > clr and sticky(e):
                 bad("I3", f"{e} wrote at {li}, AFTER the {clr} clear, "
                           f"yet still computes sticky")
+
+    # I6 — COLLECTOR HEARTBEATS (Jul 23, the silent-scorecard lesson:
+    # a collector can run green while collecting nothing). Each beat
+    # must be FRESH (cadence) and, where it carries counts, PLAUSIBLE
+    # (pulse). A missing/stale beat = that collector is down.
+    hb = blobs.get("heartbeats") or {}
+    now_utc = datetime.now(timezone.utc)
+
+    def age_min(name):
+        b = hb.get(name) or {}
+        try:
+            return (now_utc - datetime.fromisoformat(b["at"])
+                    ).total_seconds() / 60
+        except Exception:
+            return None
+
+    for name, limit in (("poll", 15), ("mirror", 35), ("sweep", 150),
+                        ("learning", 26 * 60), ("scorecard", 26 * 60),
+                        ("backup", 26 * 60), ("brief", 26 * 60),
+                        ("pipeline_check", 26 * 60)):
+        a = age_min(name)
+        if a is None:
+            bad("I6", f"collector '{name}' has NO heartbeat — it may be "
+                      f"running without collecting (the scorecard class)")
+        elif a > limit:
+            bad("I6", f"collector '{name}' last beat {a/60:.1f}h ago "
+                      f"(limit {limit/60:.1f}h) — down or silent")
+    # pulse checks: running ≠ collecting
+    lb = hb.get("learning") or {}
+    if lb.get("matched", 0) > 0 and lb.get("recorded", 0) == 0:
+        bad("I6", f"learning ran with {lb['matched']} matched quotes but "
+                  f"recorded 0 — collecting nothing (the Jul-16 class)")
+    bk = hb.get("backup") or {}
+    if bk.get("at") and (bk.get("kb") or 0) < 100:
+        bad("I6", f"backup beat says only {bk.get('kb')} KB — not a "
+                  f"restore point")
+    # scorecard stagnation: firm offers 10+ days old with ZERO grades
+    # company-wide means matching is broken, not that nobody booked
+    sc = blobs.get("sched_scorecard") or {}
+    old_cut = (now_utc.date() - timedelta(days=10)).isoformat()
+    stale_firm = [v for v in sc.values()
+                  if v.get("kind") == "date"
+                  and (v.get("first_seen") or "9999") <= old_cut
+                  and not v.get("actual_date")]
+    any_graded = any(v.get("actual_date") for v in sc.values())
+    if len(stale_firm) >= 10 and not any_graded:
+        bad("I6", f"{len(stale_firm)} firm offers are 10+ days old with "
+                  f"zero grades anywhere — the booking matcher is "
+                  f"likely broken again")
 
     # I2 — every inbox mid belongs to some record
     unknown = [m for m in mids if m not in by_mid]

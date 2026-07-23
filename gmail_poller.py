@@ -317,6 +317,11 @@ def poll_once():
     # outages). Falls back to IMAP automatically if the token can't read.
     if _use_api():
         new_count = _poll_via_api(seen)
+        try:
+            from heartbeats import beat
+            beat("poll", new=new_count)
+        except Exception:
+            pass
     elif _api_configured() and not _API_OK.get("sendonly"):
         # OAuth creds exist but the API is blipping: SKIP this poll (next
         # one is 2 min away) rather than full-mailbox IMAP scans — the
