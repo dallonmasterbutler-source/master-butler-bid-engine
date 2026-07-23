@@ -15,6 +15,16 @@ from datetime import datetime, timezone
 
 
 def beat(name, **facts):
+    # every beat carries the process's peak memory (Jul 23: two OOM
+    # kills at 512MB — now the collectors themselves report the curve)
+    try:
+        import resource
+        import sys
+        _r = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        facts["rss_mb"] = round(_r / (1024 ** 2 if sys.platform == "darwin"
+                                      else 1024))
+    except Exception:
+        pass
     try:
         import clouddb
         if not clouddb.available():

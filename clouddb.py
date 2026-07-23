@@ -110,6 +110,9 @@ def _cached(key, fn):
     gen = _GEN[0]
     v = fn()
     if _GEN[0] == gen:            # no write raced this fetch — safe to keep
+        if len(_CACHE) > 400:     # bounded (Jul 23 OOM): drop the oldest
+            for _k in sorted(_CACHE, key=lambda k: _CACHE[k][0])[:100]:
+                _CACHE.pop(_k, None)
         _CACHE[key] = (time.time(), v)
     return v
 
@@ -283,9 +286,20 @@ def merge_blob(key, updates):
     _bump()
 
 
+# MEMORY DIET (Jul 23: the 512MB box OOM'd twice — resting RSS crept to
+# ~325MB because every blob ever read stays in _CACHE forever; the
+# ~2,800 per-customer hist:* blobs and a handful of multi-MB reports
+# were the bulk). Big/one-per-customer blobs read fresh, uncached.
+_NO_CACHE_PREFIX = ("hist:", "routes:")
+_NO_CACHE = {"discount_reconciliation", "service_history", "hist_index",
+             "churn_report", "samm_routes", "samm_sched"}
+
+
 def get_blob(key):
     def _fetch():
         row = _exec("SELECT value FROM kv_blobs WHERE key = %s", (key,),
                     fetch="one")
         return row[0] if row else None
+    if key in _NO_CACHE or key.startswith(_NO_CACHE_PREFIX):
+        return _fetch()
     return copy.deepcopy(_cached(f"blob:{key}", _fetch))
