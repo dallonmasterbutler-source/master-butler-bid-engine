@@ -204,8 +204,10 @@ def _routes_api(points, optimize=True):
         return None
     order = r.get("optimizedIntermediateWaypointIndex",
                   list(range(len(points))))
-    legs = [{"secs": int(l["duration"].rstrip("s")),
-             "miles": round(l["distanceMeters"] / 1609, 1)}
+    legs = [{"secs": int((l.get("duration") or "0s").rstrip("s")),
+             # a zero-length leg (two stops at one address) omits
+             # distanceMeters entirely (Jul 22)
+             "miles": round(l.get("distanceMeters", 0) / 1609, 1)}
             for l in r["legs"]]
     return order, legs, _decode(r["polyline"]["encodedPolyline"])
 
