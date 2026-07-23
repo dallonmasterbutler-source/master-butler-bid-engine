@@ -123,7 +123,14 @@ def offer(rec, today=None):
         c = a.get("centroid")
         if not c:
             continue
-        mins = _min_est(pt, c)
+        # REAL drive minutes first (Google Routes API, cached — Dallon
+        # Jul 23: same geomapping the lights routes run on); haversine
+        # estimate only when the API can't answer
+        try:
+            from routing import drive_min
+            mins = drive_min(pt, c) or _min_est(pt, c)
+        except Exception:
+            mins = _min_est(pt, c)
         ceiling = 20 if mins > 15 else 15
         if mins > 20:
             continue

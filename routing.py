@@ -212,6 +212,54 @@ def _routes_api(points, optimize=True):
     return order, legs, _decode(r["polyline"]["encodedPolyline"])
 
 
+def drive_min(a, b):
+    """REAL Google drive minutes between two (lat, lng) points — the
+    same Routes API the lights routing uses, one leg, cached for good
+    (roads don't move; ~100 m key rounding). None on any failure so
+    callers fall back to the haversine estimate. Wired for the shadow
+    scheduler's offers (Dallon, Jul 23: 'make sure this works with our
+    scheduling on jobber and our geomapping api')."""
+    try:
+        key = (f"{round(a[0], 3)},{round(a[1], 3)}>"
+               f"{round(b[0], 3)},{round(b[1], 3)}")
+    except (TypeError, IndexError):
+        return None
+    cache = _blob("drive_cache", {})
+    if key in cache:
+        return cache[key]
+    try:
+        from property_data import _api_key
+        body = {
+            "origin": {"location": {"latLng": {
+                "latitude": a[0], "longitude": a[1]}}},
+            "destination": {"location": {"latLng": {
+                "latitude": b[0], "longitude": b[1]}}},
+            "travelMode": "DRIVE",
+        }
+        req = urllib.request.Request(
+            "https://routes.googleapis.com/directions/v2:computeRoutes",
+            data=json.dumps(body).encode(),
+            headers={"Content-Type": "application/json",
+                     "X-Goog-Api-Key": _api_key(),
+                     "X-Goog-FieldMask": "routes.duration"})
+        r = json.load(urllib.request.urlopen(req, timeout=10))
+        secs = int((r["routes"][0]["duration"] or "0s").rstrip("s"))
+        mins = round(secs / 60, 1)
+    except Exception:
+        return None
+    try:
+        import clouddb
+        if clouddb.available():
+            # atomic single-key add — concurrent offers never clobber
+            clouddb.merge_blob("drive_cache", {key: mins})
+        else:
+            cache[key] = mins
+            _blob_save("drive_cache", cache)
+    except Exception:
+        pass
+    return mins
+
+
 def _decode(enc):
     pts, idx, lat, lng = [], 0, 0, 0
     while idx < len(enc):
