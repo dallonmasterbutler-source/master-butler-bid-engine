@@ -205,18 +205,33 @@ def offer(rec, today=None):
         norm = MONTH_NORM.get(dd.month, 12)
         if (a.get("jobs") or 0) >= norm:
             continue
-        # DOLLARS-ON-THE-TRUCK: this job's crew-hours must fit what the
-        # day's trucks have left (day hours arrive from sched_mine; an
-        # older anchor without them falls back to the jobs-count check)
-        trucks = max(1, len(a.get("techs") or []))
-        if jh and a.get("hours") is not None \
-                and a["hours"] + jh > trucks * TRUCK_DAY_H:
-            continue
-        # windows-mix: window hours are one-truck money — never stack
-        # this job's window hours past a single truck's day
-        if jwin and a.get("windows_hours") is not None \
-                and a["windows_hours"] + jwin > TRUCK_DAY_H:
-            continue
+        # PER-TRUCK FIT (Dallon, Jul 23: 'we want to automate the
+        # trucks scheduling eventually'): with per-truck loads on the
+        # anchor, the day is eligible only if SOME truck can absorb
+        # this job — and the offer names that truck, so the office's
+        # actual assignment can grade the pick. Preference: the
+        # lightest truck (continuity may override below).
+        fits, pick_truck = [], None
+        bt = a.get("by_truck") or {}
+        if bt and jh:
+            fits = [t for t, load in bt.items()
+                    if load.get("hours", 0) + jh <= TRUCK_DAY_H
+                    and load.get("win_h", 0) + jwin <= TRUCK_DAY_H]
+            if not fits:
+                continue          # every truck full — day is full
+            pick_truck = min(fits,
+                             key=lambda t: bt[t].get("hours", 0))
+        else:
+            # older anchor without per-truck data: day-level checks
+            trucks = max(1, len(a.get("techs") or []))
+            if jh and a.get("hours") is not None \
+                    and a["hours"] + jh > trucks * TRUCK_DAY_H:
+                continue
+            # windows-mix: window hours are one-truck money — never
+            # stack this job's window hours past a single truck's day
+            if jwin and a.get("windows_hours") is not None \
+                    and a["windows_hours"] + jwin > TRUCK_DAY_H:
+                continue
         # customer blackout words — skip a day inside any stated range
         if blk and any(w and w.split()[0][:3].lower() == dd.strftime(
                 "%b").lower() and any(ch.isdigit() and
@@ -235,6 +250,12 @@ def offer(rec, today=None):
                         f"{a.get('jobs')}/{norm:.0f} of the {dd:%B} "
                         f"norm. OFFER, not a reservation — books on "
                         f"their yes.")}
+        if pick_truck:
+            cand["truck"] = pick_truck
+            cand["fits"] = fits
+            cand["why"] += (f" Truck: {pick_truck.split()[0]} "
+                            f"({bt[pick_truck].get('hours', 0)}h + this "
+                            f"{jh}h fits {TRUCK_DAY_H}h).")
         cands.append((dd, a, cand))
         if len(cands) >= 6:
             break
@@ -249,9 +270,18 @@ def offer(rec, today=None):
             for dd, a, cand in cands:
                 if (dd - first_dd).days > 5:
                     break
-                if any(t in (a.get("techs") or []) for t in who):
-                    cand["why"] += (f" {who[0].split()[0]} serviced "
-                                    f"them last and is on this day.")
+                # prefer the last tech's own TRUCK when he has room
+                # that day; else at least his day
+                pool = cand.get("fits") or a.get("techs") or []
+                hit = next((t for t in who if t in pool), None)
+                if hit:
+                    if cand.get("fits"):
+                        cand["truck"] = hit
+                        cand["why"] += (f" {hit.split()[0]} serviced "
+                                        f"them last — his truck.")
+                    else:
+                        cand["why"] += (f" {hit.split()[0]} serviced "
+                                        f"them last and is on this day.")
                     best = cand
                     break
         return best

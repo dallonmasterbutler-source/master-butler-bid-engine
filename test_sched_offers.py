@@ -103,6 +103,56 @@ check("last tech (2 days later) wins the offer",
       and "Adam serviced them last" in o["why"])
 so._last_tech_cached = lambda e: None
 
+# ── PER-TRUCK (Dallon: 'automate the trucks scheduling eventually') ──
+# a day whose SUM has room but where no single truck fits is FULL
+knowledge({D1: dict(BASE_DAY, jobs=4, hours=12.0, windows_hours=0.0,
+                    techs=["Connor L", "Shane P"],
+                    by_truck={"Connor L": {"jobs": 2, "hours": 6.0,
+                                           "win_h": 0.0, "dollars": 840},
+                              "Shane P": {"jobs": 2, "hours": 6.0,
+                                          "win_h": 0.0, "dollars": 840}}),
+           D2: dict(BASE_DAY, jobs=1, hours=2.0, windows_hours=0.0,
+                    techs=["Austin R"],
+                    by_truck={"Austin R": {"jobs": 1, "hours": 2.0,
+                                           "win_h": 0.0, "dollars": 280}})})
+o = so.offer(rec([{"name": "Gutter Cleaning", "price": 900}]), TODAY)
+check("day-sum has room but no single truck fits -> next day",
+      o["kind"] == "date" and o["date"] == D2)
+check("the offer names its truck pick",
+      o.get("truck") == "Austin R" and "Truck: Austin" in o["why"])
+
+# lightest truck wins when several fit
+knowledge({D1: dict(BASE_DAY, jobs=3, hours=7.0, windows_hours=0.0,
+                    techs=["Connor L", "Shane P"],
+                    by_truck={"Connor L": {"jobs": 2, "hours": 5.0,
+                                           "win_h": 0.0, "dollars": 700},
+                              "Shane P": {"jobs": 1, "hours": 2.0,
+                                          "win_h": 0.0, "dollars": 290}})})
+o = so.offer(rec([{"name": "Gutter Cleaning", "price": 300}]), TODAY)
+check("lightest truck gets the job", o.get("truck") == "Shane P")
+
+# continuity: last tech's TRUCK preferred when he has room
+so._last_tech_cached = lambda e: ["Connor L"]
+o = so.offer(rec([{"name": "Gutter Cleaning", "price": 300}]), TODAY)
+check("last tech's truck preferred when he has room",
+      o.get("truck") == "Connor L" and "his truck" in o["why"])
+# ...but a full last-tech truck never overflows
+o = so.offer(rec([{"name": "Gutter Cleaning", "price": 900}]), TODAY)
+check("full last-tech truck never overflows (job rides the other)",
+      o.get("truck") == "Shane P")
+so._last_tech_cached = lambda e: None
+
+# per-truck windows rule: window hours can't stack on a windows truck
+knowledge({D1: dict(BASE_DAY, jobs=2, hours=6.0, windows_hours=5.5,
+                    techs=["Connor L", "Shane P"],
+                    by_truck={"Connor L": {"jobs": 1, "hours": 5.5,
+                                           "win_h": 5.5, "dollars": 550},
+                              "Shane P": {"jobs": 1, "hours": 0.5,
+                                          "win_h": 0.0, "dollars": 70}})})
+o = so.offer(rec([{"name": "Window Cleaning", "price": 400}]), TODAY)
+check("windows job lands on the non-windows truck",
+      o["kind"] == "date" and o.get("truck") == "Shane P")
+
 # ── pre-Jul-23 anchors (no hours) still offer on the count backstop ──
 knowledge({D1: dict(BASE_DAY, jobs=3, techs=["Connor L"])})
 o = so.offer(rec([{"name": "Gutter Cleaning", "price": 900}]), TODAY)

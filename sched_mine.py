@@ -253,6 +253,27 @@ def analyze(visits, verbose=False):
             # slow money that fills a truck faster than the job count
             # shows ('$800 of windows is a full day; $900 of gutters
             # is doable')
+            # PER-TRUCK (same day, 'we want to automate the trucks
+            # scheduling eventually'): each tech's load, so the offer
+            # engine can propose WHICH truck and be graded on it.
+            # Dollars parsed from the office's own title convention
+            # ('Jim Cavanaugh - $750 - Redmond'); a 2-tech visit
+            # counts on both (it occupies both people).
+            by_truck = {}
+            for v in vs:
+                hv = _visit_hours(v)
+                wv = hv if any("window" in (l or "").lower()
+                               for l in v["lines"]) else 0.0
+                mm = re.search(r"\$\s?([\d,]+)", v["title"] or "")
+                dv = int(mm.group(1).replace(",", "")) if mm else 0
+                for t in (v["techs"] or []):
+                    bt = by_truck.setdefault(t, {
+                        "jobs": 0, "hours": 0.0, "win_h": 0.0,
+                        "dollars": 0})
+                    bt["jobs"] += 1
+                    bt["hours"] = round(bt["hours"] + hv, 1)
+                    bt["win_h"] = round(bt["win_h"] + wv, 1)
+                    bt["dollars"] += dv
             K["future_anchors"][d.isoformat()] = {
                 "jobs": len(vs), "cities": dict(cities.most_common(3)),
                 "hours": round(sum(_visit_hours(v) for v in vs), 1),
@@ -261,7 +282,8 @@ def analyze(visits, verbose=False):
                     if any("window" in (l or "").lower()
                            for l in v["lines"])), 1),
                 "centroid": centroid,
-                "techs": sorted({t for v in vs for t in v["techs"]})[:4]}
+                "by_truck": by_truck,
+                "techs": sorted({t for v in vs for t in v["techs"]})[:6]}
 
     for mo, counts in sorted(permonth.items()):
         K["jobs_per_day_by_month"][mo] = {

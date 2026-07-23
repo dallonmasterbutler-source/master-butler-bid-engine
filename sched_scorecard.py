@@ -59,6 +59,7 @@ def capture(key, name, address, offer, today=None):
         "address": address,
         "kind": offer.get("kind"),                 # date / week / standby
         "offered_date": offer.get("date"),
+        "offered_truck": offer.get("truck"),       # the tech it would pick
         "mins": offer.get("mins"),
         "why": (offer.get("why") or "")[:200],
         "first_seen": (today or date.today()).isoformat(),
@@ -151,6 +152,8 @@ def match(visits):
         for vis in visits:
             if _same_property(v["address"], vis.get("address") or ""):
                 v["actual_date"] = (vis.get("start") or "")[:10]
+                if vis.get("techs"):        # grade the truck pick too
+                    v["actual_techs"] = vis["techs"]
                 changed = True
                 break
     if changed:
@@ -170,8 +173,20 @@ def report():
     same_week = [r for r in firm_booked
                  if _iso_week(r["offered_date"]) == _iso_week(r["actual_date"])]
     mins = [r["mins"] for r in firm if r.get("mins")]
+    # truck agreement: of graded offers that named a truck, how often
+    # did the office put that very tech on the job? (the runway to
+    # 'automate the trucks scheduling eventually' — Dallon, Jul 23)
+    truck_rows = [r for r in booked
+                  if r.get("offered_truck") and r.get("actual_techs")]
+    truck_hits = [r for r in truck_rows
+                  if r["offered_truck"] in r["actual_techs"]]
     total = len(rows)
     return {
+        "truck_graded": len(truck_rows),
+        "truck_same": len(truck_hits),
+        "truck_agreement_pct": (round(100 * len(truck_hits)
+                                      / len(truck_rows))
+                                if truck_rows else None),
         "total": total,
         "firm_offers": len(firm),
         "punts": len(punt),
@@ -223,7 +238,10 @@ def fetch_and_match(days_back=30, days_fwd=90, verbose=False):
                                              a.get("postalCode")) if x)
                 if addr and n.get("startAt"):
                     visits.append({"address": addr,
-                                   "start": n["startAt"]})
+                                   "start": n["startAt"],
+                                   "techs": [u["name"]["full"] for u in
+                                             (n.get("assignedUsers") or {})
+                                             .get("nodes") or []]})
             pi = page.get("pageInfo") or {}
             if not pi.get("hasNextPage"):
                 break
