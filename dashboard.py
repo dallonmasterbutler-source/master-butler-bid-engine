@@ -6348,6 +6348,38 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
         _send_note = ("Sends as customercare@ · your edits teach the "
                       "brain" if REPLIES_ENABLED else
                       "Sending stays locked until Dallon flips it on.")
+        # 🔁 referral chip (Jessica, Jul 23) — only when their message
+        # mentions a hand-off service; the button fills the reply box
+        _ref_banner = ""
+        for _rl, _rr in _referral_hits(
+                ((nb or {}).get("newest_message") or "") + " "
+                + ((nb or {}).get("subject") or ""))[:2]:
+            _rv = _rr.get("vendor") or "our partner"
+            if _rr.get("mode") == "forward":
+                _rtxt = (f"Great news — {_rl.lower()} is handled by our "
+                         f"trusted partner {_rv}. We've passed your "
+                         f"request along and they'll reach out to you "
+                         f"directly. Anything on the home itself, we're "
+                         f"happy to help!")
+                _rhow = f"we forward to {_rv}" + (
+                    f" · {_rr['contact']}" if _rr.get("contact")
+                    else " · add their contact in Settings")
+            else:
+                _rtxt = (f"For {_rl.lower()} we recommend {_rv}"
+                         + (f" — {_rr['contact']}" if _rr.get("contact")
+                            else "")
+                         + ". Tell them Master Butler sent you!")
+                _rhow = "send them the vendor's info"
+            _ref_banner += (
+                f"<div style='background:rgba(30,107,52,.08);border:1px "
+                f"dashed var(--green);border-radius:8px;padding:7px 10px;"
+                f"margin-bottom:6px;font-size:12.5px'>🔁 They mentioned "
+                f"<b>{esc(_rl)}</b> — {esc(_rhow)} "
+                f"<button type='button' class='gray' style='font-size:"
+                f"12px;margin-left:6px' onclick=\"var t=document."
+                f"getElementById('inboxreply');t.value="
+                f"{esc(json.dumps(_rtxt))};t.focus()\">✏️ Draft the "
+                f"reply</button></div>")
         _send_btn = (
             f"<button class='big' onclick=\"return confirm("
             f"'Send this reply to {esc(c['email'])}?')\">Send reply"
@@ -6367,7 +6399,7 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
    <select id='inboxcanned' style='max-width:280px'>
     <option value=''>Quick responses…</option></select>
   </div>
-  {_pre_banner}
+  {_ref_banner}{_pre_banner}
   <form method='POST' action='/msg_send'>
    <input type='hidden' name='to' value='{esc(c["email"])}'>
    <input type='hidden' name='subject' value='{esc(reply_subject)}'>
@@ -9411,6 +9443,36 @@ def _discount_patterns_html():
             f"</div></details>")
 
 
+# ── REFERRALS (Jessica, Jul 23: 'carpet cleaning is supposed to be
+# forwarded to Victor; other requests we send the customer the vendor's
+# info… the list of automated replies is getting long') — so NOT in the
+# quick responses: a directory the office edits in Settings, and a chip
+# that appears on a customer's card ONLY when their message mentions a
+# referral service, with the reply pre-drafted.
+REFERRAL_SEED = {"Carpet cleaning": {
+    "keywords": "carpet", "vendor": "Victor", "contact": "",
+    "mode": "forward"}}
+
+
+def _referrals():
+    r = _blob_rw("referrals", None)
+    if not isinstance(r, dict) or not r:
+        r = {k: dict(v) for k, v in REFERRAL_SEED.items()}
+    return r
+
+
+def _referral_hits(text):
+    """[(label, rule)] for every referral service the text mentions."""
+    t = (text or "").lower()
+    hits = []
+    for label, r in _referrals().items():
+        kws = [w.strip().lower() for w in
+               (r.get("keywords") or "").split(",") if w.strip()]
+        if any(k in t for k in kws):
+            hits.append((label, r))
+    return hits
+
+
 def settings_page(msg="", user=None):
     """The office's own control room (Dallon: 'they work on this daily,
     I don't') — quick responses and pricing knobs, no code, no Dallon."""
@@ -9553,6 +9615,62 @@ def settings_page(msg="", user=None):
                    "responses</h2><div class='subtext'>Pick your name in "
                    "the top bar to build your own set.</div></div>")
     qr_card += my_card
+
+    # ---- referrals directory (Jessica, Jul 23) ----
+    refs = _referrals()
+    refrows = ""
+    for label, r in sorted(refs.items()):
+        _mf = "selected" if r.get("mode") == "forward" else ""
+        _mi = "selected" if r.get("mode") != "forward" else ""
+        refrows += f"""
+<details style='border-bottom:1px solid var(--line);padding:8px 0'>
+ <summary style='cursor:pointer;font-weight:700;color:var(--heading)'>
+  🔁 {esc(label)} <span class='subtext'>→ {esc(r.get('vendor') or '?')}
+  </span></summary>
+ <form method='POST' action='/referral_save' style='margin-top:8px'>
+  <input type='hidden' name='name' value='{esc(label)}'>
+  <input type='text' name='keywords' value='{esc(r.get("keywords") or "")}'
+   placeholder='trigger words, comma-separated (e.g. carpet, rug)'>
+  <input type='text' name='vendor' value='{esc(r.get("vendor") or "")}'
+   placeholder='vendor name' style='margin-top:4px'>
+  <input type='text' name='contact' value='{esc(r.get("contact") or "")}'
+   placeholder='vendor phone / email' style='margin-top:4px'>
+  <select name='mode' style='margin-top:4px'>
+   <option value='forward' {_mf}>we forward the customer to the vendor
+   </option>
+   <option value='info' {_mi}>we send the customer the vendor's info
+   </option>
+  </select>
+  <div style='margin-top:6px'><button>Save</button>
+   <button name='delete' value='1' class='red'
+    onclick="return confirm('Remove this referral?')">Delete</button>
+  </div></form></details>"""
+    qr_card += f"""
+<div class='card'>
+ <div class='schead'>{_svg_icon('chat')}<h2>Referrals</h2></div>
+ <div class='subtext' style='margin-bottom:8px'>Services we hand off
+ (carpet → Victor, etc.). When a customer's message mentions one, their
+ card shows a 🔁 chip with the reply pre-drafted — nothing is added to
+ the quick-responses list, and nothing sends on its own.</div>
+ {refrows}
+ <details style='padding:10px 0'>
+  <summary style='cursor:pointer;font-weight:700'>➕ Add a referral
+  </summary>
+  <form method='POST' action='/referral_save' style='margin-top:8px'>
+   <input type='text' name='name' placeholder='Service (e.g. Carpet
+    cleaning)'>
+   <input type='text' name='keywords' placeholder='trigger words,
+    comma-separated' style='margin-top:4px'>
+   <input type='text' name='vendor' placeholder='vendor name'
+    style='margin-top:4px'>
+   <input type='text' name='contact' placeholder='vendor phone / email'
+    style='margin-top:4px'>
+   <select name='mode' style='margin-top:4px'>
+    <option value='forward'>we forward the customer to the vendor</option>
+    <option value='info'>we send the customer the vendor's info</option>
+   </select>
+   <button style='margin-top:6px'>Add referral</button>
+  </form></details></div>"""
 
     # ---- quote line descriptions (gap noted Jul 9; office-editable
     # Jul 10) — the exact text under each service on PUSHED quotes ----
@@ -12384,6 +12502,29 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Location", "/settings?msg=" +
                              urllib.parse.quote("All pricing back to "
                                                 "calibrated defaults."))
+            self.end_headers()
+            return
+        elif self.path == "/referral_save":
+            refs = _referrals()
+            name = get("name").strip()
+            if name:
+                if get("delete"):
+                    refs.pop(name, None)
+                    _msg_r = f"Referral '{name}' removed."
+                else:
+                    refs[name] = {"keywords": get("keywords").strip(),
+                                  "vendor": get("vendor").strip(),
+                                  "contact": get("contact").strip(),
+                                  "mode": get("mode") or "info"}
+                    _msg_r = f"Referral '{name}' saved."
+                _blob_save("referrals", refs)
+                save_review({"stamp": "", "action": "settings",
+                             "customer": "",
+                             "note": f"{_msg_r} (by {_user or 'office'})"})
+            self.send_response(303)
+            self.send_header("Location", "/settings?msg="
+                             + urllib.parse.quote(_msg_r if name
+                                                  else "Name it first."))
             self.end_headers()
             return
         elif self.path == "/qr_save":
