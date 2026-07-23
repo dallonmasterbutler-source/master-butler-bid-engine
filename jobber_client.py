@@ -878,6 +878,51 @@ def client_jobs(email_addr):
     return []
 
 
+LAST_TECH = """
+query LastTech($term: String!) {
+  clients(searchTerm: $term, first: 3) {
+    nodes { emails { address }
+      jobs(first: 8) { nodes {
+        visits(first: 5) { nodes { startAt isComplete
+          assignedUsers(first: 3) { nodes { name { full } } } } } } } } }
+}"""
+
+
+def last_tech(email_addr):
+    """Who serviced this customer LAST — the most recent COMPLETED
+    visit's assigned tech(s), for route continuity in the shadow
+    scheduler (Dallon, Jul 23: 'keeping in mind who serviced them
+    last'). Read-only. None when Jobber can't answer or the customer
+    has no completed visits."""
+    if not email_addr:
+        return None
+    global DRY_RUN
+    was, DRY_RUN = DRY_RUN, False          # read-only; dry-run guards writes
+    try:
+        data = _post(LAST_TECH, {"term": email_addr}, "last tech")
+    finally:
+        DRY_RUN = was
+    if not data or data.get("error") or data.get("dry_run"):
+        return None
+    want = email_addr.lower().strip()
+    best = None
+    for node in (data.get("clients") or {}).get("nodes") or []:
+        addrs = [(e.get("address") or "").lower()
+                 for e in node.get("emails") or []]
+        if want not in addrs:
+            continue
+        for j in ((node.get("jobs") or {}).get("nodes") or []):
+            for v in ((j.get("visits") or {}).get("nodes") or []):
+                if not v.get("isComplete"):
+                    continue
+                techs = [u["name"]["full"] for u in
+                         (v.get("assignedUsers") or {}).get("nodes") or []]
+                at = v.get("startAt") or ""
+                if techs and (not best or at > best[0]):
+                    best = (at, techs)
+    return {"at": best[0], "techs": best[1]} if best else None
+
+
 def find_open_quote(email_addr, scan=None):
     """The customer's LIVE quote context, looked up PER CLIENT — no
     more recency-window scan (Kevin Pham lesson, Jul 10: his archived

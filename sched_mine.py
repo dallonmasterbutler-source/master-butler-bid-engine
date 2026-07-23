@@ -54,6 +54,25 @@ LLL_RX = re.compile(r"\blll\b", re.I)
 BULB_RX = re.compile(r"\bc([79])\b", re.I)
 
 
+def _visit_hours(v):
+    """One visit's scheduled crew-hours, defensively: Jobber durations
+    can be junk (1-min or all-day placeholders — the lights lesson), so
+    anything outside 15min–9h falls back to start→end, then to 1h."""
+    for h in ((v.get("dur") or 0) / 3600,):
+        if 0.25 <= h <= 9:
+            return h
+    try:
+        s = datetime.fromisoformat(v["start"].replace("Z", "+00:00"))
+        e = datetime.fromisoformat((v.get("end") or "")
+                                   .replace("Z", "+00:00"))
+        h = (e - s).total_seconds() / 3600
+        if 0.25 <= h <= 9:
+            return h
+    except (ValueError, TypeError, AttributeError):
+        pass
+    return 1.0
+
+
 def _save_blob(name, val):
     """Cloud direct when possible; HTTPS courier from the Mac
     (night_run's system python has no psycopg — this is the path
@@ -229,8 +248,18 @@ def analyze(visits, verbose=False):
             centroid = ([round(sum(p[0] for p in pts) / len(pts), 4),
                          round(sum(p[1] for p in pts) / len(pts), 4)]
                         if pts else None)
+            # DOLLARS-ON-THE-TRUCK inputs (Dallon, Jul 23): the day's
+            # scheduled crew-hours, and how much of it is windows —
+            # slow money that fills a truck faster than the job count
+            # shows ('$800 of windows is a full day; $900 of gutters
+            # is doable')
             K["future_anchors"][d.isoformat()] = {
                 "jobs": len(vs), "cities": dict(cities.most_common(3)),
+                "hours": round(sum(_visit_hours(v) for v in vs), 1),
+                "windows_hours": round(sum(
+                    _visit_hours(v) for v in vs
+                    if any("window" in (l or "").lower()
+                           for l in v["lines"])), 1),
                 "centroid": centroid,
                 "techs": sorted({t for v in vs for t in v["techs"]})[:4]}
 

@@ -74,6 +74,65 @@ def _geocode(address):
     return None
 
 
+# DOLLARS-ON-THE-TRUCK (Dallon's rule, taught Jul 15, wired Jul 23 when
+# he asked for it by name): windows are slow money — '$800 of windows is
+# a full day for someone', so ~$100/crew-hour; '$900 of gutters is
+# doable', so ~$140/crew-hour for everything else. A day is full when
+# its scheduled hours + this job's hours clear the trucks' capacity.
+PACE_WINDOW = 100.0
+PACE_DEFAULT = 140.0
+TRUCK_DAY_H = 8.5
+
+
+def _job_hours(rec):
+    """(total_crew_hours, windows_crew_hours) this job would add."""
+    svcs = (((rec.get("draft") or {}).get("bid") or {}).get("services")
+            or [])
+    tot = win = 0.0
+    for s in svcs:
+        try:
+            p = float(s.get("price") or 0)
+        except (TypeError, ValueError):
+            continue
+        if "window" in (s.get("name") or "").lower():
+            h = p / PACE_WINDOW
+            win += h
+        else:
+            h = p / PACE_DEFAULT
+        tot += h
+    return round(tot, 1), round(win, 1)
+
+
+def _rec_email(rec):
+    m = re.search(r"<([^>]+)>", rec.get("from") or "")
+    e = (m.group(1) if m else (rec.get("from") or "")).strip().lower()
+    return e if "@" in e else ""
+
+
+def _last_tech_cached(email):
+    """Who serviced this customer last (Jobber, 30-day cloud cache).
+    None off-cloud — never hammer Jobber uncached from a dev Mac."""
+    if not email:
+        return None
+    try:
+        import clouddb
+        if not clouddb.available():
+            return None
+        c = (clouddb.get_blob("last_tech_cache") or {}).get(email)
+        if c and (date.today()
+                  - date.fromisoformat(c["on"])).days < 30:
+            return c.get("who")
+        import jobber_client as jc
+        r = jc.last_tech(email)
+        who = (r or {}).get("techs") or None
+        clouddb.merge_blob("last_tech_cache",
+                           {email: {"on": date.today().isoformat(),
+                                    "who": who}})
+        return who
+    except Exception:
+        return None
+
+
 def _blackouts(msg):
     """['aug 10', 'aug 18'] style pairs from the customer's own words."""
     outs = []
@@ -108,10 +167,18 @@ def offer(rec, today=None):
     pt = _geocode(addr)
     if not pt:
         return None
+    # VETO 3: a windows job that alone fills a truck's day never rides
+    # an anchored day — it needs its own day, the office's call
+    jh, jwin = _job_hours(rec)
+    if jwin >= 7:
+        return {"kind": "standby",
+                "why": f"~${int(jwin * PACE_WINDOW)} of windows is a "
+                       "full day for one truck on its own — needs its "
+                       "own day; office schedules it by hand"}
     K = _knowledge()
     anchors = K.get("future_anchors") or {}
     blk = _blackouts(msg)
-    best = None
+    cands = []
     for d2, a in sorted(anchors.items()):
         try:
             dd = date.fromisoformat(d2)
@@ -138,6 +205,18 @@ def offer(rec, today=None):
         norm = MONTH_NORM.get(dd.month, 12)
         if (a.get("jobs") or 0) >= norm:
             continue
+        # DOLLARS-ON-THE-TRUCK: this job's crew-hours must fit what the
+        # day's trucks have left (day hours arrive from sched_mine; an
+        # older anchor without them falls back to the jobs-count check)
+        trucks = max(1, len(a.get("techs") or []))
+        if jh and a.get("hours") is not None \
+                and a["hours"] + jh > trucks * TRUCK_DAY_H:
+            continue
+        # windows-mix: window hours are one-truck money — never stack
+        # this job's window hours past a single truck's day
+        if jwin and a.get("windows_hours") is not None \
+                and a["windows_hours"] + jwin > TRUCK_DAY_H:
+            continue
         # customer blackout words — skip a day inside any stated range
         if blk and any(w and w.split()[0][:3].lower() == dd.strftime(
                 "%b").lower() and any(ch.isdigit() and
@@ -156,12 +235,25 @@ def offer(rec, today=None):
                         f"{a.get('jobs')}/{norm:.0f} of the {dd:%B} "
                         f"norm. OFFER, not a reservation — books on "
                         f"their yes.")}
-        # EARLIEST anchored day wins (lead-time doctrine); drive
-        # minutes only break ties between same-day options
-        if not best:
-            best = cand
+        cands.append((dd, a, cand))
+        if len(cands) >= 6:
             break
-    if best:
+    if cands:
+        # EARLIEST anchored day wins (lead-time doctrine)… unless the
+        # tech who serviced them LAST works a nearby candidate day —
+        # continuity is worth a few days' wait (Dallon, Jul 23)
+        best = cands[0][2]
+        who = _last_tech_cached(_rec_email(rec))
+        if who:
+            first_dd = cands[0][0]
+            for dd, a, cand in cands:
+                if (dd - first_dd).days > 5:
+                    break
+                if any(t in (a.get("techs") or []) for t in who):
+                    cand["why"] += (f" {who[0].split()[0]} serviced "
+                                    f"them last and is on this day.")
+                    best = cand
+                    break
         return best
     # no anchor fits → Area Week soft hold around the nearest-area day
     return {"kind": "week",
