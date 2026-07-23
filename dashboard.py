@@ -7263,7 +7263,9 @@ _cs.onchange = function(){{
                     recent = sorted(past, reverse=True)[:2]
                     cells = " · ".join(f"{dt[:7]} ${p:,.0f}"
                                        for dt, p in recent)
-                    lines += (f"<tr><td>{esc(s['name'])}"
+                    _nm_disp = s["name"] + (f" — {s['custom_desc']}"
+                                           if s.get("custom_desc") else "")
+                    lines += (f"<tr><td>{esc(_nm_disp)}"
                               + (f"<div class='subtext' style='font-size:"
                                  f"10.5px'>{cells}</div>" if cells else "")
                               + f"</td><td class='num'><b>${s['price']:,.0f}"
@@ -7413,9 +7415,12 @@ def add_service_card(b, back=""):
     """Pre-priced menu of the services NOT on this bid — one click adds
     the line. Prices come from the same engine + property record."""
     d = b.get("draft") or {}
-    if not (d.get("prop_info") or {}).get("sqft") or b.get("reviewed") \
-            or b.get("dns_match"):
+    if b.get("reviewed") or b.get("dns_match"):
         return ""
+    # no sqft → the engine can't price the menu, but the office can
+    # still type manual/custom lines (Jessica, Jul 23: a record without
+    # measurements left her stranded with no way to add anything)
+    _no_engine = not (d.get("prop_info") or {}).get("sqft")
     try:
         from store import _service_key
     except Exception:
@@ -7425,7 +7430,7 @@ def add_service_card(b, back=""):
             (d.get("bid") or {}).get("services") or []}
     pi = d.get("prop_info") or {}
     asf = pi.get("aerial_surfaces") or {}
-    menu = list(ADD_MENU) + [
+    menu = [] if _no_engine else list(ADD_MENU) + [
         (f"pw_{k}", f"Pressure wash {k} (~{a:,} sqft, aerial-measured)")
         for k, a in sorted(asf.items()) if a]
     # MULTI-SELECT + LIVE TOTAL (Jessica, Jul 9: 'can't click on
@@ -7480,9 +7485,21 @@ def add_service_card(b, back=""):
             f"$<input type='number' name='mprice_{svc}' step='1' min='0' "
             f"placeholder='0' class='addmprice' data-svc='{svc}' "
             f"style='width:76px;padding:4px 6px'></label>")
-    if not rows and not manual_rows:
-        return ""
-    rows += manual_rows
+    # ✏️ CUSTOM LINE, always offered (Jessica, Jul 20 + 23: interior-only
+    # windows, weather-vane removal, referrals — 'Other Services' is the
+    # office's own Jobber product for exactly this)
+    custom_row = (
+        f"<div style='display:flex;align-items:center;gap:8px;"
+        f"padding:7px 10px;border:1px dashed var(--line);"
+        f"border-radius:10px;margin:4px 0;color:var(--ink)'>"
+        f"<span style='white-space:nowrap;font-weight:700'>✏️ Other "
+        f"Services</span>"
+        f"<input name='custom_desc' maxlength='200' placeholder="
+        f"'describe it — e.g. interior windows only, remove weather vane' "
+        f"style='flex:1;padding:5px 8px'>"
+        f"$<input type='number' name='custom_price' step='1' min='0' "
+        f"placeholder='0' style='width:76px;padding:4px 6px'></div>")
+    rows += manual_rows + custom_row
     cur_total = (b.get("draft") or {}).get("total") or 0
     debris_line = (f"debris/buildup priced from this home's imagery reads "
                    f"({esc(pi.get('debris_read'))})"
@@ -12781,6 +12798,28 @@ class Handler(BaseHTTPRequestHandler):
                     rec["draft"]["total"] = sum(s["price"] for s in svcs)
                     rec["services"] = sorted(set((rec.get("services") or [])
                                                  + [msvc]))
+            # CUSTOM "Other Services" LINE (Jessica, Jul 20 + 23:
+            # interior-only windows, weather-vane removal, referrals —
+            # her catalog's own catch-all product, her description, her
+            # price; pushes to Jobber as 'Other Services' + description)
+            _cd = ((form.get("custom_desc", [""]) or [""])[0] or "").strip()
+            _cp = (form.get("custom_price", [""]) or [""])[0]
+            if rec and not rec.get("dns_match") and _cd:
+                try:
+                    _cpv = round(float(str(_cp).strip()), 2)
+                except (TypeError, ValueError):
+                    _cpv = -1
+                if _cpv >= 0:
+                    bid_d = rec.setdefault("draft", {}).setdefault("bid", {})
+                    svcs = bid_d.setdefault("services", [])
+                    li = {"name": "Other Services", "price": _cpv,
+                          "custom_desc": _cd[:200],
+                          "added_by": _user or "office",
+                          "manual_price": True}
+                    svcs.append(li)
+                    all_added.append(li)
+                    all_names.append(f"Other Services ({_cd[:40]})")
+                    rec["draft"]["total"] = sum(s["price"] for s in svcs)
             if all_added:
                 svc = ", ".join(all_names)
                 added = all_added

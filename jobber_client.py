@@ -344,8 +344,23 @@ mutation CreateClient($input: ClientCreateInput!) {
 }
 """
 
+def _proper_name(name):
+    """Title-case a name ONLY when the customer typed it careless-lower
+    or ALL CAPS (Jessica, Jul 23: 'customer entered their name in
+    lowercase in squarespace… automatically update to correct
+    uppercase in Jobber'). A deliberately mixed-case name (McDonald,
+    van der Berg, DeShawn) is left exactly as typed."""
+    n = (name or "").strip()
+    if n and (n.islower() or n.isupper()):
+        def cap(w):
+            return "-".join(p[:1].upper() + p[1:].lower()
+                            for p in w.split("-"))
+        return " ".join(cap(w) for w in n.split())
+    return n
+
+
 def create_client(name, email, phone=None):
-    first, _, last = (name or "").partition(" ")
+    first, _, last = (_proper_name(name)).partition(" ")
     if TEST_MODE:
         first = "TEST - " + first          # obvious, easy-to-delete practice record
     variables = {"input": {
@@ -681,6 +696,14 @@ _OFFICE_LINE = {
     "House Wash": ("House Washing",) * 2,
     "Dryer Vent Cleaning": ("Dryer Vent Cleaning",) * 2,
     "Pressure Wash Driveway": ("Pressure Wash Driveway",) * 2,
+    # canonical names straight from the office's Jobber catalog
+    # (Jessica, Jul 23: 'line items need to be the ones that are
+    # already set up in the system' — invented names break accounting)
+    "Pressure Wash Sidewalk": ("Pressure Wash Sidewalk & Curb",) * 2,
+    # Jobber has NO patio product — 'Other Services' is the office's
+    # own catch-all line; the sqft detail rides in the description.
+    # Flagged for Jessica to redirect if she'd rather use another line.
+    "Pressure Wash Patio": ("Other Services",) * 2,
 }
 
 
@@ -740,8 +763,14 @@ def create_draft_quote(client_id, property_id, bid, prop_info=None,
         "moss treatment product" in (s.get("name") or "").lower()
         for s in bid["services"])
     for s in bid["services"]:
-        names = _OFFICE_LINE.get(s["name"].split(" (~")[0])
-        oname = (names[1] if tom else names[0]) if names else s["name"]
+        raw = s["name"]
+        base = raw.split(" (~")[0]
+        names = _OFFICE_LINE.get(base)
+        # NEVER ship an invented line name (Jessica, Jul 23: the
+        # '(~225 sqft)' suffix reached Jobber as a new product and
+        # broke accounting) — unmapped lines still lose the suffix,
+        # and the sizing detail moves into the description
+        oname = (names[1] if tom else names[0]) if names else base
         li = {"name": oname,
               "quantity": 1,
               "unitPrice": float(s["price"]),
@@ -751,6 +780,11 @@ def create_draft_quote(client_id, property_id, bid, prop_info=None,
               "saveToProductsAndServices": False}
         if descs.get(oname):
             li["description"] = descs[oname]
+        if raw != base or oname == "Other Services":
+            li["description"] = ((li.get("description", "") + "\n"
+                                  if li.get("description") else "") + raw)
+        if s.get("custom_desc"):          # the office's own words win
+            li["description"] = s["custom_desc"]
         line_items.append(li)
         # the office always pairs treatment with its product line
         if oname.startswith("Apply Moss Treatment") \
