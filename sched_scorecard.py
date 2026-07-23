@@ -15,6 +15,7 @@ only question that earns trust:
 Nothing here schedules, reserves, or sends anything. It only observes.
 """
 import json
+import re
 from datetime import date
 from pathlib import Path
 
@@ -64,6 +65,70 @@ def capture(key, name, address, offer, today=None):
         "actual_date": None,                        # filled by match()
     }
     _save(log)
+
+
+_MONTHS = {m[:3].lower(): i for i, m in enumerate(
+    ("January", "February", "March", "April", "May", "June", "July",
+     "August", "September", "October", "November", "December"), 1)}
+
+
+def _confirm_date(text, today=None):
+    """The date named in an appointment-confirmation message, or None.
+    Accepts 'Tuesday, August 4(th)', 'Aug 4', '8/4', '8/4/26' — year
+    inferred as the NEXT occurrence (appointments are in the future)."""
+    t = today or date.today()
+    m = re.search(r"confirmed\s+(?:on|for)\s+([^.!\n]{2,60})", text or "",
+                  re.I)
+    if not m:
+        return None
+    frag = m.group(1)
+    mm = re.search(r"\b([A-Za-z]{3,9})\.?,?\s+(\d{1,2})(?:st|nd|rd|th)?\b",
+                   frag)
+    if mm and mm.group(1)[:3].lower() in _MONTHS:
+        mo, day = _MONTHS[mm.group(1)[:3].lower()], int(mm.group(2))
+    else:
+        mm = re.search(r"\b(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?\b", frag)
+        if not mm:
+            return None
+        mo, day = int(mm.group(1)), int(mm.group(2))
+        if mm.group(3):
+            yr = int(mm.group(3))
+            yr += 2000 if yr < 100 else 0
+            try:
+                return date(yr, mo, day)
+            except ValueError:
+                return None
+    try:
+        d = date(t.year, mo, day)
+    except ValueError:
+        return None
+    if d < t:                     # 'January 5' said in December = next year
+        try:
+            d = date(t.year + 1, mo, day)
+        except ValueError:
+            return None
+    return d
+
+
+def office_confirmed(key, text, today=None):
+    """The office SENT a confirmation naming a date (Martha's
+    appointment-confirmation quick response, Jul 23) — that date IS
+    their scheduling decision, so grade the captured offer right now
+    instead of waiting for the Jobber visit to land. First grade wins;
+    match() still covers customers confirmed by phone."""
+    if not key or not text or "(date)" in text:
+        return False
+    log = _load()
+    v = log.get(key) or log.get((key or "").strip().lower())
+    if not v or v.get("actual_date"):
+        return False
+    d = _confirm_date(text, today)
+    if not d:
+        return False
+    v["actual_date"] = d.isoformat()
+    v["actual_src"] = "office confirmation message"
+    _save(log)
+    return True
 
 
 def _iso_week(d):

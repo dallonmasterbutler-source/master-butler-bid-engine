@@ -2237,6 +2237,8 @@ def bid_page(stamp, user=None, draft=""):
                              .startswith("re:") else f"Re: {last_subject}"
                              if last_subject else "Master Butler")
             _cn_json = _canned_payload()
+            _qr_bid = json.dumps(
+                _qr_subs_for(b, cust_email)).replace("</", "<\\/")
             reply_ui = f"""
   <div style='border-top:1px solid var(--line);margin-top:10px;
        padding-top:10px'>
@@ -2272,6 +2274,7 @@ def bid_page(stamp, user=None, draft=""):
    </form></div>
 <script>
 {_CANNED_MERGE_JS}
+window.QR_SUBS = {_qr_bid};
 var BC = mergeCanned({_cn_json});
 var _bs = document.getElementById('bidcanned');
 Object.keys(BC).forEach(function(k){{
@@ -2281,7 +2284,7 @@ Object.keys(BC).forEach(function(k){{
 _bs.onchange = function(){{
   if (!_bs.value) return;
   var t = document.getElementById('bidreply');
-  t.value = BC[_bs.value]; t.style.height = 'auto';
+  t.value = qrSub(BC[_bs.value]); t.style.height = 'auto';
   t.style.height = Math.min(t.scrollHeight + 6, 420) + 'px'; t.focus();
 }};
 </script>"""
@@ -3119,7 +3122,7 @@ setInterval(function(){{
 }}, 60000);
 sel.onchange = function(){{
   if (!sel.value) return;
-  _rb.value = CANNED[sel.value];
+  _rb.value = qrSub(CANNED[sel.value]);
   grow(_rb);
   _rb.focus();
 }};
@@ -6298,6 +6301,8 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
     reply_ui = ""
     if c["email"]:
         _cn_json = _canned_payload()
+        _qr_json = json.dumps(
+            _qr_subs_for(nb, c["email"])).replace("</", "<\\/")
         last_subject = next((m_.get("subject") for m_ in
                              reversed(c["msgs"] or []) if m_.get("subject")),
                             "") or (nb.get("subject") if nb else "") or ""
@@ -6378,6 +6383,7 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
    </div></form></div>
 <script>
 {_CANNED_MERGE_JS}
+window.QR_SUBS = {_qr_json};
 var IC = mergeCanned({_cn_json});
 var _is = document.getElementById('inboxcanned');
 Object.keys(IC).forEach(function(k){{
@@ -6387,7 +6393,7 @@ Object.keys(IC).forEach(function(k){{
 _is.onchange = function(){{
   if (!_is.value) return;
   var t = document.getElementById('inboxreply');
-  t.value = IC[_is.value]; t.style.height = 'auto';
+  t.value = qrSub(IC[_is.value]); t.style.height = 'auto';
   t.style.height = Math.min(t.scrollHeight + 6, 420) + 'px'; t.focus();
 }};
 </script>"""
@@ -6766,6 +6772,9 @@ def customers_tab_page(sel=None, q="", user=None, draft=""):
         if p["emails"]:
             e0 = p["emails"][0]
             _cnp = _canned_payload()
+            _qr_cust = json.dumps(_qr_subs_for(
+                next((recs.get(s) for s in sorted(p["stamps"], reverse=True)
+                      if recs.get(s)), None), e0)).replace("</", "<\\/")
             reply_html = f"""
  <div style='border-top:1px solid var(--line);margin-top:10px;
       padding-top:10px'>
@@ -6809,6 +6818,7 @@ def customers_tab_page(sel=None, q="", user=None, draft=""):
   </form></div>
 <script>
 {_CANNED_MERGE_JS}
+window.QR_SUBS = {_qr_cust};
 var CC = mergeCanned({_cnp});
 var _ccs = document.getElementById('custcanned');
 Object.keys(CC).forEach(function(k){{
@@ -6818,7 +6828,7 @@ Object.keys(CC).forEach(function(k){{
 _ccs.onchange = function(){{
   if (!_ccs.value) return;
   var t = document.getElementById('custreply');
-  t.value = CC[_ccs.value]; t.style.height = 'auto';
+  t.value = qrSub(CC[_ccs.value]); t.style.height = 'auto';
   t.style.height = Math.min(t.scrollHeight + 6, 420) + 'px'; t.focus();
 }};
 </script>"""
@@ -7168,7 +7178,7 @@ _rb.addEventListener('input', function(){{ grow(_rb); }});
 if (_rb.value) grow(_rb);
 _cs.onchange = function(){{
   if (!_cs.value) return;
-  _rb.value = CANNED[_cs.value]; grow(_rb); _rb.focus();
+  _rb.value = qrSub(CANNED[_cs.value]); grow(_rb); _rb.focus();
 }};
 </script>"""
         unread_btn = ""
@@ -9094,18 +9104,73 @@ def flyover_page(addr):
                 "fallback.</div>")
 
 
+def _qr_subs_for(rec, email):
+    """(date)/(services) fills for the quick-response blanks on THIS
+    customer's reply box (Martha's appointment confirmation, Jul 23).
+    The date is the shadow scheduler's live offer — pre-filled so her
+    edit (or her keeping it) grades the offer; no offer → the blank
+    stays visible and she types the date as she always has. Showing
+    the date also snapshots the offer to the scorecard (first-seen-
+    wins), so what she sends can be graded against it."""
+    subs = {}
+    if not rec:
+        return subs
+    try:
+        svcs = [(s.get("name") or "").lower() for s in
+                (((rec.get("draft") or {}).get("bid") or {})
+                 .get("services") or []) if s.get("name")]
+        if svcs:
+            subs["(services)"] = (", ".join(svcs[:-1]) + " and " + svcs[-1]
+                                  if len(svcs) > 1 else svcs[0])
+    except Exception:
+        pass
+    try:
+        import sched_offers
+        off = sched_offers.offer(rec)
+        if off and off.get("kind") == "date" and off.get("date"):
+            from datetime import date as _date
+            dt = _date.fromisoformat(off["date"][:10])
+            subs["(date)"] = f"{dt.strftime('%A, %B')} {dt.day}"
+            try:
+                import sched_scorecard
+                sched_scorecard.capture(
+                    (email or "").strip().lower(),
+                    rec.get("from") or email, rec.get("address"), off)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return subs
+
+
 def _canned_payload():
     """Quick responses for the dropdowns: the shared set + everyone's
     personal sets (Jessica, Jul 9). The page's JS picks the personal set
     matching the name cookie and marks those entries ★."""
     shared = _blob_rw("canned_replies", {})
     personal = _blob_rw("canned_replies_personal", {})
+    # APPOINTMENT CONFIRMATION (Martha, Jul 23) — her standard wording,
+    # with (date)/(services) blanks the reply pages fill in from the
+    # record (the shadow scheduler's date when it has one; she edits
+    # anything before sending). setdefault: an office edit in Settings
+    # overrides this wording for good.
+    shared.setdefault(
+        "Appointment confirmation",
+        "Great! We have your appointment confirmed on (date) for "
+        "(services). Thank you for booking with us. We look forward "
+        "to servicing your home!")
     # MOST-USED FIRST (LaRee, Jul 10: 'organize them to the top for most
     # used, least used at bottom') — every pick bumps a counter; the
     # dropdowns re-order themselves to how the office actually works.
     usage = _blob_rw("qr_usage", {})
     shared = dict(sorted(shared.items(),
                          key=lambda kv: -usage.get(kv[0], 0)))
+    if not usage.get("Appointment confirmation"):
+        # Martha asked for it at #3 — hold that spot until its own
+        # usage earns it a place under LaRee's most-used rule
+        _ks = [k for k in shared if k != "Appointment confirmation"]
+        _ks.insert(min(2, len(_ks)), "Appointment confirmation")
+        shared = {k: shared[k] for k in _ks}
     return json.dumps({"shared": shared,
                        "personal": personal}).replace("</", "<\\/")
 
@@ -9118,6 +9183,14 @@ function mergeCanned(payload){
   Object.keys(payload.shared).forEach(function(k){out[k]=payload.shared[k];});
   Object.keys(mine).forEach(function(k){out['\\u2605 '+k]=mine[k];});
   return out;
+}
+// fill (date)/(services) blanks from this page's customer (Martha's
+// appointment confirmation, Jul 23) — pages without context leave the
+// blanks visible so she fills them by hand
+function qrSub(t){
+  var s = window.QR_SUBS || {};
+  Object.keys(s).forEach(function(k){ t = t.split(k).join(s[k]); });
+  return t;
 }
 // HOT-KEYS (LaRee, Jul 10): Ctrl/Cmd + 1..9 drops in that numbered
 // quick response — works in every reply box that has the dropdown.
@@ -13212,6 +13285,17 @@ class Handler(BaseHTTPRequestHandler):
                                   by=_user or "")
                     save_review({"stamp": "", "action": "customer_reply",
                                  "customer": to, "note": text[:120]})
+                    # SHADOW-SCHEDULER GRADE (Martha's confirmation flow,
+                    # Jul 23): the confirmation she just sent names the
+                    # office's chosen date — grade the captured offer
+                    # against it now, no waiting for the Jobber visit.
+                    if re.search(r"appointment\s+confirmed", text, re.I):
+                        try:
+                            import sched_scorecard as _ssc
+                            _ssc.office_confirmed(
+                                (to or "").strip().lower(), text)
+                        except Exception:
+                            pass
                     # THE LIVE GRADE (Dallon, Jul 14): a pre-filled
                     # draft was in the box — score what they actually
                     # sent against it (dates excluded) and learn the gap
