@@ -30,7 +30,7 @@ BONUS = 2.0
 TECHS = [
     ('Tom Fricke',      "Yoda — Tom (untouched)",       '#334155', True),
     ('Dallon Anderson', "Iron Man — Dallon's circuit",  '#b8860b', True),
-    ('Connor Anderson', "Flash — Connor (Sammamish E)", '#c0392b', False),
+    ('Connor Anderson', "Flash — Connor (Sammamish E)", '#e67e22', False),
     ('Shane Strand',    "Superman — Shane's circuit",   '#1d4ed8', False),
     ('Austin Dayton',   "Spiderman — Austin's circuit", '#dc2626', False),
     ('Mark Proudlock',  "Wolverine — Mark",             '#6d28d9', False),
