@@ -203,6 +203,9 @@ def photos_index(refs):
     if not refs:
         return []
     key = "pix:" + "|".join(sorted(set(refs)))
+    if sum(1 for k in _CACHE if k.startswith("pix:")) > 300:
+        for _k in [k for k in list(_CACHE) if k.startswith("pix:")]:
+            _CACHE.pop(_k, None)      # bounded — the box has 512MB
     return _cached(key, lambda: _exec(
         "SELECT ref, kind, idx FROM photos WHERE ref = ANY(%s) "
         "ORDER BY kind, idx", (list(refs),), fetch="all"))

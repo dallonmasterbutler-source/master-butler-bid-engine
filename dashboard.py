@@ -11586,39 +11586,50 @@ class Handler(BaseHTTPRequestHandler):
             # build is guarded so a partial dump still returns 200.
             try:
                 import clouddb as cdb
-                dump = {"at": datetime.now().isoformat(timespec="seconds"),
-                        "shadow_records": {}, "reviews": load_reviews(),
-                        "blobs": {}, "photo_index": []}
-                for stamp, rec in cdb.all_shadow():
-                    dump["shadow_records"][stamp] = rec
-                # clouddb exposes _exec(sql, fetch=...), NOT _conn() — the
-                # old code called a function that never existed, so this
-                # endpoint 500-ed every night (Jul 20 fix).
-                for (k, v) in (cdb._exec(
-                        "SELECT key, value FROM kv_blobs", fetch="all") or []):
-                    if isinstance(v, (bytes, bytearray)):
-                        try:
-                            v = v.decode("utf-8")
-                        except Exception:
-                            continue           # skip un-decodable binary blob
-                    if isinstance(v, str):
-                        try:
-                            v = json.loads(v)
-                        except ValueError:
-                            pass              # plain-text blob (the brief)
-                    dump["blobs"][k] = v
-                dump["photo_index"] = [list(r) for r in (cdb._exec(
-                    "SELECT ref, kind, idx FROM photos", fetch="all") or [])]
+                # TEXT-SPLICE BUILD (Jul 23: Render OOM-killed the 512MB
+                # box two days running, both times while serving THIS
+                # endpoint). The old build parsed every record and all
+                # ~2,800 blobs into Python objects at once (~hundreds of
+                # MB) just to re-serialize them. The columns are jsonb —
+                # `::text` is guaranteed-valid JSON straight from
+                # Postgres, spliced through without ever parsing. Peak
+                # memory is now ~3× the 22MB payload instead of ~15×.
+                parts = ['{"at": ' + json.dumps(
+                    datetime.now().isoformat(timespec="seconds"))]
+                _rw = cdb._exec("SELECT entry::text FROM review_log "
+                                "ORDER BY id", fetch="all") or []
+                parts.append(', "reviews": ['
+                             + ",".join(r[0] for r in _rw) + "]")
+                _rw = cdb._exec("SELECT stamp, record::text FROM "
+                                "shadow_records ORDER BY stamp",
+                                fetch="all") or []
+                parts.append(', "shadow_records": {'
+                             + ",".join(json.dumps(s) + ":" + t
+                                        for s, t in _rw) + "}")
+                _rw = cdb._exec("SELECT key, value::text FROM kv_blobs",
+                                fetch="all") or []
+                parts.append(', "blobs": {'
+                             + ",".join(json.dumps(k) + ":" + t
+                                        for k, t in _rw) + "}")
+                _rw = cdb._exec("SELECT ref, kind, idx FROM photos",
+                                fetch="all") or []
+                parts.append(', "photo_index": '
+                             + json.dumps([list(r) for r in _rw]))
+                _rw = None
                 try:
                     # the pricing-learning SQLite rides along in the
                     # nightly restore point (Postgres-shelved Jul 22)
                     _lb = cdb.get_file("masterbutler.db")
                     if _lb:
                         from base64 import b64encode as _b64e
-                        dump["learning_store_b64"] = _b64e(_lb).decode()
+                        parts.append(', "learning_store_b64": '
+                                     + json.dumps(_b64e(_lb).decode()))
+                        _lb = None
                 except Exception:
                     pass
-                body = json.dumps(dump, default=str).encode()
+                parts.append("}")
+                body = "".join(parts).encode()
+                parts = None
                 return self._send(body, ctype="application/json")
             except Exception as _be:
                 import traceback
