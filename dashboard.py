@@ -6378,8 +6378,10 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
                 f"<button type='button' class='gray' style='font-size:"
                 f"12px;margin-left:6px' onclick=\"var t=document."
                 f"getElementById('inboxreply');t.value="
-                f"{esc(json.dumps(_rtxt))};t.focus()\">✏️ Draft the "
-                f"reply</button></div>")
+                f"{esc(json.dumps(_rtxt))};"
+                f"document.getElementById('refused').value="
+                f"{esc(json.dumps(_rl + '|' + _rv + '|' + (_rr.get('mode') or 'info')))};"
+                f"t.focus()\">✏️ Draft the reply</button></div>")
         _send_btn = (
             f"<button class='big' onclick=\"return confirm("
             f"'Send this reply to {esc(c['email'])}?')\">Send reply"
@@ -6406,6 +6408,7 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
    <input type='hidden' name='back' value='{esc(back)}'>
    <input type='hidden' name='prefill_kind' value='{esc((_pre or {}).get("type",""))}'>
    <input type='hidden' name='prefill' value='{esc((_pre or {}).get("draft",""))}'>
+   <input type='hidden' name='referral' id='refused' value=''>
    <textarea id='inboxreply' name='body' rows='3' style='min-height:76px'
     placeholder='Reply to {esc(c["email"])}'>{esc(_box_text)}</textarea>
    <div style='display:flex;justify-content:space-between;align-items:center;
@@ -9473,6 +9476,29 @@ def _referral_hits(text):
     return hits
 
 
+def _referral_tally():
+    """Referrals actually SENT, counted per vendor (Tom, Jul 23:
+    'referrals should be tracked') — from the 🔁-chip sends."""
+    log = _blob_rw("referral_log", []) or []
+    if not log:
+        return ("<div class='subtext' style='padding:6px 0'>No referrals "
+                "sent yet — each 🔁-chip reply that sends is counted "
+                "here.</div>")
+    import collections as _c
+    per = _c.Counter(f"{r.get('service')} → {r.get('vendor')}"
+                     for r in log)
+    chips = " ".join(f"<span class='chip'>{esc(k)}: <b>{n}</b></span>"
+                     for k, n in per.most_common())
+    recent = "".join(
+        f"<div class='subtext'>{esc((r.get('at') or '')[:10])} · "
+        f"{esc(r.get('customer') or '')} → {esc(r.get('vendor') or '')} "
+        f"({esc(r.get('by') or '')})</div>" for r in log[-5:][::-1])
+    return (f"<div style='padding:6px 0'><b>Sent so far:</b> {chips}"
+            f"<details style='margin-top:4px'><summary class='subtext' "
+            f"style='cursor:pointer'>recent</summary>{recent}</details>"
+            f"</div>")
+
+
 def settings_page(msg="", user=None):
     """The office's own control room (Dallon: 'they work on this daily,
     I don't') — quick responses and pricing knobs, no code, no Dallon."""
@@ -9653,6 +9679,7 @@ def settings_page(msg="", user=None):
  card shows a 🔁 chip with the reply pre-drafted — nothing is added to
  the quick-responses list, and nothing sends on its own.</div>
  {refrows}
+ {_referral_tally()}
  <details style='padding:10px 0'>
   <summary style='cursor:pointer;font-weight:700'>➕ Add a referral
   </summary>
@@ -13485,6 +13512,27 @@ class Handler(BaseHTTPRequestHandler):
                             import sched_scorecard as _ssc
                             _ssc.office_confirmed(
                                 (to or "").strip().lower(), text)
+                        except Exception:
+                            pass
+                    # REFERRAL TRACKING (Tom, Jul 23): a reply drafted
+                    # from a 🔁 chip that actually SENT is one referral
+                    if get("referral"):
+                        try:
+                            _svc_r, _ven_r, _md_r = (
+                                get("referral").split("|") + ["", ""])[:3]
+                            _rlog = _blob_rw("referral_log", []) or []
+                            _rlog.append({
+                                "at": datetime.now().isoformat(
+                                    timespec="seconds"),
+                                "customer": to, "service": _svc_r,
+                                "vendor": _ven_r, "mode": _md_r,
+                                "by": _user or "office"})
+                            _blob_save("referral_log", _rlog[-500:])
+                            save_review({
+                                "stamp": "", "action": "referral",
+                                "customer": to,
+                                "note": f"{_svc_r} referred to {_ven_r} "
+                                        f"({_md_r}) by {_user or 'office'}"})
                         except Exception:
                             pass
                     # THE LIVE GRADE (Dallon, Jul 14): a pre-filled
