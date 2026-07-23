@@ -700,10 +700,10 @@ _OFFICE_LINE = {
     # (Jessica, Jul 23: 'line items need to be the ones that are
     # already set up in the system' — invented names break accounting)
     "Pressure Wash Sidewalk": ("Pressure Wash Sidewalk & Curb",) * 2,
-    # Jobber has NO patio product — 'Other Services' is the office's
-    # own catch-all line; the sqft detail rides in the description.
-    # Flagged for Jessica to redirect if she'd rather use another line.
-    "Pressure Wash Patio": ("Other Services",) * 2,
+    # Jessica's call (Jul 23): patio pressure washing bills to the
+    # catalog's 'Concrete Surface Cleaning'; sqft detail rides in the
+    # description.
+    "Pressure Wash Patio": ("Concrete Surface Cleaning",) * 2,
 }
 
 
@@ -780,7 +780,8 @@ def create_draft_quote(client_id, property_id, bid, prop_info=None,
               "saveToProductsAndServices": False}
         if descs.get(oname):
             li["description"] = descs[oname]
-        if raw != base or oname == "Other Services":
+        if raw != base or oname in ("Other Services",
+                                    "Concrete Surface Cleaning"):
             li["description"] = ((li.get("description", "") + "\n"
                                   if li.get("description") else "") + raw)
         if s.get("custom_desc"):          # the office's own words win

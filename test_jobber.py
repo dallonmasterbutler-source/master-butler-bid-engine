@@ -76,8 +76,8 @@ _names = [li.get("name") for li in _lis]
 if _names:
     check2("no invented '(~sqft)' product names reach Jobber",
            all("(~" not in (n or "") for n in _names))
-    check2("patio bills to the catalog's 'Other Services'",
-           "Other Services" in _names)
+    check2("patio bills to 'Concrete Surface Cleaning' (Jessica Jul 23)",
+           "Concrete Surface Cleaning" in _names)
     check2("sidewalk maps to 'Pressure Wash Sidewalk & Curb'",
            "Pressure Wash Sidewalk & Curb" in _names)
     _oth = next(li for li in _lis
@@ -88,7 +88,8 @@ else:
     print("  (dry-run returned no line echo — mapping checked at unit "
           "level instead)")
     check2("patio maps via _OFFICE_LINE",
-           jc._OFFICE_LINE["Pressure Wash Patio"][0] == "Other Services")
+           jc._OFFICE_LINE["Pressure Wash Patio"][0]
+           == "Concrete Surface Cleaning")
     check2("sidewalk maps via _OFFICE_LINE",
            jc._OFFICE_LINE["Pressure Wash Sidewalk"][0]
            == "Pressure Wash Sidewalk & Curb")
