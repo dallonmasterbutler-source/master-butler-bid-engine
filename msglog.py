@@ -66,8 +66,19 @@ def clean_body(text, limit=4000):
         parts = ["📋 Website quote request"]
         svc = re.search(r"(?:IN-HOUSE )?SERVICES[^\n]*:\s*\n?\s*([^\n]{3,90})",
                         text, re.I)
-        adr = re.search(r"\bAddress[^\n:]{0,20}:\s*\n?\s*([^\n]{6,80})", text)
-        msg = re.search(r"(?:MESSAGE|Comments?)\s*:?\s*\n\s*(.{10,2500})",
+        # (?<!Email ): 'Email Address:' is not the house (Jul 23 — the
+        # summary line was showing the email under the Address label)
+        adr = re.search(r"(?<!Email )\bAddress[^\n:]{0,20}:\s*\n?\s*"
+                        r"([^\n]{6,80})", text)
+        # LAZY capture with a field-label terminator (Jul 23): Squarespace's
+        # own footer repeats the form fields AFTER the message, so a greedy
+        # grab showed the customer's words followed by a second copy of the
+        # skeleton. Stop at the next line-start field label / footer marker.
+        msg = re.search(r"(?:MESSAGE|Comments?)\s*:?\s*\n\s*(.{10,2500}?)"
+                        r"(?=\n\s*(?:Name:|Email(?: Address)?:|"
+                        r"Phone(?: Number)?:|Address[^\n:]{0,20}:|"
+                        r"(?:IN-HOUSE )?SERVICES\b|Sent via|"
+                        r"Submitted (?:on|via)|\(Sent via)|\s*\Z)",
                         text, re.S | re.I)
         if svc:
             parts.append("Services: " + svc.group(1).strip())

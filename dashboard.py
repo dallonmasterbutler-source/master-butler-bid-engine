@@ -360,6 +360,12 @@ def quote_numbers():
 
 CLAIM_FRESH_MIN = 15          # someone is "working on it" this long
 
+# detail-card pre-fill memo (Jul 23 perf shave): autorespond.build_draft
+# re-read the whole thread on EVERY card view; the draft only changes
+# when a new message lands, so key on (customer, newest-at, viewer) with
+# a 10-min bucket as a coarse expiry for template/voice edits.
+_PRE_MEMO = {}
+
 
 def _claims():
     """{stamp: {'by','at'}} — who has a bid open right now. Stale
@@ -4281,6 +4287,14 @@ def inbox_page(sel=None, draft="", user=None, pushed=None, blocked=None,
             f"<input type='hidden' name='action' value='approve'>"
             f"<input type='hidden' name='force_new' value='1'>"
             f"<input type='hidden' name='back' value='/'>"
+            # WHY (Jul 23): the override is the one button that can make
+            # a duplicate on purpose — one line of 'why' in the review
+            # log turns a mystery second quote into an explained one
+            f"<input name='reason' required maxlength='120' "
+            f"placeholder='why? e.g. second property on NE 8th' "
+            f"style='width:100%;box-sizing:border-box;border:0;"
+            f"border-radius:8px;padding:8px 10px;margin:0 0 6px;"
+            f"font-size:13px'>"
             f"<button style='background:#fff;color:#8a5a00;font-weight:800;"
             f"border:0;border-radius:8px;padding:8px 14px;cursor:pointer'>"
             f"➕ Different job — push a second quote</button></form></div>")
@@ -6296,18 +6310,28 @@ def _inbox_detail(cur, quotes, qurls, live_holds, flags_open, sbs,
         # and quick responses still override; every send is graded.
         _pre = None
         if not draft:
-            try:
-                import autorespond as _ar
-                _cand = _ar.build_draft(
-                    nb, c["msgs"], user,
-                    _blob_rw("office_voice", {}) or {},
-                    auto=_blob_rw("reply_templates_auto", {}) or {})
-                if _cand and _cand["type"] in ("thanks_ack",
-                                               "date_confirm",
-                                               "approve_wants_date"):
-                    _pre = _cand
-            except Exception:
-                _pre = None
+            _mk = (c["email"], user,
+                   next((m_.get("at") for m_ in
+                         reversed(c["msgs"] or [])), ""),
+                   int(_time.time() // 600))
+            if _mk in _PRE_MEMO:
+                _pre = _PRE_MEMO[_mk]
+            else:
+                try:
+                    import autorespond as _ar
+                    _cand = _ar.build_draft(
+                        nb, c["msgs"], user,
+                        _blob_rw("office_voice", {}) or {},
+                        auto=_blob_rw("reply_templates_auto", {}) or {})
+                    if _cand and _cand["type"] in ("thanks_ack",
+                                                   "date_confirm",
+                                                   "approve_wants_date"):
+                        _pre = _cand
+                except Exception:
+                    _pre = None
+                if len(_PRE_MEMO) > 400:
+                    _PRE_MEMO.clear()
+                _PRE_MEMO[_mk] = _pre
         _box_text = draft or (_pre or {}).get("draft", "")
         _pre_banner = (
             "<div style='background:rgba(201,162,39,.12);color:"
@@ -11860,8 +11884,10 @@ class Handler(BaseHTTPRequestHandler):
                     self.end_headers()
                     return
                 if get("force_new") and _oqg:
+                    _why_fn = (get("reason") or "").strip() \
+                        or "no reason given"
                     entry["note"] = (f"second quote pushed on office "
-                                     f"override (different job/property) "
+                                     f"override ({_why_fn}) "
                                      f"— existing #{_oqg.get('number')} "
                                      "left open")
                 already_q = quote_numbers().get(get("stamp"))
@@ -11875,6 +11901,42 @@ class Handler(BaseHTTPRequestHandler):
                     self.end_headers()
                     return
                 rec = _shadow_rec(get("stamp")) or {}
+                # ATTEMPT-FIRST LEDGER (Jul 23): if a previous push for
+                # this bid died between Jobber accepting the quote and us
+                # saving the response, the double-click guard above sees
+                # nothing — a re-click would make quote #2. A pending
+                # attempt means "Jobber may already have it": block once
+                # with a visible banner; the office verifies in Jobber and
+                # the 'push anyway' button (an explicit human yes after
+                # the warning) is the only way through.
+                _att = None
+                if clouddb.available():
+                    _att = (clouddb.get_blob("push_attempts") or {}) \
+                        .get(get("stamp"))
+                if _att and not _att.get("done") and not (
+                        get("force_new") and _att.get("warned")):
+                    _now_w = datetime.now().isoformat(timespec="seconds")
+                    clouddb.merge_blob("push_attempts", {get("stamp"): {
+                        **_att, "warned": _now_w}})
+                    entry["note"] = (
+                        f"NOT pushed — an earlier push at "
+                        f"{_att.get('at', '?')} never reported back, so a "
+                        f"quote may already exist in Jobber. Verify there, "
+                        "then use 'push anyway' if it's really missing.")
+                    save_review(entry)
+                    _bq = (_oqg or {}).get("number") or "?"
+                    back_a = get("back")
+                    back_a = back_a if back_a.startswith("/") else "/"
+                    _sep = "&" if "?" in back_a else "?"
+                    self.send_response(303)
+                    self.send_header(
+                        "Location",
+                        f"{back_a}{_sep}blocked={get('stamp')}"
+                        f"&bq={_bq}"
+                        f"&bs={urllib.parse.quote('unverified push — check Jobber first')}"
+                        f"&bc={urllib.parse.quote(get('customer') or '')}")
+                    self.end_headers()
+                    return
                 d = rec.get("draft")
                 if rec.get("dns_match"):     # HARD BLOCK, even when live
                     entry["note"] = ("REFUSED: do-not-service match — "
@@ -11894,6 +11956,12 @@ class Handler(BaseHTTPRequestHandler):
                     purls = _photo_urls_for(get("stamp"),
                                             rec.get("address"),
                                             self.headers.get("Host"))
+                    # write the attempt BEFORE Jobber can answer — this
+                    # marker is what survives a crash mid-push
+                    if clouddb.available():
+                        clouddb.merge_blob("push_attempts", {get("stamp"): {
+                            "at": datetime.now().isoformat(
+                                timespec="seconds"), "done": False}})
                     res = jc.push_approved_bid(
                         d["customer"], d["bid"], d.get("prop_info"),
                         photo_urls=purls,
@@ -11902,6 +11970,17 @@ class Handler(BaseHTTPRequestHandler):
                     q = (res.get("quoteCreate", {}) or {}).get("quote", {})
                     errs = (res.get("quoteCreate", {}) or {}).get(
                         "userErrors") or []
+                    # resolve the attempt marker only on a DEFINITIVE
+                    # answer: a quote number, or a GraphQL refusal
+                    # (userErrors = Jobber processed it and made nothing).
+                    # A transport error stays PENDING — the quote may
+                    # exist unseen, which is the case the marker catches.
+                    if clouddb.available() and (q.get("quoteNumber")
+                                                or errs):
+                        clouddb.merge_blob("push_attempts", {get("stamp"): {
+                            "at": datetime.now().isoformat(
+                                timespec="seconds"), "done": True,
+                            "quote": q.get("quoteNumber") or "refused"}})
                     if q.get("quoteNumber"):
                         entry["jobber_quote"] = q["quoteNumber"]
                         if q.get("jobberWebUri"):  # clickable # (Jessica)

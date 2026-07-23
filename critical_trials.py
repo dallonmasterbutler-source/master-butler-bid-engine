@@ -262,7 +262,7 @@ def main():
     for t in ("test_pricing.py", "test_tax.py", "test_lastpaid.py",
               "test_seasons.py", "test_spam_filter.py", "test_parser.py",
               "test_jobber.py", "test_dedup_reply.py",
-              "test_mirror_sweep.py"):
+              "test_mirror_sweep.py", "test_msglog.py"):
         if not (BASE / t).exists():
             continue
         r = subprocess.run([sys.executable, t], cwd=BASE,

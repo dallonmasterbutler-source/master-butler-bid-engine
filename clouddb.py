@@ -189,15 +189,23 @@ def put_photo(ref, kind, idx, jpeg_bytes):
     _exec("INSERT INTO photos (ref, kind, idx, jpeg) VALUES (%s,%s,%s,%s) "
           "ON CONFLICT (ref, kind, idx) DO UPDATE SET jpeg = EXCLUDED.jpeg",
           (ref, kind, idx, jpeg_bytes))
+    for _k in [k for k in list(_CACHE) if k.startswith("pix:")]:
+        _CACHE.pop(_k, None)
+    _bump()
 
 
 def photos_index(refs):
     """[(ref, kind, idx), ...] for any of the given refs — cheap listing
-    (no image bytes) so pages render fast."""
+    (no image bytes) so pages render fast. CACHED (Jul 23 perf shave):
+    the detail card asks 2-3 times per view for the same refs — each a
+    full DB round trip; the 45s TTL + put_photo invalidation make repeat
+    views near-free, and a fresh photo still shows within one poll."""
     if not refs:
         return []
-    return _exec("SELECT ref, kind, idx FROM photos WHERE ref = ANY(%s) "
-                 "ORDER BY kind, idx", (list(refs),), fetch="all")
+    key = "pix:" + "|".join(sorted(set(refs)))
+    return _cached(key, lambda: _exec(
+        "SELECT ref, kind, idx FROM photos WHERE ref = ANY(%s) "
+        "ORDER BY kind, idx", (list(refs),), fetch="all"))
 
 
 def get_photo(ref, kind, idx):
