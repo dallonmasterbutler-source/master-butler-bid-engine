@@ -139,23 +139,56 @@ def _iso_week(d):
         return None
 
 
-def match(visits):
+def match(visits, today=None):
     """Pair captured offers with the office's real bookings. `visits` =
-    [{'address','start'}] from the live Jobber schedule (sched_mine fetches
-    these). Sets actual_date on any captured customer now on the calendar."""
+    [{'address','start','techs'}] from the live Jobber schedule. Sets
+    actual_date on any captured customer now on the calendar.
+
+    THE MOVE LEDGER (Dallon, Jul 23: 'if the office ends up moving a
+    job off the day we will measure it with our own system'): once a
+    customer is graded, we KEEP watching their visit. If it no longer
+    sits on the recorded day, that's the office un-booking a day we
+    (or they) filled — recorded with its phase:
+      · before_day — moved at scheduling time (day didn't hold)
+      · day_of     — moved on/after the day (a tech couldn't finish)
+    This is the overbooking measurement that earns the paces their
+    numbers; the safety margin in sched_offers loosens only on this
+    evidence."""
     from jobber_client import _same_property
+    t = today or date.today()
     log = _load()
     changed = False
     for v in log.values():
-        if v.get("actual_date") or not v.get("address"):
+        if not v.get("address"):
             continue
-        for vis in visits:
-            if _same_property(v["address"], vis.get("address") or ""):
-                v["actual_date"] = (vis.get("start") or "")[:10]
-                if vis.get("techs"):        # grade the truck pick too
-                    v["actual_techs"] = vis["techs"]
-                changed = True
-                break
+        hits = [vis for vis in visits
+                if _same_property(v["address"], vis.get("address") or "")]
+        if not hits:
+            continue
+        dates = sorted({(h.get("start") or "")[:10] for h in hits})
+        cur = v.get("actual_date")
+        if cur and cur in dates:
+            continue                      # still where we recorded it
+        # prefer the visit matching today or later, else the earliest
+        new_d = next((d2 for d2 in dates if d2 >= t.isoformat()),
+                     dates[0])
+        new_hit = next(h for h in hits
+                       if (h.get("start") or "")[:10] == new_d)
+        if not cur:
+            v["actual_date"] = new_d
+            if new_hit.get("techs"):      # grade the truck pick too
+                v["actual_techs"] = new_hit["techs"]
+            changed = True
+            continue
+        # a graded customer whose visit LEFT the recorded day = a move
+        v.setdefault("moves", []).append({
+            "from": cur, "to": new_d, "seen": t.isoformat(),
+            "phase": ("day_of" if t.isoformat() >= cur
+                      else "before_day")})
+        v["actual_date"] = new_d
+        if new_hit.get("techs"):
+            v["actual_techs"] = new_hit["techs"]
+        changed = True
     if changed:
         _save(log)
     return log
@@ -180,8 +213,18 @@ def report():
                   if r.get("offered_truck") and r.get("actual_techs")]
     truck_hits = [r for r in truck_rows
                   if r["offered_truck"] in r["actual_techs"]]
+    # THE MOVE LEDGER (overbooking measurement): jobs the office pulled
+    # off a day — before the day (didn't hold at scheduling) vs day-of
+    # (a tech couldn't finish). The paces stay guesses until this says
+    # otherwise.
+    moves = [m for r in rows for m in (r.get("moves") or [])]
     total = len(rows)
     return {
+        "moves_total": len(moves),
+        "moves_before_day": sum(1 for m in moves
+                                if m.get("phase") == "before_day"),
+        "moves_day_of": sum(1 for m in moves
+                            if m.get("phase") == "day_of"),
         "truck_graded": len(truck_rows),
         "truck_same": len(truck_hits),
         "truck_agreement_pct": (round(100 * len(truck_hits)

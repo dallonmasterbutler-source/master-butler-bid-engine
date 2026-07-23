@@ -72,6 +72,42 @@ check("first grade wins (second send is a no-op)",
 check("unknown customer is a no-op",
       sc.office_confirmed("nobody@x.com", MSG, TODAY) is False)
 
+# ── THE MOVE LEDGER (Dallon: 'if the office ends up moving a job off
+# the day we will measure it with our own system') ──
+_ML = {"m@x.com": {"name": "M", "address": "9 Oak St, Monroe, WA 98272",
+                   "kind": "date", "offered_date": "2026-08-04",
+                   "offered_truck": "Adam Mcbride",
+                   "first_seen": "2026-07-20", "actual_date": None}}
+sc._load = lambda: _ML
+sc._save = lambda d: _ML.update(d)
+
+
+def vis(day, techs=("Adam Mcbride",)):
+    return [{"address": "9 Oak St, Monroe, WA 98272",
+             "start": f"{day}T16:00:00Z", "techs": list(techs)}]
+
+
+sc.match(vis("2026-08-04"), today=date(2026, 8, 1))
+check("first sighting grades date + truck",
+      _ML["m@x.com"]["actual_date"] == "2026-08-04"
+      and _ML["m@x.com"]["actual_techs"] == ["Adam Mcbride"])
+sc.match(vis("2026-08-04"), today=date(2026, 8, 2))
+check("visit still on its day = no phantom move",
+      not _ML["m@x.com"].get("moves"))
+sc.match(vis("2026-08-06", ("Shane Strand",)), today=date(2026, 8, 2))
+mv = _ML["m@x.com"]["moves"]
+check("moved at scheduling time = before_day move",
+      len(mv) == 1 and mv[0]["phase"] == "before_day"
+      and mv[0]["from"] == "2026-08-04" and mv[0]["to"] == "2026-08-06"
+      and _ML["m@x.com"]["actual_date"] == "2026-08-06")
+sc.match(vis("2026-08-10"), today=date(2026, 8, 6))
+check("moved on the day itself = day_of move (tech couldn't finish)",
+      len(mv) == 2 and mv[1]["phase"] == "day_of")
+rep = sc.report()
+check("report counts the moves by phase",
+      rep["moves_total"] == 2 and rep["moves_before_day"] == 1
+      and rep["moves_day_of"] == 1)
+
 # ── the template in the dropdown payload ──
 import json
 

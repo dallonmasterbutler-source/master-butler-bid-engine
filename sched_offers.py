@@ -82,6 +82,17 @@ def _geocode(address):
 PACE_WINDOW = 100.0
 PACE_DEFAULT = 140.0
 TRUCK_DAY_H = 8.5
+# UNTIL THE CLOCK IS MEASURED (Dallon, Jul 23: 'until we have an exact
+# measurement on how long each job takes, we need to make sure we don't
+# overbook a day'): offers only fill a truck to FILL_H — a 1h safety
+# margin under the 8.5h day, because the paces above are his rules of
+# thumb, not measurements. The mirror of this margin is the MOVE LEDGER
+# in sched_scorecard: every job the office moves off a day (at
+# scheduling time, or day-of when a tech can't finish) is recorded as
+# an overbooking signal. The margin loosens only when the move rate
+# proves the paces right — never by hand-waving.
+SAFETY_H = 1.0
+FILL_H = TRUCK_DAY_H - SAFETY_H
 
 
 def _job_hours(rec):
@@ -215,8 +226,8 @@ def offer(rec, today=None):
         bt = a.get("by_truck") or {}
         if bt and jh:
             fits = [t for t, load in bt.items()
-                    if load.get("hours", 0) + jh <= TRUCK_DAY_H
-                    and load.get("win_h", 0) + jwin <= TRUCK_DAY_H]
+                    if load.get("hours", 0) + jh <= FILL_H
+                    and load.get("win_h", 0) + jwin <= FILL_H]
             if not fits:
                 continue          # every truck full — day is full
             pick_truck = min(fits,
@@ -225,12 +236,12 @@ def offer(rec, today=None):
             # older anchor without per-truck data: day-level checks
             trucks = max(1, len(a.get("techs") or []))
             if jh and a.get("hours") is not None \
-                    and a["hours"] + jh > trucks * TRUCK_DAY_H:
+                    and a["hours"] + jh > trucks * FILL_H:
                 continue
             # windows-mix: window hours are one-truck money — never
             # stack this job's window hours past a single truck's day
             if jwin and a.get("windows_hours") is not None \
-                    and a["windows_hours"] + jwin > TRUCK_DAY_H:
+                    and a["windows_hours"] + jwin > FILL_H:
                 continue
         # customer blackout words — skip a day inside any stated range
         if blk and any(w and w.split()[0][:3].lower() == dd.strftime(
@@ -255,7 +266,8 @@ def offer(rec, today=None):
             cand["fits"] = fits
             cand["why"] += (f" Truck: {pick_truck.split()[0]} "
                             f"({bt[pick_truck].get('hours', 0)}h + this "
-                            f"{jh}h fits {TRUCK_DAY_H}h).")
+                            f"{jh}h fits {FILL_H}h — 1h safety under "
+                            f"the {TRUCK_DAY_H}h day).")
         cands.append((dd, a, cand))
         if len(cands) >= 6:
             break

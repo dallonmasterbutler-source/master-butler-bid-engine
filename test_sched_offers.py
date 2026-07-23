@@ -111,10 +111,10 @@ knowledge({D1: dict(BASE_DAY, jobs=4, hours=12.0, windows_hours=0.0,
                                            "win_h": 0.0, "dollars": 840},
                               "Shane P": {"jobs": 2, "hours": 6.0,
                                           "win_h": 0.0, "dollars": 840}}),
-           D2: dict(BASE_DAY, jobs=1, hours=2.0, windows_hours=0.0,
+           D2: dict(BASE_DAY, jobs=1, hours=1.0, windows_hours=0.0,
                     techs=["Austin R"],
-                    by_truck={"Austin R": {"jobs": 1, "hours": 2.0,
-                                           "win_h": 0.0, "dollars": 280}})})
+                    by_truck={"Austin R": {"jobs": 1, "hours": 1.0,
+                                           "win_h": 0.0, "dollars": 140}})})
 o = so.offer(rec([{"name": "Gutter Cleaning", "price": 900}]), TODAY)
 check("day-sum has room but no single truck fits -> next day",
       o["kind"] == "date" and o["date"] == D2)
@@ -126,8 +126,8 @@ knowledge({D1: dict(BASE_DAY, jobs=3, hours=7.0, windows_hours=0.0,
                     techs=["Connor L", "Shane P"],
                     by_truck={"Connor L": {"jobs": 2, "hours": 5.0,
                                            "win_h": 0.0, "dollars": 700},
-                              "Shane P": {"jobs": 1, "hours": 2.0,
-                                          "win_h": 0.0, "dollars": 290}})})
+                              "Shane P": {"jobs": 1, "hours": 1.0,
+                                          "win_h": 0.0, "dollars": 140}})})
 o = so.offer(rec([{"name": "Gutter Cleaning", "price": 300}]), TODAY)
 check("lightest truck gets the job", o.get("truck") == "Shane P")
 

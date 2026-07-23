@@ -237,6 +237,15 @@ def run(dump=None, verbose=True):
         bad("I6", f"{len(stale_firm)} firm offers are 10+ days old with "
                   f"zero grades anywhere — the booking matcher is "
                   f"likely broken again")
+    # overbooking pulse (Dallon, Jul 23: 'make sure we don't overbook a
+    # day'): jobs moved OFF their day after it started mean the pace
+    # guesses are too optimistic — that's a Dallon decision, not a drift
+    _mv = [m for v in sc.values() for m in (v.get("moves") or [])]
+    _dayof = sum(1 for m in _mv if m.get("phase") == "day_of")
+    if _dayof >= 3:
+        bad("I6", f"{_dayof} jobs have been moved OFF their day after it "
+                  f"started — the crew-hour paces are overbooking; "
+                  f"Dallon should tighten SAFETY_H or the paces")
 
     # I2 — every inbox mid belongs to some record
     unknown = [m for m in mids if m not in by_mid]
