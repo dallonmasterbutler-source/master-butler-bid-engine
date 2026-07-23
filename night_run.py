@@ -176,6 +176,9 @@ try:
                              _r4.get("address"), _o4)
                 _cap += 1
     print(f"   shadow offers swept for {_cap} approved customer(s)")
+    # grade AGAINST TONIGHT'S bookings — match must run AFTER capture
+    # (Jul 23: it ran before, so fresh offers waited a full day)
+    _g4 = _sc4.fetch_and_match(verbose=True)
 except Exception as e:
     print(f"   (shadow offer sweep skipped: {e})")
 

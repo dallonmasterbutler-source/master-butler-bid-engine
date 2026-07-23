@@ -120,3 +120,54 @@ def report():
         "rows": sorted(rows, key=lambda r: r.get("first_seen") or "",
                        reverse=True)[:60],
     }
+
+
+def fetch_and_match(days_back=30, days_fwd=90, verbose=False):
+    """Light booking fetch + match — the grading heartbeat (Dallon,
+    Jul 23: 'are you saying in a week we haven't booked 1 job to grade
+    off of?' — the nightly ran match BEFORE capture, so fresh captures
+    waited a full day, and the ledger itself only started Jul 22).
+    Pulls just the −30d…+90d visit window (cheap) and grades whatever
+    the office has booked. Called nightly AFTER the offer sweep."""
+    import time
+    import jobber_client as jc
+    from sched_mine import VQ
+    from datetime import datetime, timedelta, timezone
+    start = (datetime.now(timezone.utc) - timedelta(days=days_back)
+             ).strftime('%Y-%m-%dT08:00:00Z')
+    end = (datetime.now(timezone.utc) + timedelta(days=days_fwd)
+           ).strftime('%Y-%m-%dT08:00:00Z')
+    was, jc.DRY_RUN = jc.DRY_RUN, False
+    visits, after, throttles = [], None, 0
+    try:
+        while True:
+            d = jc._post(VQ, {"start": start, "end": end,
+                              "after": after},
+                         "scorecard match (read-only)")
+            if d.get("error"):
+                if "Throttled" in str(d) and throttles < 30:
+                    throttles += 1
+                    time.sleep(30)
+                    continue
+                break
+            page = d.get("visits") or {}
+            for n in page.get("nodes") or []:
+                a = (n.get("property") or {}).get("address") or {}
+                addr = ", ".join(x for x in (a.get("street"),
+                                             a.get("city"),
+                                             a.get("postalCode")) if x)
+                if addr and n.get("startAt"):
+                    visits.append({"address": addr,
+                                   "start": n["startAt"]})
+            pi = page.get("pageInfo") or {}
+            if not pi.get("hasNextPage"):
+                break
+            after = pi.get("endCursor")
+    finally:
+        jc.DRY_RUN = was
+    log = match(visits)
+    graded = sum(1 for v in log.values() if v.get("actual_date"))
+    if verbose:
+        print(f"scorecard match: {len(visits)} bookings scanned, "
+              f"{graded} offer(s) graded so far")
+    return graded
