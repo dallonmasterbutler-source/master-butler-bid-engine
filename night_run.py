@@ -261,8 +261,12 @@ try:
         req = urllib.request.Request(
             url.rstrip("/") + "/api/backup",
             headers={"Authorization": "Basic "
-                     + b64encode(f"office:{pw}".encode()).decode()})
-        raw = urllib.request.urlopen(req, timeout=300).read()
+                     + b64encode(f"office:{pw}".encode()).decode(),
+                     "Accept-Encoding": "gzip"})
+        _resp = urllib.request.urlopen(req, timeout=300)
+        raw = _resp.read()
+        if (_resp.headers.get("Content-Encoding") or "") == "gzip":
+            raw = gzip.decompress(raw)   # travels ~3MB, stored re-gzipped
         # a dump this small is no restore point (an unreachable DB
         # returns '{}' — gzipping and mailing that as 'the full backup'
         # is a quiet lie; Jul 21 night sweep)

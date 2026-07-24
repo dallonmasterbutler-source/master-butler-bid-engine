@@ -67,8 +67,14 @@ def _fetch_dump():
         if h.lower() == "set-cookie" and "mb_auth=" in v:
             tok = v.split("mb_auth=")[1].split(";")[0]
     req = urllib.request.Request(url + "/api/backup",
-                                 headers={"Cookie": "mb_auth=" + tok})
-    return json.load(urllib.request.urlopen(req, timeout=120))
+                                 headers={"Cookie": "mb_auth=" + tok,
+                                          "Accept-Encoding": "gzip"})
+    r = urllib.request.urlopen(req, timeout=120)
+    raw = r.read()
+    if (r.headers.get("Content-Encoding") or "") == "gzip":
+        import gzip
+        raw = gzip.decompress(raw)      # 21MB dump travels as ~3MB
+    return json.loads(raw)
 
 
 def _stamp_utc(stamp):

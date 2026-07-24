@@ -11460,8 +11460,22 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(b"login required")
 
     def _send(self, content, code=200, ctype="text/html; charset=utf-8"):
+        # GZIP (Jul 24: Render's 5GB bandwidth cap hit — the mirror
+        # auto-refreshes all day and the nightly pulls a 21MB dump;
+        # text compresses 5-10x. Images are already compressed; tiny
+        # responses aren't worth the header. Only when the client asks.)
+        _enc = None
+        if (len(content) > 8192 and "image" not in ctype
+                and "gzip" in (self.headers.get("Accept-Encoding") or "")):
+            import gzip as _gz
+            content = _gz.compress(content, 6)
+            _enc = "gzip"
         self.send_response(code)
         self.send_header("Content-Type", ctype)
+        if _enc:
+            self.send_header("Content-Encoding", _enc)
+            self.send_header("Vary", "Accept-Encoding")
+        self.send_header("Content-Length", str(len(content)))
         tok = getattr(self, "_basic_upgrade", None)
         if tok:
             self.send_header("Set-Cookie", f"mb_auth={tok}; Path=/; "
